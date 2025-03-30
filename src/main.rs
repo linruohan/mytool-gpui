@@ -13,14 +13,12 @@ mod db;
 mod paths;
 // mod state;
 // mod window;
-mod colors;
 mod workspace;
 
 // mod loader;
 // mod query;
 use assets::Assets;
 use gpui::*;
-// use theme::Theme;
 // use window::{Window, WindowStyle};
 use workspace::Workspace;
 // #[async_std::main]
