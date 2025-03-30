@@ -1,0 +1,46 @@
+[package]
+edition = "2021"
+keywords = ["GPUI", "application", "desktop", "ui"]
+name = "gpui-component"
+publish = true
+version = "0.1.0"
+
+[lib]
+doctest = false
+
+[features]
+webview = ["dep:wry"]
+
+[dependencies]
+anyhow.workspace = true
+gpui.workspace = true
+image = "0.25.1"
+itertools = "0.13.0"
+once_cell.workspace = true
+paste.workspace = true
+regex.workspace = true
+resvg = { version = "0.45.0", default-features = false, features = ["text"] }
+rust-i18n.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+smallvec = "1.13.2"
+smol = "1"
+unicode-segmentation = "1.12.0"
+usvg = { version = "0.45.0", default-features = false, features = ["text"] }
+uuid = "1.10"
+wry = { version = "0.48.0", optional = true }
+# Markdown Parser
+markdown = "1.0.0-alpha.22"
+# HTML Parser
+html5ever = "0.27"
+markup5ever_rcdom = "0.3.0"
+minify-html = "0.15.0"
+# Calendar
+chrono = "0.4.38"
+syntect = { version = "5.2", features = ["plist-load"] }
+
+[dev-dependencies]
+indoc = "2"
+
+[lints]
+workspace = true

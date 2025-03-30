@@ -1,17 +1,20 @@
-[package]
-edition = "2021"
-name = "mytool-gpui"
+[workspace.package]
 publish = false
-version = "0.1.0"
+edition = "2021"
+[workspace]
+members = ["crates/mytool", "crates/gpui_component"]
 
-[dependencies]
+default-members = ["crates/mytool"]
+resolver = "2"
+
+[workspace.dependencies]
 gpui = { path = "../zed/crates/gpui", default-features = false, features = [
     "http_client",
 ] }
 gpui_macros = { path = "../zed/crates/gpui_macros" }
 gpui_tokio = { path = "../zed/crates/gpui_tokio" }
-
-
+gpui-component = { path = "crates/gpui_component" }
+mytool = { path = "crates/mytool" }
 #
 # External crates
 #
@@ -46,10 +49,8 @@ clap = { version = "4.5.7", features = ["cargo", "derive", "string"] }
 notify = "8.0.0"
 notify-debouncer-full = "0.5.0"
 
-[lib]
-doctest = false
 
-[lints.clippy]
+[workspace.lints.clippy]
 almost_complete_range = "allow"
 arc_with_non_send_sync = "allow"
 borrowed_box = "allow"

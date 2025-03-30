@@ -1,0 +1,23 @@
+[package]
+edition = "2021"
+name = "mytool"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+anyhow.workspace = true
+charts-rs = "0.3"
+chrono = "0.4"
+fake = { version = "2.10.0", features = ["dummy"] }
+gpui.workspace = true
+gpui-component = { workspace = true }
+rand = "0.8"
+raw-window-handle = { version = "0.6", features = ["std"] }
+regex = "1"
+rust-embed = "8.5.0"
+serde = "1"
+serde_json = "1"
+unindent = "0.2.3"
+
+[lints]
+workspace = true
