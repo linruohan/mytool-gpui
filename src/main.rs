@@ -12,9 +12,10 @@ mod db;
 // mod ipc;
 mod paths;
 // mod state;
-// mod theme;
 // mod window;
+mod colors;
 mod workspace;
+
 // mod loader;
 // mod query;
 use assets::Assets;
