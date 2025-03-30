@@ -1,0 +1,69 @@
+[package]
+edition = "2021"
+name = "mytool-gpui"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+gpui = { path = "../zed/crates/gpui", default-features = false, features = [
+    "http_client",
+] }
+gpui_macros = { path = "../zed/crates/gpui_macros" }
+gpui_tokio = { path = "../zed/crates/gpui_tokio" }
+
+
+#
+# External crates
+#
+anyhow = "1.0.86"
+rand = "0.9.0"
+regex = "1"
+rust-embed = "8.5.0"
+serde = "1"
+serde_json = "1"
+unindent = "0.2.3"
+raw-window-handle = { version = "0.6", features = ["std"] }
+tokio = { version = "1.44.1", features = ["full"] }
+async-std = "1.13.0"
+env_logger = "0.11.5"
+log = "0.4.26"
+toml = "0.8.19"
+# 嵌入式数据库，专注于高性能、低延迟的本地数据存储，支持多种数据模型（如键值、文档、图等）。它的设计目标是简化复杂查询和高并发场景下的数据处理。
+#核心特性：支持 ACID 事务。内存映射文件（Memory-Mapped Files）优化性能。提供灵活的查询 API 和索引机制。支持 Rust、C/C++ 等语言绑定。
+bonsaidb = { version = "0.5.0", features = ["local-full"] }
+whoami = { version = "1.4.1", default-features = false }
+# rust柔和主题
+catppuccin = "2.5.1"
+jiff = { version = "0.2.5", features = ["serde"] }
+global-hotkey = "0.6.4"
+parking_lot = "0.12.3"
+crossbeam-channel = "0.5.14"
+clap = { version = "4.5.7", features = ["cargo", "derive", "string"] }
+notify = "8.0.0"
+notify-debouncer-full = "0.5.0"
+
+[lints.clippy]
+almost_complete_range = "allow"
+arc_with_non_send_sync = "allow"
+borrowed_box = "allow"
+dbg_macro = "deny"
+let_underscore_future = "allow"
+map_entry = "allow"
+module_inception = "allow"
+non_canonical_partial_ord_impl = "allow"
+reversed_empty_ranges = "allow"
+single_range_in_vec_init = "allow"
+style = { level = "allow", priority = -1 }
+todo = "deny"
+type_complexity = "allow"
+
+[profile.dev]
+codegen-units = 16
+debug = "limited"
+split-debuginfo = "unpacked"
+
+[profile.dev.package]
+resvg = { opt-level = 3 }
+rustybuzz = { opt-level = 3 }
+taffy = { opt-level = 3 }
+ttf-parser = { opt-level = 3 }
