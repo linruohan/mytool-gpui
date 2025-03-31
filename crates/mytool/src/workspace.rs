@@ -162,80 +162,24 @@ impl Workspace {
     }
 }
 impl Render for Workspace {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let drawer_layer = Root::render_drawer_layer(window, cx);
+        let modal_layer = Root::render_modal_layer(window, cx);
+        let notification_layer = Root::render_notification_layer(window, cx);
+
         div()
+            .id("story-workspace")
+            // .on_action(cx.listener(Self::on_action_add_panel))
+            // .on_action(cx.listener(Self::on_action_toggle_panel_visible))
+            // .on_action(cx.listener(Self::on_action_toggle_dock_toggle_button))
+            .relative()
+            .size_full()
             .flex()
             .flex_col()
-            .gap_3()
-            .bg(rgb(0x505050))
-            .size(px(500.0))
-            .justify_center()
-            .items_center()
-            .shadow_lg()
-            .border_1()
-            .border_color(rgb(0x0000ff))
-            .text_xl()
-            .text_color(rgb(0xffffff))
-            .child(format!("Hello, {}!", &self.text))
-            .child(
-                div()
-                    .flex()
-                    .gap_2()
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::red())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::green())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::blue())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::yellow())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::black())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::white())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::black()),
-                    ),
-            )
+            .child(self.title_bar.clone())
+            // .child(self.dock_area.clone())
+            .children(drawer_layer)
+            .children(modal_layer)
+            .child(div().absolute().top_8().children(notification_layer))
     }
 }
