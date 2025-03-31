@@ -18,6 +18,10 @@ rust-embed = "8.5.0"
 serde = "1"
 serde_json = "1"
 unindent = "0.2.3"
+bonsaidb.workspace = true
+jiff.workspace = true
+env_logger.workspace = true
+whoami.workspace = true
 
 [lints]
 workspace = true

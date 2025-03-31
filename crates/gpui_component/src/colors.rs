@@ -3,9 +3,8 @@ use std::{collections::HashMap, fmt::Display};
 use gpui::{Hsla, SharedString};
 use serde::{de::Error, Deserialize, Deserializer};
 
-use anyhow::Result;
-
 use crate::hsl;
+use anyhow::Result;
 
 pub trait Colorize: Sized {
     /// Returns a new color with the given opacity.
@@ -472,8 +471,6 @@ color_methods!(rose);
 #[cfg(test)]
 mod tests {
     use gpui::{rgb, rgba};
-
-    use crate::hsl;
 
     use super::*;
 

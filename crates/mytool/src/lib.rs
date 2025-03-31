@@ -1,4 +1,37 @@
+// mod accordion_story;
+mod assets;
+// mod button_story;
+// mod calendar_story;
+// mod dropdown_story;
+// mod form_story;
+// mod icon_story;
+// mod image_story;
+// mod input_story;
+// mod list_story;
+// mod modal_story;
+// mod popup_story;
+// mod progress_story;
+// mod resizable_story;
+// mod scrollable_story;
+// mod sidebar_story;
+// mod switch_story;
+// mod table_story;
+// mod tabs_story;
+// mod text_story;
+mod title_bar;
+// mod toggle_story;
+// mod tooltip_story;
+// mod webview_story;
 
+pub use assets::Assets;
+
+// pub use accordion_story::AccordionStory;
+// pub use button_story::ButtonStory;
+// pub use calendar_story::CalendarStory;
+// pub use dropdown_story::DropdownStory;
+// pub use form_story::FormStory;
+// pub use tabs_story::TabsStory;
+// pub use toggle_story::ToggleStory;
 
 use gpui::{
     actions, div, impl_internal_actions, prelude::FluentBuilder as _, px, size, AnyElement,
@@ -6,7 +39,23 @@ use gpui::{
     InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString,
     StatefulInteractiveElement, Styled as _, Window, WindowBounds, WindowKind, WindowOptions,
 };
-
+// pub use icon_story::IconStory;
+// pub use image_story::ImageStory;
+// pub use input_story::InputStory;
+// pub use list_story::ListStory;
+// pub use modal_story::ModalStory;
+// pub use popup_story::PopupStory;
+// pub use progress_story::ProgressStory;
+// pub use resizable_story::ResizableStory;
+// pub use scrollable_story::ScrollableStory;
+use serde::{Deserialize, Serialize};
+// pub use sidebar_story::SidebarStory;
+// pub use switch_story::SwitchStory;
+// pub use table_story::TableStory;
+// pub use text_story::TextStory;
+pub use title_bar::AppTitleBar;
+// pub use tooltip_story::TooltipStory;
+// pub use webview_story::WebViewStory;
 
 use gpui_component::{
     button::Button,
@@ -31,6 +80,13 @@ pub struct SelectFont(usize);
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectRadius(usize);
+
+impl_internal_actions!(
+    mytool,
+    [SelectLocale, SelectFont, SelectRadius, SelectScrollbarShow]
+);
+
+actions!(mytool, [Quit, Open, CloseWindow, ToggleSearch]);
 
 const PANEL_NAME: &str = "StoryContainer";
 
@@ -150,14 +206,14 @@ impl Global for AppState {}
 pub fn init(cx: &mut App) {
     gpui_component::init(cx);
     AppState::init(cx);
-    input_story::init(cx);
-    dropdown_story::init(cx);
-    popup_story::init(cx);
+    // input_story::init(cx);
+    // dropdown_story::init(cx);
+    // popup_story::init(cx);
 
-    let http_client = std::sync::Arc::new(
-        reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),
-    );
-    cx.set_http_client(http_client);
+    // let http_client = std::sync::Arc::new(
+    //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),
+    // );
+    // cx.set_http_client(http_client);
 
     cx.bind_keys([KeyBinding::new("/", ToggleSearch, None)]);
 
@@ -369,35 +425,35 @@ impl StoryState {
             ($klass:tt) => {
                 (
                     $klass::title(),
-                    $klass::description(),
-                    $klass::closable(),
-                    $klass::zoomable(),
-                    $klass::view(window, cx).into(),
+                    // $klass::description(),
+                    // $klass::closable(),
+                    // $klass::zoomable(),
+                    // $klass::view(window, cx).into(),
                 )
             };
         }
 
         match self.story_klass.to_string().as_str() {
-            "ButtonStory" => story!(ButtonStory),
-            "CalendarStory" => story!(CalendarStory),
-            "DropdownStory" => story!(DropdownStory),
-            "IconStory" => story!(IconStory),
-            "ImageStory" => story!(ImageStory),
-            "InputStory" => story!(InputStory),
-            "ListStory" => story!(ListStory),
-            "ModalStory" => story!(ModalStory),
-            "PopupStory" => story!(PopupStory),
-            "ProgressStory" => story!(ProgressStory),
-            "ResizableStory" => story!(ResizableStory),
-            "ScrollableStory" => story!(ScrollableStory),
-            "SwitchStory" => story!(SwitchStory),
-            "TableStory" => story!(TableStory),
-            "TextStory" => story!(TextStory),
-            "TooltipStory" => story!(TooltipStory),
-            "WebViewStory" => story!(WebViewStory),
-            "AccordionStory" => story!(AccordionStory),
-            "SidebarStory" => story!(SidebarStory),
-            "FormStory" => story!(FormStory),
+            // "ButtonStory" => story!(ButtonStory),
+            // "CalendarStory" => story!(CalendarStory),
+            // "DropdownStory" => story!(DropdownStory),
+            // "IconStory" => story!(IconStory),
+            // "ImageStory" => story!(ImageStory),
+            // "InputStory" => story!(InputStory),
+            // "ListStory" => story!(ListStory),
+            // "ModalStory" => story!(ModalStory),
+            // "PopupStory" => story!(PopupStory),
+            // "ProgressStory" => story!(ProgressStory),
+            // "ResizableStory" => story!(ResizableStory),
+            // "ScrollableStory" => story!(ScrollableStory),
+            // "SwitchStory" => story!(SwitchStory),
+            // "TableStory" => story!(TableStory),
+            // "TextStory" => story!(TextStory),
+            // "TooltipStory" => story!(TooltipStory),
+            // "WebViewStory" => story!(WebViewStory),
+            // "AccordionStory" => story!(AccordionStory),
+            // "SidebarStory" => story!(SidebarStory),
+            // "FormStory" => story!(FormStory),
             _ => {
                 unreachable!("Invalid story klass: {}", self.story_klass)
             }

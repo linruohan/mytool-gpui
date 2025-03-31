@@ -1,7 +1,8 @@
+use std::ops::{Deref, DerefMut};
+
 use gpui::{
     hsla, point, px, App, BoxShadow, Global, Hsla, Pixels, SharedString, Window, WindowAppearance,
 };
-use std::ops::{Deref, DerefMut};
 
 use crate::{scroll::ScrollbarShow, Colorize as _};
 

@@ -1,51 +1,63 @@
 #![allow(dead_code)]
+use gpui::*;
 
-use gpui::Application;
-
-mod assets;
 mod date;
 mod db;
 mod paths;
-mod title_bar;
 mod workspace;
+use workspace::open_new;
 
-use assets::Assets;
-use gpui::*;
-use title_bar::AppTitleBar;
-use workspace::Workspace;
-// #[async_std::main]
+use mytool::{Assets, Open, Quit};
+
+#[cfg(debug_assertions)]
+const STATE_FILE: &str = "target/layout.json";
+#[cfg(not(debug_assertions))]
+const STATE_FILE: &str = "layout.json";
+
+pub fn init(cx: &mut App) {
+    cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
+
+    cx.on_action(|_action: &Open, _cx: &mut App| {});
+
+    gpui_component::init(cx);
+    mytool::init(cx);
+}
+
 fn main() {
+    use gpui_component::input::{Copy, Cut, Paste, Redo, Undo};
     env_logger::init();
-
-    // if let Ok(listener) = setup_socket().await {
-    let app = Application::new();
-    app.with_assets(Assets).run(move |cx: &mut App| {
-        let bounds1 = Bounds::centered(None, size(px(500.), px(500.0)), cx);
-        let bounds = Bounds {
-            origin: Point::new(Pixels::from(0.0), Pixels::from(0.0)),
-            size: Size {
-                width: Pixels::from(1920.0),
-                height: Pixels::from(1080.0),
+    let app = Application::new().with_assets(Assets);
+    app.run(move |cx: &mut App| {
+        init(cx);
+        cx.on_action(quit);
+        cx.set_menus(vec![
+            Menu {
+                name: "GPUI App".into(),
+                items: vec![MenuItem::action("Quit", Quit)],
             },
-        };
-        let options = WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(bounds1)),
-            ..Default::default()
-        };
-
-        cx.open_window(options, |window: &mut Window, cx| {
-            // let theme = cx.global::<Theme>();
-            // window.set_background_appearance(WindowBackgroundAppearance::from(
-            //     theme.window_background.clone().unwrap_or_default(),
-            // ));
-            cx.new(|_| Workspace {
-                text: "My World".into(),
-            })
-        })
-        .unwrap();
+            Menu {
+                name: "Edit".into(),
+                items: vec![
+                    MenuItem::os_action("Undo", Undo, gpui::OsAction::Undo),
+                    MenuItem::os_action("Redo", Redo, gpui::OsAction::Redo),
+                    MenuItem::separator(),
+                    MenuItem::os_action("Cut", Cut, gpui::OsAction::Cut),
+                    MenuItem::os_action("Copy", Copy, gpui::OsAction::Copy),
+                    MenuItem::os_action("Paste", Paste, gpui::OsAction::Paste),
+                ],
+            },
+            Menu {
+                name: "Window".into(),
+                items: vec![],
+            },
+        ]);
         cx.activate(true);
+        open_new(cx, |_, _, _| {
+            // do something
+        })
+        .detach();
     });
-    // } else if let Err(e) = client_connect().await {
-    //     log::error!("CLI Error: {:?}", e);
-    // }
+}
+fn quit(_: &Quit, cx: &mut App) {
+    cx.quit();
 }
