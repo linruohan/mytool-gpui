@@ -1,33 +1,33 @@
-// mod accordion_story;
+mod accordion_story;
 mod assets;
 // mod button_story;
-// mod calendar_story;
+mod calendar_story;
 // mod dropdown_story;
 // mod form_story;
 // mod icon_story;
 // mod image_story;
 // mod input_story;
-// mod list_story;
+mod list_story;
 // mod modal_story;
 // mod popup_story;
 // mod progress_story;
 // mod resizable_story;
-// mod scrollable_story;
-// mod sidebar_story;
+mod scrollable_story;
+mod sidebar_story;
 // mod switch_story;
 // mod table_story;
 // mod tabs_story;
 // mod text_story;
 mod title_bar;
 // mod toggle_story;
-// mod tooltip_story;
+mod tooltip_story;
 // mod webview_story;
 
 pub use assets::Assets;
 
-// pub use accordion_story::AccordionStory;
+pub use accordion_story::AccordionStory;
 // pub use button_story::ButtonStory;
-// pub use calendar_story::CalendarStory;
+pub use calendar_story::CalendarStory;
 // pub use dropdown_story::DropdownStory;
 // pub use form_story::FormStory;
 // pub use tabs_story::TabsStory;
@@ -42,19 +42,19 @@ use gpui::{
 // pub use icon_story::IconStory;
 // pub use image_story::ImageStory;
 // pub use input_story::InputStory;
-// pub use list_story::ListStory;
+pub use list_story::ListStory;
 // pub use modal_story::ModalStory;
 // pub use popup_story::PopupStory;
 // pub use progress_story::ProgressStory;
 // pub use resizable_story::ResizableStory;
-// pub use scrollable_story::ScrollableStory;
+pub use scrollable_story::ScrollableStory;
 use serde::{Deserialize, Serialize};
-// pub use sidebar_story::SidebarStory;
+pub use sidebar_story::SidebarStory;
 // pub use switch_story::SwitchStory;
 // pub use table_story::TableStory;
 // pub use text_story::TextStory;
 pub use title_bar::AppTitleBar;
-// pub use tooltip_story::TooltipStory;
+pub use tooltip_story::TooltipStory;
 // pub use webview_story::WebViewStory;
 
 use gpui_component::{
@@ -209,6 +209,7 @@ pub fn init(cx: &mut App) {
     // input_story::init(cx);
     // dropdown_story::init(cx);
     // popup_story::init(cx);
+    // webview_story::init(cx);
 
     // let http_client = std::sync::Arc::new(
     //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),
@@ -226,9 +227,11 @@ pub fn init(cx: &mut App) {
         };
 
         let view = cx.new(|cx| {
-            let (title, description, closable, zoomable, story) = story_state.to_story(window, cx);
-            let mut container =
-                StoryContainer::new(window, cx).story(story, story_state.story_klass);
+            let (title, description, closable, zoomable, mytool, on_active) =
+                story_state.to_story(window, cx);
+            let mut container = StoryContainer::new(window, cx)
+                .mytool(mytool, story_state.story_klass)
+                .on_active(on_active);
 
             cx.on_focus_in(
                 &container.focus_handle,
@@ -249,7 +252,7 @@ pub fn init(cx: &mut App) {
     });
 }
 
-actions!(story, [ShowPanelInfo]);
+actions!(mytool, [ShowPanelInfo]);
 
 pub fn section(title: impl IntoElement, cx: &App) -> Div {
     use gpui_component::ActiveTheme;
@@ -275,10 +278,11 @@ pub struct StoryContainer {
     description: SharedString,
     width: Option<gpui::Pixels>,
     height: Option<gpui::Pixels>,
-    story: Option<AnyView>,
+    mytool: Option<AnyView>,
     story_klass: Option<SharedString>,
     closable: bool,
     zoomable: Option<PanelControl>,
+    on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
 }
 
 #[derive(Debug)]
@@ -286,7 +290,7 @@ pub enum ContainerEvent {
     Close,
 }
 
-pub trait Story: Focusable + Render {
+pub trait Mytool: Focusable + Render {
     fn klass() -> &'static str {
         std::any::type_name::<Self>().split("::").last().unwrap()
     }
@@ -305,6 +309,22 @@ pub trait Story: Focusable + Render {
         None
     }
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable>;
+
+    fn on_active(&mut self, active: bool, window: &mut Window, cx: &mut App) {
+        let _ = active;
+        let _ = window;
+        let _ = cx;
+    }
+    fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
+    where
+        Self: 'static,
+    {
+        if let Some(mytool) = view.downcast::<Self>().ok() {
+            cx.update_entity(&mytool, |mytool, cx| {
+                mytool.on_active(active, window, cx);
+            });
+        }
+    }
 }
 
 impl EventEmitter<ContainerEvent> for StoryContainer {}
@@ -320,29 +340,32 @@ impl StoryContainer {
             description: "".into(),
             width: None,
             height: None,
-            story: None,
+            mytool: None,
             story_klass: None,
             closable: true,
             zoomable: Some(PanelControl::default()),
+            on_active: None,
         }
     }
 
-    pub fn panel<S: Story>(window: &mut Window, cx: &mut App) -> Entity<Self> {
+    pub fn panel<S: Mytool>(window: &mut Window, cx: &mut App) -> Entity<Self> {
         let name = S::title();
         let description = S::description();
-        let story = S::new_view(window, cx);
+        let mytool = S::new_view(window, cx);
         let story_klass = S::klass();
-        let focus_handle = story.focus_handle(cx);
+        let focus_handle = mytool.focus_handle(cx);
 
         let view = cx.new(|cx| {
-            let mut story = Self::new(window, cx).story(story.into(), story_klass);
-            story.focus_handle = focus_handle;
-            story.closable = S::closable();
-            story.zoomable = S::zoomable();
-            story.name = name.into();
-            story.description = description.into();
-            story.title_bg = S::title_bg();
-            story
+            let mut mytool = Self::new(window, cx)
+                .mytool(mytool.into(), story_klass)
+                .on_active(S::on_active_any);
+            mytool.focus_handle = focus_handle;
+            mytool.closable = S::closable();
+            mytool.zoomable = S::zoomable();
+            mytool.name = name.into();
+            mytool.description = description.into();
+            mytool.title_bg = S::title_bg();
+            mytool
         });
 
         view
@@ -358,9 +381,13 @@ impl StoryContainer {
         self
     }
 
-    pub fn story(mut self, story: AnyView, story_klass: impl Into<SharedString>) -> Self {
-        self.story = Some(story);
+    pub fn mytool(mut self, mytool: AnyView, story_klass: impl Into<SharedString>) -> Self {
+        self.mytool = Some(mytool);
         self.story_klass = Some(story_klass.into());
+        self
+    }
+    pub fn on_active(mut self, on_active: fn(AnyView, bool, &mut Window, &mut App)) -> Self {
+        self.on_active = Some(on_active);
         self
     }
 
@@ -420,42 +447,44 @@ impl StoryState {
         bool,
         Option<PanelControl>,
         AnyView,
+        fn(AnyView, bool, &mut Window, &mut App),
     ) {
-        macro_rules! story {
+        macro_rules! mytool {
             ($klass:tt) => {
                 (
                     $klass::title(),
-                    // $klass::description(),
-                    // $klass::closable(),
-                    // $klass::zoomable(),
-                    // $klass::view(window, cx).into(),
+                    $klass::description(),
+                    $klass::closable(),
+                    $klass::zoomable(),
+                    $klass::view(window, cx).into(),
+                    $klass::on_active_any,
                 )
             };
         }
 
         match self.story_klass.to_string().as_str() {
-            // "ButtonStory" => story!(ButtonStory),
-            // "CalendarStory" => story!(CalendarStory),
-            // "DropdownStory" => story!(DropdownStory),
-            // "IconStory" => story!(IconStory),
-            // "ImageStory" => story!(ImageStory),
-            // "InputStory" => story!(InputStory),
-            // "ListStory" => story!(ListStory),
-            // "ModalStory" => story!(ModalStory),
-            // "PopupStory" => story!(PopupStory),
-            // "ProgressStory" => story!(ProgressStory),
-            // "ResizableStory" => story!(ResizableStory),
-            // "ScrollableStory" => story!(ScrollableStory),
-            // "SwitchStory" => story!(SwitchStory),
-            // "TableStory" => story!(TableStory),
-            // "TextStory" => story!(TextStory),
-            // "TooltipStory" => story!(TooltipStory),
-            // "WebViewStory" => story!(WebViewStory),
-            // "AccordionStory" => story!(AccordionStory),
-            // "SidebarStory" => story!(SidebarStory),
-            // "FormStory" => story!(FormStory),
+            // "ButtonStory" => mytool!(ButtonStory),
+            "CalendarStory" => mytool!(CalendarStory),
+            // "DropdownStory" => mytool!(DropdownStory),
+            // "IconStory" => mytool!(IconStory),
+            // "ImageStory" => mytool!(ImageStory),
+            // "InputStory" => mytool!(InputStory),
+            // "ListStory" => mytool!(ListStory),
+            // "ModalStory" => mytool!(ModalStory),
+            // "PopupStory" => mytool!(PopupStory),
+            // "ProgressStory" => mytool!(ProgressStory),
+            // "ResizableStory" => mytool!(ResizableStory),
+            // "ScrollableStory" => mytool!(ScrollableStory),
+            // "SwitchStory" => mytool!(SwitchStory),
+            // "TableStory" => mytool!(TableStory),
+            // "TextStory" => mytool!(TextStory),
+            // "TooltipStory" => mytool!(TooltipStory),
+            // "WebViewStory" => mytool!(WebViewStory),
+            // "AccordionStory" => mytool!(AccordionStory),
+            "SidebarStory" => mytool!(SidebarStory),
+            // "FormStory" => mytool!(FormStory),
             _ => {
-                unreachable!("Invalid story klass: {}", self.story_klass)
+                unreachable!("Invalid mytool klass: {}", self.story_klass)
             }
         }
     }
@@ -500,8 +529,13 @@ impl Panel for StoryContainer {
         println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
-    fn set_active(&mut self, active: bool, _window: &mut Window, _cx: &mut App) {
+    fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
         println!("panel: {} active: {}", self.name, active);
+        if let Some(on_active) = self.on_active {
+            if let Some(mytool) = self.mytool.clone() {
+                on_active(mytool, active, _window, cx);
+            }
+        }
     }
 
     fn popup_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {
@@ -542,7 +576,7 @@ impl Focusable for StoryContainer {
 impl Render for StoryContainer {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
-            .id("story-container")
+            .id("mytool-container")
             .size_full()
             .overflow_y_scroll()
             .track_focus(&self.focus_handle)
@@ -559,14 +593,14 @@ impl Render for StoryContainer {
                         .child(Divider::horizontal().label("This is a divider")),
                 )
             })
-            .when_some(self.story.clone(), |this, story| {
+            .when_some(self.mytool.clone(), |this, mytool| {
                 this.child(
                     v_flex()
-                        .id("story-children")
+                        .id("mytool-children")
                         .w_full()
                         .flex_1()
                         .p_4()
-                        .child(story),
+                        .child(mytool),
                 )
             })
     }
