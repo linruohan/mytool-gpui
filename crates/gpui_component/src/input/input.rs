@@ -3,6 +3,7 @@
 //! Based on the `Input` example from the `gpui` crate.
 //! https://github.com/zed-industries/zed/blob/main/crates/gpui/examples/input.rs
 
+use serde::Deserialize;
 use smallvec::SmallVec;
 use std::cell::Cell;
 use std::ops::Range;
@@ -11,12 +12,12 @@ use unicode_segmentation::*;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    actions, div, point, px, relative, AnyElement, App, AppContext, Bounds, ClickEvent,
-    ClipboardItem, Context, DefiniteLength, Entity, EntityInputHandler, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement as _, IntoElement, KeyBinding, KeyDownEvent, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point, Rems, Render,
-    ScrollHandle, ScrollWheelEvent, SharedString, Styled as _, Subscription, UTF16Selection,
-    Window, WrappedLine,
+    actions, div, impl_internal_actions, point, px, relative, AnyElement, App, AppContext, Bounds,
+    ClickEvent, ClipboardItem, Context, DefiniteLength, Entity, EntityInputHandler, EventEmitter,
+    FocusHandle, Focusable, InteractiveElement as _, IntoElement, KeyBinding, KeyDownEvent,
+    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point,
+    Rems, Render, ScrollHandle, ScrollWheelEvent, SharedString, Styled as _, Subscription,
+    UTF16Selection, Window, WrappedLine,
 };
 
 // TODO:
@@ -27,14 +28,23 @@ use super::change::Change;
 use super::element::TextElement;
 use super::number_input;
 
+use crate::button::{Button, ButtonVariants as _};
 use crate::history::History;
 use crate::indicator::Indicator;
 use crate::input::clear_button;
 use crate::scroll::{Scrollbar, ScrollbarAxis, ScrollbarState};
-use crate::Size;
 use crate::StyledExt;
 use crate::{ActiveTheme, Root};
+use crate::{IconName, Size};
 use crate::{Sizable, StyleSized};
+
+#[derive(Clone, PartialEq, Eq, Deserialize)]
+pub struct Enter {
+    /// Is confirm with secondary.
+    pub secondary: bool,
+}
+
+impl_internal_actions!(input, [Enter]);
 
 actions!(
     input,
@@ -45,7 +55,6 @@ actions!(
         DeleteToEndOfLine,
         DeleteToPreviousWordStart,
         DeleteToNextWordEnd,
-        Enter,
         Up,
         Down,
         Left,
@@ -82,7 +91,7 @@ actions!(
 #[derive(Clone)]
 pub enum InputEvent {
     Change(SharedString),
-    PressEnter,
+    PressEnter { secondary: bool },
     Focus,
     Blur,
 }
@@ -105,7 +114,8 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("alt-delete", DeleteToNextWordEnd, Some(CONTEXT)),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-delete", DeleteToNextWordEnd, Some(CONTEXT)),
-        KeyBinding::new("enter", Enter, Some(CONTEXT)),
+        KeyBinding::new("enter", Enter { secondary: false }, Some(CONTEXT)),
+        KeyBinding::new("secondary-enter", Enter { secondary: true }, Some(CONTEXT)),
         KeyBinding::new("up", Up, Some(CONTEXT)),
         KeyBinding::new("down", Down, Some(CONTEXT)),
         KeyBinding::new("left", Left, Some(CONTEXT)),
@@ -220,10 +230,13 @@ pub struct TextInput {
     pub(super) selecting: bool,
     pub(super) disabled: bool,
     pub(super) masked: bool,
+    pub(super) mask_toggle: bool,
     pub(super) appearance: bool,
     pub(super) cleanable: bool,
     pub(super) size: Size,
     pub(super) rows: usize,
+    pub(super) min_rows: usize,
+    pub(super) max_rows: Option<usize>,
     /// For special case, e.g.: NumberInput + - button
     pub(super) no_gap: bool,
     pub(super) height: Option<gpui::DefiniteLength>,
@@ -279,6 +292,7 @@ impl TextInput {
             selecting: false,
             disabled: false,
             masked: false,
+            mask_toggle: false,
             appearance: true,
             cleanable: false,
             loading: false,
@@ -290,6 +304,8 @@ impl TextInput {
             pattern: None,
             validate: None,
             rows: 2,
+            min_rows: 2,
+            max_rows: None,
             last_layout: None,
             last_bounds: None,
             last_selected_range: None,
@@ -453,6 +469,19 @@ impl TextInput {
     /// default: 2
     pub fn rows(mut self, rows: usize) -> Self {
         self.rows = rows;
+        self.min_rows = rows;
+        self
+    }
+
+    /// Set the maximum number of rows for the multi-line Textarea.
+    ///
+    /// If max_rows is more than rows, then will enable auto-grow.
+    ///
+    /// This is only used when `multi_line` is set to true.
+    ///
+    /// default: None
+    pub fn max_rows(mut self, max_rows: usize) -> Self {
+        self.max_rows = Some(max_rows);
         self
     }
 
@@ -520,10 +549,22 @@ impl TextInput {
         cx.notify();
     }
 
+    /// Set with masked state.
+    pub fn masked(mut self, masked: bool) -> Self {
+        self.masked = masked;
+        self
+    }
+
     /// Set the masked state of the input field.
     pub fn set_masked(&mut self, masked: bool, _: &mut Window, cx: &mut Context<Self>) {
         self.masked = masked;
         cx.notify();
+    }
+
+    /// Set to enable toggle button for mask state.
+    pub fn mask_toggle(mut self) -> Self {
+        self.mask_toggle = true;
+        self
     }
 
     /// Set the prefix element of the input field.
@@ -907,13 +948,17 @@ impl TextInput {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let offset = self.start_of_line(window, cx);
+        let mut offset = self.start_of_line(window, cx);
+        if offset == self.cursor_offset() {
+            offset = offset.saturating_sub(1);
+        }
         self.replace_text_in_range(
             Some(self.range_to_utf16(&(offset..self.cursor_offset()))),
             "",
             window,
             cx,
         );
+
         self.pause_blink_cursor(cx);
     }
 
@@ -923,7 +968,10 @@ impl TextInput {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let offset = self.end_of_line(window, cx);
+        let mut offset = self.end_of_line(window, cx);
+        if offset == self.cursor_offset() {
+            offset = (offset + 1).clamp(0, self.text.len());
+        }
         self.replace_text_in_range(
             Some(self.range_to_utf16(&(self.cursor_offset()..offset))),
             "",
@@ -965,7 +1013,7 @@ impl TextInput {
         self.pause_blink_cursor(cx);
     }
 
-    fn enter(&mut self, _: &Enter, window: &mut Window, cx: &mut Context<Self>) {
+    fn enter(&mut self, action: &Enter, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_multi_line() {
             let is_eof = self.selected_range.end == self.text.len();
             self.replace_text_in_range(None, "\n", window, cx);
@@ -978,7 +1026,26 @@ impl TextInput {
             self.move_to(new_offset, window, cx);
         }
 
-        cx.emit(InputEvent::PressEnter);
+        cx.emit(InputEvent::PressEnter {
+            secondary: action.secondary,
+        });
+    }
+
+    fn check_to_auto_grow(&mut self, _: &mut Window, cx: &mut Context<Self>) {
+        if !self.is_multi_line() {
+            return;
+        }
+        let Some(max_rows) = self.max_rows else {
+            return;
+        };
+
+        let changed_rows = ((self.scroll_size.height - self.input_bounds.size.height)
+            / self.last_line_height) as isize;
+
+        self.rows = (self.rows as isize + changed_rows)
+            .clamp(self.min_rows as isize, max_rows as isize)
+            .max(0) as usize;
+        cx.notify();
     }
 
     fn clean(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
@@ -1015,19 +1082,24 @@ impl TextInput {
         &mut self,
         event: &ScrollWheelEvent,
         _window: &mut Window,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
         let delta = event.delta.pixel_delta(self.last_line_height);
+        self.update_scroll_offset(Some(self.scroll_handle.offset() + delta), cx);
+    }
+
+    fn update_scroll_offset(&mut self, offset: Option<Point<Pixels>>, cx: &mut Context<Self>) {
+        let mut offset = offset.unwrap_or(self.scroll_handle.offset());
+
         let safe_y_range =
             (-self.scroll_size.height + self.input_bounds.size.height).min(px(0.0))..px(0.);
         let safe_x_range =
             (-self.scroll_size.width + self.input_bounds.size.width).min(px(0.0))..px(0.);
 
-        let mut offset = self.scroll_handle.offset() + delta;
         offset.y = offset.y.clamp(safe_y_range.start, safe_y_range.end);
         offset.x = offset.x.clamp(safe_x_range.start, safe_x_range.end);
-
         self.scroll_handle.set_offset(offset);
+        cx.notify();
     }
 
     fn show_character_palette(
@@ -1122,6 +1194,7 @@ impl TextInput {
     ///
     /// Ensure the offset use self.next_boundary or self.previous_boundary to get the correct offset.
     fn move_to(&mut self, offset: usize, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = offset.clamp(0, self.text.len());
         self.selected_range = offset..offset;
         self.pause_blink_cursor(cx);
         self.update_preferred_x_offset(cx);
@@ -1240,6 +1313,7 @@ impl TextInput {
     ///
     /// Ensure the offset use self.next_boundary or self.previous_boundary to get the correct offset.
     fn select_to(&mut self, offset: usize, _: &mut Window, cx: &mut Context<Self>) {
+        let offset = offset.clamp(0, self.text.len());
         if self.selection_reversed {
             self.selected_range.start = offset
         } else {
@@ -1447,6 +1521,35 @@ impl TextInput {
             .map(|p| p.is_match(new_text))
             .unwrap_or(true)
     }
+
+    fn render_toggle_mask_button(
+        &self,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<impl IntoElement> {
+        if !self.mask_toggle {
+            return None;
+        }
+
+        Some(
+            Button::new("toggle-mask")
+                .icon(IconName::Eye)
+                .xsmall()
+                .ghost()
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| {
+                        this.set_masked(false, window, cx);
+                    }),
+                )
+                .on_mouse_up(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| {
+                        this.set_masked(true, window, cx);
+                    }),
+                ),
+        )
+    }
 }
 
 impl Sizable for TextInput {
@@ -1523,6 +1626,8 @@ impl EntityInputHandler for TextInput {
         self.selected_range = range.start + new_text.len()..range.start + new_text.len();
         self.marked_range.take();
         self.update_preferred_x_offset(cx);
+        self.update_scroll_offset(None, cx);
+        self.check_to_auto_grow(window, cx);
         cx.emit(InputEvent::Change(self.text.clone()));
         cx.notify();
     }
@@ -1642,8 +1747,8 @@ impl Render for TextInput {
         let focused = self.focus_handle.is_focused(window);
         let mut gap_x = match self.size {
             Size::Small => px(4.),
-            Size::Large => px(12.),
-            _ => px(8.),
+            Size::Large => px(8.),
+            _ => px(4.),
         };
         if self.no_gap {
             gap_x = px(0.);
@@ -1738,6 +1843,7 @@ impl Render for TextInput {
             .when(self.loading, |this| {
                 this.child(Indicator::new().color(cx.theme().muted_foreground))
             })
+            .children(self.render_toggle_mask_button(window, cx))
             .when(
                 self.cleanable && !self.loading && !self.text.is_empty() && self.is_single_line(),
                 |this| this.child(clear_button(cx).on_click(cx.listener(Self::clean))),

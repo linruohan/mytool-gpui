@@ -44,7 +44,7 @@ pub struct Workspace {
 impl Workspace {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let title_bar = cx.new(|cx| {
-            AppTitleBar::new("Examples", window, cx).child({
+            AppTitleBar::new("MyTool", window, cx).child({
                 move |_, cx| {
                     Button::new("add-panel")
                         .icon(IconName::LayoutDashboard)

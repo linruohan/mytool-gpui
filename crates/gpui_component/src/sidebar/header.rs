@@ -33,6 +33,7 @@ impl Selectable for SidebarHeader {
         &self.id
     }
 }
+
 impl Collapsible for SidebarHeader {
     fn is_collapsed(&self) -> bool {
         self.collapsed
@@ -62,7 +63,6 @@ impl RenderOnce for SidebarHeader {
             .p_2()
             .w_full()
             .justify_between()
-            .cursor_pointer()
             .rounded(cx.theme().radius)
             .hover(|this| {
                 this.bg(cx.theme().sidebar_accent)
