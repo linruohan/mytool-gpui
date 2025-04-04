@@ -23,5 +23,9 @@ jiff.workspace = true
 env_logger.workspace = true
 whoami.workspace = true
 
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winresource.workspace = true
+
 [lints]
 workspace = true

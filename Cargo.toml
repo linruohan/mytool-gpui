@@ -48,7 +48,7 @@ crossbeam-channel = "0.5.14"
 clap = { version = "4.5.7", features = ["cargo", "derive", "string"] }
 notify = "8.0.0"
 notify-debouncer-full = "0.5.0"
-
+winresource = "0.1.20"
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"
