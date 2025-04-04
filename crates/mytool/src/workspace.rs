@@ -6,10 +6,7 @@ use gpui_component::{
     popup_menu::PopupMenuExt,
     IconName, Root, Sizable, Theme, TitleBar,
 };
-use mytool::{
-    AccordionStory, AppState, AppTitleBar, CalendarStory, ListStory, ScrollableStory, SidebarStory,
-    StoryContainer, TooltipStory,
-};
+use mytool::{AppState, AppTitleBar, CalendarStory, ListStory, SidebarStory, StoryContainer};
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
 
@@ -257,23 +254,23 @@ impl Workspace {
         let left_panels = DockItem::split_with_sizes(
             Axis::Vertical,
             vec![
-                // DockItem::tab(
-                //     StoryContainer::panel::<ListStory>(window, cx),
-                //     &dock_area,
-                //     window,
-                //     cx,
-                // ),
-                DockItem::tabs(
-                    vec![
-                        // Arc::new(StoryContainer::panel::<ScrollableStory>(window, cx)),
-                        // Arc::new(StoryContainer::panel::<AccordionStory>(window, cx)),
-                        Arc::new(StoryContainer::panel::<SidebarStory>(window, cx)),
-                    ],
-                    None,
+                DockItem::tab(
+                    StoryContainer::panel::<ListStory>(window, cx),
                     &dock_area,
                     window,
                     cx,
                 ),
+                // DockItem::tabs(
+                //     vec![
+                //         // Arc::new(StoryContainer::panel::<ScrollableStory>(window, cx)),
+                //         // Arc::new(StoryContainer::panel::<AccordionStory>(window, cx)),
+                //         Arc::new(StoryContainer::panel::<SidebarStory>(window, cx)),
+                //     ],
+                //     None,
+                //     &dock_area,
+                //     window,
+                //     cx,
+                // ),
             ],
             vec![None, Some(px(360.))],
             &dock_area,
@@ -281,23 +278,23 @@ impl Workspace {
             cx,
         );
 
-        let bottom_panels = DockItem::split_with_sizes(
-            Axis::Vertical,
-            vec![DockItem::tabs(
-                vec![
-                    // Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
-                    // Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
-                ],
-                None,
-                &dock_area,
-                window,
-                cx,
-            )],
-            vec![None],
-            &dock_area,
-            window,
-            cx,
-        );
+        // let bottom_panels = DockItem::split_with_sizes(
+        //     Axis::Vertical,
+        //     vec![DockItem::tabs(
+        //         vec![
+        //             // Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
+        //             // Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
+        //         ],
+        //         None,
+        //         &dock_area,
+        //         window,
+        //         cx,
+        //     )],
+        //     vec![None],
+        //     &dock_area,
+        //     window,
+        //     cx,
+        // );
 
         // let right_panels = DockItem::split_with_sizes(
         //     Axis::Vertical,
@@ -324,7 +321,7 @@ impl Workspace {
         _ = dock_area.update(cx, |view, cx| {
             view.set_version(MAIN_DOCK_AREA.version, window, cx);
             view.set_center(dock_item, window, cx);
-            // view.set_left_dock(left_panels, Some(px(350.)), true, window, cx);
+            view.set_left_dock(left_panels, Some(px(350.)), true, window, cx);
             // view.set_bottom_dock(bottom_panels, Some(px(200.)), true, window, cx);
             // view.set_right_dock(right_panels, Some(px(320.)), true, window, cx);
 
@@ -340,33 +337,33 @@ impl Workspace {
         DockItem::split_with_sizes(
             Axis::Vertical,
             vec![
-                DockItem::panel(Arc::new(StoryContainer::panel::<SidebarStory>(window, cx))),
-                //     DockItem::tabs(
-                //     vec![
-                //         // Arc::new(StoryContainer::panel::<ButtonStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<InputStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<DropdownStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<TextStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<ModalStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<PopupStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<SwitchStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<TableStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<ImageStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<CalendarStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<ResizableStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<ScrollableStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<AccordionStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<SidebarStory>(window, cx)),
-                //         // Arc::new(StoryContainer::panel::<FormStory>(window, cx)),
-                //     ],
-                //     None,
-                //     &dock_area,
-                //     window,
-                //     cx,
-                // )
+                // DockItem::panel(Arc::new(StoryContainer::panel::<SidebarStory>(window, cx))),
+                DockItem::tabs(
+                    vec![
+                        // Arc::new(StoryContainer::panel::<ButtonStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<InputStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<DropdownStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<TextStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<ModalStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<PopupStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<SwitchStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<TableStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<ImageStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
+                        Arc::new(StoryContainer::panel::<CalendarStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<ResizableStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<ScrollableStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<AccordionStory>(window, cx)),
+                        Arc::new(StoryContainer::panel::<SidebarStory>(window, cx)),
+                        // Arc::new(StoryContainer::panel::<FormStory>(window, cx)),
+                    ],
+                    None,
+                    &dock_area,
+                    window,
+                    cx,
+                ),
             ],
             vec![None],
             &dock_area,

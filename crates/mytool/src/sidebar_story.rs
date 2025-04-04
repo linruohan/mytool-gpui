@@ -54,17 +54,18 @@ impl SidebarStory {
     }
 
     fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex().child(
-            h_flex().gap_2().child(
-                Switch::new("side")
-                    .label("Placement Right")
-                    .checked(self.side.is_right())
-                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                        this.side = if *checked { Side::Right } else { Side::Left };
-                        cx.notify();
-                    })),
-            ),
-        )
+        v_flex()
+        // .child(
+        // h_flex().gap_2().child(
+        //     Switch::new("side")
+        //         .label("Placement Right")
+        //         .checked(self.side.is_right())
+        //         .on_click(cx.listener(|this, checked: &bool, _, cx| {
+        //             this.side = if *checked { Side::Right } else { Side::Left };
+        //             cx.notify();
+        //         })),
+        // ),
+        // )
     }
 }
 

@@ -224,7 +224,7 @@ impl ListDelegate for CompanyListDelegate {
                 let query = view.delegate().query.clone();
                 view.delegate_mut()
                     .companies
-                    .extend((0..200).map(|_| random_company()));
+                    .extend((0..19).map(|_| random_company()));
                 _ = view.delegate_mut().perform_search(&query, window, cx);
                 view.delegate_mut().eof = view.delegate().companies.len() >= 6000;
             });
@@ -270,9 +270,7 @@ impl ListStory {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let companies = (0..1_000)
-            .map(|_| random_company())
-            .collect::<Vec<Company>>();
+        let companies = (0..10).map(|_| random_company()).collect::<Vec<Company>>();
 
         let delegate = CompanyListDelegate {
             matched_companies: companies.clone(),
@@ -338,7 +336,7 @@ impl ListStory {
 }
 
 fn random_company() -> Company {
-    let last_done = (0.0..999.0).fake::<f64>();
+    let last_done = (0.0..19.0).fake::<f64>();
     let prev_close = last_done * (-0.1..0.1).fake::<f64>();
 
     Company {

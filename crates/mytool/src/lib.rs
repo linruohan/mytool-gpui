@@ -1,37 +1,12 @@
-mod accordion_story;
 mod assets;
-// mod button_story;
 mod calendar_story;
-// mod dropdown_story;
-// mod form_story;
-// mod icon_story;
-// mod image_story;
-// mod input_story;
 mod list_story;
-// mod modal_story;
-// mod popup_story;
-// mod progress_story;
-// mod resizable_story;
-mod scrollable_story;
 mod sidebar_story;
-// mod switch_story;
-// mod table_story;
-// mod tabs_story;
-// mod text_story;
 mod title_bar;
-// mod toggle_story;
-mod tooltip_story;
-// mod webview_story;
 
 pub use assets::Assets;
 
-pub use accordion_story::AccordionStory;
-// pub use button_story::ButtonStory;
 pub use calendar_story::CalendarStory;
-// pub use dropdown_story::DropdownStory;
-// pub use form_story::FormStory;
-// pub use tabs_story::TabsStory;
-// pub use toggle_story::ToggleStory;
 
 use gpui::{
     actions, div, impl_internal_actions, prelude::FluentBuilder as _, px, size, AnyElement,
@@ -39,23 +14,10 @@ use gpui::{
     InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, SharedString,
     StatefulInteractiveElement, Styled as _, Window, WindowBounds, WindowKind, WindowOptions,
 };
-// pub use icon_story::IconStory;
-// pub use image_story::ImageStory;
-// pub use input_story::InputStory;
 pub use list_story::ListStory;
-// pub use modal_story::ModalStory;
-// pub use popup_story::PopupStory;
-// pub use progress_story::ProgressStory;
-// pub use resizable_story::ResizableStory;
-pub use scrollable_story::ScrollableStory;
 use serde::{Deserialize, Serialize};
 pub use sidebar_story::SidebarStory;
-// pub use switch_story::SwitchStory;
-// pub use table_story::TableStory;
-// pub use text_story::TextStory;
 pub use title_bar::AppTitleBar;
-pub use tooltip_story::TooltipStory;
-// pub use webview_story::WebViewStory;
 
 use gpui_component::{
     button::Button,
@@ -463,26 +425,9 @@ impl StoryState {
         }
 
         match self.story_klass.to_string().as_str() {
-            // "ButtonStory" => mytool!(ButtonStory),
             "CalendarStory" => mytool!(CalendarStory),
-            // "DropdownStory" => mytool!(DropdownStory),
-            // "IconStory" => mytool!(IconStory),
-            // "ImageStory" => mytool!(ImageStory),
-            // "InputStory" => mytool!(InputStory),
-            // "ListStory" => mytool!(ListStory),
-            // "ModalStory" => mytool!(ModalStory),
-            // "PopupStory" => mytool!(PopupStory),
-            // "ProgressStory" => mytool!(ProgressStory),
-            // "ResizableStory" => mytool!(ResizableStory),
-            // "ScrollableStory" => mytool!(ScrollableStory),
-            // "SwitchStory" => mytool!(SwitchStory),
-            // "TableStory" => mytool!(TableStory),
-            // "TextStory" => mytool!(TextStory),
-            // "TooltipStory" => mytool!(TooltipStory),
-            // "WebViewStory" => mytool!(WebViewStory),
-            // "AccordionStory" => mytool!(AccordionStory),
+            "ListStory" => mytool!(ListStory),
             "SidebarStory" => mytool!(SidebarStory),
-            // "FormStory" => mytool!(FormStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }
