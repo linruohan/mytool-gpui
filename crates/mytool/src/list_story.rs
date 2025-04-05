@@ -224,9 +224,9 @@ impl ListDelegate for ProjectListDelegate {
                 let query = view.delegate().query.clone();
                 view.delegate_mut()
                     .projects
-                    .extend((0..19).map(|_| random_project()));
+                    .extend((0..3).map(|_| random_project()));
                 _ = view.delegate_mut().perform_search(&query, window, cx);
-                view.delegate_mut().eof = view.delegate().projects.len() >= 6000;
+                view.delegate_mut().eof = view.delegate().projects.len() >= 3;
             });
         })
         .detach();
@@ -270,7 +270,7 @@ impl ListStory {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let projects = (0..10).map(|_| random_project()).collect::<Vec<Project>>();
+        let projects = (0..3).map(|_| random_project()).collect::<Vec<Project>>();
 
         let delegate = ProjectListDelegate {
             matched_projects: projects.clone(),
@@ -336,7 +336,7 @@ impl ListStory {
 }
 
 fn random_project() -> Project {
-    let last_done = (0.0..19.0).fake::<f64>();
+    let last_done = (0.0..6.0).fake::<f64>();
     let prev_close = last_done * (-0.1..0.1).fake::<f64>();
 
     Project {

@@ -2,11 +2,13 @@ mod assets;
 mod calendar_story;
 mod list_story;
 mod sidebar_story;
+mod table_story;
 mod title_bar;
 
 pub use assets::Assets;
 
 pub use calendar_story::CalendarStory;
+pub use table_story::TableStory;
 
 use gpui::{
     actions, div, impl_internal_actions, prelude::FluentBuilder as _, px, size, AnyElement,
@@ -427,6 +429,7 @@ impl StoryState {
         match self.story_klass.to_string().as_str() {
             "CalendarStory" => mytool!(CalendarStory),
             "ListStory" => mytool!(ListStory),
+            "TableStory" => mytool!(TableStory),
             "SidebarStory" => mytool!(SidebarStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)

@@ -5,7 +5,7 @@ use gpui::{
 };
 use gpui_component::{
     button::Button,
-    calendar,
+    calendar::{self, Calendar},
     date_picker::{DatePicker, DatePickerEvent, DateRangePreset},
     v_flex, Sizable as _, Size,
 };
@@ -18,6 +18,7 @@ pub struct CalendarStory {
     date_picker_value: Option<String>,
     date_range_picker: Entity<DatePicker>,
     default_range_mode_picker: Entity<DatePicker>,
+    calendar: Entity<Calendar>,
 }
 
 impl super::Mytool for CalendarStory {
@@ -128,7 +129,11 @@ impl CalendarStory {
             );
             picker
         });
-
+        let calendar: Entity<Calendar> = cx.new(|cx| {
+            let mut calendar = Calendar::new(window, cx);
+            calendar.set_size(Size::Large, window, cx);
+            calendar
+        });
         cx.subscribe(&date_picker, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
@@ -142,6 +147,12 @@ impl CalendarStory {
         })
         .detach();
 
+        cx.subscribe(&calendar, |this, _, ev, _| match ev {
+            calendar::CalendarEvent::Selected(date) => {
+                this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
+            }
+        })
+        .detach();
         let default_range_mode_picker = cx.new(|cx| {
             DatePicker::range_picker("default_range_mode_picker", window, cx)
                 .width(px(300.))
@@ -165,6 +176,7 @@ impl CalendarStory {
             date_range_picker,
             default_range_mode_picker,
             date_picker_value: None,
+            calendar,
         }
     }
 
@@ -207,6 +219,7 @@ impl Render for CalendarStory {
             .child(self.date_picker_large.clone())
             .child(self.date_range_picker.clone())
             .child(self.default_range_mode_picker.clone())
+            .child(self.calendar.clone())
             .child(format!("Date picker value: {:?}", self.date_picker_value).into_element())
     }
 }

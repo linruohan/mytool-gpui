@@ -6,7 +6,9 @@ use gpui_component::{
     popup_menu::PopupMenuExt,
     IconName, Root, Sizable, Theme, TitleBar,
 };
-use mytool::{AppState, AppTitleBar, CalendarStory, ListStory, SidebarStory, StoryContainer};
+use mytool::{
+    AppState, AppTitleBar, CalendarStory, ListStory, SidebarStory, StoryContainer, TableStory,
+};
 use rand::Rng;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
@@ -349,7 +351,7 @@ impl Workspace {
                         // Arc::new(StoryContainer::panel::<PopupStory>(window, cx)),
                         // Arc::new(StoryContainer::panel::<SwitchStory>(window, cx)),
                         // Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
-                        // Arc::new(StoryContainer::panel::<TableStory>(window, cx)),
+                        Arc::new(StoryContainer::panel::<TableStory>(window, cx)),
                         // Arc::new(StoryContainer::panel::<ImageStory>(window, cx)),
                         // Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
                         // Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
