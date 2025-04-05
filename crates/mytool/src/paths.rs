@@ -1,5 +1,4 @@
-
-use std::{env, path::PathBuf, sync::OnceLock};
+use std::{path::PathBuf, sync::OnceLock};
 
 pub struct Paths {
     pub path_env: String,

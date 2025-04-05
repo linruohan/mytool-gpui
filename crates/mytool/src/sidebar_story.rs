@@ -15,7 +15,6 @@ use gpui_component::{
         Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
         SidebarToggleButton,
     },
-    switch::Switch,
     v_flex, white, ActiveTheme, Icon, IconName, Side,
 };
 use serde::Deserialize;

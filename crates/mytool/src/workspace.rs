@@ -7,6 +7,7 @@ use gpui_component::{
     IconName, Root, Sizable, Theme, TitleBar,
 };
 use mytool::{AppState, AppTitleBar, CalendarStory, ListStory, SidebarStory, StoryContainer};
+use rand::Rng;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
 
@@ -427,26 +428,29 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         // Random pick up a panel to add
-        let panel = match rand::random::<usize>() % 18 {
-            // 0 => Arc::new(StoryContainer::panel::<ButtonStory>(window, cx)),
-            // 1 => Arc::new(StoryContainer::panel::<InputStory>(window, cx)),
-            // 2 => Arc::new(StoryContainer::panel::<DropdownStory>(window, cx)),
-            // 3 => Arc::new(StoryContainer::panel::<TextStory>(window, cx)),
-            // 4 => Arc::new(StoryContainer::panel::<ModalStory>(window, cx)),
-            // 5 => Arc::new(StoryContainer::panel::<PopupStory>(window, cx)),
-            // 6 => Arc::new(StoryContainer::panel::<SwitchStory>(window, cx)),
-            // 7 => Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
-            // 8 => Arc::new(StoryContainer::panel::<TableStory>(window, cx)),
-            // 9 => Arc::new(StoryContainer::panel::<ImageStory>(window, cx)),
-            // 10 => Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
-            // 11 => Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
-            // 12 => Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
-            // 13 => Arc::new(StoryContainer::panel::<CalendarStory>(window, cx)),
-            // 14 => Arc::new(StoryContainer::panel::<ResizableStory>(window, cx)),
-            // 15 => Arc::new(StoryContainer::panel::<ScrollableStory>(window, cx)),
-            // 16 => Arc::new(StoryContainer::panel::<AccordionStory>(window, cx)),
-            // 17 => Arc::new(StoryContainer::panel::<WebViewStory>(window, cx)),
-            _ => Arc::new(StoryContainer::panel::<CalendarStory>(window, cx)),
+        let panel = {
+            let mut rng = rand::rng();
+            match rng.random_range(0..18) {
+                // 0 => Arc::new(StoryContainer::panel::<ButtonStory>(window, cx)),
+                // 1 => Arc::new(StoryContainer::panel::<InputStory>(window, cx)),
+                // 2 => Arc::new(StoryContainer::panel::<DropdownStory>(window, cx)),
+                // 3 => Arc::new(StoryContainer::panel::<TextStory>(window, cx)),
+                // 4 => Arc::new(StoryContainer::panel::<ModalStory>(window, cx)),
+                // 5 => Arc::new(StoryContainer::panel::<PopupStory>(window, cx)),
+                // 6 => Arc::new(StoryContainer::panel::<SwitchStory>(window, cx)),
+                // 7 => Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
+                // 8 => Arc::new(StoryContainer::panel::<TableStory>(window, cx)),
+                // 9 => Arc::new(StoryContainer::panel::<ImageStory>(window, cx)),
+                // 10 => Arc::new(StoryContainer::panel::<IconStory>(window, cx)),
+                // 11 => Arc::new(StoryContainer::panel::<TooltipStory>(window, cx)),
+                // 12 => Arc::new(StoryContainer::panel::<ProgressStory>(window, cx)),
+                // 13 => Arc::new(StoryContainer::panel::<CalendarStory>(window, cx)),
+                // 14 => Arc::new(StoryContainer::panel::<ResizableStory>(window, cx)),
+                // 15 => Arc::new(StoryContainer::panel::<ScrollableStory>(window, cx)),
+                // 16 => Arc::new(StoryContainer::panel::<AccordionStory>(window, cx)),
+                // 17 => Arc::new(StoryContainer::panel::<WebViewStory>(window, cx)),
+                _ => Arc::new(StoryContainer::panel::<CalendarStory>(window, cx)),
+            }
         };
 
         self.dock_area.update(cx, |dock_area, cx| {

@@ -8,10 +8,11 @@ version = "0.1.0"
 anyhow.workspace = true
 charts-rs = "0.3"
 chrono = "0.4"
-fake = { version = "2.10.0", features = ["dummy"] }
+# fake 伪造数据生成器 
+fake = { version = "4.2.0", features = ["dummy"] }
 gpui.workspace = true
 gpui-component = { workspace = true }
-rand = "0.8"
+rand.workspace = true
 raw-window-handle = { version = "0.6", features = ["std"] }
 regex = "1"
 rust-embed = "8.5.0"

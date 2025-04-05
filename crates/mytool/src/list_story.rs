@@ -16,10 +16,10 @@ use gpui_component::{
     v_flex, ActiveTheme, Sizable,
 };
 
-actions!(list_story, [SelectedCompany]);
+actions!(list_story, [SelectedProject]);
 
 #[derive(Clone, Default)]
-struct Company {
+struct Project {
     name: SharedString,
     industry: SharedString,
     last_done: f64,
@@ -32,7 +32,7 @@ struct Company {
     // description: String,
 }
 
-impl Company {
+impl Project {
     fn prepare(mut self) -> Self {
         self.change_percent = (self.last_done - self.prev_close) / self.prev_close;
         self.change_percent_str = format!("{:.2}%", self.change_percent).into();
@@ -47,17 +47,17 @@ impl Company {
 }
 
 #[derive(IntoElement)]
-struct CompanyListItem {
+struct ProjectListItem {
     base: ListItem,
     ix: usize,
-    company: Company,
+    project: Project,
     selected: bool,
 }
 
-impl CompanyListItem {
-    pub fn new(id: impl Into<ElementId>, company: Company, ix: usize, selected: bool) -> Self {
-        CompanyListItem {
-            company,
+impl ProjectListItem {
+    pub fn new(id: impl Into<ElementId>, project: Project, ix: usize, selected: bool) -> Self {
+        ProjectListItem {
+            project,
             ix,
             base: ListItem::new(id),
             selected,
@@ -65,7 +65,7 @@ impl CompanyListItem {
     }
 }
 
-impl RenderOnce for CompanyListItem {
+impl RenderOnce for ProjectListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let text_color = if self.selected {
             cx.theme().accent_foreground
@@ -73,7 +73,7 @@ impl RenderOnce for CompanyListItem {
             cx.theme().foreground
         };
 
-        let trend_color = match self.company.change_percent {
+        let trend_color = match self.project.change_percent {
             change if change > 0.0 => hsl(0.0, 79.0, 53.0),
             change if change < 0.0 => hsl(100.0, 79.0, 53.0),
             _ => cx.theme().foreground,
@@ -104,10 +104,10 @@ impl RenderOnce for CompanyListItem {
                             .max_w(px(500.))
                             .overflow_x_hidden()
                             .flex_nowrap()
-                            .child(Label::new(self.company.name.clone()).whitespace_nowrap())
+                            .child(Label::new(self.project.name.clone()).whitespace_nowrap())
                             .child(
                                 div().text_sm().overflow_x_hidden().child(
-                                    Label::new(self.company.industry.clone())
+                                    Label::new(self.project.industry.clone())
                                         .whitespace_nowrap()
                                         .text_color(text_color.opacity(0.5)),
                                 ),
@@ -122,7 +122,7 @@ impl RenderOnce for CompanyListItem {
                                 div()
                                     .w(px(65.))
                                     .text_color(text_color)
-                                    .child(self.company.last_done_str.clone()),
+                                    .child(self.project.last_done_str.clone()),
                             )
                             .child(
                                 h_flex().w(px(65.)).justify_end().child(
@@ -132,7 +132,7 @@ impl RenderOnce for CompanyListItem {
                                         .text_size(px(12.))
                                         .px_1()
                                         .text_color(trend_color)
-                                        .child(self.company.change_percent_str.clone()),
+                                        .child(self.project.change_percent_str.clone()),
                                 ),
                             ),
                     ),
@@ -140,9 +140,9 @@ impl RenderOnce for CompanyListItem {
     }
 }
 
-struct CompanyListDelegate {
-    companies: Vec<Company>,
-    matched_companies: Vec<Company>,
+struct ProjectListDelegate {
+    projects: Vec<Project>,
+    matched_projects: Vec<Project>,
     selected_index: Option<usize>,
     confirmed_index: Option<usize>,
     query: String,
@@ -150,11 +150,11 @@ struct CompanyListDelegate {
     eof: bool,
 }
 
-impl ListDelegate for CompanyListDelegate {
-    type Item = CompanyListItem;
+impl ListDelegate for ProjectListDelegate {
+    type Item = ProjectListItem;
 
     fn items_count(&self, _: &App) -> usize {
-        self.matched_companies.len()
+        self.matched_projects.len()
     }
 
     fn perform_search(
@@ -164,10 +164,10 @@ impl ListDelegate for CompanyListDelegate {
         _: &mut Context<List<Self>>,
     ) -> Task<()> {
         self.query = query.to_string();
-        self.matched_companies = self
-            .companies
+        self.matched_projects = self
+            .projects
             .iter()
-            .filter(|company| company.name.to_lowercase().contains(&query.to_lowercase()))
+            .filter(|project| project.name.to_lowercase().contains(&query.to_lowercase()))
             .cloned()
             .collect();
 
@@ -176,7 +176,7 @@ impl ListDelegate for CompanyListDelegate {
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
         println!("Confirmed with secondary: {}", secondary);
-        window.dispatch_action(Box::new(SelectedCompany), cx);
+        window.dispatch_action(Box::new(SelectedProject), cx);
     }
 
     fn set_selected_index(
@@ -196,8 +196,8 @@ impl ListDelegate for CompanyListDelegate {
         _: &mut Context<List<Self>>,
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(company) = self.matched_companies.get(ix) {
-            return Some(CompanyListItem::new(ix, company.clone(), ix, selected));
+        if let Some(project) = self.matched_projects.get(ix) {
+            return Some(ProjectListItem::new(ix, project.clone(), ix, selected));
         }
 
         None
@@ -223,30 +223,30 @@ impl ListDelegate for CompanyListDelegate {
             _ = view.update_in(window, move |view, window, cx| {
                 let query = view.delegate().query.clone();
                 view.delegate_mut()
-                    .companies
-                    .extend((0..19).map(|_| random_company()));
+                    .projects
+                    .extend((0..19).map(|_| random_project()));
                 _ = view.delegate_mut().perform_search(&query, window, cx);
-                view.delegate_mut().eof = view.delegate().companies.len() >= 6000;
+                view.delegate_mut().eof = view.delegate().projects.len() >= 6000;
             });
         })
         .detach();
     }
 }
 
-impl CompanyListDelegate {
-    fn selected_company(&self) -> Option<Company> {
+impl ProjectListDelegate {
+    fn selected_company(&self) -> Option<Project> {
         let Some(ix) = self.selected_index else {
             return None;
         };
 
-        self.companies.get(ix).cloned()
+        self.projects.get(ix).cloned()
     }
 }
 
 pub struct ListStory {
     focus_handle: FocusHandle,
-    company_list: Entity<List<CompanyListDelegate>>,
-    selected_company: Option<Company>,
+    company_list: Entity<List<ProjectListDelegate>>,
+    selected_company: Option<Project>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -270,11 +270,11 @@ impl ListStory {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let companies = (0..10).map(|_| random_company()).collect::<Vec<Company>>();
+        let projects = (0..10).map(|_| random_project()).collect::<Vec<Project>>();
 
-        let delegate = CompanyListDelegate {
-            matched_companies: companies.clone(),
-            companies,
+        let delegate = ProjectListDelegate {
+            matched_projects: projects.clone(),
+            projects,
             selected_index: None,
             confirmed_index: None,
             query: "".to_string(),
@@ -307,10 +307,10 @@ impl ListStory {
                 this.company_list.update(cx, |picker, _| {
                     picker
                         .delegate_mut()
-                        .companies
+                        .projects
                         .iter_mut()
-                        .for_each(|company| {
-                            company.random_update();
+                        .for_each(|project| {
+                            project.random_update();
                         });
                 });
                 cx.notify();
@@ -327,19 +327,19 @@ impl ListStory {
         }
     }
 
-    fn selected_company(&mut self, _: &SelectedCompany, _: &mut Window, cx: &mut Context<Self>) {
+    fn selected_company(&mut self, _: &SelectedProject, _: &mut Window, cx: &mut Context<Self>) {
         let picker = self.company_list.read(cx);
-        if let Some(company) = picker.delegate().selected_company() {
-            self.selected_company = Some(company);
+        if let Some(project) = picker.delegate().selected_company() {
+            self.selected_company = Some(project);
         }
     }
 }
 
-fn random_company() -> Company {
+fn random_project() -> Project {
     let last_done = (0.0..19.0).fake::<f64>();
     let prev_close = last_done * (-0.1..0.1).fake::<f64>();
 
-    Company {
+    Project {
         name: fake::faker::company::en::CompanyName()
             .fake::<String>()
             .into(),
