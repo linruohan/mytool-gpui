@@ -6,8 +6,8 @@ use std::{
 use fake::{Fake, Faker};
 use gpui::{
     div, impl_internal_actions, prelude::FluentBuilder as _, px, AnyElement, App, AppContext,
-    Context, Edges, Entity, Focusable, InteractiveElement, IntoElement, ParentElement, Pixels,
-    Render, SharedString, Styled, Timer, Window,
+    ClickEvent, Context, Edges, Entity, Focusable, InteractiveElement, IntoElement, ParentElement,
+    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Timer, Window,
 };
 use gpui_component::{
     button::Button,
@@ -259,6 +259,22 @@ impl TableDelegate for StockTableDelegate {
         .menu("Size Medium", Box::new(ChangeSize(Size::Medium)))
         .menu("Size Small", Box::new(ChangeSize(Size::Small)))
         .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
+    }
+
+    fn render_tr(
+        &self,
+        row_ix: usize,
+        _: &mut Window,
+        cx: &mut Context<Table<Self>>,
+    ) -> gpui::Stateful<gpui::Div> {
+        div()
+            .id(row_ix)
+            .on_click(cx.listener(|_, ev: &ClickEvent, _, _| {
+                println!(
+                    "You have clicked row with secondary: {}",
+                    ev.modifiers().secondary()
+                )
+            }))
     }
 
     /// NOTE: Performance metrics
@@ -685,11 +701,7 @@ impl Render for TableStory {
                        //         .small()
                        //         .on_click(cx.listener(|this, _, window, cx| {
                        //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(
-                       //                     table.delegate().cols_count(cx),
-                       //                     window,
-                       //                     cx,
-                       //                 );
+                       //                 table.scroll_to_col(table.delegate().cols_count(cx), cx);
                        //             })
                        //         })),
                        // ),

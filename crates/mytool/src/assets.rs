@@ -6,6 +6,7 @@ use rust_embed::RustEmbed;
 #[derive(RustEmbed)]
 #[folder = "../../assets"]
 #[include = "icons/**/*"]
+#[include = "planify-icons/*"]
 #[include = "fonts/**/*"]
 #[exclude = "*.DS_Store"]
 pub struct Assets;
@@ -50,7 +51,7 @@ impl Assets {
     pub fn load_test_fonts(&self, cx: &App) {
         cx.text_system()
             .add_fonts(vec![self
-                .load("fonts/JetBrainsMono-Regular.ttf")
+                .load("fonts/LXGWWenKaiGB-Regular.ttf")
                 .unwrap()
                 .unwrap()])
             .unwrap()

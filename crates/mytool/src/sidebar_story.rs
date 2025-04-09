@@ -40,11 +40,11 @@ impl SidebarStory {
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut active_items = HashMap::new();
-        active_items.insert(Item::Playground, true);
+        active_items.insert(Item::Inbox, true);
 
         Self {
             active_items,
-            last_active_item: Item::Playground,
+            last_active_item: Item::Inbox,
             active_subitem: None,
             collapsed: false,
             side: Side::Left,
@@ -70,13 +70,12 @@ impl SidebarStory {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Item {
-    Playground,
-    Models,
-    Documentation,
-    Settings,
-    DesignEngineering,
-    SalesAndMarketing,
-    Travel,
+    Inbox,
+    Today,
+    Scheduled,
+    Pinboard,
+    Labels,
+    Completed,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -100,25 +99,23 @@ enum SubItem {
 impl Item {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Playground => "Playground",
-            Self::Models => "Models",
-            Self::Documentation => "Documentation",
-            Self::Settings => "Settings",
-            Self::DesignEngineering => "Design Engineering",
-            Self::SalesAndMarketing => "Sales and Marketing",
-            Self::Travel => "Travel",
+            Self::Inbox => "Playground",
+            Self::Today => "Today",
+            Self::Scheduled => "Scheduled",
+            Self::Pinboard => "Pinboard",
+            Self::Labels => "Labels",
+            Self::Completed => "Completed",
         }
     }
 
     pub fn icon(&self) -> IconName {
         match self {
-            Self::Playground => IconName::SquareTerminal,
-            Self::Models => IconName::Bot,
-            Self::Documentation => IconName::BookOpen,
-            Self::Settings => IconName::Settings2,
-            Self::DesignEngineering => IconName::Frame,
-            Self::SalesAndMarketing => IconName::ChartPie,
-            Self::Travel => IconName::Map,
+            Self::Inbox => IconName::MailboxSymbolic,
+            Self::Today => IconName::StarOutlineThickSymbolic,
+            Self::Scheduled => IconName::MonthSymbolic,
+            Self::Pinboard => IconName::PinSymbolic,
+            Self::Labels => IconName::TagOutlineSymbolic,
+            Self::Completed => IconName::CheckRoundOutlineSymbolic,
         }
     }
 
@@ -132,6 +129,7 @@ impl Item {
                 this.active_items.remove(&item);
             } else {
                 this.active_items.insert(item, true);
+                this.active_items.remove(&this.last_active_item);
             }
 
             this.last_active_item = item;
@@ -141,15 +139,15 @@ impl Item {
 
     pub fn items(&self) -> Vec<SubItem> {
         match self {
-            Self::Playground => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
-            Self::Models => vec![SubItem::Genesis, SubItem::Explorer, SubItem::Quantum],
-            Self::Documentation => vec![
+            Self::Inbox => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
+            Self::Today => vec![SubItem::Genesis, SubItem::Explorer, SubItem::Quantum],
+            Self::Scheduled => vec![
                 SubItem::Introduction,
                 SubItem::GetStarted,
                 SubItem::Tutorial,
                 SubItem::Changelog,
             ],
-            Self::Settings => vec![
+            Self::Pinboard => vec![
                 SubItem::General,
                 SubItem::Team,
                 SubItem::Billing,
@@ -225,16 +223,14 @@ impl Render for SidebarStory {
     ) -> impl gpui::IntoElement {
         let groups: [Vec<Item>; 2] = [
             vec![
-                Item::Playground,
-                Item::Models,
-                Item::Documentation,
-                Item::Settings,
+                Item::Inbox,
+                Item::Today,
+                Item::Scheduled,
+                Item::Pinboard,
+                Item::Labels,
+                Item::Completed,
             ],
-            vec![
-                Item::DesignEngineering,
-                Item::SalesAndMarketing,
-                Item::Travel,
-            ],
+            vec![],
         ];
 
         h_flex()
@@ -246,100 +242,24 @@ impl Render for SidebarStory {
             .child(
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
-                    .header(
-                        SidebarHeader::new()
-                            .w_full()
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(cx.theme().radius)
-                                    .bg(blue_500())
-                                    .text_color(white())
-                                    .size_8()
-                                    .flex_shrink_0()
-                                    .when(!self.collapsed, |this| {
-                                        this.child(Icon::new(IconName::GalleryVerticalEnd))
-                                    })
-                                    .when(self.collapsed, |this| {
-                                        this.size_4()
-                                            .bg(cx.theme().transparent)
-                                            .text_color(cx.theme().foreground)
-                                            .child(Icon::new(IconName::GalleryVerticalEnd))
-                                    }),
-                            )
-                            .when(!self.collapsed, |this| {
-                                this.child(
-                                    v_flex()
-                                        .gap_0()
-                                        .text_sm()
-                                        .flex_1()
-                                        .line_height(relative(1.25))
-                                        .overflow_hidden()
-                                        .text_ellipsis()
-                                        .child("Company Name")
-                                        .child(div().child("Enterprise").text_xs()),
-                                )
-                            })
-                            .when(!self.collapsed, |this| {
-                                this.child(
-                                    Icon::new(IconName::ChevronsUpDown).size_4().flex_shrink_0(),
-                                )
-                            })
-                            .popup_menu(|menu, _, _| {
-                                menu.menu(
-                                    "Twitter Inc.",
-                                    Box::new(SelectCompany(SharedString::from("twitter"))),
-                                )
-                                .menu(
-                                    "Meta Platforms",
-                                    Box::new(SelectCompany(SharedString::from("meta"))),
-                                )
-                                .menu(
-                                    "Google Inc.",
-                                    Box::new(SelectCompany(SharedString::from("google"))),
-                                )
-                            }),
-                    )
                     .child(
-                        SidebarGroup::new("Platform").child(SidebarMenu::new().children(
+                        SidebarGroup::new("header").child(SidebarMenu::new().children(
                             groups[0].iter().map(|item| {
                                 SidebarMenuItem::new(item.label())
                                     .icon(item.icon())
                                     .active(self.active_items.contains_key(item))
-                                    .children(item.items().into_iter().map(|sub_item| {
-                                        SidebarMenuItem::new(sub_item.label())
-                                            .active(self.active_subitem == Some(sub_item))
-                                            .on_click(cx.listener(sub_item.handler(&item)))
-                                    }))
                                     .on_click(cx.listener(item.handler()))
                             }),
                         )),
                     )
-                    .child(
-                        SidebarGroup::new("Projects").child(SidebarMenu::new().children(
-                            groups[1].iter().map(|item| {
-                                SidebarMenuItem::new(item.label())
-                                    .icon(item.icon())
-                                    .active(self.last_active_item == *item)
-                                    .on_click(cx.listener(item.handler()))
-                            }),
-                        )),
-                    )
-                    .footer(
-                        SidebarFooter::new()
-                            .justify_between()
-                            .child(
-                                h_flex()
-                                    .gap_2()
-                                    .child(IconName::CircleUser)
-                                    .when(!self.collapsed, |this| this.child("Jason Lee")),
-                            )
-                            .when(!self.collapsed, |this| {
-                                this.child(Icon::new(IconName::ChevronsUpDown).size_4())
-                            }),
-                    ),
+                    .child(SidebarGroup::new("On This Computer").child(
+                        SidebarMenu::new().children(groups[1].iter().map(|item| {
+                            SidebarMenuItem::new(item.label())
+                                .icon(item.icon())
+                                .active(self.last_active_item == *item)
+                                .on_click(cx.listener(item.handler()))
+                        })),
+                    )),
             )
             .child(
                 v_flex()
@@ -367,7 +287,7 @@ impl Render for SidebarStory {
                                 Breadcrumb::new()
                                     .item(BreadcrumbItem::new("0", "Home").on_click(cx.listener(
                                         |this, _, _, cx| {
-                                            this.last_active_item = Item::Playground;
+                                            this.last_active_item = Item::Inbox;
                                             cx.notify();
                                         },
                                     )))
