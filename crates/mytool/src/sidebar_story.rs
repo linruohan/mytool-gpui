@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use gpui::{
-    div, impl_internal_actions, prelude::FluentBuilder, relative, App, AppContext, ClickEvent,
+    div, impl_internal_actions, prelude::FluentBuilder, px, relative, App, AppContext, ClickEvent,
     Context, Entity, Focusable, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
@@ -11,6 +11,7 @@ use gpui_component::{
     divider::Divider,
     h_flex,
     popup_menu::PopupMenuExt,
+    red_500,
     sidebar::{
         Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
         SidebarToggleButton,
@@ -76,35 +77,26 @@ enum Item {
     Pinboard,
     Labels,
     Completed,
+    Projects,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SubItem {
     History,
     Starred,
-    General,
-    Team,
-    Billing,
-    Limits,
     Settings,
-    Genesis,
-    Explorer,
-    Quantum,
-    Introduction,
-    GetStarted,
-    Tutorial,
-    Changelog,
 }
 
 impl Item {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Inbox => "Playground",
+            Self::Inbox => "Inbox",
             Self::Today => "Today",
             Self::Scheduled => "Scheduled",
             Self::Pinboard => "Pinboard",
             Self::Labels => "Labels",
             Self::Completed => "Completed",
+            Self::Projects => "Project",
         }
     }
 
@@ -116,6 +108,7 @@ impl Item {
             Self::Pinboard => IconName::PinSymbolic,
             Self::Labels => IconName::TagOutlineSymbolic,
             Self::Completed => IconName::CheckRoundOutlineSymbolic,
+            Self::Projects => IconName::ProcessErrorSymbolic,
         }
     }
 
@@ -136,23 +129,12 @@ impl Item {
             cx.notify();
         }
     }
-
+    pub fn size(&self) -> usize {
+        self.label().len()
+    }
     pub fn items(&self) -> Vec<SubItem> {
         match self {
-            Self::Inbox => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
-            Self::Today => vec![SubItem::Genesis, SubItem::Explorer, SubItem::Quantum],
-            Self::Scheduled => vec![
-                SubItem::Introduction,
-                SubItem::GetStarted,
-                SubItem::Tutorial,
-                SubItem::Changelog,
-            ],
-            Self::Pinboard => vec![
-                SubItem::General,
-                SubItem::Team,
-                SubItem::Billing,
-                SubItem::Limits,
-            ],
+            Self::Projects => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
             _ => Vec::new(),
         }
     }
@@ -164,17 +146,6 @@ impl SubItem {
             Self::History => "History",
             Self::Starred => "Starred",
             Self::Settings => "Settings",
-            Self::Genesis => "Genesis",
-            Self::Explorer => "Explorer",
-            Self::Quantum => "Quantum",
-            Self::Introduction => "Introduction",
-            Self::GetStarted => "Get Started",
-            Self::Tutorial => "Tutorial",
-            Self::Changelog => "Changelog",
-            Self::Team => "Team",
-            Self::Billing => "Billing",
-            Self::Limits => "Limits",
-            Self::General => "General",
         }
     }
 
@@ -201,7 +172,7 @@ impl SubItem {
 
 impl super::Mytool for SidebarStory {
     fn title() -> &'static str {
-        "Sidebar"
+        "Todoist"
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -230,7 +201,7 @@ impl Render for SidebarStory {
                 Item::Labels,
                 Item::Completed,
             ],
-            vec![],
+            vec![Item::Projects],
         ];
 
         h_flex()
@@ -242,13 +213,18 @@ impl Render for SidebarStory {
             .child(
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
+                    .width(px(200.))
                     .child(
                         SidebarGroup::new("header").child(SidebarMenu::new().children(
                             groups[0].iter().map(|item| {
-                                SidebarMenuItem::new(item.label())
-                                    .icon(item.icon())
-                                    .active(self.active_items.contains_key(item))
-                                    .on_click(cx.listener(item.handler()))
+                                SidebarMenuItem::new(format!(
+                                    "{:<10}{:>10}",
+                                    item.label(),
+                                    item.size()
+                                ))
+                                .icon(item.icon())
+                                .active(self.active_items.contains_key(item))
+                                .on_click(cx.listener(item.handler()))
                             }),
                         )),
                     )
@@ -257,6 +233,11 @@ impl Render for SidebarStory {
                             SidebarMenuItem::new(item.label())
                                 .icon(item.icon())
                                 .active(self.last_active_item == *item)
+                                .children(item.items().into_iter().map(|sub_item| {
+                                    SidebarMenuItem::new(sub_item.label())
+                                        .active(self.active_subitem == Some(sub_item))
+                                        .on_click(cx.listener(sub_item.handler(&item)))
+                                }))
                                 .on_click(cx.listener(item.handler()))
                         })),
                     )),
