@@ -1,6 +1,9 @@
 [package]
+description = "UI components for building fantastic desktop application by using GPUI."
 edition = "2021"
+homepage = "https://github.com/longbridge/gpui-component"
 keywords = ["GPUI", "application", "desktop", "ui"]
+license-file = "LICENSE-APACHE"
 name = "gpui-component"
 publish = true
 version = "0.1.0"
