@@ -170,7 +170,6 @@ impl ListDelegate for ProjectListDelegate {
             .filter(|project| project.name.to_lowercase().contains(&query.to_lowercase()))
             .cloned()
             .collect();
-
         Task::ready(())
     }
 
@@ -234,7 +233,7 @@ impl ListDelegate for ProjectListDelegate {
 }
 
 impl ProjectListDelegate {
-    fn selected_company(&self) -> Option<Project> {
+    fn selected_project(&self) -> Option<Project> {
         let Some(ix) = self.selected_index else {
             return None;
         };
@@ -245,8 +244,8 @@ impl ProjectListDelegate {
 
 pub struct ListStory {
     focus_handle: FocusHandle,
-    company_list: Entity<List<ProjectListDelegate>>,
-    selected_company: Option<Project>,
+    project_list: Entity<List<ProjectListDelegate>>,
+    selected_project: Option<Project>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -275,20 +274,20 @@ impl ListStory {
         let delegate = ProjectListDelegate {
             matched_projects: projects.clone(),
             projects,
-            selected_index: None,
+            selected_index: Some(0),
             confirmed_index: None,
             query: "".to_string(),
             loading: false,
             eof: false,
         };
 
-        let company_list = cx.new(|cx| List::new(delegate, window, cx));
-        // company_list.update(cx, |list, cx| {
+        let project_list = cx.new(|cx| List::new(delegate, window, cx));
+        // project_list.update(cx, |list, cx| {
         //     list.set_selected_index(Some(3), cx);
         // });
         let _subscriptions =
             vec![
-                cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
+                cx.subscribe(&project_list, |_, _, ev: &ListEvent, _| match ev {
                     ListEvent::Select(ix) => {
                         println!("List Selected: {:?}", ix);
                     }
@@ -304,7 +303,7 @@ impl ListStory {
         // Spawn a background to random refresh the list
         cx.spawn(async move |this, cx| {
             this.update(cx, |this, cx| {
-                this.company_list.update(cx, |picker, _| {
+                this.project_list.update(cx, |picker, _| {
                     picker
                         .delegate_mut()
                         .projects
@@ -321,16 +320,16 @@ impl ListStory {
 
         Self {
             focus_handle: cx.focus_handle(),
-            company_list,
-            selected_company: None,
+            project_list,
+            selected_project: None,
             _subscriptions,
         }
     }
 
-    fn selected_company(&mut self, _: &SelectedProject, _: &mut Window, cx: &mut Context<Self>) {
-        let picker = self.company_list.read(cx);
-        if let Some(project) = picker.delegate().selected_company() {
-            self.selected_company = Some(project);
+    fn selected_project(&mut self, _: &SelectedProject, _: &mut Window, cx: &mut Context<Self>) {
+        let picker = self.project_list.read(cx);
+        if let Some(project) = picker.delegate().selected_project() {
+            self.selected_project = Some(project);
         }
     }
 }
@@ -361,7 +360,7 @@ impl Render for ListStory {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .track_focus(&self.focus_handle)
-            .on_action(cx.listener(Self::selected_company))
+            .on_action(cx.listener(Self::selected_project))
             .size_full()
             .gap_4()
             .child(
@@ -373,7 +372,7 @@ impl Render for ListStory {
                             .child("Scroll to Top")
                             .small()
                             .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
+                                this.project_list.update(cx, |list, cx| {
                                     list.scroll_to_item(0, window, cx);
                                 })
                             })),
@@ -383,7 +382,7 @@ impl Render for ListStory {
                             .child("Scroll to Bottom")
                             .small()
                             .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
+                                this.project_list.update(cx, |list, cx| {
                                     list.scroll_to_item(
                                         list.delegate().items_count(cx) - 1,
                                         window,
@@ -397,7 +396,7 @@ impl Render for ListStory {
                             .child("Scroll to Selected")
                             .small()
                             .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
+                                this.project_list.update(cx, |list, cx| {
                                     if let Some(selected) = list.selected_index() {
                                         list.scroll_to_item(selected, window, cx);
                                     }
@@ -407,9 +406,9 @@ impl Render for ListStory {
                     .child(
                         Checkbox::new("loading")
                             .label("Loading")
-                            .checked(self.company_list.read(cx).delegate().loading)
+                            .checked(self.project_list.read(cx).delegate().loading)
                             .on_click(cx.listener(|this, check: &bool, _, cx| {
-                                this.company_list.update(cx, |this, cx| {
+                                this.project_list.update(cx, |this, cx| {
                                     this.delegate_mut().loading = *check;
                                     cx.notify();
                                 })
@@ -423,7 +422,7 @@ impl Render for ListStory {
                     .border_1()
                     .border_color(cx.theme().border)
                     .rounded(cx.theme().radius)
-                    .child(self.company_list.clone()),
+                    .child(self.project_list.clone()),
             )
     }
 }

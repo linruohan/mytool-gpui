@@ -6,17 +6,18 @@ use gpui::{
 };
 
 use gpui_component::{
+    badge::Badge,
     blue_500,
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     divider::Divider,
     h_flex,
     popup_menu::PopupMenuExt,
-    red_500,
     sidebar::{
         Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
         SidebarToggleButton,
     },
-    v_flex, white, ActiveTheme, Icon, IconName, Side,
+    switch::Switch,
+    v_flex, white, ActiveTheme, Icon, IconName, Side, Sizable,
 };
 use serde::Deserialize;
 
@@ -32,6 +33,7 @@ pub struct SidebarStory {
     collapsed: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
+    checked: bool,
 }
 
 impl SidebarStory {
@@ -50,21 +52,22 @@ impl SidebarStory {
             collapsed: false,
             side: Side::Left,
             focus_handle: cx.focus_handle(),
+            checked: false,
         }
     }
 
     fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
         // .child(
-        // h_flex().gap_2().child(
-        //     Switch::new("side")
-        //         .label("Placement Right")
-        //         .checked(self.side.is_right())
-        //         .on_click(cx.listener(|this, checked: &bool, _, cx| {
-        //             this.side = if *checked { Side::Right } else { Side::Left };
-        //             cx.notify();
-        //         })),
-        // ),
+        //     h_flex().gap_2().child(
+        //         Switch::new("side")
+        //             .label("Placement Right")
+        //             .checked(self.side.is_right())
+        //             .on_click(cx.listener(|this, checked: &bool, _, cx| {
+        //                 this.side = if *checked { Side::Right } else { Side::Left };
+        //                 cx.notify();
+        //             })),
+        //     ),
         // )
     }
 }
@@ -173,6 +176,11 @@ impl SubItem {
 impl super::Mytool for SidebarStory {
     fn title() -> &'static str {
         "Todoist"
+    }
+
+    fn description() -> &'static str {
+        // "A composable, themeable and customizable sidebar component."
+        ""
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

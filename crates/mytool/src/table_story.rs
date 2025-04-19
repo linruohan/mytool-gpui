@@ -635,7 +635,7 @@ impl Render for TableStory {
             .on_action(cx.listener(Self::on_change_size))
             .size_full()
             .text_sm()
-            .gap_2()
+            .gap_4()
             .child(
                 h_flex()
                     .gap_2()
@@ -691,7 +691,7 @@ impl Render for TableStory {
                        //         .small()
                        //         .on_click(cx.listener(|this, _, window, cx| {
                        //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(0, window, cx);
+                       //                 table.scroll_to_col(0, cx);
                        //             })
                        //         })),
                        // )
@@ -710,6 +710,7 @@ impl Render for TableStory {
                 h_flex().items_center().gap_2().child(
                     h_flex()
                         .items_center()
+                        .justify_between()
                         .gap_1()
                         .child(Label::new("Number of Stocks:"))
                         .child(
