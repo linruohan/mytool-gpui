@@ -646,8 +646,14 @@ impl TextInput {
     }
 
     /// Set the placeholder text of the input field with reference.
-    pub fn set_placeholder(&mut self, placeholder: impl Into<SharedString>) {
+    pub fn set_placeholder(
+        &mut self,
+        placeholder: impl Into<SharedString>,
+        _: &Window,
+        cx: &mut Context<Self>,
+    ) {
         self.placeholder = placeholder.into();
+        cx.notify();
     }
 
     /// Set true to show the clear button when the input field is not empty.
@@ -671,7 +677,12 @@ impl TextInput {
     }
 
     /// Set the regular expression pattern of the input field with reference.
-    pub fn set_pattern(&mut self, pattern: regex::Regex) {
+    pub fn set_pattern(
+        &mut self,
+        pattern: regex::Regex,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
         self.pattern = Some(pattern);
     }
 
@@ -688,8 +699,8 @@ impl TextInput {
     }
 
     /// Return the text of the input field.
-    pub fn text(&self) -> SharedString {
-        self.text.clone()
+    pub fn text(&self) -> &SharedString {
+        &self.text
     }
 
     pub fn disabled(&self) -> bool {
@@ -1848,7 +1859,7 @@ impl Render for TextInput {
                     .id("suffix")
                     .absolute()
                     .gap(gap_x)
-                    .bg(bg)
+                    .when(self.appearance, |this| this.bg(bg))
                     .items_center()
                     .when(suffix.is_none(), |this| this.pr_1())
                     .right_0()

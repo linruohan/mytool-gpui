@@ -1,8 +1,10 @@
-use crate::{h_flex, text::Text, ActiveTheme, Disableable, Side, Sizable, Size};
+use crate::{
+    h_flex, text::Text, tooltip::Tooltip, ActiveTheme, Colorize, Disableable, Side, Sizable, Size,
+};
 use gpui::{
     div, prelude::FluentBuilder as _, px, Animation, AnimationExt as _, AnyElement, App, Div,
     Element, ElementId, GlobalElementId, InteractiveElement, IntoElement, LayoutId,
-    ParentElement as _, Styled, Window,
+    ParentElement as _, SharedString, StatefulInteractiveElement, Styled, Window,
 };
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
@@ -15,6 +17,7 @@ pub struct Switch {
     label_side: Side,
     on_click: Option<Rc<dyn Fn(&bool, &mut Window, &mut App)>>,
     size: Size,
+    tooltip: Option<SharedString>,
 }
 
 impl Switch {
@@ -29,6 +32,7 @@ impl Switch {
             on_click: None,
             label_side: Side::Right,
             size: Size::Medium,
+            tooltip: None,
         }
     }
 
@@ -52,6 +56,11 @@ impl Switch {
 
     pub fn label_side(mut self, label_side: Side) -> Self {
         self.label_side = label_side;
+        self
+    }
+
+    pub fn tooltip(mut self, tooltip: impl Into<SharedString>) -> Self {
+        self.tooltip = Some(tooltip.into());
         self
     }
 }
@@ -112,11 +121,17 @@ impl Element for Switch {
 
             let (bg, toggle_bg) = match self.checked {
                 true => (cx.theme().primary, cx.theme().background),
-                false => (cx.theme().input, cx.theme().background),
+                false => (cx.theme().switch, cx.theme().background),
             };
 
             let (bg, toggle_bg) = match self.disabled {
-                true => (bg.opacity(0.3), toggle_bg.opacity(0.8)),
+                true => {
+                    if self.checked {
+                        (cx.theme().muted.darken(0.05), toggle_bg.opacity(0.8))
+                    } else {
+                        (cx.theme().muted, toggle_bg.opacity(0.8))
+                    }
+                }
                 false => (bg, toggle_bg),
             };
 
@@ -158,10 +173,19 @@ impl Element for Switch {
                                 .border_color(cx.theme().transparent)
                                 .bg(bg)
                                 .when(self.disabled, |this| this.cursor_not_allowed())
+                                .when_some(self.tooltip.clone(), |this, tooltip| {
+                                    this.tooltip(move |window, cx| {
+                                        Tooltip::new(tooltip.clone()).build(window, cx)
+                                    })
+                                })
                                 .child(
                                     // Switch Toggle
-                                    div().rounded(radius).bg(toggle_bg).size(bar_width).map(
-                                        |this| {
+                                    div()
+                                        .rounded(radius)
+                                        .bg(toggle_bg)
+                                        .shadow_md()
+                                        .size(bar_width)
+                                        .map(|this| {
                                             let prev_checked = state.prev_checked.clone();
                                             if !self.disabled
                                                 && prev_checked
@@ -198,8 +222,7 @@ impl Element for Switch {
                                                 let x = if checked { max_x } else { px(0.) };
                                                 this.left(x).into_any_element()
                                             }
-                                        },
-                                    ),
+                                        }),
                                 ),
                         )
                         .when_some(self.label.take(), |this, label| {

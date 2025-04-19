@@ -3,6 +3,8 @@ use std::ops::{Deref, DerefMut};
 use gpui::{
     hsla, point, px, App, BoxShadow, Global, Hsla, Pixels, SharedString, Window, WindowAppearance,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 use crate::{scroll::ScrollbarShow, Colorize as _};
 
@@ -16,7 +18,7 @@ pub trait ActiveTheme {
 }
 
 impl ActiveTheme for App {
-    #[inline]
+    #[inline(always)]
     fn theme(&self) -> &Theme {
         Theme::global(self)
     }
@@ -187,6 +189,8 @@ pub struct ThemeColor {
     pub success_hover: Hsla,
     /// Success active background color.
     pub success_active: Hsla,
+    /// Switch background color.
+    pub switch: Hsla,
     /// Tab background color.
     pub tab: Hsla,
     /// Tab active background color.
@@ -292,7 +296,7 @@ impl ThemeColor {
             secondary_hover: hsl(240.0, 5.9, 98.),
             selection: hsl(211.0, 97.0, 85.0),
             sidebar: hsl(0.0, 0.0, 98.0),
-            sidebar_accent: hsl(240.0, 4.8, 92.),
+            sidebar_accent: crate::zinc_200(),
             sidebar_accent_foreground: hsl(240.0, 5.9, 10.0),
             sidebar_border: hsl(220.0, 13.0, 91.0),
             sidebar_foreground: hsl(240.0, 5.3, 26.1),
@@ -305,6 +309,7 @@ impl ThemeColor {
             success_active: crate::green_600(),
             success_hover: crate::green_500().opacity(0.9),
             success_foreground: crate::gray_50(),
+            switch: crate::zinc_300(),
             tab: gpui::transparent_black(),
             tab_active: hsl(0.0, 0.0, 100.0),
             tab_active_foreground: hsl(240.0, 10., 3.9),
@@ -384,7 +389,7 @@ impl ThemeColor {
             secondary_hover: hsl(240.0, 0., 15.),
             selection: hsl(211.0, 97.0, 22.0),
             sidebar: hsl(240.0, 0.0, 10.0),
-            sidebar_accent: hsl(240.0, 3.7, 15.9),
+            sidebar_accent: crate::zinc_800(),
             sidebar_accent_foreground: hsl(240.0, 4.8, 95.9),
             sidebar_border: hsl(240.0, 3.7, 15.9),
             sidebar_foreground: hsl(240.0, 4.8, 95.9),
@@ -397,6 +402,7 @@ impl ThemeColor {
             success_active: crate::green_800().darken(0.2),
             success_foreground: crate::green_50(),
             success_hover: crate::green_800().opacity(0.8),
+            switch: crate::zinc_600(),
             tab: gpui::transparent_black(),
             tab_active: hsl(0.0, 0.0, 8.0),
             tab_active_foreground: hsl(0., 0., 78.),
@@ -559,14 +565,14 @@ impl Theme {
 
     /// Sync the theme with the system appearance
     pub fn sync_system_appearance(window: Option<&mut Window>, cx: &mut App) {
-        match cx.window_appearance() {
-            WindowAppearance::Dark | WindowAppearance::VibrantDark => {
-                Self::change(ThemeMode::Dark, window, cx)
-            }
-            WindowAppearance::Light | WindowAppearance::VibrantLight => {
-                Self::change(ThemeMode::Light, window, cx)
-            }
-        }
+        // Better use window.appearance() for avoid error on Linux.
+        // https://github.com/longbridge/gpui-component/issues/104
+        let appearance = window
+            .as_ref()
+            .map(|window| window.appearance())
+            .unwrap_or_else(|| cx.window_appearance());
+
+        Self::change(appearance, window, cx);
     }
 
     /// Sync the Scrollbar showing behavior with the system
@@ -578,7 +584,8 @@ impl Theme {
         }
     }
 
-    pub fn change(mode: ThemeMode, window: Option<&mut Window>, cx: &mut App) {
+    pub fn change(mode: impl Into<ThemeMode>, window: Option<&mut Window>, cx: &mut App) {
+        let mode = mode.into();
         let colors = match mode {
             ThemeMode::Light => ThemeColor::light(),
             ThemeMode::Dark => ThemeColor::dark(),
@@ -624,7 +631,10 @@ impl From<ThemeColor> for Theme {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, PartialOrd, Eq)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum ThemeMode {
     Light,
     #[default]
@@ -635,5 +645,22 @@ impl ThemeMode {
     #[inline(always)]
     pub fn is_dark(&self) -> bool {
         matches!(self, Self::Dark)
+    }
+
+    /// Return lower_case theme name: `light`, `dark`.
+    pub fn name(&self) -> &'static str {
+        match self {
+            ThemeMode::Light => "light",
+            ThemeMode::Dark => "dark",
+        }
+    }
+}
+
+impl From<WindowAppearance> for ThemeMode {
+    fn from(appearance: WindowAppearance) -> Self {
+        match appearance {
+            WindowAppearance::Dark | WindowAppearance::VibrantDark => Self::Dark,
+            WindowAppearance::Light | WindowAppearance::VibrantLight => Self::Light,
+        }
     }
 }

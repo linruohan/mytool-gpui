@@ -11,8 +11,7 @@ use crate::{
 use gpui::{
     div, prelude::FluentBuilder, uniform_list, AnyElement, AppContext, Entity, FocusHandle,
     Focusable, InteractiveElement, IntoElement, KeyBinding, Length, ListSizingBehavior,
-    MouseButton, ParentElement, Render, SharedString, Styled, Task, UniformListScrollHandle,
-    Window,
+    MouseButton, ParentElement, Render, Styled, Task, UniformListScrollHandle, Window,
 };
 use gpui::{px, App, Context, EventEmitter, MouseDownEvent, ScrollStrategy, Subscription};
 use rust_i18n::t;
@@ -245,6 +244,11 @@ where
         self.query_input = Some(query_input);
     }
 
+    /// Get the query input entity.
+    pub fn query_input(&self) -> Option<&Entity<TextInput>> {
+        self.query_input.as_ref()
+    }
+
     pub fn delegate(&self) -> &D {
         &self.delegate
     }
@@ -271,19 +275,6 @@ where
 
     pub fn selected_index(&self) -> Option<usize> {
         self.selected_index
-    }
-
-    /// Set the query_input text
-    pub fn set_query(&mut self, query: &str, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(query_input) = &self.query_input {
-            let query = query.to_owned();
-            query_input.update(cx, |input, cx| input.set_text(query, window, cx))
-        }
-    }
-
-    /// Get the query_input text
-    pub fn query(&self, _: &mut Window, cx: &mut Context<Self>) -> Option<SharedString> {
-        self.query_input.as_ref().map(|input| input.read(cx).text())
     }
 
     fn render_scrollbar(&self, _: &mut Window, cx: &mut Context<Self>) -> Option<impl IntoElement> {
@@ -333,6 +324,12 @@ where
 
                 self.set_querying(true, window, cx);
                 let search = self.delegate.perform_search(&text, window, cx);
+
+                if self.delegate.items_count(cx) > 0 {
+                    self.set_selected_index(Some(0), window, cx);
+                } else {
+                    self.set_selected_index(None, window, cx);
+                }
 
                 self._search_task = cx.spawn_in(window, async move |this, window| {
                     search.await;

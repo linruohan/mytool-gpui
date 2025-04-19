@@ -1,10 +1,11 @@
 use crate::{
-    h_flex, text::Text, v_flex, ActiveTheme, Disableable, IconName, Selectable, Sizable, Size,
+    text::Text, v_flex, ActiveTheme, Disableable, IconName, Selectable, Sizable, Size,
+    StyledExt as _,
 };
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, rems, svg, AnyElement, App, Div, ElementId,
-    InteractiveElement, IntoElement, ParentElement, RenderOnce, StatefulInteractiveElement as _,
-    Styled, Window,
+    InteractiveElement, IntoElement, ParentElement, RenderOnce, StatefulInteractiveElement, Styled,
+    Window,
 };
 
 /// A Checkbox element.
@@ -49,6 +50,13 @@ impl Checkbox {
         self
     }
 }
+
+impl InteractiveElement for Checkbox {
+    fn interactivity(&mut self) -> &mut gpui::Interactivity {
+        self.base.interactivity()
+    }
+}
+impl StatefulInteractiveElement for Checkbox {}
 
 impl Styled for Checkbox {
     fn style(&mut self) -> &mut gpui::StyleRefinement {
@@ -98,9 +106,10 @@ impl RenderOnce for Checkbox {
         };
         let radius = (cx.theme().radius / 2.).min(px(6.));
 
-        self.base.child(
-            h_flex()
+        div().child(
+            self.base
                 .id(self.id)
+                .h_flex()
                 .gap_2()
                 .items_start()
                 .line_height(relative(1.))
@@ -149,26 +158,28 @@ impl RenderOnce for Checkbox {
                                 }),
                         ),
                 )
-                .child(
-                    v_flex()
-                        .w_full()
-                        .line_height(relative(1.2))
-                        .gap_1()
-                        .map(|this| {
-                            if let Some(label) = self.label {
-                                this.child(
-                                    div()
-                                        .size_full()
-                                        .text_color(cx.theme().foreground)
-                                        .line_height(relative(1.))
-                                        .child(label),
-                                )
-                            } else {
-                                this
-                            }
-                        })
-                        .children(self.children),
-                )
+                .when(self.label.is_some() || !self.children.is_empty(), |this| {
+                    this.child(
+                        v_flex()
+                            .w_full()
+                            .line_height(relative(1.2))
+                            .gap_1()
+                            .map(|this| {
+                                if let Some(label) = self.label {
+                                    this.child(
+                                        div()
+                                            .size_full()
+                                            .text_color(cx.theme().foreground)
+                                            .line_height(relative(1.))
+                                            .child(label),
+                                    )
+                                } else {
+                                    this
+                                }
+                            })
+                            .children(self.children),
+                    )
+                })
                 .when(self.disabled, |this| {
                     this.cursor_not_allowed()
                         .text_color(cx.theme().muted_foreground)
@@ -177,6 +188,7 @@ impl RenderOnce for Checkbox {
                     self.on_click.filter(|_| !self.disabled),
                     |this, on_click| {
                         this.on_click(move |_, window, cx| {
+                            cx.stop_propagation();
                             let checked = !self.checked;
                             on_click(&checked, window, cx);
                         })
