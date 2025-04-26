@@ -43,6 +43,12 @@ pub fn init(cx: &mut App) {
 pub trait DropdownItem {
     type Value: Clone;
     fn title(&self) -> SharedString;
+    /// Customize the display title used to selected item in Dropdown Input.
+    ///
+    /// If return None, the title will be used.
+    fn display_title(&self) -> Option<AnyElement> {
+        None
+    }
     fn value(&self) -> &Self::Value;
 }
 
@@ -550,32 +556,49 @@ where
         cx.emit(DropdownEvent::Confirm(None));
     }
 
+    /// Returns the title element for the dropdown input.
     fn display_title(&self, _: &Window, cx: &App) -> impl IntoElement {
-        let title = if let Some(selected_index) = &self.selected_index(cx) {
-            let title = self
-                .list
-                .read(cx)
-                .delegate()
-                .delegate
-                .get(*selected_index)
-                .map(|item| item.title().to_string())
-                .unwrap_or_default();
-
-            h_flex()
-                .when_some(self.title_prefix.clone(), |this, prefix| this.child(prefix))
-                .child(title.clone())
-        } else {
-            div().text_color(cx.theme().accent_foreground).child(
+        let default_title = div()
+            .text_color(cx.theme().accent_foreground)
+            .child(
                 self.placeholder
                     .clone()
                     .unwrap_or_else(|| t!("Dropdown.placeholder").into()),
             )
+            .when(self.disabled, |this| {
+                this.text_color(cx.theme().muted_foreground)
+            });
+
+        let Some(selected_index) = &self.selected_index(cx) else {
+            return default_title;
         };
 
-        title.when(self.disabled, |this| {
-            this.cursor_not_allowed()
-                .text_color(cx.theme().muted_foreground)
-        })
+        let Some(title) = self
+            .list
+            .read(cx)
+            .delegate()
+            .delegate
+            .get(*selected_index)
+            .map(|item| {
+                if let Some(el) = item.display_title() {
+                    el
+                } else {
+                    if let Some(prefix) = self.title_prefix.as_ref() {
+                        format!("{}{}", prefix, item.title()).into_any_element()
+                    } else {
+                        item.title().into_any_element()
+                    }
+                }
+            })
+        else {
+            return default_title;
+        };
+
+        div()
+            .when(self.disabled, |this| {
+                this.text_color(cx.theme().muted_foreground)
+            })
+            .child(title)
     }
 }
 
@@ -636,7 +659,7 @@ where
             .input_text_size(self.size)
             .child(
                 div()
-                    .id("dropdown-input")
+                    .id(ElementId::Name(format!("{}-input", self.id).into()))
                     .relative()
                     .flex()
                     .items_center()
@@ -646,13 +669,7 @@ where
                     .border_color(cx.theme().input)
                     .rounded(cx.theme().radius)
                     .when(cx.theme().shadow, |this| this.shadow_sm())
-                    .map(|this| {
-                        if self.disabled {
-                            this.cursor_not_allowed()
-                        } else {
-                            this
-                        }
-                    })
+                    .map(|this| if self.disabled { this } else { this })
                     .overflow_hidden()
                     .input_text_size(self.size)
                     .map(|this| match self.width {
@@ -674,6 +691,8 @@ where
                                 div()
                                     .w_full()
                                     .overflow_hidden()
+                                    .whitespace_nowrap()
+                                    .truncate()
                                     .child(self.display_title(window, cx)),
                             )
                             .when(show_clean, |this| {
@@ -697,15 +716,12 @@ where
                                     }
                                 };
 
-                                this.child(
-                                    Icon::new(icon)
-                                        .xsmall()
-                                        .text_color(match self.disabled {
-                                            true => cx.theme().muted_foreground.opacity(0.5),
-                                            false => cx.theme().muted_foreground,
-                                        })
-                                        .when(self.disabled, |this| this.cursor_not_allowed()),
-                                )
+                                this.child(Icon::new(icon).xsmall().text_color(
+                                    match self.disabled {
+                                        true => cx.theme().muted_foreground.opacity(0.5),
+                                        false => cx.theme().muted_foreground,
+                                    },
+                                ))
                             }),
                     )
                     .child(

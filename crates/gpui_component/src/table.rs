@@ -6,7 +6,7 @@ use crate::{
     h_flex,
     popup_menu::PopupMenu,
     scroll::{self, ScrollableMask, Scrollbar, ScrollbarState},
-    v_flex, ActiveTheme, Icon, IconName, Sizable, Size, StyleSized as _,
+    v_flex, ActiveTheme, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt,
 };
 use gpui::{
     actions, canvas, div, prelude::FluentBuilder, px, uniform_list, App, AppContext, Axis, Bounds,
@@ -344,7 +344,7 @@ pub trait TableDelegate: Sized + 'static {
 
     /// Render the last empty column, default to empty.
     fn render_last_empty_col(&mut self, window: &mut Window, cx: &mut Context<Table<Self>>) -> Div {
-        h_flex().w_5().h_full().flex_shrink_0()
+        h_flex().w_3().h_full().flex_shrink_0()
     }
 
     /// Called when the visible range of the rows changed.
@@ -575,13 +575,17 @@ where
     }
 
     fn action_select_prev(&mut self, _: &SelectPrev, _: &mut Window, cx: &mut Context<Self>) {
-        let mut selected_row = self.selected_row.unwrap_or(0);
         let rows_count = self.delegate.rows_count(cx);
+        if rows_count < 1 {
+            return;
+        }
+
+        let mut selected_row = self.selected_row.unwrap_or(0);
         if selected_row > 0 {
-            selected_row = selected_row - 1;
+            selected_row = selected_row.saturating_sub(1);
         } else {
             if self.delegate.can_loop_select(cx) {
-                selected_row = rows_count - 1;
+                selected_row = rows_count.saturating_sub(1);
             }
         }
 
@@ -589,14 +593,22 @@ where
     }
 
     fn action_select_next(&mut self, _: &SelectNext, _: &mut Window, cx: &mut Context<Self>) {
-        let mut selected_row = self.selected_row.unwrap_or(0);
-        if selected_row < self.delegate.rows_count(cx) - 1 {
-            selected_row += 1;
-        } else {
-            if self.delegate.can_loop_select(cx) {
-                selected_row = 0;
-            }
+        let rows_count = self.delegate.rows_count(cx);
+        if rows_count < 1 {
+            return;
         }
+
+        let selected_row = match self.selected_row {
+            Some(selected_row) if selected_row < rows_count.saturating_sub(1) => selected_row + 1,
+            Some(selected_row) => {
+                if self.delegate.can_loop_select(cx) {
+                    0
+                } else {
+                    selected_row
+                }
+            }
+            _ => 0,
+        };
 
         self.set_selected_row(selected_row, cx);
     }
@@ -610,10 +622,10 @@ where
         let mut selected_col = self.selected_col.unwrap_or(0);
         let cols_count = self.delegate.cols_count(cx);
         if selected_col > 0 {
-            selected_col -= 1;
+            selected_col = selected_col.saturating_sub(1);
         } else {
             if self.delegate.can_loop_select(cx) {
-                selected_col = cols_count - 1;
+                selected_col = cols_count.saturating_sub(1);
             }
         }
         self.set_selected_col(selected_col, cx);
@@ -626,7 +638,7 @@ where
         cx: &mut Context<Self>,
     ) {
         let mut selected_col = self.selected_col.unwrap_or(0);
-        if selected_col < self.delegate.cols_count(cx) - 1 {
+        if selected_col < self.delegate.cols_count(cx).saturating_sub(1) {
             selected_col += 1;
         } else {
             if self.delegate.can_loop_select(cx) {
@@ -640,17 +652,20 @@ where
     /// Scroll table when mouse position is near the edge of the table bounds.
     fn scroll_table_by_col_resizing(
         &mut self,
-        pos: Point<Pixels>,
+        mouse_position: Point<Pixels>,
         col_group: ColGroup,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
     ) {
+        // Do nothing if pos out of the table bounds right for avoid scroll to the right.
+        if mouse_position.x > self.bounds.right() {
+            return;
+        }
+
         let mut offset = self.horizontal_scroll_handle.offset();
         let col_bounds = col_group.bounds;
 
-        if pos.x < self.bounds.left() && col_bounds.right() < self.bounds.left() + px(20.) {
+        if mouse_position.x < self.bounds.left() && col_bounds.right() < self.bounds.left() + px(20.) {
             offset.x += px(1.);
-        } else if pos.x > self.bounds.right() && col_bounds.right() > self.bounds.right() - px(20.)
+        } else if mouse_position.x > self.bounds.right() && col_bounds.right() > self.bounds.right() - px(20.)
         {
             offset.x -= px(1.);
         }
@@ -961,8 +976,6 @@ where
                             view.scroll_table_by_col_resizing(
                                 e.event.position,
                                 col_group,
-                                window,
-                                cx,
                             );
                         }
                     };
@@ -1225,6 +1238,7 @@ where
         if row_ix < rows_count {
             self.delegate
                 .render_tr(row_ix, window, cx)
+                .h_flex()
                 .w_full()
                 .h(self.size.table_row_height())
                 .border_b_1()
@@ -1368,6 +1382,7 @@ where
             // Render fake rows to fill the rest table space
             self.delegate
                 .render_tr(row_ix, window, cx)
+                .h_flex()
                 .w_full()
                 .h_full()
                 .border_t_1()
@@ -1555,7 +1570,10 @@ where
 
                                         if visible_range.end > rows_count {
                                             table.scroll_to_row(
-                                                std::cmp::min(visible_range.start, rows_count - 1),
+                                                std::cmp::min(
+                                                    visible_range.start,
+                                                    rows_count.saturating_sub(1),
+                                                ),
                                                 cx,
                                             );
                                         }
