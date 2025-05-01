@@ -171,11 +171,11 @@ impl Render for Gallery {
                                                 .line_height(relative(1.25))
                                                 .overflow_hidden()
                                                 .text_ellipsis()
-                                                .child("GPUI Component")
+                                                .child("MyTool GPUI")
                                                 .child(
                                                     div()
                                                         .text_color(cx.theme().muted_foreground)
-                                                        .child("Gallery")
+                                                        .child("Linruohan")
                                                         .text_xs(),
                                                 ),
                                         )
@@ -217,25 +217,26 @@ impl Render for Gallery {
                     .flex_1()
                     .h_full()
                     .overflow_x_hidden()
-                    .child(
-                        h_flex()
-                            .id("header")
-                            .p_4()
-                            .border_b_1()
-                            .border_color(cx.theme().border)
-                            .justify_between()
-                            .items_start()
-                            .child(
-                                v_flex()
-                                    .gap_1()
-                                    .child(div().text_xl().child(story_name))
-                                    .child(
-                                        div()
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child(description),
-                                    ),
-                            ),
-                    )
+                    // 隐藏每一个story的header，介绍说明部分
+                    // .child(
+                    //     h_flex()
+                    //         .id("header")
+                    //         .p_4()
+                    //         .border_b_1()
+                    //         .border_color(cx.theme().border)
+                    //         .justify_between()
+                    //         .items_start()
+                    //         .child(
+                    //             v_flex()
+                    //                 .gap_1()
+                    //                 .child(div().text_xl().child(story_name))
+                    //                 .child(
+                    //                     div()
+                    //                         .text_color(cx.theme().muted_foreground)
+                    //                         .child(description),
+                    //                 ),
+                    //         ),
+                    // )
                     .child(
                         div()
                             .id("story")
