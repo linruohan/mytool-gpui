@@ -1,34 +1,35 @@
 mod assets;
 mod calendar_story;
+mod date_picker_story;
 mod list_story;
 mod sidebar_story;
 mod table_story;
 mod title_bar;
+mod welcome_story;
 
 pub use assets::Assets;
-
-pub use calendar_story::CalendarStory;
-pub use table_story::TableStory;
-
 use gpui::{
     actions, div, impl_internal_actions, prelude::FluentBuilder as _, px, rems, size, AnyElement,
     AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter, Focusable, Global, Hsla,
-    InteractiveElement, IntoElement, KeyBinding, ParentElement, Render, RenderOnce, SharedString,
-    StatefulInteractiveElement, Styled, Styled as _, Window, WindowBounds, WindowKind,
+    InteractiveElement, IntoElement, KeyBinding, Menu, MenuItem, ParentElement, Render, RenderOnce,
+    SharedString, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowKind,
     WindowOptions,
 };
+
+pub use calendar_story::CalendarStory;
+pub use date_picker_story::DatePickerStory;
 pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
 pub use sidebar_story::SidebarStory;
+pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
+pub use welcome_story::WelcomeStory;
 
 use gpui_component::{
     button::Button,
     context_menu::ContextMenuExt,
-    divider::Divider,
     dock::{register_panel, Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     h_flex,
-    label::Label,
     notification::Notification,
     popup_menu::PopupMenu,
     scroll::ScrollbarShow,
@@ -173,16 +174,28 @@ pub fn init(cx: &mut App) {
     gpui_component::init(cx);
     AppState::init(cx);
     // input_story::init(cx);
+    // number_input_story::init(cx);
+    // textarea_story::init(cx);
     // dropdown_story::init(cx);
-    // popup_story::init(cx);
+    // popover_story::init(cx);
+    // menu_story::init(cx);
     // webview_story::init(cx);
+    // tooltip_story::init(cx);
+    // otp_input_story::init(cx);
 
     // let http_client = std::sync::Arc::new(
     //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),
     // );
     // cx.set_http_client(http_client);
 
-    cx.bind_keys([KeyBinding::new("/", ToggleSearch, None)]);
+    cx.bind_keys([
+        KeyBinding::new("/", ToggleSearch, None),
+        KeyBinding::new("cmd-q", Quit, None),
+    ]);
+
+    cx.on_action(|_: &Quit, cx: &mut App| {
+        cx.quit();
+    });
 
     register_panel(cx, PANEL_NAME, |_, _, info, window, cx| {
         let story_state = match info {
@@ -216,6 +229,30 @@ pub fn init(cx: &mut App) {
         });
         Box::new(view)
     });
+
+    use gpui_component::input::{Copy, Cut, Paste, Redo, Undo};
+    cx.set_menus(vec![
+        Menu {
+            name: "GPUI App".into(),
+            items: vec![MenuItem::action("Quit", Quit)],
+        },
+        Menu {
+            name: "Edit".into(),
+            items: vec![
+                MenuItem::os_action("Undo", Undo, gpui::OsAction::Undo),
+                MenuItem::os_action("Redo", Redo, gpui::OsAction::Redo),
+                MenuItem::separator(),
+                MenuItem::os_action("Cut", Cut, gpui::OsAction::Cut),
+                MenuItem::os_action("Copy", Copy, gpui::OsAction::Copy),
+                MenuItem::os_action("Paste", Paste, gpui::OsAction::Paste),
+            ],
+        },
+        Menu {
+            name: "Window".into(),
+            items: vec![],
+        },
+    ]);
+    cx.activate(true);
 }
 
 actions!(mytool, [ShowPanelInfo]);
@@ -326,7 +363,7 @@ pub enum ContainerEvent {
     Close,
 }
 
-pub trait Mytool: Focusable + Render {
+pub trait Mytool: Focusable + Render + Sized {
     fn klass() -> &'static str {
         std::any::type_name::<Self>().split("::").last().unwrap()
     }
@@ -422,6 +459,7 @@ impl StoryContainer {
         self.story_klass = Some(story_klass.into());
         self
     }
+
     pub fn on_active(mut self, on_active: fn(AnyView, bool, &mut Window, &mut App)) -> Self {
         self.on_active = Some(on_active);
         self
@@ -499,10 +537,26 @@ impl StoryState {
         }
 
         match self.story_klass.to_string().as_str() {
-            "CalendarStory" => mytool!(CalendarStory),
+            // "ButtonStory" => mytool!(ButtonStory),
+            // "CalendarStory" => mytool!(CalendarStory),
+            // "DropdownStory" => mytool!(DropdownStory),
+            // "IconStory" => mytool!(IconStory),
+            // "ImageStory" => mytool!(ImageStory),
+            // "InputStory" => mytool!(InputStory),
             "ListStory" => mytool!(ListStory),
+            // "ModalStory" => mytool!(ModalStory),
+            // "PopoverStory" => mytool!(PopoverStory),
+            // "ProgressStory" => mytool!(ProgressStory),
+            // "ResizableStory" => mytool!(ResizableStory),
+            // "ScrollableStory" => mytool!(ScrollableStory),
+            // "SwitchStory" => mytool!(SwitchStory),
             "TableStory" => mytool!(TableStory),
+            // "LabelStory" => mytool!(LabelStory),
+            // "TooltipStory" => mytool!(TooltipStory),
+            // "WebViewStory" => mytool!(WebViewStory),
+            // "AccordionStory" => mytool!(AccordionStory),
             "SidebarStory" => mytool!(SidebarStory),
+            // "FormStory" => mytool!(FormStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }
@@ -602,17 +656,6 @@ impl Render for StoryContainer {
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::on_action_panel_info))
             .on_action(cx.listener(Self::on_action_toggle_search))
-            .when(self.description.len() > 0, |this| {
-                this.child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_4()
-                        .p_4()
-                        .child(Label::new(self.description.clone()).text_size(px(16.0)))
-                        .child(Divider::horizontal().label("This is a divider")),
-                )
-            })
             .when_some(self.mytool.clone(), |this, mytool| {
                 this.child(
                     v_flex()
