@@ -8,6 +8,7 @@ use gpui::{
 };
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
+/// A Switch element that can be toggled on or off.
 pub struct Switch {
     id: ElementId,
     base: Div,
@@ -201,7 +202,7 @@ impl Element for Switch {
                                                 this.with_animation(
                                                     ElementId::NamedInteger(
                                                         "move".into(),
-                                                        checked as usize,
+                                                        checked as u64,
                                                     ),
                                                     Animation::new(dur),
                                                     move |this, delta| {
