@@ -1,16 +1,17 @@
-use std::borrow::Cow;
-
+use super::utils::get_holiday;
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
-    prelude::FluentBuilder as _, px, relative, ClickEvent, Context, ElementId, EventEmitter,
+    div, prelude::FluentBuilder as _, px, relative, ClickEvent, Context, ElementId, EventEmitter,
     FocusHandle, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
     StatefulInteractiveElement, Styled, Window,
 };
+use lunar_rust::holiday;
 use rust_i18n::t;
+use std::borrow::Cow;
 
 use crate::{
     button::{Button, ButtonVariants as _},
-    h_flex, v_flex, ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size,
+    h_flex, v_flex, ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size, StyledExt,
 };
 
 use super::utils::days_in_month;
@@ -465,6 +466,12 @@ impl Calendar {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + Styled + StatefulInteractiveElement {
+        let label_str = label.into().to_string();
+        let holiday_parts: Vec<&str> = label_str.split(' ').collect();
+        let day = holiday_parts[0].to_string();
+        let holiday = holiday_parts.get(1).unwrap_or(&"").to_string();
+        let flag = holiday_parts.get(2).unwrap_or(&"").to_string();
+
         h_flex()
             .id(id.into())
             .map(|this| match self.size {
@@ -498,7 +505,25 @@ impl Calendar {
                 this.bg(cx.theme().primary)
                     .text_color(cx.theme().primary_foreground)
             })
-            .child(label.into())
+            .child(
+                v_flex()
+                    .text_align(gpui::TextAlign::Center)
+                    .child(
+                        h_flex().gap_1().child(day).child(
+                            div()
+                                .text_size(px(9.))
+                                .text_color(gpui::green())
+                                .child(flag),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .text_color(cx.theme().muted_foreground)
+                            .text_size(px(10.))
+                            .child(holiday.clone())
+                            .when(holiday.len() > 6, |this| this.text_color(gpui::green())),
+                    ),
+            )
     }
 
     fn render_day(
@@ -520,10 +545,11 @@ impl Calendar {
             .disabled
             .as_ref()
             .map_or(false, |disabled| disabled.matched(&date));
-
+        let holiday = get_holiday(date);
         self.item_button(
             d.ordinal() as usize,
-            day.to_string(),
+            // day.to_string(),
+            holiday,
             is_active,
             is_in_range,
             !is_current_month || disabled,
