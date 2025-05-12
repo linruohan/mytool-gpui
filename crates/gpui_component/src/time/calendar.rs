@@ -509,19 +509,33 @@ impl Calendar {
                 v_flex()
                     .text_align(gpui::TextAlign::Center)
                     .child(
-                        h_flex().gap_1().child(day).child(
-                            div()
-                                .text_size(px(9.))
-                                .text_color(gpui::green())
-                                .child(flag),
-                        ),
+                        h_flex()
+                            .items_start()
+                            .justify_around()
+                            .gap_1()
+                            .child(div().left(px(3.)).child(day))
+                            .child(
+                                div()
+                                    .top(px(0.))
+                                    .right(px(0.))
+                                    .text_size(px(9.))
+                                    .text_color(gpui::green())
+                                    .child(flag.clone())
+                                    .when(flag == "班".to_string(), |this| {
+                                        this.text_color(gpui::red())
+                                    }),
+                            ),
                     )
                     .child(
                         div()
+                            .top(px(-5.))
                             .text_color(cx.theme().muted_foreground)
-                            .text_size(px(10.))
+                            .text_size(px(9.))
                             .child(holiday.clone())
-                            .when(holiday.len() > 6, |this| this.text_color(gpui::green())),
+                            .when(holiday.len() > 6, |this| this.text_color(gpui::green()))
+                            .when(flag == "班".to_string(), |this| {
+                                this.text_color(gpui::red())
+                            }),
                     ),
             )
     }
