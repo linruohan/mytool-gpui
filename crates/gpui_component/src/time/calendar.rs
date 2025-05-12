@@ -5,13 +5,12 @@ use gpui::{
     FocusHandle, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
     StatefulInteractiveElement, Styled, Window,
 };
-use lunar_rust::holiday;
 use rust_i18n::t;
 use std::borrow::Cow;
 
 use crate::{
     button::{Button, ButtonVariants as _},
-    h_flex, v_flex, ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size, StyledExt,
+    h_flex, v_flex, ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size,
 };
 
 use super::utils::days_in_month;
