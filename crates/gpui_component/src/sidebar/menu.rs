@@ -1,11 +1,12 @@
+use crate::Size;
 use crate::{h_flex, v_flex, ActiveTheme as _, Collapsible, Icon, IconName, StyledExt};
+use gpui::Length;
 use gpui::{
     div, percentage, prelude::FluentBuilder as _, AnyElement, App, ClickEvent, ElementId,
     InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use std::rc::Rc;
-
 #[derive(IntoElement)]
 pub struct SidebarMenu {
     collapsed: bool,
@@ -63,6 +64,7 @@ pub struct SidebarMenuItem {
     handler: Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
     active: bool,
     collapsed: bool,
+    size: Length,
     children: Vec<Self>,
     suffix: Option<AnyElement>,
 }
@@ -76,6 +78,7 @@ impl SidebarMenuItem {
             label: label.into(),
             handler: Rc::new(|_, _, _| {}),
             active: false,
+            size: Length::Auto,
             collapsed: false,
             children: Vec::new(),
             suffix: None,
@@ -87,7 +90,10 @@ impl SidebarMenuItem {
         self.icon = Some(icon.into());
         self
     }
-
+    pub fn size(mut self, size: Length) -> Self {
+        self.size = size;
+        self
+    }
     /// Set id to the menu item.
     fn id(mut self, id: impl Into<ElementId>) -> Self {
         self.id = id.into();
@@ -160,6 +166,7 @@ impl RenderOnce for SidebarMenuItem {
                     .gap_x_2()
                     .rounded(cx.theme().radius)
                     .text_sm()
+                    .size(self.size)
                     .hover(|this| {
                         if is_active {
                             return this;

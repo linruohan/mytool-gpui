@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use gpui::{
     div, impl_internal_actions, prelude::FluentBuilder, px, relative, App, AppContext, ClickEvent,
-    Context, Entity, Focusable, IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    Context, DefiniteLength, Entity, Focusable, IntoElement, Length, ParentElement, Render,
+    SharedString, Styled, Window,
 };
 
 use gpui_component::{
@@ -12,6 +13,7 @@ use gpui_component::{
     divider::Divider,
     h_flex,
     popup_menu::PopupMenuExt,
+    red_500,
     sidebar::{
         Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
         SidebarToggleButton,
@@ -225,14 +227,16 @@ impl Render for SidebarStory {
                     .child(
                         SidebarGroup::new("header").child(SidebarMenu::new().children(
                             groups[0].iter().map(|item| {
-                                SidebarMenuItem::new(format!(
-                                    "{:<10}{:>10}",
-                                    item.label(),
-                                    item.size()
-                                ))
-                                .icon(item.icon())
-                                .active(self.active_items.contains_key(item))
-                                .on_click(cx.listener(item.handler()))
+                                SidebarMenuItem::new(item.label())
+                                    // SidebarMenuItem::new(format!(
+                                    //     "{:<10}{:>10}",
+                                    //     item.label(),
+                                    //     item.size()
+                                    // ))
+                                    .icon(item.icon())
+                                    .size(Length::Definite(DefiniteLength::Fraction(0.45)))
+                                    .active(self.active_items.contains_key(item))
+                                    .on_click(cx.listener(item.handler()))
                             }),
                         )),
                     )
