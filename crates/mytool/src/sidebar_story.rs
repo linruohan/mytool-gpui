@@ -15,8 +15,8 @@ use gpui_component::{
     popup_menu::PopupMenuExt,
     red_500,
     sidebar::{
-        Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
-        SidebarToggleButton,
+        Sidebar, SidebarBoard, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu,
+        SidebarMenuItem, SidebarToggleButton,
     },
     switch::Switch,
     v_flex, white, ActiveTheme, Icon, IconName, Side, Sizable,
@@ -221,42 +221,22 @@ impl Render for SidebarStory {
             .child(
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
-                    .child(
-                        SidebarGroup::new("Platform").child(SidebarMenu::new().children(
-                            groups[0].iter().map(|item| {
-                                SidebarMenuItem::new(item.label())
-                                    // SidebarMenuItem::new(format!(
-                                    //     "{:<10}{:>10}",
-                                    //     item.label(),
-                                    //     item.size()
-                                    // ))
-                                    .icon(item.icon())
-                                    .size(Length::Definite(DefiniteLength::Fraction(0.45)))
-                                    .active(self.active_items.contains_key(item))
-                                    .children(item.items().into_iter().enumerate().map(
-                                        |(ix, sub_item)| {
-                                            SidebarMenuItem::new(sub_item.label())
-                                                .active(self.active_subitem == Some(sub_item))
-                                                .when(ix == 0, |this| {
-                                                    this.suffix(
-                                                        Switch::new("switch")
-                                                            .xsmall()
-                                                            .checked(self.checked)
-                                                            .on_click(cx.listener(
-                                                                |this, checked, _, _| {
-                                                                    this.checked = *checked
-                                                                },
-                                                            )),
-                                                    )
-                                                })
-                                                .on_click(cx.listener(sub_item.handler(&item)))
-                                        },
-                                    ))
-                                    .on_click(cx.listener(item.handler()))
-                            }),
+                    .child(SidebarMenu::new().children(groups[0].iter().map(|item| {
+                        SidebarMenuItem::new(item.label())
+                            .icon(item.icon())
+                            .size(Length::Definite(DefiniteLength::Fraction(0.45)))
+                            .active(self.active_items.contains_key(item))
+                            .on_click(cx.listener(item.handler()))
+                    })))
+                    .child(SidebarMenu::new().child(
+                        SidebarMenuItem::new("Add project      ➕").on_click(cx.listener(
+                            move |this, _, _, cx| {
+                                println!("{}", "add projects");
+                                cx.notify();
+                            },
                         )),
-                    )
-                    .child(SidebarGroup::new("On This Computer").child(
+                    ))
+                    .child(
                         SidebarMenu::new().children(groups[1].iter().enumerate().map(
                             |(ix, item)| {
                                 SidebarMenuItem::new(item.label())
@@ -278,20 +258,19 @@ impl Render for SidebarStory {
                                     .when(ix == 1, |this| this.suffix(IconName::Settings2))
                             },
                         )),
-                    ))
-                    .footer(
-                        SidebarFooter::new()
-                            .justify_between()
-                            .child(
-                                h_flex()
-                                    .gap_2()
-                                    .child(IconName::CircleUser)
-                                    .when(!self.collapsed, |this| this.child("Jason Lee")),
-                            )
-                            .when(!self.collapsed, |this| {
-                                this.child(Icon::new(IconName::ChevronsUpDown).size_4())
-                            }),
-                    ),
+                    ), // .footer(
+                       //     SidebarFooter::new()
+                       //         .justify_between()
+                       //         .child(
+                       //             h_flex()
+                       //                 .gap_2()
+                       //                 .child(IconName::CircleUser)
+                       //                 .when(!self.collapsed, |this| this.child("Jason Lee")),
+                       //         )
+                       //         .when(!self.collapsed, |this| {
+                       //             this.child(Icon::new(IconName::ChevronsUpDown).size_4())
+                       //         }),
+                       // ),
             )
             .child(
                 v_flex()

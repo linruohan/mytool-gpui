@@ -10,10 +10,12 @@ use gpui::{
 };
 use std::rc::Rc;
 
+mod board;
 mod footer;
 mod group;
 mod header;
 mod menu;
+pub use board::*;
 pub use footer::*;
 pub use group::*;
 pub use header::*;
@@ -26,6 +28,7 @@ const COLLAPSED_WIDTH: Pixels = px(48.);
 #[derive(IntoElement)]
 pub struct Sidebar<E: Collapsible + IntoElement + 'static> {
     content: Vec<E>,
+    board: Option<AnyElement>,
     /// header view
     header: Option<AnyElement>,
     /// footer view
@@ -43,6 +46,7 @@ impl<E: Collapsible + IntoElement> Sidebar<E> {
         Self {
             content: vec![],
             header: None,
+            board: None,
             footer: None,
             side,
             collapsible: true,
@@ -89,7 +93,10 @@ impl<E: Collapsible + IntoElement> Sidebar<E> {
         self.header = Some(header.into_any_element());
         self
     }
-
+    pub fn board(mut self, board: impl IntoElement) -> Self {
+        self.board = Some(board.into_any_element());
+        self
+    }
     /// Set the footer of the sidebar.
     pub fn footer(mut self, footer: impl IntoElement) -> Self {
         self.footer = Some(footer.into_any_element());
@@ -204,6 +211,9 @@ impl<E: Collapsible + IntoElement> RenderOnce for Sidebar<E> {
             })
             .when_some(self.header.take(), |this, header| {
                 this.child(h_flex().id("header").p_2().gap_2().child(header))
+            })
+            .when_some(self.board.take(), |this, header| {
+                this.child(h_flex().id("board").p_2().gap_2().child(header))
             })
             .child(
                 v_flex().id("content").flex_1().min_h_0().child(
