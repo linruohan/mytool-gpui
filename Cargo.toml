@@ -52,7 +52,6 @@ notify-debouncer-full = "0.5.0"
 winresource = "0.1.20"
 lunar_rust = { git = "https://github.com/linruohan/lunar_rust" }
 
-
 [workspace.lints.clippy]
 almost_complete_range = "allow"
 arc_with_non_send_sync = "allow"

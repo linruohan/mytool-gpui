@@ -15,6 +15,6 @@ fn main() {
     app.run(move |cx: &mut App| {
         mytool::init(cx);
         cx.activate(true);
-        mytool::create_new_window("linruohan tools sets", Gallery::view, cx);
+        mytool::create_new_window("MyTool-GPUI", Gallery::view, cx);
     });
 }

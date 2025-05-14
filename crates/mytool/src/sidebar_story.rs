@@ -59,18 +59,17 @@ impl SidebarStory {
     }
 
     fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-        // .child(
-        //     h_flex().gap_2().child(
-        //         Switch::new("side")
-        //             .label("Placement Right")
-        //             .checked(self.side.is_right())
-        //             .on_click(cx.listener(|this, checked: &bool, _, cx| {
-        //                 this.side = if *checked { Side::Right } else { Side::Left };
-        //                 cx.notify();
-        //             })),
-        //     ),
-        // )
+        v_flex().child(
+            h_flex().gap_2().child(
+                Switch::new("side")
+                    .label("Placement Right")
+                    .checked(self.side.is_right())
+                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                        this.side = if *checked { Side::Right } else { Side::Left };
+                        cx.notify();
+                    })),
+            ),
+        )
     }
 }
 
@@ -181,8 +180,7 @@ impl super::Mytool for SidebarStory {
     }
 
     fn description() -> &'static str {
-        // "A composable, themeable and customizable sidebar component."
-        ""
+        "A composable, themeable and customizable sidebar component."
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -223,9 +221,8 @@ impl Render for SidebarStory {
             .child(
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
-                    .width(px(200.))
                     .child(
-                        SidebarGroup::new("header").child(SidebarMenu::new().children(
+                        SidebarGroup::new("Platform").child(SidebarMenu::new().children(
                             groups[0].iter().map(|item| {
                                 SidebarMenuItem::new(item.label())
                                     // SidebarMenuItem::new(format!(
@@ -236,23 +233,65 @@ impl Render for SidebarStory {
                                     .icon(item.icon())
                                     .size(Length::Definite(DefiniteLength::Fraction(0.45)))
                                     .active(self.active_items.contains_key(item))
+                                    .children(item.items().into_iter().enumerate().map(
+                                        |(ix, sub_item)| {
+                                            SidebarMenuItem::new(sub_item.label())
+                                                .active(self.active_subitem == Some(sub_item))
+                                                .when(ix == 0, |this| {
+                                                    this.suffix(
+                                                        Switch::new("switch")
+                                                            .xsmall()
+                                                            .checked(self.checked)
+                                                            .on_click(cx.listener(
+                                                                |this, checked, _, _| {
+                                                                    this.checked = *checked
+                                                                },
+                                                            )),
+                                                    )
+                                                })
+                                                .on_click(cx.listener(sub_item.handler(&item)))
+                                        },
+                                    ))
                                     .on_click(cx.listener(item.handler()))
                             }),
                         )),
                     )
                     .child(SidebarGroup::new("On This Computer").child(
-                        SidebarMenu::new().children(groups[1].iter().map(|item| {
-                            SidebarMenuItem::new(item.label())
-                                .icon(item.icon())
-                                .active(self.last_active_item == *item)
-                                .children(item.items().into_iter().map(|sub_item| {
-                                    SidebarMenuItem::new(sub_item.label())
-                                        .active(self.active_subitem == Some(sub_item))
-                                        .on_click(cx.listener(sub_item.handler(&item)))
-                                }))
-                                .on_click(cx.listener(item.handler()))
-                        })),
-                    )),
+                        SidebarMenu::new().children(groups[1].iter().enumerate().map(
+                            |(ix, item)| {
+                                SidebarMenuItem::new(item.label())
+                                    .icon(item.icon())
+                                    .active(self.last_active_item == *item)
+                                    .children(item.items().into_iter().map(|sub_item| {
+                                        SidebarMenuItem::new(sub_item.label())
+                                            .active(self.active_subitem == Some(sub_item))
+                                            .on_click(cx.listener(sub_item.handler(&item)))
+                                    }))
+                                    .on_click(cx.listener(item.handler()))
+                                    .when(ix == 0, |this| {
+                                        this.suffix(
+                                            Badge::new().dot().count(1).child(
+                                                div().p_0p5().child(Icon::new(IconName::Bell)),
+                                            ),
+                                        )
+                                    })
+                                    .when(ix == 1, |this| this.suffix(IconName::Settings2))
+                            },
+                        )),
+                    ))
+                    .footer(
+                        SidebarFooter::new()
+                            .justify_between()
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(IconName::CircleUser)
+                                    .when(!self.collapsed, |this| this.child("Jason Lee")),
+                            )
+                            .when(!self.collapsed, |this| {
+                                this.child(Icon::new(IconName::ChevronsUpDown).size_4())
+                            }),
+                    ),
             )
             .child(
                 v_flex()

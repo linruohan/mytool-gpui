@@ -135,61 +135,15 @@ impl Render for Gallery {
                 Sidebar::left()
                     .collapsed(self.collapsed)
                     .header(
-                        v_flex()
-                            .w_full()
-                            .gap_4()
-                            .child(
-                                SidebarHeader::new()
-                                    .w_full()
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(cx.theme().radius)
-                                            .bg(cx.theme().primary)
-                                            .text_color(cx.theme().primary_foreground)
-                                            .size_8()
-                                            .flex_shrink_0()
-                                            .when(!self.collapsed, |this| {
-                                                this.child(Icon::new(IconName::GalleryVerticalEnd))
-                                            })
-                                            .when(self.collapsed, |this| {
-                                                this.size_4()
-                                                    .bg(cx.theme().transparent)
-                                                    .text_color(cx.theme().foreground)
-                                                    .child(Icon::new(IconName::GalleryVerticalEnd))
-                                            })
-                                            .rounded_lg(),
-                                    )
-                                    .when(!self.collapsed, |this| {
-                                        this.child(
-                                            v_flex()
-                                                .gap_0()
-                                                .text_sm()
-                                                .flex_1()
-                                                .line_height(relative(1.25))
-                                                .overflow_hidden()
-                                                .text_ellipsis()
-                                                .child("MyTool GPUI")
-                                                .child(
-                                                    div()
-                                                        .text_color(cx.theme().muted_foreground)
-                                                        .child("Linruohan")
-                                                        .text_xs(),
-                                                ),
-                                        )
-                                    }),
-                            )
-                            .child(
-                                div()
-                                    .bg(cx.theme().sidebar_border)
-                                    .px_1()
-                                    .rounded_full()
-                                    .flex_1()
-                                    .mx_1()
-                                    .child(self.search_input.clone()),
-                            ),
+                        v_flex().w_full().gap_4().child(
+                            div()
+                                .bg(cx.theme().sidebar_border)
+                                .px_1()
+                                .rounded_full()
+                                .flex_1()
+                                .mx_1()
+                                .child(self.search_input.clone()),
+                        ),
                     )
                     .children(stories.clone().into_iter().enumerate().map(
                         |(group_ix, (group_name, sub_stories))| {
@@ -213,39 +167,15 @@ impl Render for Gallery {
                     )),
             )
             .child(
-                v_flex()
-                    .flex_1()
-                    .h_full()
-                    .overflow_x_hidden()
-                    // 隐藏每一个story的header，介绍说明部分
-                    // .child(
-                    //     h_flex()
-                    //         .id("header")
-                    //         .p_4()
-                    //         .border_b_1()
-                    //         .border_color(cx.theme().border)
-                    //         .justify_between()
-                    //         .items_start()
-                    //         .child(
-                    //             v_flex()
-                    //                 .gap_1()
-                    //                 .child(div().text_xl().child(story_name))
-                    //                 .child(
-                    //                     div()
-                    //                         .text_color(cx.theme().muted_foreground)
-                    //                         .child(description),
-                    //                 ),
-                    //         ),
-                    // )
-                    .child(
-                        div()
-                            .id("story")
-                            .flex_1()
-                            .overflow_y_scroll()
-                            .when_some(active_story, |this, active_story| {
-                                this.child(active_story.clone())
-                            }),
-                    ),
+                v_flex().flex_1().h_full().overflow_x_hidden().child(
+                    div()
+                        .id("story")
+                        .flex_1()
+                        .overflow_y_scroll()
+                        .when_some(active_story, |this, active_story| {
+                            this.child(active_story.clone())
+                        }),
+                ),
             )
     }
 }

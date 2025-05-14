@@ -47,7 +47,6 @@ pub struct SelectFont(usize);
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectRadius(usize);
-
 impl_internal_actions!(
     mytool,
     [SelectLocale, SelectFont, SelectRadius, SelectScrollbarShow]
