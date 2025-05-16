@@ -1,12 +1,11 @@
-use crate::Size;
 use crate::{h_flex, v_flex, ActiveTheme as _, Collapsible, Icon, IconName, StyledExt};
-use gpui::Length;
 use gpui::{
     div, percentage, prelude::FluentBuilder as _, AnyElement, App, ClickEvent, ElementId,
-    InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce, SharedString,
+    InteractiveElement as _, IntoElement, Length, ParentElement as _, RenderOnce, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use std::rc::Rc;
+
 #[derive(IntoElement)]
 pub struct SidebarMenu {
     collapsed: bool,

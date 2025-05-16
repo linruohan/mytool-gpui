@@ -80,7 +80,7 @@ pub use theme::*;
 
 use std::ops::Deref;
 
-rust_i18n::i18n!("locales", fallback = "zh-CN");
+rust_i18n::i18n!("locales", fallback = "en");
 
 /// Initialize the UI module.
 ///

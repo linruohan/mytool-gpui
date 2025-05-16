@@ -1,9 +1,9 @@
 use super::utils::get_holiday;
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
-    div, prelude::FluentBuilder as _, px, relative, ClickEvent, Context, ElementId, EventEmitter,
-    FocusHandle, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, Window,
+    blue, div, prelude::FluentBuilder as _, px, relative, ClickEvent, Context, ElementId,
+    EventEmitter, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
+    SharedString, StatefulInteractiveElement, Styled, Window,
 };
 use rust_i18n::t;
 use std::borrow::Cow;
@@ -501,8 +501,7 @@ impl Calendar {
                 })
             })
             .when(active, |this| {
-                this.bg(cx.theme().primary)
-                    .text_color(cx.theme().primary_foreground)
+                this.border_1().border_color(blue()).rounded(px(20.0))
             })
             .child(
                 v_flex()
@@ -571,7 +570,7 @@ impl Calendar {
             cx,
         )
         .when(is_today && !is_active, |this| {
-            this.border_1().border_color(cx.theme().border)
+            this.bg(blue()).rounded(px(20.0))
         }) // Add border for today
         .when(!disabled, |this| {
             this.on_click(cx.listener(move |view, _: &ClickEvent, window, cx| {
