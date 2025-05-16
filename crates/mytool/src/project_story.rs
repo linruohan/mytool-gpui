@@ -1,3 +1,4 @@
+use bonsaidb::core::schema::view;
 use gpui::{
     actions, div, prelude::FluentBuilder as _, px, App, AppContext, Context, Entity, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, ParentElement, Render, SharedString, Styled,
@@ -11,19 +12,21 @@ use gpui_component::{
     dropdown::Dropdown,
     h_flex,
     input::TextInput,
-    modal::ModalButtonProps,
+    label::Label,
+    modal::{Modal, ModalButtonProps},
+    switch::Switch,
     v_flex, ContextModal as _,
 };
 
 use crate::section;
 actions!(modal_story, [TestAction]);
+#[derive(Debug, Clone)]
 pub struct ProjectStory {
     focus_handle: FocusHandle,
     selected_value: Option<SharedString>,
-    input1: Entity<TextInput>,
-    input2: Entity<TextInput>,
+    project_name_input: Entity<TextInput>,
     date_picker: Entity<DatePicker>,
-    dropdown: Entity<Dropdown<Vec<String>>>,
+    is_use_emoji: bool,
     modal_overlay: bool,
     model_show_close: bool,
     model_padding: bool,
@@ -51,38 +54,23 @@ impl ProjectStory {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input1 = cx.new(|cx| TextInput::new(window, cx).placeholder("Your Name"));
-        let input2 = cx.new(|cx| {
-            TextInput::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let date_picker = cx
-            .new(|cx| DatePicker::new("birthday-picker", window, cx).placeholder("Date of Birth"));
-        let dropdown = cx.new(|cx| {
-            Dropdown::new(
-                "dropdown1",
-                vec![
-                    "Option 1".to_string(),
-                    "Option 2".to_string(),
-                    "Option 3".to_string(),
-                ],
-                None,
-                window,
-                cx,
-            )
+        let project_input =
+            cx.new(|cx| TextInput::new(window, cx).placeholder("Give your project a name"));
+        let date_picker = cx.new(|cx| {
+            DatePicker::new("duedate-picker", window, cx).placeholder("Duedate of project")
         });
 
         Self {
             focus_handle: cx.focus_handle(),
             selected_value: None,
-            input1,
-            input2,
+            project_name_input: project_input,
             date_picker,
-            dropdown,
-            modal_overlay: true,
+            modal_overlay: false,
             model_show_close: true,
             model_padding: true,
             model_keyboard: true,
             overlay_closable: true,
+            is_use_emoji: false,
         }
     }
 
@@ -91,15 +79,15 @@ impl ProjectStory {
         let modal_show_close = self.model_show_close;
         let modal_padding = self.model_padding;
         let overlay_closable = self.overlay_closable;
-        let input1 = self.input1.clone();
+        let project_name_input = self.project_name_input.clone();
         let date_picker = self.date_picker.clone();
-        let dropdown = self.dropdown.clone();
         let view = cx.entity().clone();
         let keyboard = self.model_keyboard;
+        let is_use_emoji = self.is_use_emoji;
 
         window.open_modal(cx, move |modal, _, _| {
             modal
-                .title("Form Modal")
+                .title("New Project")
                 .overlay(overlay)
                 .keyboard(keyboard)
                 .show_close(modal_show_close)
@@ -108,21 +96,28 @@ impl ProjectStory {
                 .child(
                     v_flex()
                         .gap_3()
-                        .child("This is a modal dialog.")
-                        .child("You can put anything here.")
-                        .child(input1.clone())
-                        .child(dropdown.clone())
+                        .child("💼")
+                        .child(project_name_input.clone())
+                        .child(h_flex().gap_3().child(Label::new("😄 Use Emoji")).child(
+                            Switch::new("is-use-emoji").checked(is_use_emoji), // .on_click(
+                                                                               //     cx.listener(move |view, checked, _, cx| {
+                                                                               //         let view = view.clone();
+                                                                               //         view.is_use_emoji = *checked;
+                                                                               //         cx.notify();
+                                                                               //     }),
+                                                                               // ),
+                        ))
                         .child(date_picker.clone()),
                 )
                 .footer({
                     let view = view.clone();
-                    let input1 = input1.clone();
+                    let project_name_input = project_name_input.clone();
                     let date_picker = date_picker.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("confirm").primary().label("Confirm").on_click({
                                 let view = view.clone();
-                                let input1 = input1.clone();
+                                let project_name_input = project_name_input.clone();
                                 let date_picker = date_picker.clone();
                                 move |_, window, cx| {
                                     window.close_modal(cx);
@@ -131,29 +126,15 @@ impl ProjectStory {
                                         view.selected_value = Some(
                                             format!(
                                                 "Hello, {}, date: {}",
-                                                input1.read(cx).text(),
+                                                project_name_input.read(cx).text(),
                                                 date_picker.read(cx).date()
                                             )
                                             .into(),
-                                        )
+                                        );
+                                        println!("{:?}", view.selected_value.as_ref().unwrap());
                                     });
                                 }
                             }),
-                            Button::new("new-modal").label("Open Other Modal").on_click(
-                                move |_, window, cx| {
-                                    window.open_modal(cx, move |modal, _, _| {
-                                        modal
-                                            .title("Other Modal")
-                                            .child("This is another modal.")
-                                            .min_h(px(300.))
-                                            .overlay(overlay)
-                                            .keyboard(keyboard)
-                                            .show_close(modal_show_close)
-                                            .overlay_closable(overlay_closable)
-                                            .when(!modal_padding, |this| this.p(px(0.)))
-                                    });
-                                },
-                            ),
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(move |_, window, cx| {
@@ -164,7 +145,7 @@ impl ProjectStory {
                 })
         });
 
-        self.input1.focus_handle(cx).focus(window);
+        self.project_name_input.focus_handle(cx).focus(window);
     }
 
     fn on_action_test_action(
@@ -192,8 +173,8 @@ impl Render for ProjectStory {
             .size_full()
             .child(
                 v_flex().gap_6().child(
-                    section("Normal Modal").child(
-                        Button::new("show-modal").label("Open Modal...").on_click(
+                    section("Section").child(
+                        Button::new("new-project").label("Add Project").on_click(
                             cx.listener(|this, _, window, cx| this.show_modal(window, cx)),
                         ),
                     ),
