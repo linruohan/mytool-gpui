@@ -23,9 +23,9 @@ bonsaidb.workspace = true
 jiff.workspace = true
 env_logger.workspace = true
 whoami.workspace = true
-
-
 [target.'cfg(target_os = "windows")'.build-dependencies]
+naga = { version = "25.0", features = ["wgsl-in"] }
+embed-resource = "3.0"
 winresource.workspace = true
 
 [lints]

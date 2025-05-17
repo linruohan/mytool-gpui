@@ -1,5 +1,6 @@
 mod assets;
 mod calendar_story;
+mod color_picker_story;
 mod date_picker_story;
 mod list_story;
 mod modal_story;
@@ -19,6 +20,7 @@ use gpui::{
 };
 
 pub use calendar_story::CalendarStory;
+pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
 pub use list_story::ListStory;
 pub use modal_story::ModalStory;
