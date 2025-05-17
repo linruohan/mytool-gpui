@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use gpui::{
-    div, impl_internal_actions, prelude::FluentBuilder, px, relative, App, AppContext, ClickEvent,
-    Context, DefiniteLength, Entity, Focusable, IntoElement, Length, ParentElement, Render,
-    SharedString, Styled, Window,
+    div, impl_internal_actions, prelude::FluentBuilder, relative, App, AppContext, ClickEvent,
+    Context, Entity, Focusable, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
 use gpui_component::{
@@ -15,8 +14,8 @@ use gpui_component::{
     popup_menu::PopupMenuExt,
     red_500,
     sidebar::{
-        Sidebar, SidebarBoard, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu,
-        SidebarMenuItem, SidebarToggleButton,
+        Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
+        SidebarToggleButton,
     },
     switch::Switch,
     v_flex, white, ActiveTheme, Icon, IconName, Side, Sizable,
@@ -221,24 +220,104 @@ impl Render for SidebarStory {
             .child(
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
-                    .child(SidebarMenu::new().children(groups[0].iter().map(|item| {
-                        SidebarMenuItem::new(item.label())
-                            .icon(item.icon())
-                            .size(Length::Definite(DefiniteLength::Fraction(0.45)))
-                            .active(self.active_items.contains_key(item))
-                            .on_click(cx.listener(item.handler()))
-                    })))
-                    .child(SidebarMenu::new().child(
-                        SidebarMenuItem::new("Add project      ➕").on_click(cx.listener(
-                            move |this, _, _, cx| {
-                                println!("{}", "add projects");
-                                cx.notify();
-                            },
-                        )),
-                    ))
+                    .header(
+                        SidebarHeader::new()
+                            .w_full()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded(cx.theme().radius)
+                                    .bg(blue_500())
+                                    .text_color(white())
+                                    .size_8()
+                                    .flex_shrink_0()
+                                    .when(!self.collapsed, |this| {
+                                        this.child(Icon::new(IconName::GalleryVerticalEnd))
+                                    })
+                                    .when(self.collapsed, |this| {
+                                        this.size_4()
+                                            .bg(cx.theme().transparent)
+                                            .text_color(cx.theme().foreground)
+                                            .child(Icon::new(IconName::GalleryVerticalEnd))
+                                    }),
+                            )
+                            .when(!self.collapsed, |this| {
+                                this.child(
+                                    v_flex()
+                                        .gap_0()
+                                        .text_sm()
+                                        .flex_1()
+                                        .line_height(relative(1.25))
+                                        .overflow_hidden()
+                                        .text_ellipsis()
+                                        .child("Company Name")
+                                        .child(div().child("Enterprise").text_xs()),
+                                )
+                            })
+                            .when(!self.collapsed, |this| {
+                                this.child(
+                                    Icon::new(IconName::ChevronsUpDown).size_4().flex_shrink_0(),
+                                )
+                            })
+                            .popup_menu(|menu, _, _| {
+                                menu.menu(
+                                    "Twitter Inc.",
+                                    Box::new(SelectCompany(SharedString::from("twitter"))),
+                                )
+                                .menu(
+                                    "Meta Platforms",
+                                    Box::new(SelectCompany(SharedString::from("meta"))),
+                                )
+                                .menu(
+                                    "Google Inc.",
+                                    Box::new(SelectCompany(SharedString::from("google"))),
+                                )
+                            }),
+                    )
                     .child(
-                        SidebarMenu::new().children(groups[1].iter().enumerate().map(
-                            |(ix, item)| {
+                        SidebarGroup::new("Platform").child(SidebarMenu::new().children(
+                            groups[0].iter().map(|item| {
+                                SidebarMenuItem::new(item.label())
+                                    .icon(item.icon())
+                                    .active(self.active_items.contains_key(item))
+                                    .children(item.items().into_iter().enumerate().map(
+                                        |(ix, sub_item)| {
+                                            SidebarMenuItem::new(sub_item.label())
+                                                .active(self.active_subitem == Some(sub_item))
+                                                .when(ix == 0, |this| {
+                                                    this.suffix(
+                                                        Switch::new("switch")
+                                                            .xsmall()
+                                                            .checked(self.checked)
+                                                            .on_click(cx.listener(
+                                                                |this, checked, _, _| {
+                                                                    this.checked = *checked
+                                                                },
+                                                            )),
+                                                    )
+                                                })
+                                                .on_click(cx.listener(sub_item.handler(&item)))
+                                        },
+                                    ))
+                                    .on_click(cx.listener(item.handler()))
+                            }),
+                        )),
+                    )
+                    .child(
+                        SidebarGroup::new("Projects").child(SidebarMenu::new().child(
+                            SidebarMenuItem::new("Add project      ➕").on_click(cx.listener(
+                                move |this, _, _, cx| {
+                                    println!("{}", "add projects");
+                                    cx.notify();
+                                },
+                            )),
+                        )),
+                    )
+                    .child(
+                        SidebarGroup::new("Projects").child(SidebarMenu::new().children(
+                            groups[1].iter().enumerate().map(|(ix, item)| {
                                 SidebarMenuItem::new(item.label())
                                     .icon(item.icon())
                                     .active(self.last_active_item == *item)
@@ -256,21 +335,22 @@ impl Render for SidebarStory {
                                         )
                                     })
                                     .when(ix == 1, |this| this.suffix(IconName::Settings2))
-                            },
+                            }),
                         )),
-                    ), // .footer(
-                       //     SidebarFooter::new()
-                       //         .justify_between()
-                       //         .child(
-                       //             h_flex()
-                       //                 .gap_2()
-                       //                 .child(IconName::CircleUser)
-                       //                 .when(!self.collapsed, |this| this.child("Jason Lee")),
-                       //         )
-                       //         .when(!self.collapsed, |this| {
-                       //             this.child(Icon::new(IconName::ChevronsUpDown).size_4())
-                       //         }),
-                       // ),
+                    )
+                    .footer(
+                        SidebarFooter::new()
+                            .justify_between()
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(IconName::CircleUser)
+                                    .when(!self.collapsed, |this| this.child("Jason Lee")),
+                            )
+                            .when(!self.collapsed, |this| {
+                                this.child(Icon::new(IconName::ChevronsUpDown).size_4())
+                            }),
+                    ),
             )
             .child(
                 v_flex()

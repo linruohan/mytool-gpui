@@ -12,9 +12,18 @@ use gallery::Gallery;
 
 fn main() {
     let app = Application::new().with_assets(Assets);
-    app.run(move |cx: &mut App| {
+
+    // Parse `cargo run -- <story_name>`
+    let name = std::env::args().nth(1);
+
+    app.run(move |cx| {
         mytool::init(cx);
         cx.activate(true);
-        mytool::create_new_window("MyTool-GPUI", Gallery::view, cx);
+
+        mytool::create_new_window(
+            "MyTool-GPUI",
+            move |window, cx| Gallery::view(name.as_deref(), window, cx),
+            cx,
+        );
     });
 }

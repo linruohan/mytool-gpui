@@ -1,28 +1,26 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
     h_flex,
-    input::{InputEvent, TextInput},
+    input::{InputEvent, InputState, TextInput},
+    resizable::{h_resizable, resizable_panel, ResizableState},
     sidebar::{Sidebar, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
     v_flex, ActiveTheme as _, Icon, IconName,
 };
 use mytool::*;
+
 pub struct Gallery {
     stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
     active_group_index: Option<usize>,
     active_index: Option<usize>,
     collapsed: bool,
-    search_input: Entity<TextInput>,
+    search_input: Entity<InputState>,
+    sidebar_state: Entity<ResizableState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl Gallery {
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let search_input = cx.new(|cx| {
-            TextInput::new(window, cx)
-                .appearance(false)
-                .cleanable()
-                .placeholder("Search...")
-        });
+    pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
             InputEvent::Change(_) => {
                 this.active_group_index = Some(0);
@@ -37,18 +35,18 @@ impl Gallery {
             //     vec![StoryContainer::panel::<WelcomeStory>(window, cx)],
             // ),
             (
-                "My Tools",
+                "Tool Set",
                 vec![
                     // StoryContainer::panel::<AccordionStory>(window, cx),
                     // StoryContainer::panel::<AlertStory>(window, cx),
                     // StoryContainer::panel::<BadgeStory>(window, cx),
                     // StoryContainer::panel::<ButtonStory>(window, cx),
-                    StoryContainer::panel::<CalendarStory>(window, cx),
+                    // StoryContainer::panel::<CalendarStory>(window, cx),
                     // StoryContainer::panel::<CheckboxStory>(window, cx),
                     // StoryContainer::panel::<ClipboardStory>(window, cx),
                     // StoryContainer::panel::<ColorPickerStory>(window, cx),
                     StoryContainer::panel::<DatePickerStory>(window, cx),
-                    StoryContainer::panel::<ProjectStory>(window, cx),
+                    // StoryContainer::panel::<DropdownStory>(window, cx),
                     // StoryContainer::panel::<DrawerStory>(window, cx),
                     // StoryContainer::panel::<FormStory>(window, cx),
                     // StoryContainer::panel::<IconStory>(window, cx),
@@ -58,7 +56,7 @@ impl Gallery {
                     // StoryContainer::panel::<LabelStory>(window, cx),
                     StoryContainer::panel::<ListStory>(window, cx),
                     // StoryContainer::panel::<MenuStory>(window, cx),
-                    // StoryContainer::panel::<ModalStory>(window, cx),
+                    StoryContainer::panel::<ModalStory>(window, cx),
                     // StoryContainer::panel::<NotificationStory>(window, cx),
                     // StoryContainer::panel::<NumberInputStory>(window, cx),
                     // StoryContainer::panel::<OtpInputStory>(window, cx),
@@ -70,7 +68,7 @@ impl Gallery {
                     StoryContainer::panel::<SidebarStory>(window, cx),
                     // StoryContainer::panel::<SliderStory>(window, cx),
                     // StoryContainer::panel::<SwitchStory>(window, cx),
-                    // StoryContainer::panel::<TableStory>(window, cx),
+                    StoryContainer::panel::<TableStory>(window, cx),
                     // StoryContainer::panel::<TabsStory>(window, cx),
                     // StoryContainer::panel::<TagStory>(window, cx),
                     // StoryContainer::panel::<TextareaStory>(window, cx),
@@ -79,24 +77,45 @@ impl Gallery {
             ),
         ];
 
-        Self {
+        let mut this = Self {
             search_input,
             stories,
             active_group_index: Some(0),
             active_index: Some(0),
             collapsed: false,
+            sidebar_state: ResizableState::new(cx),
             _subscriptions,
+        };
+
+        if let Some(init_story) = init_story {
+            this.set_active_story(init_story, cx);
         }
+
+        this
     }
 
-    pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
-        cx.new(|cx| Self::new(window, cx))
+    fn set_active_story(&mut self, name: &str, cx: &mut App) {
+        let group_index = 1;
+        let Some(story_index) = self.stories.get(group_index).and_then(|(_, stories)| {
+            stories
+                .iter()
+                .position(|story| story.read(cx).name.to_lowercase().replace("story", "") == name)
+        }) else {
+            return;
+        };
+
+        self.active_group_index = Some(group_index);
+        self.active_index = Some(story_index);
+    }
+
+    pub fn view(init_story: Option<&str>, window: &mut Window, cx: &mut App) -> Entity<Self> {
+        cx.new(|cx| Self::new(init_story, window, cx))
     }
 }
 
 impl Render for Gallery {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let query = self.search_input.read(cx).text().trim().to_lowercase();
+        let query = self.search_input.read(cx).value().trim().to_lowercase();
 
         let stories: Vec<_> = self
             .stories
@@ -128,54 +147,70 @@ impl Render for Gallery {
                 ("".into(), "".into())
             };
 
-        h_flex()
-            .id("gallery-container")
-            .size_full()
+        h_resizable("gallery-container", self.sidebar_state.clone())
             .child(
-                Sidebar::left()
-                    .collapsed(self.collapsed)
-                    .header(
-                        v_flex().w_full().gap_4().child(
-                            div()
-                                .bg(cx.theme().sidebar_border)
-                                .px_1()
-                                .rounded_full()
-                                .flex_1()
-                                .mx_1()
-                                .child(self.search_input.clone()),
-                        ),
-                    )
-                    .children(stories.clone().into_iter().enumerate().map(
-                        |(group_ix, (group_name, sub_stories))| {
-                            SidebarGroup::new(*group_name).child(SidebarMenu::new().children(
-                                sub_stories.iter().enumerate().map(|(ix, story)| {
-                                    SidebarMenuItem::new(story.read(cx).name.clone())
-                                        .active(
-                                            self.active_group_index == Some(group_ix)
-                                                && self.active_index == Some(ix),
-                                        )
-                                        .on_click(cx.listener(
-                                            move |this, _: &ClickEvent, _, cx| {
-                                                this.active_group_index = Some(group_ix);
-                                                this.active_index = Some(ix);
-                                                cx.notify();
-                                            },
-                                        ))
-                                }),
-                            ))
-                        },
-                    )),
+                resizable_panel()
+                    .size(px(255.))
+                    .size_range(px(200.)..px(320.))
+                    .child(
+                        Sidebar::left()
+                            .width(relative(1.))
+                            .border_width(px(0.))
+                            .collapsed(self.collapsed)
+                            .header(
+                                v_flex().w_full().gap_4().child(
+                                    div()
+                                        .bg(cx.theme().sidebar_border)
+                                        .px_1()
+                                        .rounded_full()
+                                        .flex_1()
+                                        .mx_1()
+                                        .child(
+                                            TextInput::new(&self.search_input)
+                                                .appearance(false)
+                                                .cleanable(),
+                                        ),
+                                ),
+                            )
+                            .children(stories.clone().into_iter().enumerate().map(
+                                |(group_ix, (group_name, sub_stories))| {
+                                    // SidebarGroup::new(*group_name).child(
+                                    SidebarMenu::new().children(sub_stories.iter().enumerate().map(
+                                        |(ix, story)| {
+                                            SidebarMenuItem::new(story.read(cx).name.clone())
+                                                .active(
+                                                    self.active_group_index == Some(group_ix)
+                                                        && self.active_index == Some(ix),
+                                                )
+                                                .on_click(cx.listener(
+                                                    move |this, _: &ClickEvent, _, cx| {
+                                                        this.active_group_index = Some(group_ix);
+                                                        this.active_index = Some(ix);
+                                                        cx.notify();
+                                                    },
+                                                ))
+                                        },
+                                    ))
+                                    // )
+                                },
+                            )),
+                    ),
             )
             .child(
-                v_flex().flex_1().h_full().overflow_x_hidden().child(
-                    div()
-                        .id("story")
-                        .flex_1()
-                        .overflow_y_scroll()
-                        .when_some(active_story, |this, active_story| {
-                            this.child(active_story.clone())
-                        }),
-                ),
+                v_flex()
+                    .flex_1()
+                    .h_full()
+                    .overflow_x_hidden()
+                    .child(
+                        div()
+                            .id("story")
+                            .flex_1()
+                            .overflow_y_scroll()
+                            .when_some(active_story, |this, active_story| {
+                                this.child(active_story.clone())
+                            }),
+                    )
+                    .into_any_element(),
             )
     }
 }

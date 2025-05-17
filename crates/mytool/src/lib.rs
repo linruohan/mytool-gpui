@@ -2,7 +2,7 @@ mod assets;
 mod calendar_story;
 mod date_picker_story;
 mod list_story;
-mod project_story;
+mod modal_story;
 mod sidebar_story;
 mod table_story;
 mod title_bar;
@@ -21,7 +21,7 @@ use gpui::{
 pub use calendar_story::CalendarStory;
 pub use date_picker_story::DatePickerStory;
 pub use list_story::ListStory;
-pub use project_story::ProjectStory;
+pub use modal_story::ModalStory;
 use serde::{Deserialize, Serialize};
 pub use sidebar_story::SidebarStory;
 pub use table_story::TableStory;
@@ -547,8 +547,7 @@ impl StoryState {
             // "ImageStory" => mytool!(ImageStory),
             // "InputStory" => mytool!(InputStory),
             "ListStory" => mytool!(ListStory),
-            "ProjectStory" => mytool!(ProjectStory),
-            // "ModalStory" => mytool!(ModalStory),
+            "ModalStory" => mytool!(ModalStory),
             // "PopoverStory" => mytool!(PopoverStory),
             // "ProgressStory" => mytool!(ProgressStory),
             // "ResizableStory" => mytool!(ResizableStory),

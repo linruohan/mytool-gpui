@@ -14,7 +14,7 @@ use gpui_component::{
     checkbox::Checkbox,
     green, h_flex,
     indicator::Indicator,
-    input::{InputEvent, TextInput},
+    input::{InputEvent, InputState, TextInput},
     label::Label,
     popup_menu::{PopupMenu, PopupMenuExt},
     red,
@@ -42,6 +42,41 @@ struct Stock {
     volume: f64,
     turnover: f64,
     market_cap: f64,
+    ttm: f64,
+    five_mins_ranking: f64,
+    th60_days_ranking: f64,
+    year_change_percent: f64,
+    bid: f64,
+    bid_volume: f64,
+    ask: f64,
+    ask_volume: f64,
+    open: f64,
+    prev_close: f64,
+    high: f64,
+    low: f64,
+    turnover_rate: f64,
+    rise_rate: f64,
+    amplitude: f64,
+    pe_status: f64,
+    pb_status: f64,
+    volume_ratio: f64,
+    bid_ask_ratio: f64,
+    latest_pre_close: f64,
+    latest_post_close: f64,
+    pre_market_cap: f64,
+    pre_market_percent: f64,
+    pre_market_change: f64,
+    post_market_cap: f64,
+    post_market_percent: f64,
+    post_market_change: f64,
+    float_cap: f64,
+    shares: i64,
+    shares_float: i64,
+    day_5_ranking: f64,
+    day_10_ranking: f64,
+    day_30_ranking: f64,
+    day_120_ranking: f64,
+    day_250_ranking: f64,
 }
 
 impl Stock {
@@ -52,6 +87,16 @@ impl Stock {
         self.volume = (-300.0..999.999).fake::<f64>();
         self.turnover = (-300.0..999.999).fake::<f64>();
         self.market_cap = (-1000.0..9999.999).fake::<f64>();
+        self.ttm = (-1000.0..9999.999).fake::<f64>();
+        self.five_mins_ranking = self.five_mins_ranking * (1.0 + (-0.2..0.2).fake::<f64>());
+        self.bid = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
+        self.bid_volume = (100.0..1000.0).fake::<f64>();
+        self.ask = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
+        self.ask_volume = (100.0..1000.0).fake::<f64>();
+        self.bid_ask_ratio = self.bid / self.ask;
+        self.volume_ratio = self.volume / self.turnover;
+        self.high = self.price * (1.0 + (0.0..1.5).fake::<f64>());
+        self.low = self.price * (1.0 + (-1.5..0.0).fake::<f64>());
     }
 }
 
@@ -66,6 +111,41 @@ fn random_stocks(size: usize) -> Vec<Stock> {
             volume: (0.0..1000.0).fake(),
             turnover: (0.0..1000.0).fake(),
             market_cap: (0.0..1000.0).fake(),
+            ttm: (0.0..1000.0).fake(),
+            five_mins_ranking: (0.0..1000.0).fake(),
+            th60_days_ranking: (0.0..1000.0).fake(),
+            year_change_percent: (-1.0..1.0).fake(),
+            bid: (0.0..1000.0).fake(),
+            bid_volume: (0.0..1000.0).fake(),
+            ask: (0.0..1000.0).fake(),
+            ask_volume: (0.0..1000.0).fake(),
+            open: (0.0..1000.0).fake(),
+            prev_close: (0.0..1000.0).fake(),
+            high: (0.0..1000.0).fake(),
+            low: (0.0..1000.0).fake(),
+            turnover_rate: (0.0..1.0).fake(),
+            rise_rate: (0.0..1.0).fake(),
+            amplitude: (0.0..1000.0).fake(),
+            pe_status: (0.0..1000.0).fake(),
+            pb_status: (0.0..1000.0).fake(),
+            volume_ratio: (0.0..1.0).fake(),
+            bid_ask_ratio: (0.0..1.0).fake(),
+            latest_pre_close: (0.0..1000.0).fake(),
+            latest_post_close: (0.0..1000.0).fake(),
+            pre_market_cap: (0.0..1000.0).fake(),
+            pre_market_percent: (-1.0..1.0).fake(),
+            pre_market_change: (-100.0..100.0).fake(),
+            post_market_cap: (0.0..1000.0).fake(),
+            post_market_percent: (-1.0..1.0).fake(),
+            post_market_change: (-100.0..100.0).fake(),
+            float_cap: (0.0..1000.0).fake(),
+            shares: (100000..9999999).fake(),
+            shares_float: (100000..9999999).fake(),
+            day_5_ranking: (0.0..1000.0).fake(),
+            day_10_ranking: (0.0..1000.0).fake(),
+            day_30_ranking: (0.0..1000.0).fake(),
+            day_120_ranking: (0.0..1000.0).fake(),
+            day_250_ranking: (0.0..1000.0).fake(),
             ..Default::default()
         })
         .collect()
@@ -123,6 +203,41 @@ impl StockTableDelegate {
                 Column::new("volume", "Volume", None),
                 Column::new("turnover", "Turnover", None),
                 Column::new("market_cap", "Market Cap", None),
+                Column::new("ttm", "TTM", None),
+                Column::new("five_mins_ranking", "5m Ranking", None),
+                Column::new("th60_days_ranking", "60d Ranking", None),
+                Column::new("year_change_percent", "Year Chg%", None),
+                Column::new("bid", "Bid", None),
+                Column::new("bid_volume", "Bid Vol", None),
+                Column::new("ask", "Ask", None),
+                Column::new("ask_volume", "Ask Vol", None),
+                Column::new("open", "Open", None),
+                Column::new("prev_close", "Prev Close", None),
+                Column::new("high", "High", None),
+                Column::new("low", "Low", None),
+                Column::new("turnover_rate", "Turnover Rate", None),
+                Column::new("rise_rate", "Rise Rate", None),
+                Column::new("amplitude", "Amplitude", None),
+                Column::new("pe_status", "P/E", None),
+                Column::new("pb_status", "P/B", None),
+                Column::new("volume_ratio", "Volume Ratio", None),
+                Column::new("bid_ask_ratio", "Bid Ask Ratio", None),
+                Column::new("latest_pre_close", "Latest Pre Close", None),
+                Column::new("latest_post_close", "Latest Post Close", None),
+                Column::new("pre_market_cap", "Pre Mkt Cap", None),
+                Column::new("pre_market_percent", "Pre Mkt%", None),
+                Column::new("pre_market_change", "Pre Mkt Chg", None),
+                Column::new("post_market_cap", "Post Mkt Cap", None),
+                Column::new("post_market_percent", "Post Mkt%", None),
+                Column::new("post_market_change", "Post Mkt Chg", None),
+                Column::new("float_cap", "Float Cap", None),
+                Column::new("shares", "Shares", None),
+                Column::new("shares_float", "Float Shares", None),
+                Column::new("day_5_ranking", "5d Ranking", None),
+                Column::new("day_10_ranking", "10d Ranking", None),
+                Column::new("day_30_ranking", "30d Ranking", None),
+                Column::new("day_120_ranking", "120d Ranking", None),
+                Column::new("day_250_ranking", "250d Ranking", None),
             ],
             loop_selection: true,
             col_resize: true,
@@ -305,6 +420,47 @@ impl TableDelegate for StockTableDelegate {
             "volume" => self.render_value_cell(stock.volume, cx),
             "turnover" => self.render_value_cell(stock.turnover, cx),
             "market_cap" => self.render_value_cell(stock.market_cap, cx),
+            "ttm" => self.render_value_cell(stock.ttm, cx),
+            "five_mins_ranking" => self.render_value_cell(stock.five_mins_ranking, cx),
+            "th60_days_ranking" => stock.th60_days_ranking.to_string().into_any_element(),
+            "year_change_percent" => (stock.year_change_percent * 100.0)
+                .to_string()
+                .into_any_element(),
+            "bid" => self.render_value_cell(stock.bid, cx),
+            "bid_volume" => self.render_value_cell(stock.bid_volume, cx),
+            "ask" => self.render_value_cell(stock.ask, cx),
+            "ask_volume" => self.render_value_cell(stock.ask_volume, cx),
+            "open" => stock.open.to_string().into_any_element(),
+            "prev_close" => stock.prev_close.to_string().into_any_element(),
+            "high" => self.render_value_cell(stock.high, cx),
+            "low" => self.render_value_cell(stock.low, cx),
+            "turnover_rate" => (stock.turnover_rate * 100.0).to_string().into_any_element(),
+            "rise_rate" => (stock.rise_rate * 100.0).to_string().into_any_element(),
+            "amplitude" => (stock.amplitude * 100.0).to_string().into_any_element(),
+            "pe_status" => stock.pe_status.to_string().into_any_element(),
+            "pb_status" => stock.pb_status.to_string().into_any_element(),
+            "volume_ratio" => self.render_value_cell(stock.volume_ratio, cx),
+            "bid_ask_ratio" => self.render_value_cell(stock.bid_ask_ratio, cx),
+            "latest_pre_close" => stock.latest_pre_close.to_string().into_any_element(),
+            "latest_post_close" => stock.latest_post_close.to_string().into_any_element(),
+            "pre_market_cap" => stock.pre_market_cap.to_string().into_any_element(),
+            "pre_market_percent" => (stock.pre_market_percent * 100.0)
+                .to_string()
+                .into_any_element(),
+            "pre_market_change" => stock.pre_market_change.to_string().into_any_element(),
+            "post_market_cap" => stock.post_market_cap.to_string().into_any_element(),
+            "post_market_percent" => (stock.post_market_percent * 100.0)
+                .to_string()
+                .into_any_element(),
+            "post_market_change" => stock.post_market_change.to_string().into_any_element(),
+            "float_cap" => stock.float_cap.to_string().into_any_element(),
+            "shares" => stock.shares.to_string().into_any_element(),
+            "shares_float" => stock.shares_float.to_string().into_any_element(),
+            "day_5_ranking" => stock.day_5_ranking.to_string().into_any_element(),
+            "day_10_ranking" => stock.day_10_ranking.to_string().into_any_element(),
+            "day_30_ranking" => stock.day_30_ranking.to_string().into_any_element(),
+            "day_120_ranking" => stock.day_120_ranking.to_string().into_any_element(),
+            "day_250_ranking" => stock.day_250_ranking.to_string().into_any_element(),
             _ => "--".to_string().into_any_element(),
         }
     }
@@ -378,7 +534,7 @@ impl TableDelegate for StockTableDelegate {
     }
 
     fn load_more_threshold(&self) -> usize {
-        10
+        150
     }
 
     fn load_more(&mut self, _: &mut Window, cx: &mut Context<Table<Self>>) {
@@ -388,12 +544,11 @@ impl TableDelegate for StockTableDelegate {
             // Simulate network request, delay 1s to load data.
             Timer::after(Duration::from_secs(1)).await;
 
-            // 动态新增table数据，每次5条，大于15条后停止
             cx.update(|cx| {
                 let _ = view.update(cx, |view, _| {
-                    view.delegate_mut().stocks.extend(random_stocks(5));
+                    view.delegate_mut().stocks.extend(random_stocks(200));
                     view.delegate_mut().loading = false;
-                    view.delegate_mut().eof = view.delegate().stocks.len() >= 15;
+                    view.delegate_mut().eof = view.delegate().stocks.len() >= 6000;
                 });
             })
         })
@@ -421,7 +576,7 @@ impl TableDelegate for StockTableDelegate {
 
 pub struct TableStory {
     table: Entity<Table<StockTableDelegate>>,
-    num_stocks_input: Entity<TextInput>,
+    num_stocks_input: Entity<InputState>,
     stripe: bool,
     refresh_data: bool,
     size: Size,
@@ -433,8 +588,7 @@ impl super::Mytool for TableStory {
     }
 
     fn description() -> &'static str {
-        // "A complex data table with selection, sorting, column moving, and loading more."
-        ""
+        "A complex data table with selection, sorting, column moving, and loading more."
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
@@ -460,14 +614,14 @@ impl TableStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         // Create the number input field with validation for positive integers
         let num_stocks_input = cx.new(|cx| {
-            let mut input = TextInput::new(window, cx)
+            let mut input = InputState::new(window, cx)
                 .placeholder("Enter number of Stocks to display")
                 .validate(|s| s.parse::<usize>().is_ok());
-            input.set_text("5", window, cx);
+            input.set_value("5000", window, cx);
             input
         });
-        // 生成数据的行数
-        let delegate = StockTableDelegate::new(5);
+
+        let delegate = StockTableDelegate::new(5000);
         let table = cx.new(|cx| Table::new(delegate, window, cx));
 
         cx.subscribe_in(&table, window, Self::on_table_event)
@@ -515,7 +669,7 @@ impl TableStory {
     // Event handler for changes in the number input field
     fn on_num_stocks_input_change(
         &mut self,
-        _: &Entity<TextInput>,
+        _: &Entity<InputState>,
         event: &InputEvent,
         _: &mut Window,
         cx: &mut Context<Self>,
@@ -523,7 +677,7 @@ impl TableStory {
         match event {
             // Update when the user presses Enter or the input loses focus
             InputEvent::PressEnter { .. } | InputEvent::Blur => {
-                let text = self.num_stocks_input.read(cx).text().to_string();
+                let text = self.num_stocks_input.read(cx).value().to_string();
                 if let Ok(num) = text.parse::<usize>() {
                     self.table.update(cx, |table, _| {
                         table.delegate_mut().update_stocks(num);
@@ -638,6 +792,71 @@ impl Render for TableStory {
             .gap_4()
             .child(
                 h_flex()
+                    .items_center()
+                    .gap_3()
+                    .flex_wrap()
+                    .child(
+                        Checkbox::new("loop-selection")
+                            .label("Loop Selection")
+                            .selected(delegate.loop_selection)
+                            .on_click(cx.listener(Self::toggle_loop_selection)),
+                    )
+                    .child(
+                        Checkbox::new("col-resize")
+                            .label("Column Resize")
+                            .selected(delegate.col_resize)
+                            .on_click(cx.listener(Self::toggle_col_resize)),
+                    )
+                    .child(
+                        Checkbox::new("col-order")
+                            .label("Column Order")
+                            .selected(delegate.col_order)
+                            .on_click(cx.listener(Self::toggle_col_order)),
+                    )
+                    .child(
+                        Checkbox::new("col-sort")
+                            .label("Column Sort")
+                            .selected(delegate.col_sort)
+                            .on_click(cx.listener(Self::toggle_col_sort)),
+                    )
+                    .child(
+                        Checkbox::new("col-selection")
+                            .label("Column Selection")
+                            .selected(delegate.col_selection)
+                            .on_click(cx.listener(Self::toggle_col_selection)),
+                    )
+                    .child(
+                        Checkbox::new("stripe")
+                            .label("Stripe")
+                            .selected(self.stripe)
+                            .on_click(cx.listener(Self::toggle_stripe)),
+                    )
+                    .child(
+                        Checkbox::new("fixed-cols")
+                            .label("Fixed Columns")
+                            .selected(delegate.fixed_cols)
+                            .on_click(cx.listener(Self::toggle_fixed_cols)),
+                    )
+                    .child(
+                        Checkbox::new("loading")
+                            .label("Loading")
+                            .checked(self.table.read(cx).delegate().full_loading)
+                            .on_click(cx.listener(|this, check: &bool, _, cx| {
+                                this.table.update(cx, |this, cx| {
+                                    this.delegate_mut().full_loading = *check;
+                                    cx.notify();
+                                })
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("refresh-data")
+                            .label("Refresh Data")
+                            .selected(self.refresh_data)
+                            .on_click(cx.listener(Self::toggle_refresh_data)),
+                    ),
+            )
+            .child(
+                h_flex()
                     .gap_2()
                     .child(
                         Button::new("size")
@@ -668,7 +887,7 @@ impl Render for TableStory {
                     )
                     .child(
                         Button::new("scroll-top")
-                            .child("🔝")
+                            .child("Scroll to Top")
                             .small()
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.table.update(cx, |table, cx| {
@@ -678,7 +897,7 @@ impl Render for TableStory {
                     )
                     .child(
                         Button::new("scroll-bottom")
-                            .child("⬇️")
+                            .child("Scroll to Bottom")
                             .small()
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.table.update(cx, |table, cx| {
@@ -716,7 +935,7 @@ impl Render for TableStory {
                         .child(
                             h_flex()
                                 .min_w_32()
-                                .child(self.num_stocks_input.clone())
+                                .child(TextInput::new(&self.num_stocks_input))
                                 .into_any_element(),
                         )
                         .when(delegate.loading, |this| {
