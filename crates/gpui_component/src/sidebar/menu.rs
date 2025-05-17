@@ -1,7 +1,7 @@
 use crate::{h_flex, v_flex, ActiveTheme as _, Collapsible, Icon, IconName, StyledExt};
 use gpui::{
     div, percentage, prelude::FluentBuilder as _, AnyElement, App, ClickEvent, ElementId,
-    InteractiveElement as _, IntoElement, Length, ParentElement as _, RenderOnce, SharedString,
+    InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
 use std::rc::Rc;
@@ -63,7 +63,6 @@ pub struct SidebarMenuItem {
     handler: Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
     active: bool,
     collapsed: bool,
-    size: Length,
     children: Vec<Self>,
     suffix: Option<AnyElement>,
 }
@@ -77,7 +76,6 @@ impl SidebarMenuItem {
             label: label.into(),
             handler: Rc::new(|_, _, _| {}),
             active: false,
-            size: Length::Auto,
             collapsed: false,
             children: Vec::new(),
             suffix: None,
@@ -87,10 +85,6 @@ impl SidebarMenuItem {
     /// Set the icon for the menu item
     pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
         self.icon = Some(icon.into());
-        self
-    }
-    pub fn size(mut self, size: Length) -> Self {
-        self.size = size;
         self
     }
     /// Set id to the menu item.
@@ -165,7 +159,6 @@ impl RenderOnce for SidebarMenuItem {
                     .gap_x_2()
                     .rounded(cx.theme().radius)
                     .text_sm()
-                    .size(self.size)
                     .hover(|this| {
                         if is_active {
                             return this;

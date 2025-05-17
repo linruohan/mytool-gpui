@@ -212,8 +212,8 @@ impl<E: Collapsible + IntoElement> RenderOnce for Sidebar<E> {
             .when_some(self.header.take(), |this, header| {
                 this.child(h_flex().id("header").p_2().gap_2().child(header))
             })
-            .when_some(self.board.take(), |this, header| {
-                this.child(h_flex().id("board").p_2().gap_2().child(header))
+            .when_some(self.board.take(), |this, board| {
+                this.child(h_flex().id("board").p_2().gap_2().child(board))
             })
             .child(
                 v_flex().id("content").flex_1().min_h_0().child(

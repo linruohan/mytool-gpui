@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use gpui::{
-    div, impl_internal_actions, prelude::FluentBuilder, relative, App, AppContext, ClickEvent,
-    Context, Entity, Focusable, IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    blue, div, green, impl_internal_actions, prelude::FluentBuilder, relative, rgb, App,
+    AppContext, ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render,
+    SharedString, Styled, Window,
 };
 
 use gpui_component::{
@@ -10,15 +11,16 @@ use gpui_component::{
     blue_500,
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     divider::Divider,
-    h_flex,
+    gray_400, h_flex,
+    input::{InputState, TextInput},
     popup_menu::PopupMenuExt,
-    red_500,
+    purple, purple_100, red, red_400,
     sidebar::{
-        Sidebar, SidebarFooter, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem,
-        SidebarToggleButton,
+        Sidebar, SidebarBoard, SidebarBoardItem, SidebarFooter, SidebarGroup, SidebarHeader,
+        SidebarMenu, SidebarMenuItem, SidebarToggleButton,
     },
     switch::Switch,
-    v_flex, white, ActiveTheme, Icon, IconName, Side, Sizable,
+    v_flex, white, yellow_400, ActiveTheme, Icon, IconName, Side, Sizable,
 };
 use serde::Deserialize;
 
@@ -114,6 +116,29 @@ impl Item {
             Self::Projects => IconName::ProcessErrorSymbolic,
         }
     }
+    pub fn count(&self) -> usize {
+        match self {
+            Self::Inbox => 10,
+            Self::Today => 2,
+            Self::Scheduled => 3,
+            Self::Pinboard => 5,
+            Self::Labels => 6,
+            Self::Completed => 2,
+            Self::Projects => self.items().len(),
+        }
+    }
+    pub fn color(&self) -> Hsla {
+        match self {
+            // Self::Inbox => gpui::rgb(0xf0f0f0).into(),
+            Self::Inbox => blue(),
+            Self::Today => green(),
+            Self::Scheduled => purple_100(),
+            Self::Pinboard => red_400(),
+            Self::Labels => gray_400(),
+            Self::Completed => yellow_400(),
+            Self::Projects => Hsla::default(),
+        }
+    }
 
     pub fn handler(
         &self,
@@ -131,9 +156,6 @@ impl Item {
             this.last_active_item = item;
             cx.notify();
         }
-    }
-    pub fn size(&self) -> usize {
-        self.label().len()
     }
     pub fn items(&self) -> Vec<SubItem> {
         match self {
@@ -210,6 +232,7 @@ impl Render for SidebarStory {
             ],
             vec![Item::Projects],
         ];
+        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
 
         h_flex()
             .rounded(cx.theme().radius)
@@ -220,104 +243,75 @@ impl Render for SidebarStory {
             .child(
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
-                    .header(
-                        SidebarHeader::new()
-                            .w_full()
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(cx.theme().radius)
-                                    .bg(blue_500())
-                                    .text_color(white())
-                                    .size_8()
-                                    .flex_shrink_0()
-                                    .when(!self.collapsed, |this| {
-                                        this.child(Icon::new(IconName::GalleryVerticalEnd))
+                    .board(
+                        v_flex().w_full().gap_4().child(
+                            SidebarBoard::new().children(
+                                groups[0]
+                                    .iter()
+                                    .map(|item| {
+                                        SidebarBoardItem::new(
+                                            item.label(),
+                                            item.color(),
+                                            item.color(),
+                                            item.count(),
+                                        )
+                                        .size(gpui::Length::Definite(
+                                            gpui::DefiniteLength::Fraction(0.5),
+                                        ))
+                                        .icon(item.icon())
+                                        .active(self.active_items.contains_key(item))
+                                        .on_click(cx.listener(item.handler()))
                                     })
-                                    .when(self.collapsed, |this| {
-                                        this.size_4()
-                                            .bg(cx.theme().transparent)
-                                            .text_color(cx.theme().foreground)
-                                            .child(Icon::new(IconName::GalleryVerticalEnd))
-                                    }),
-                            )
-                            .when(!self.collapsed, |this| {
-                                this.child(
-                                    v_flex()
-                                        .gap_0()
-                                        .text_sm()
-                                        .flex_1()
-                                        .line_height(relative(1.25))
-                                        .overflow_hidden()
-                                        .text_ellipsis()
-                                        .child("Company Name")
-                                        .child(div().child("Enterprise").text_xs()),
-                                )
-                            })
-                            .when(!self.collapsed, |this| {
-                                this.child(
-                                    Icon::new(IconName::ChevronsUpDown).size_4().flex_shrink_0(),
-                                )
-                            })
-                            .popup_menu(|menu, _, _| {
-                                menu.menu(
-                                    "Twitter Inc.",
-                                    Box::new(SelectCompany(SharedString::from("twitter"))),
-                                )
-                                .menu(
-                                    "Meta Platforms",
-                                    Box::new(SelectCompany(SharedString::from("meta"))),
-                                )
-                                .menu(
-                                    "Google Inc.",
-                                    Box::new(SelectCompany(SharedString::from("google"))),
-                                )
-                            }),
+                                    .collect::<Vec<_>>(),
+                            ),
+                        ),
                     )
+                    // .child(
+                    //     // SidebarGroup::new("Platform").child(),
+                    //     // 任务分类列表：
+                    //     SidebarMenu::new().children(groups[0].iter().map(|item| {
+                    //         SidebarMenuItem::new(format!(
+                    //             "{:<10}{:>10}",
+                    //             item.label(),
+                    //             item.count()
+                    //         ))
+                    //         .icon(item.icon())
+                    //         .active(self.active_items.contains_key(item))
+                    //         .children(item.items().into_iter().enumerate().map(|(ix, sub_item)| {
+                    //             SidebarMenuItem::new(sub_item.label())
+                    //                 .active(self.active_subitem == Some(sub_item))
+                    //                 .when(ix == 0, |this| {
+                    //                     this.suffix(
+                    //                         Switch::new("switch")
+                    //                             .xsmall()
+                    //                             .checked(self.checked)
+                    //                             .on_click(cx.listener(|this, checked, _, _| {
+                    //                                 this.checked = *checked
+                    //                             })),
+                    //                     )
+                    //                 })
+                    //                 .on_click(cx.listener(sub_item.handler(&item)))
+                    //         }))
+                    //         .on_click(cx.listener(item.handler()))
+                    //     })),
+                    // )
                     .child(
-                        SidebarGroup::new("Platform").child(SidebarMenu::new().children(
-                            groups[0].iter().map(|item| {
-                                SidebarMenuItem::new(item.label())
-                                    .icon(item.icon())
-                                    .active(self.active_items.contains_key(item))
-                                    .children(item.items().into_iter().enumerate().map(
-                                        |(ix, sub_item)| {
-                                            SidebarMenuItem::new(sub_item.label())
-                                                .active(self.active_subitem == Some(sub_item))
-                                                .when(ix == 0, |this| {
-                                                    this.suffix(
-                                                        Switch::new("switch")
-                                                            .xsmall()
-                                                            .checked(self.checked)
-                                                            .on_click(cx.listener(
-                                                                |this, checked, _, _| {
-                                                                    this.checked = *checked
-                                                                },
-                                                            )),
-                                                    )
-                                                })
-                                                .on_click(cx.listener(sub_item.handler(&item)))
-                                        },
-                                    ))
-                                    .on_click(cx.listener(item.handler()))
-                            }),
-                        )),
-                    )
-                    .child(
-                        SidebarGroup::new("Projects").child(SidebarMenu::new().child(
+                        // SidebarGroup::new("Projects").child(),
+                        // 添加项目按钮：
+                        SidebarMenu::new().child(
                             SidebarMenuItem::new("Add project      ➕").on_click(cx.listener(
-                                move |this, _, _, cx| {
+                                move |_this, _, _, cx| {
                                     println!("{}", "add projects");
                                     cx.notify();
                                 },
                             )),
-                        )),
+                        ),
                     )
                     .child(
-                        SidebarGroup::new("Projects").child(SidebarMenu::new().children(
-                            groups[1].iter().enumerate().map(|(ix, item)| {
+                        // SidebarGroup::new("Projects").child(),
+                        // 项目列表：
+                        SidebarMenu::new().children(groups[1].iter().enumerate().map(
+                            |(ix, item)| {
                                 SidebarMenuItem::new(item.label())
                                     .icon(item.icon())
                                     .active(self.last_active_item == *item)
@@ -335,21 +329,8 @@ impl Render for SidebarStory {
                                         )
                                     })
                                     .when(ix == 1, |this| this.suffix(IconName::Settings2))
-                            }),
+                            },
                         )),
-                    )
-                    .footer(
-                        SidebarFooter::new()
-                            .justify_between()
-                            .child(
-                                h_flex()
-                                    .gap_2()
-                                    .child(IconName::CircleUser)
-                                    .when(!self.collapsed, |this| this.child("Jason Lee")),
-                            )
-                            .when(!self.collapsed, |this| {
-                                this.child(Icon::new(IconName::ChevronsUpDown).size_4())
-                            }),
                     ),
             )
             .child(
