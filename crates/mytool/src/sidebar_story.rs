@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use gpui::{
-    blue, div, green, impl_internal_actions, prelude::FluentBuilder, relative, rgb, App,
+    blue, div, green, impl_internal_actions, prelude::FluentBuilder, px, relative, rgb, App,
     AppContext, ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render,
     SharedString, Styled, Window,
 };
@@ -244,67 +244,51 @@ impl Render for SidebarStory {
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
                     .board(
-                        v_flex().w_full().gap_4().child(
-                            SidebarBoard::new().children(
-                                groups[0]
-                                    .iter()
-                                    .map(|item| {
-                                        SidebarBoardItem::new(
-                                            item.label(),
-                                            item.color(),
-                                            item.color(),
-                                            item.count(),
-                                        )
-                                        .size(gpui::Length::Definite(
-                                            gpui::DefiniteLength::Fraction(0.5),
-                                        ))
-                                        .icon(item.icon())
-                                        .active(self.active_items.contains_key(item))
-                                        .on_click(cx.listener(item.handler()))
-                                    })
-                                    .collect::<Vec<_>>(),
+                        v_flex()
+                            .w_full()
+                            .gap_4()
+                            .child(
+                                SidebarBoard::new().children(
+                                    groups[0]
+                                        .iter()
+                                        .map(|item| {
+                                            SidebarBoardItem::new(
+                                                item.label(),
+                                                item.color(),
+                                                item.color(),
+                                                item.count(),
+                                            )
+                                            .size(gpui::Length::Definite(
+                                                gpui::DefiniteLength::Fraction(0.5),
+                                            ))
+                                            .icon(item.icon())
+                                            .active(self.active_items.contains_key(item))
+                                            .on_click(cx.listener(item.handler()))
+                                        })
+                                        .collect::<Vec<_>>(),
+                                ),
+                            )
+                            .child(
+                                h_flex()
+                                    .bg(cx.theme().sidebar_border)
+                                    .px_1()
+                                    .flex_1()
+                                    .justify_between()
+                                    .mt(px(35.0)), // .child(div().child("On This Computer").text_left())
+                                                   // .child(div().child(
+                                                   //     Icon::new(IconName::PlusLargeSymbolic).text_right(),
+                                                   // )),
                             ),
-                        ),
                     )
-                    // .child(
-                    //     // SidebarGroup::new("Platform").child(),
-                    //     // 任务分类列表：
-                    //     SidebarMenu::new().children(groups[0].iter().map(|item| {
-                    //         SidebarMenuItem::new(format!(
-                    //             "{:<10}{:>10}",
-                    //             item.label(),
-                    //             item.count()
-                    //         ))
-                    //         .icon(item.icon())
-                    //         .active(self.active_items.contains_key(item))
-                    //         .children(item.items().into_iter().enumerate().map(|(ix, sub_item)| {
-                    //             SidebarMenuItem::new(sub_item.label())
-                    //                 .active(self.active_subitem == Some(sub_item))
-                    //                 .when(ix == 0, |this| {
-                    //                     this.suffix(
-                    //                         Switch::new("switch")
-                    //                             .xsmall()
-                    //                             .checked(self.checked)
-                    //                             .on_click(cx.listener(|this, checked, _, _| {
-                    //                                 this.checked = *checked
-                    //                             })),
-                    //                     )
-                    //                 })
-                    //                 .on_click(cx.listener(sub_item.handler(&item)))
-                    //         }))
-                    //         .on_click(cx.listener(item.handler()))
-                    //     })),
-                    // )
                     .child(
                         // SidebarGroup::new("Projects").child(),
                         // 添加项目按钮：
                         SidebarMenu::new().child(
-                            SidebarMenuItem::new("Add project      ➕").on_click(cx.listener(
-                                move |_this, _, _, cx| {
+                            SidebarMenuItem::new("On This Computer                     ➕")
+                                .on_click(cx.listener(move |_this, _, _, cx| {
                                     println!("{}", "add projects");
                                     cx.notify();
-                                },
-                            )),
+                                })),
                         ),
                     )
                     .child(

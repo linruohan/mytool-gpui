@@ -2,9 +2,9 @@ use crate::{
     h_flex, label::Label, red_100, v_flex, ActiveTheme as _, Collapsible, Icon, IconName, StyledExt,
 };
 use gpui::{
-    div, percentage, prelude::FluentBuilder as _, px, relative, AnyElement, App, ClickEvent,
-    ElementId, Hsla, InteractiveElement as _, IntoElement, Length, ParentElement as _, RenderOnce,
-    SharedString, StatefulInteractiveElement as _, Styled as _, Window,
+    div, percentage, prelude::FluentBuilder as _, px, relative, yellow, AnyElement, App,
+    ClickEvent, ElementId, Hsla, InteractiveElement as _, IntoElement, Length, ParentElement as _,
+    RenderOnce, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
 };
 use std::rc::Rc;
 
@@ -47,12 +47,17 @@ impl Collapsible for SidebarBoard {
 }
 impl RenderOnce for SidebarBoard {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        h_flex().flex().flex_wrap().size_full().children(
-            self.items
-                .into_iter()
-                .enumerate()
-                .map(|(ix, item)| item.id(ix).collapsed(self.collapsed)),
-        )
+        h_flex()
+            .flex()
+            .flex_wrap()
+            .size_full()
+            .h(px(115.))
+            .children(
+                self.items
+                    .into_iter()
+                    .enumerate()
+                    .map(|(ix, item)| item.id(ix).collapsed(self.collapsed)),
+            )
     }
 }
 
@@ -176,8 +181,6 @@ impl RenderOnce for SidebarBoardItem {
             .size(size)
             .bg(self.board_bg.opacity(0.15))
             .rounded(cx.theme().radius)
-            .border_2()
-            .border_color(cx.theme().border)
             .child(
                 v_flex()
                     .id("item")
@@ -228,11 +231,9 @@ impl RenderOnce for SidebarBoardItem {
                                     ), // 左下角
                                     div().when(is_active, |this| {
                                         this.child(
-                                            Label::new("")
-                                                .bg(red_100())
+                                            Label::new("🔴")
                                                 .text_right()
-                                                .text_color(board_text_color)
-                                                .rounded(px(10.)),
+                                                .text_color(board_text_color),
                                         )
                                     }), // 右下角
                                 ]),
