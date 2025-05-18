@@ -12,12 +12,15 @@ use gpui_component::{
     divider::Divider,
     gray_400, h_flex, purple_100, red_400,
     sidebar::{
-        Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
+        Sidebar, SidebarBoard, SidebarBoardItem, SidebarGroup, SidebarMenu, SidebarMenuItem,
+        SidebarToggleButton,
     },
     switch::Switch,
     v_flex, yellow_400, ActiveTheme, Icon, IconName, Side,
 };
 use serde::Deserialize;
+
+use crate::play_ogg_file;
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectCompany(SharedString);
@@ -216,17 +219,15 @@ impl Render for SidebarStory {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        let groups: [Vec<Item>; 2] = [
-            vec![
-                Item::Inbox,
-                Item::Today,
-                Item::Scheduled,
-                Item::Pinboard,
-                Item::Labels,
-                Item::Completed,
-            ],
-            vec![Item::Projects],
+        let item_groups = vec![
+            Item::Inbox,
+            Item::Today,
+            Item::Scheduled,
+            Item::Pinboard,
+            Item::Labels,
+            Item::Completed,
         ];
+        let mut projects = Item::Projects;
         // let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
 
         h_flex()
@@ -239,12 +240,13 @@ impl Render for SidebarStory {
                 Sidebar::new(self.side)
                     .collapsed(self.collapsed)
                     .board(
+                        //项目分类：
                         v_flex()
                             .w_full()
                             .gap_4()
                             .child(
                                 SidebarBoard::new().children(
-                                    groups[0]
+                                    item_groups
                                         .iter()
                                         .map(|item| {
                                             SidebarBoardItem::new(
@@ -276,12 +278,15 @@ impl Render for SidebarStory {
                             ),
                     )
                     .child(
-                        // SidebarGroup::new("Projects").child(),
+                        // SidebarGroup::new("Projects").child()
                         // 添加项目按钮：
                         SidebarMenu::new().child(
                             SidebarMenuItem::new("On This Computer                     ➕")
                                 .on_click(cx.listener(move |_this, _, _, cx| {
+                                    // let projects = projects.read(cx);
                                     println!("{}", "add projects");
+                                    play_ogg_file("assets/sounds/success.ogg").ok();
+                                    projects.items().push(SubItem::History);
                                     cx.notify();
                                 })),
                         ),
@@ -289,25 +294,11 @@ impl Render for SidebarStory {
                     .child(
                         // SidebarGroup::new("Projects").child(),
                         // 项目列表：
-                        SidebarMenu::new().children(groups[1].iter().enumerate().map(
-                            |(ix, item)| {
-                                SidebarMenuItem::new(item.label())
-                                    .icon(item.icon())
-                                    .active(self.last_active_item == *item)
-                                    .children(item.items().into_iter().map(|sub_item| {
-                                        SidebarMenuItem::new(sub_item.label())
-                                            .active(self.active_subitem == Some(sub_item))
-                                            .on_click(cx.listener(sub_item.handler(&item)))
-                                    }))
-                                    .on_click(cx.listener(item.handler()))
-                                    .when(ix == 0, |this| {
-                                        this.suffix(
-                                            Badge::new().dot().count(1).child(
-                                                div().p_0p5().child(Icon::new(IconName::Bell)),
-                                            ),
-                                        )
-                                    })
-                                    .when(ix == 1, |this| this.suffix(IconName::Settings2))
+                        SidebarMenu::new().children(projects.items().into_iter().enumerate().map(
+                            |(_, project)| {
+                                SidebarMenuItem::new(project.label())
+                                    .active(self.active_subitem == Some(project))
+                                    .on_click(cx.listener(project.handler(&projects)))
                             },
                         )),
                     ),

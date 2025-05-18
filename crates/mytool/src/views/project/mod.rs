@@ -1,3 +1,13 @@
+mod list;
+
+pub struct ProjectData {
+    pub name: String,
+    pub description: String,
+    pub icon: String,
+    pub color: String,
+    pub story: String,
+}
+
 pub struct ProjectStory {
     pub name: String,
     pub description: String,

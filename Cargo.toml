@@ -51,6 +51,9 @@ notify = "8.0.0"
 notify-debouncer-full = "0.5.0"
 winresource = "0.1.20"
 lunar_rust = { git = "https://github.com/linruohan/lunar_rust" }
+rodio = "0.20.1"
+ogg = "0.9.2"
+
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"

@@ -40,7 +40,7 @@ impl Gallery {
                     // StoryContainer::panel::<AlertStory>(window, cx),
                     // StoryContainer::panel::<BadgeStory>(window, cx),
                     // StoryContainer::panel::<ButtonStory>(window, cx),
-                    // StoryContainer::panel::<CalendarStory>(window, cx),
+                    StoryContainer::panel::<CalendarStory>(window, cx),
                     // StoryContainer::panel::<CheckboxStory>(window, cx),
                     // StoryContainer::panel::<ClipboardStory>(window, cx),
                     StoryContainer::panel::<ColorPickerStory>(window, cx),

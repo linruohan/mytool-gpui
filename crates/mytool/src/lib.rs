@@ -7,6 +7,7 @@ mod modal_story;
 mod sidebar_story;
 mod table_story;
 mod title_bar;
+mod utils;
 mod views;
 mod welcome_story;
 
@@ -28,6 +29,7 @@ use serde::{Deserialize, Serialize};
 pub use sidebar_story::SidebarStory;
 pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
+pub use utils::play_ogg_file;
 // views
 pub use welcome_story::WelcomeStory;
 
@@ -543,7 +545,7 @@ impl StoryState {
 
         match self.story_klass.to_string().as_str() {
             // "ButtonStory" => mytool!(ButtonStory),
-            // "CalendarStory" => mytool!(CalendarStory),
+            "CalendarStory" => mytool!(CalendarStory),
             // "DropdownStory" => mytool!(DropdownStory),
             // "IconStory" => mytool!(IconStory),
             // "ImageStory" => mytool!(ImageStory),
