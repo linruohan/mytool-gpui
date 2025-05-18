@@ -1,9 +1,9 @@
 use super::utils::get_holiday;
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
-    blue, div, prelude::FluentBuilder as _, px, relative, App, ClickEvent, Context, ElementId,
-    Empty, Entity, EventEmitter, FocusHandle, InteractiveElement, IntoElement, ParentElement,
-    Render, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
+    blue, prelude::FluentBuilder as _, px, relative, App, ClickEvent, Context, ElementId, Empty,
+    Entity, EventEmitter, FocusHandle, InteractiveElement, IntoElement, ParentElement, Render,
+    RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
 };
 use rust_i18n::t;
 use std::borrow::Cow;
@@ -500,7 +500,7 @@ impl Calendar {
     ) -> impl IntoElement {
         let state = self.state.read(cx);
         let (_, month) = state.offset_year_month(offset_month);
-        let day = d.day();
+        let _day = d.day();
         let is_current_month = d.month() == month;
         let is_active = state.date.is_active(d) && is_current_month;
         let is_in_range = state.date.is_in_range(d);

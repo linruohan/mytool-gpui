@@ -1,26 +1,21 @@
 use std::collections::HashMap;
 
 use gpui::{
-    blue, div, green, impl_internal_actions, prelude::FluentBuilder, px, relative, rgb, App,
-    AppContext, ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render,
-    SharedString, Styled, Window,
+    blue, div, green, impl_internal_actions, prelude::FluentBuilder, px, App, AppContext,
+    ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString,
+    Styled, Window,
 };
 
 use gpui_component::{
     badge::Badge,
-    blue_500,
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     divider::Divider,
-    gray_400, h_flex,
-    input::{InputState, TextInput},
-    popup_menu::PopupMenuExt,
-    purple, purple_100, red, red_400,
+    gray_400, h_flex, purple_100, red_400,
     sidebar::{
-        Sidebar, SidebarBoard, SidebarBoardItem, SidebarFooter, SidebarGroup, SidebarHeader,
-        SidebarMenu, SidebarMenuItem, SidebarToggleButton,
+        Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
     },
     switch::Switch,
-    v_flex, white, yellow_400, ActiveTheme, Icon, IconName, Side, Sizable,
+    v_flex, yellow_400, ActiveTheme, Icon, IconName, Side,
 };
 use serde::Deserialize;
 
@@ -232,7 +227,7 @@ impl Render for SidebarStory {
             ],
             vec![Item::Projects],
         ];
-        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
+        // let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
 
         h_flex()
             .rounded(cx.theme().radius)

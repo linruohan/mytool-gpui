@@ -39,43 +39,8 @@ struct Stock {
     price: f64,
     change: f64,
     change_percent: f64,
-    volume: f64,
-    turnover: f64,
-    market_cap: f64,
-    ttm: f64,
-    five_mins_ranking: f64,
-    th60_days_ranking: f64,
     year_change_percent: f64,
-    bid: f64,
-    bid_volume: f64,
-    ask: f64,
-    ask_volume: f64,
-    open: f64,
-    prev_close: f64,
-    high: f64,
-    low: f64,
-    turnover_rate: f64,
-    rise_rate: f64,
-    amplitude: f64,
-    pe_status: f64,
-    pb_status: f64,
-    volume_ratio: f64,
-    bid_ask_ratio: f64,
-    latest_pre_close: f64,
-    latest_post_close: f64,
-    pre_market_cap: f64,
-    pre_market_percent: f64,
-    pre_market_change: f64,
-    post_market_cap: f64,
-    post_market_percent: f64,
-    post_market_change: f64,
-    float_cap: f64,
     shares: i64,
-    shares_float: i64,
-    day_5_ranking: f64,
-    day_10_ranking: f64,
-    day_30_ranking: f64,
-    day_120_ranking: f64,
     day_250_ranking: f64,
 }
 
@@ -84,19 +49,6 @@ impl Stock {
         self.price = (-300.0..999.999).fake::<f64>();
         self.change = (-0.1..5.0).fake::<f64>();
         self.change_percent = (-0.1..0.1).fake::<f64>();
-        self.volume = (-300.0..999.999).fake::<f64>();
-        self.turnover = (-300.0..999.999).fake::<f64>();
-        self.market_cap = (-1000.0..9999.999).fake::<f64>();
-        self.ttm = (-1000.0..9999.999).fake::<f64>();
-        self.five_mins_ranking = self.five_mins_ranking * (1.0 + (-0.2..0.2).fake::<f64>());
-        self.bid = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
-        self.bid_volume = (100.0..1000.0).fake::<f64>();
-        self.ask = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
-        self.ask_volume = (100.0..1000.0).fake::<f64>();
-        self.bid_ask_ratio = self.bid / self.ask;
-        self.volume_ratio = self.volume / self.turnover;
-        self.high = self.price * (1.0 + (0.0..1.5).fake::<f64>());
-        self.low = self.price * (1.0 + (-1.5..0.0).fake::<f64>());
     }
 }
 
@@ -108,43 +60,8 @@ fn random_stocks(size: usize) -> Vec<Stock> {
             name: Faker.fake::<String>().into(),
             change: (-100.0..100.0).fake(),
             change_percent: (-1.0..1.0).fake(),
-            volume: (0.0..1000.0).fake(),
-            turnover: (0.0..1000.0).fake(),
-            market_cap: (0.0..1000.0).fake(),
-            ttm: (0.0..1000.0).fake(),
-            five_mins_ranking: (0.0..1000.0).fake(),
-            th60_days_ranking: (0.0..1000.0).fake(),
             year_change_percent: (-1.0..1.0).fake(),
-            bid: (0.0..1000.0).fake(),
-            bid_volume: (0.0..1000.0).fake(),
-            ask: (0.0..1000.0).fake(),
-            ask_volume: (0.0..1000.0).fake(),
-            open: (0.0..1000.0).fake(),
-            prev_close: (0.0..1000.0).fake(),
-            high: (0.0..1000.0).fake(),
-            low: (0.0..1000.0).fake(),
-            turnover_rate: (0.0..1.0).fake(),
-            rise_rate: (0.0..1.0).fake(),
-            amplitude: (0.0..1000.0).fake(),
-            pe_status: (0.0..1000.0).fake(),
-            pb_status: (0.0..1000.0).fake(),
-            volume_ratio: (0.0..1.0).fake(),
-            bid_ask_ratio: (0.0..1.0).fake(),
-            latest_pre_close: (0.0..1000.0).fake(),
-            latest_post_close: (0.0..1000.0).fake(),
-            pre_market_cap: (0.0..1000.0).fake(),
-            pre_market_percent: (-1.0..1.0).fake(),
-            pre_market_change: (-100.0..100.0).fake(),
-            post_market_cap: (0.0..1000.0).fake(),
-            post_market_percent: (-1.0..1.0).fake(),
-            post_market_change: (-100.0..100.0).fake(),
-            float_cap: (0.0..1000.0).fake(),
             shares: (100000..9999999).fake(),
-            shares_float: (100000..9999999).fake(),
-            day_5_ranking: (0.0..1000.0).fake(),
-            day_10_ranking: (0.0..1000.0).fake(),
-            day_30_ranking: (0.0..1000.0).fake(),
-            day_120_ranking: (0.0..1000.0).fake(),
             day_250_ranking: (0.0..1000.0).fake(),
             ..Default::default()
         })
@@ -200,43 +117,8 @@ impl StockTableDelegate {
                 Column::new("price", "Price", Some(ColSort::Default)),
                 Column::new("change", "Chg", Some(ColSort::Default)),
                 Column::new("change_percent", "Chg%", Some(ColSort::Default)),
-                Column::new("volume", "Volume", None),
-                Column::new("turnover", "Turnover", None),
-                Column::new("market_cap", "Market Cap", None),
-                Column::new("ttm", "TTM", None),
-                Column::new("five_mins_ranking", "5m Ranking", None),
-                Column::new("th60_days_ranking", "60d Ranking", None),
                 Column::new("year_change_percent", "Year Chg%", None),
-                Column::new("bid", "Bid", None),
-                Column::new("bid_volume", "Bid Vol", None),
-                Column::new("ask", "Ask", None),
-                Column::new("ask_volume", "Ask Vol", None),
-                Column::new("open", "Open", None),
-                Column::new("prev_close", "Prev Close", None),
-                Column::new("high", "High", None),
-                Column::new("low", "Low", None),
-                Column::new("turnover_rate", "Turnover Rate", None),
-                Column::new("rise_rate", "Rise Rate", None),
-                Column::new("amplitude", "Amplitude", None),
                 Column::new("pe_status", "P/E", None),
-                Column::new("pb_status", "P/B", None),
-                Column::new("volume_ratio", "Volume Ratio", None),
-                Column::new("bid_ask_ratio", "Bid Ask Ratio", None),
-                Column::new("latest_pre_close", "Latest Pre Close", None),
-                Column::new("latest_post_close", "Latest Post Close", None),
-                Column::new("pre_market_cap", "Pre Mkt Cap", None),
-                Column::new("pre_market_percent", "Pre Mkt%", None),
-                Column::new("pre_market_change", "Pre Mkt Chg", None),
-                Column::new("post_market_cap", "Post Mkt Cap", None),
-                Column::new("post_market_percent", "Post Mkt%", None),
-                Column::new("post_market_change", "Post Mkt Chg", None),
-                Column::new("float_cap", "Float Cap", None),
-                Column::new("shares", "Shares", None),
-                Column::new("shares_float", "Float Shares", None),
-                Column::new("day_5_ranking", "5d Ranking", None),
-                Column::new("day_10_ranking", "10d Ranking", None),
-                Column::new("day_30_ranking", "30d Ranking", None),
-                Column::new("day_120_ranking", "120d Ranking", None),
                 Column::new("day_250_ranking", "250d Ranking", None),
             ],
             loop_selection: true,
@@ -417,49 +299,10 @@ impl TableDelegate for StockTableDelegate {
             "price" => self.render_value_cell(stock.price, cx),
             "change" => self.render_value_cell(stock.change, cx),
             "change_percent" => self.render_value_cell(stock.change_percent, cx),
-            "volume" => self.render_value_cell(stock.volume, cx),
-            "turnover" => self.render_value_cell(stock.turnover, cx),
-            "market_cap" => self.render_value_cell(stock.market_cap, cx),
-            "ttm" => self.render_value_cell(stock.ttm, cx),
-            "five_mins_ranking" => self.render_value_cell(stock.five_mins_ranking, cx),
-            "th60_days_ranking" => stock.th60_days_ranking.to_string().into_any_element(),
             "year_change_percent" => (stock.year_change_percent * 100.0)
                 .to_string()
                 .into_any_element(),
-            "bid" => self.render_value_cell(stock.bid, cx),
-            "bid_volume" => self.render_value_cell(stock.bid_volume, cx),
-            "ask" => self.render_value_cell(stock.ask, cx),
-            "ask_volume" => self.render_value_cell(stock.ask_volume, cx),
-            "open" => stock.open.to_string().into_any_element(),
-            "prev_close" => stock.prev_close.to_string().into_any_element(),
-            "high" => self.render_value_cell(stock.high, cx),
-            "low" => self.render_value_cell(stock.low, cx),
-            "turnover_rate" => (stock.turnover_rate * 100.0).to_string().into_any_element(),
-            "rise_rate" => (stock.rise_rate * 100.0).to_string().into_any_element(),
-            "amplitude" => (stock.amplitude * 100.0).to_string().into_any_element(),
-            "pe_status" => stock.pe_status.to_string().into_any_element(),
-            "pb_status" => stock.pb_status.to_string().into_any_element(),
-            "volume_ratio" => self.render_value_cell(stock.volume_ratio, cx),
-            "bid_ask_ratio" => self.render_value_cell(stock.bid_ask_ratio, cx),
-            "latest_pre_close" => stock.latest_pre_close.to_string().into_any_element(),
-            "latest_post_close" => stock.latest_post_close.to_string().into_any_element(),
-            "pre_market_cap" => stock.pre_market_cap.to_string().into_any_element(),
-            "pre_market_percent" => (stock.pre_market_percent * 100.0)
-                .to_string()
-                .into_any_element(),
-            "pre_market_change" => stock.pre_market_change.to_string().into_any_element(),
-            "post_market_cap" => stock.post_market_cap.to_string().into_any_element(),
-            "post_market_percent" => (stock.post_market_percent * 100.0)
-                .to_string()
-                .into_any_element(),
-            "post_market_change" => stock.post_market_change.to_string().into_any_element(),
-            "float_cap" => stock.float_cap.to_string().into_any_element(),
             "shares" => stock.shares.to_string().into_any_element(),
-            "shares_float" => stock.shares_float.to_string().into_any_element(),
-            "day_5_ranking" => stock.day_5_ranking.to_string().into_any_element(),
-            "day_10_ranking" => stock.day_10_ranking.to_string().into_any_element(),
-            "day_30_ranking" => stock.day_30_ranking.to_string().into_any_element(),
-            "day_120_ranking" => stock.day_120_ranking.to_string().into_any_element(),
             "day_250_ranking" => stock.day_250_ranking.to_string().into_any_element(),
             _ => "--".to_string().into_any_element(),
         }
@@ -546,9 +389,9 @@ impl TableDelegate for StockTableDelegate {
 
             cx.update(|cx| {
                 let _ = view.update(cx, |view, _| {
-                    view.delegate_mut().stocks.extend(random_stocks(200));
+                    view.delegate_mut().stocks.extend(random_stocks(10));
                     view.delegate_mut().loading = false;
-                    view.delegate_mut().eof = view.delegate().stocks.len() >= 6000;
+                    view.delegate_mut().eof = view.delegate().stocks.len() >= 30;
                 });
             })
         })
@@ -617,11 +460,11 @@ impl TableStory {
             let mut input = InputState::new(window, cx)
                 .placeholder("Enter number of Stocks to display")
                 .validate(|s| s.parse::<usize>().is_ok());
-            input.set_value("5000", window, cx);
+            input.set_value("", window, cx);
             input
         });
 
-        let delegate = StockTableDelegate::new(5000);
+        let delegate = StockTableDelegate::new(20);
         let table = cx.new(|cx| Table::new(delegate, window, cx));
 
         cx.subscribe_in(&table, window, Self::on_table_event)
@@ -642,7 +485,7 @@ impl TableStory {
                     this.table.update(cx, |table, _| {
                         table.delegate_mut().stocks.iter_mut().enumerate().for_each(
                             |(i, stock)| {
-                                let n = (3..10).fake::<usize>();
+                                let n: usize = (3..10).fake::<usize>();
                                 // update 30% of the stocks
                                 if i % n == 0 {
                                     stock.random_update();
@@ -792,71 +635,6 @@ impl Render for TableStory {
             .gap_4()
             .child(
                 h_flex()
-                    .items_center()
-                    .gap_3()
-                    .flex_wrap()
-                    .child(
-                        Checkbox::new("loop-selection")
-                            .label("Loop Selection")
-                            .selected(delegate.loop_selection)
-                            .on_click(cx.listener(Self::toggle_loop_selection)),
-                    )
-                    .child(
-                        Checkbox::new("col-resize")
-                            .label("Column Resize")
-                            .selected(delegate.col_resize)
-                            .on_click(cx.listener(Self::toggle_col_resize)),
-                    )
-                    .child(
-                        Checkbox::new("col-order")
-                            .label("Column Order")
-                            .selected(delegate.col_order)
-                            .on_click(cx.listener(Self::toggle_col_order)),
-                    )
-                    .child(
-                        Checkbox::new("col-sort")
-                            .label("Column Sort")
-                            .selected(delegate.col_sort)
-                            .on_click(cx.listener(Self::toggle_col_sort)),
-                    )
-                    .child(
-                        Checkbox::new("col-selection")
-                            .label("Column Selection")
-                            .selected(delegate.col_selection)
-                            .on_click(cx.listener(Self::toggle_col_selection)),
-                    )
-                    .child(
-                        Checkbox::new("stripe")
-                            .label("Stripe")
-                            .selected(self.stripe)
-                            .on_click(cx.listener(Self::toggle_stripe)),
-                    )
-                    .child(
-                        Checkbox::new("fixed-cols")
-                            .label("Fixed Columns")
-                            .selected(delegate.fixed_cols)
-                            .on_click(cx.listener(Self::toggle_fixed_cols)),
-                    )
-                    .child(
-                        Checkbox::new("loading")
-                            .label("Loading")
-                            .checked(self.table.read(cx).delegate().full_loading)
-                            .on_click(cx.listener(|this, check: &bool, _, cx| {
-                                this.table.update(cx, |this, cx| {
-                                    this.delegate_mut().full_loading = *check;
-                                    cx.notify();
-                                })
-                            })),
-                    )
-                    .child(
-                        Checkbox::new("refresh-data")
-                            .label("Refresh Data")
-                            .selected(self.refresh_data)
-                            .on_click(cx.listener(Self::toggle_refresh_data)),
-                    ),
-            )
-            .child(
-                h_flex()
                     .gap_2()
                     .child(
                         Button::new("size")
@@ -904,26 +682,7 @@ impl Render for TableStory {
                                     table.scroll_to_row(table.delegate().rows_count(cx) - 1, cx);
                                 })
                             })),
-                    ), // .child(
-                       //     Button::new("scroll-first-col")
-                       //         .child("Scroll to First Column")
-                       //         .small()
-                       //         .on_click(cx.listener(|this, _, window, cx| {
-                       //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(0, cx);
-                       //             })
-                       //         })),
-                       // )
-                       // .child(
-                       //     Button::new("scroll-last-col")
-                       //         .child("Scroll to Last Column")
-                       //         .small()
-                       //         .on_click(cx.listener(|this, _, window, cx| {
-                       //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(table.delegate().cols_count(cx), cx);
-                       //             })
-                       //         })),
-                       // ),
+                    ),
             )
             .child(
                 h_flex().items_center().gap_2().child(

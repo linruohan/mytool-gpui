@@ -87,6 +87,7 @@ impl SidebarMenuItem {
         self.icon = Some(icon.into());
         self
     }
+
     /// Set id to the menu item.
     fn id(mut self, id: impl Into<ElementId>) -> Self {
         self.id = id.into();
