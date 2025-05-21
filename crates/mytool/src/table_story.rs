@@ -31,8 +31,9 @@ struct OpenDetail(usize);
 
 impl_internal_actions!(table_story, [ChangeSize, OpenDetail]);
 
+// 数据结构体
 #[derive(Clone, Debug, Default)]
-struct Stock {
+struct Project {
     id: usize,
     symbol: SharedString,
     name: SharedString,
@@ -44,7 +45,8 @@ struct Stock {
     day_250_ranking: f64,
 }
 
-impl Stock {
+// 数据方法
+impl Project {
     fn random_update(&mut self) {
         self.price = (-300.0..999.999).fake::<f64>();
         self.change = (-0.1..5.0).fake::<f64>();
@@ -52,9 +54,10 @@ impl Stock {
     }
 }
 
-fn random_stocks(size: usize) -> Vec<Stock> {
+// 随机生成数据
+fn random_stocks(size: usize) -> Vec<Project> {
     (0..size)
-        .map(|id| Stock {
+        .map(|id| Project {
             id,
             symbol: Faker.fake::<String>().into(),
             name: Faker.fake::<String>().into(),
@@ -68,12 +71,14 @@ fn random_stocks(size: usize) -> Vec<Stock> {
         .collect()
 }
 
+// 数据列定义
 struct Column {
     id: SharedString,
     name: SharedString,
     sort: Option<ColSort>,
 }
 
+// 数据列方法
 impl Column {
     fn new(
         id: impl Into<SharedString>,
@@ -87,36 +92,37 @@ impl Column {
         }
     }
 }
-
-struct StockTableDelegate {
-    stocks: Vec<Stock>,
-    columns: Vec<Column>,
-    size: Size,
-    loop_selection: bool,
-    col_resize: bool,
-    col_order: bool,
-    col_sort: bool,
-    col_selection: bool,
-    loading: bool,
-    full_loading: bool,
-    fixed_cols: bool,
-    eof: bool,
-    visible_rows: Range<usize>,
-    visible_cols: Range<usize>,
+// 数据表格代理
+struct ProjectTableDelegate {
+    stocks: Vec<Project>,       //数据list
+    columns: Vec<Column>,       // 数据列
+    size: Size,                 //数据size
+    loop_selection: bool,       //可循环选择
+    col_resize: bool,           // 列宽调整
+    col_order: bool,            //列按顺序
+    col_sort: bool,             //列排序
+    col_selection: bool,        //列可选
+    loading: bool,              //加载状态
+    full_loading: bool,         // 加载完成
+    fixed_cols: bool,           //是否固定列
+    eof: bool,                  //结尾
+    visible_rows: Range<usize>, //可见行
+    visible_cols: Range<usize>, //可见列
 }
-
-impl StockTableDelegate {
+// 数据表格代理方法
+impl ProjectTableDelegate {
     fn new(size: usize) -> Self {
         Self {
             size: Size::default(),
             stocks: random_stocks(size),
             columns: vec![
+                //列名绑定数据列的key
                 Column::new("id", "ID", None),
-                Column::new("symbol", "Symbol", Some(ColSort::Default)),
+                Column::new("symbol", "Symbol", Some(ColSort::Default)), // 默认排序
                 Column::new("name", "Name", None),
-                Column::new("price", "Price", Some(ColSort::Default)),
-                Column::new("change", "Chg", Some(ColSort::Default)),
-                Column::new("change_percent", "Chg%", Some(ColSort::Default)),
+                Column::new("price", "Price", Some(ColSort::Default)), // 默认排序
+                Column::new("change", "Chg", Some(ColSort::Default)),  // 默认排序
+                Column::new("change_percent", "Chg%", Some(ColSort::Default)), // 默认排序
                 Column::new("year_change_percent", "Year Chg%", None),
                 Column::new("pe_status", "P/E", None),
                 Column::new("day_250_ranking", "250d Ranking", None),
@@ -134,14 +140,14 @@ impl StockTableDelegate {
             visible_rows: Range::default(),
         }
     }
-
+    // 更新数据
     fn update_stocks(&mut self, size: usize) {
         self.stocks = random_stocks(size);
         self.eof = size <= 50;
         self.loading = false;
         self.full_loading = false;
     }
-
+    // 渲染数据单元格
     fn render_value_cell(&self, val: f64, cx: &mut Context<Table<Self>>) -> AnyElement {
         let (fg_scale, bg_scale, opacity) = match cx.theme().mode.is_dark() {
             true => (200, 950, 0.3),
@@ -151,9 +157,9 @@ impl StockTableDelegate {
         let this = div()
             .h_full()
             .table_cell_size(self.size)
-            .child(format!("{:.3}", val));
-        // Val is a 0.0 .. n.0
-        // 30% to red, 30% to green, others to default
+            .child(format!("{:.3}", val)); // 3位小数
+                                           // Val is a 0.0 .. n.0
+                                           // 30% to red, 30% to green, others to default
         let right_num = ((val - val.floor()) * 1000.).floor() as i32;
 
         let this = if right_num % 3 == 0 {
@@ -170,7 +176,8 @@ impl StockTableDelegate {
     }
 }
 
-impl TableDelegate for StockTableDelegate {
+// 数据表格trait 实现
+impl TableDelegate for ProjectTableDelegate {
     fn cols_count(&self, _: &App) -> usize {
         self.columns.len()
     }
@@ -189,11 +196,11 @@ impl TableDelegate for StockTableDelegate {
 
     fn col_width(&self, col_ix: usize, _: &App) -> Pixels {
         if col_ix < 10 {
-            120.0.into()
+            130.0.into()
         } else if col_ix < 20 {
             80.0.into()
         } else {
-            130.0.into()
+            120.0.into()
         }
     }
 
@@ -224,7 +231,7 @@ impl TableDelegate for StockTableDelegate {
     fn can_select_col(&self, _: usize, _: &App) -> bool {
         return self.col_selection;
     }
-
+    // 渲染表头
     fn render_th(
         &self,
         col_ix: usize,
@@ -257,7 +264,7 @@ impl TableDelegate for StockTableDelegate {
         .menu("Size Small", Box::new(ChangeSize(Size::Small)))
         .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
     }
-
+    // 渲染表格行
     fn render_tr(
         &self,
         row_ix: usize,
@@ -418,7 +425,7 @@ impl TableDelegate for StockTableDelegate {
 }
 
 pub struct TableStory {
-    table: Entity<Table<StockTableDelegate>>,
+    table: Entity<Table<ProjectTableDelegate>>,
     num_stocks_input: Entity<InputState>,
     stripe: bool,
     refresh_data: bool,
@@ -458,21 +465,22 @@ impl TableStory {
         // Create the number input field with validation for positive integers
         let num_stocks_input = cx.new(|cx| {
             let mut input = InputState::new(window, cx)
-                .placeholder("Enter number of Stocks to display")
+                .placeholder("输入要显示的数据数量")
                 .validate(|s| s.parse::<usize>().is_ok());
             input.set_value("", window, cx);
             input
         });
-
-        let delegate = StockTableDelegate::new(20);
+        // 初始化20条数据
+        let delegate = ProjectTableDelegate::new(20);
         let table = cx.new(|cx| Table::new(delegate, window, cx));
 
+        // 订阅由另一个实体发出的事件
         cx.subscribe_in(&table, window, Self::on_table_event)
             .detach();
         cx.subscribe_in(&num_stocks_input, window, Self::on_num_stocks_input_change)
             .detach();
 
-        // Spawn a background to random refresh the list
+        // 生成后台线程，随机更新数据
         cx.spawn(async move |this, cx| {
             loop {
                 Timer::after(time::Duration::from_millis(33)).await;
@@ -603,7 +611,7 @@ impl TableStory {
 
     fn on_table_event(
         &mut self,
-        _: &Entity<Table<StockTableDelegate>>,
+        _: &Entity<Table<ProjectTableDelegate>>,
         event: &TableEvent,
         _window: &mut Window,
         _cx: &mut Context<Self>,
@@ -690,7 +698,7 @@ impl Render for TableStory {
                         .items_center()
                         .justify_between()
                         .gap_1()
-                        .child(Label::new("Number of Stocks:"))
+                        .child(Label::new("Number of Projects:"))
                         .child(
                             h_flex()
                                 .min_w_32()
