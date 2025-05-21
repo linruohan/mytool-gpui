@@ -179,11 +179,27 @@ pub enum Matcher {
     /// })
     /// Will match the days that are between 2020-01-01 and 2020-01-03.
     Range(RangeMatcher),
+    /// Match dates using a custom function.
+    ///
+    /// let matcher = Matcher::Custom(Box::new(|date: &NaiveDate| {
+    ///     date.day0() < 5
+    /// }));
+    /// Will match first 5 days of each month
+    Custom(Box<dyn Fn(&NaiveDate) -> bool + Send + Sync>),
 }
 
 impl From<Vec<u32>> for Matcher {
     fn from(days: Vec<u32>) -> Self {
         Matcher::DayOfWeek(days)
+    }
+}
+
+impl<F> From<F> for Matcher
+where
+    F: Fn(&NaiveDate) -> bool + Send + Sync + 'static,
+{
+    fn from(f: F) -> Self {
+        Matcher::Custom(Box::new(f))
     }
 }
 
@@ -209,6 +225,7 @@ impl Matcher {
                 let to_check = range.to.map_or(false, |to| date > &to);
                 !from_check && !to_check
             }
+            Matcher::Custom(f) => f(date),
         }
     }
 
@@ -218,6 +235,13 @@ impl Matcher {
             Date::Range(Some(start), Some(end)) => self.matched(start) || self.matched(end),
             _ => false,
         }
+    }
+
+    pub fn custom<F>(f: F) -> Self
+    where
+        F: Fn(&NaiveDate) -> bool + Send + Sync + 'static,
+    {
+        Matcher::Custom(Box::new(f))
     }
 }
 
@@ -500,7 +524,7 @@ impl Calendar {
     ) -> impl IntoElement {
         let state = self.state.read(cx);
         let (_, month) = state.offset_year_month(offset_month);
-        let _day = d.day();
+        let day = d.day();
         let is_current_month = d.month() == month;
         let is_active = state.date.is_active(d) && is_current_month;
         let is_in_range = state.date.is_in_range(d);

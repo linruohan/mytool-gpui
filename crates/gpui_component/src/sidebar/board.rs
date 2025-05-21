@@ -227,13 +227,21 @@ impl RenderOnce for SidebarBoardItem {
                                             .text_left()
                                             .text_color(board_text_color),
                                     ), // 左下角
-                                    div().when(is_active, |this| {
-                                        this.child(
-                                            Label::new("🔴")
-                                                .text_right()
-                                                .text_color(board_text_color),
-                                        )
-                                    }), // 右下角
+                                    div()
+                                        .when(is_active, |this| {
+                                            this.child(
+                                                Label::new("🔴")
+                                                    .text_right()
+                                                    .text_color(board_text_color),
+                                            )
+                                        })
+                                        .when(!is_active, |this| {
+                                            this.child(
+                                                Label::new("")
+                                                    .text_right()
+                                                    .text_color(board_text_color),
+                                            )
+                                        }), // 右下角
                                 ]),
                             ])
                     })

@@ -11,8 +11,8 @@ use std::rc::Rc;
 use unicode_segmentation::*;
 
 use gpui::{
-    actions, div, impl_internal_actions, point, prelude::FluentBuilder as _, px, App, AppContext,
-    Bounds, ClipboardItem, Context, DefiniteLength, Entity, EntityInputHandler, EventEmitter,
+    actions, div, impl_internal_actions, point, prelude::FluentBuilder as _, px, relative, App,
+    AppContext, Bounds, ClipboardItem, Context, Entity, EntityInputHandler, EventEmitter,
     FocusHandle, Focusable, InteractiveElement as _, IntoElement, KeyBinding, KeyDownEvent,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point,
     Render, ScrollHandle, ScrollWheelEvent, SharedString, Styled as _, Subscription,
@@ -23,10 +23,20 @@ use gpui::{
 // - Move cursor to skip line eof empty chars.
 
 use super::{
-    blink_cursor::BlinkCursor, change::Change, element::TextElement, mask_pattern::MaskPattern,
+    blink_cursor::BlinkCursor,
+    change::Change,
+    element::TextElement,
+    mask_pattern::MaskPattern,
+    mode::{InputMode, TabSize},
     number_input,
+    text_wrapper::TextWrapper,
 };
-use crate::{history::History, scroll::ScrollbarState, Root};
+use crate::{
+    highlighter::{HighlightTheme, Highlighter},
+    history::History,
+    scroll::ScrollbarState,
+    Root,
+};
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct Enter {
@@ -45,6 +55,8 @@ actions!(
         DeleteToEndOfLine,
         DeleteToPreviousWordStart,
         DeleteToNextWordEnd,
+        Indent,
+        Outdent,
         Up,
         Down,
         Left,
@@ -112,6 +124,8 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("down", Down, Some(CONTEXT)),
         KeyBinding::new("left", Left, Some(CONTEXT)),
         KeyBinding::new("right", Right, Some(CONTEXT)),
+        KeyBinding::new("tab", Indent, Some(CONTEXT)),
+        KeyBinding::new("shift-tab", Outdent, Some(CONTEXT)),
         KeyBinding::new("shift-left", SelectLeft, Some(CONTEXT)),
         KeyBinding::new("shift-right", SelectRight, Some(CONTEXT)),
         KeyBinding::new("shift-up", SelectUp, Some(CONTEXT)),
@@ -194,8 +208,9 @@ pub fn init(cx: &mut App) {
 /// InputState to keep editing state of the [`super::TextInput`].
 pub struct InputState {
     pub(super) focus_handle: FocusHandle,
+    pub(super) mode: InputMode,
     pub(super) text: SharedString,
-    pub(super) multi_line: bool,
+    pub(super) text_wrapper: TextWrapper,
     pub(super) history: History<Change>,
     pub(super) blink_cursor: Entity<BlinkCursor>,
     pub(super) loading: bool,
@@ -221,16 +236,13 @@ pub struct InputState {
     pub(super) disabled: bool,
     pub(super) masked: bool,
     pub(super) clean_on_escape: bool,
-    pub(super) height: Option<DefiniteLength>,
-    pub(super) rows: usize,
-    pub(super) min_rows: usize,
-    pub(super) max_rows: Option<usize>,
     pub(super) pattern: Option<regex::Regex>,
     pub(super) validate: Option<Box<dyn Fn(&str) -> bool + 'static>>,
     pub(crate) scroll_handle: ScrollHandle,
     pub(super) scrollbar_state: Rc<Cell<ScrollbarState>>,
     /// The size of the scrollable content.
     pub(crate) scroll_size: gpui::Size<Pixels>,
+    pub(crate) line_number_width: Pixels,
 
     /// The mask pattern for formatting the input text
     pub(crate) mask_pattern: MaskPattern,
@@ -244,6 +256,9 @@ pub struct InputState {
 impl EventEmitter<InputEvent> for InputState {}
 
 impl InputState {
+    /// Create a Input state with default [`InputMode::SingleLine`] mode.
+    ///
+    /// See also: [`Self::multi_line`], [`Self::auto_grow`] to set other mode.
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let focus_handle = cx.focus_handle();
         let blink_cursor = cx.new(|_| BlinkCursor::new());
@@ -267,10 +282,16 @@ impl InputState {
             cx.on_blur(&focus_handle, window, Self::on_blur),
         ];
 
+        let text_style = window.text_style();
+
         Self {
             focus_handle: focus_handle.clone(),
             text: "".into(),
-            multi_line: false,
+            text_wrapper: TextWrapper::new(
+                text_style.font(),
+                text_style.font_size.to_pixels(window.rem_size()),
+                None,
+            ),
             blink_cursor,
             history,
             selected_range: 0..0,
@@ -285,10 +306,7 @@ impl InputState {
             loading: false,
             pattern: None,
             validate: None,
-            rows: 2,
-            min_rows: 2,
-            max_rows: None,
-            height: None,
+            mode: InputMode::SingleLine,
             last_layout: None,
             last_bounds: None,
             last_selected_range: None,
@@ -298,15 +316,61 @@ impl InputState {
             scrollbar_state: Rc::new(Cell::new(ScrollbarState::default())),
             scroll_size: gpui::size(px(0.), px(0.)),
             preferred_x_offset: None,
+            line_number_width: px(0.),
             placeholder: SharedString::default(),
             mask_pattern: MaskPattern::default(),
             _subscriptions,
         }
     }
 
-    /// Use the text input field as a multi-line Textarea.
+    /// Set Input to use [`InputMode::MultiLine`] mode.
+    ///
+    /// Default rows is 2.
     pub fn multi_line(mut self) -> Self {
-        self.multi_line = true;
+        self.mode = InputMode::MultiLine {
+            rows: 2,
+            height: None,
+            tab: TabSize::default(),
+        };
+        self
+    }
+
+    /// Set Input to use [`InputMode::AutoGrow`] mode with min, max rows limit.
+    pub fn auto_grow(mut self, min_rows: usize, max_rows: usize) -> Self {
+        self.mode = InputMode::AutoGrow {
+            rows: min_rows,
+            min_rows: min_rows,
+            max_rows: max_rows,
+        };
+        self
+    }
+
+    /// Set Input to use [`InputMode::CodeEditor`] mode.
+    ///
+    /// Default options:
+    ///
+    /// - line_number: true
+    /// - tab_size: 2
+    /// - hard_tabs: false
+    /// - height: full
+    ///
+    /// Code Editor aim for help used to simple code editing or display, not a full-featured code editor.
+    ///
+    /// ## Features
+    ///
+    /// - Syntax Highlighting
+    /// - Auto Indent
+    /// - Line Number
+    pub fn code_editor(mut self, language: Option<&str>, theme: &'static HighlightTheme) -> Self {
+        let highlighter = Highlighter::new(language, theme);
+        self.mode = InputMode::CodeEditor {
+            rows: 2,
+            tab: TabSize::default(),
+            highlighter: Some(Rc::new(highlighter)),
+            cache: (0, vec![]),
+            line_number: true,
+            height: Some(relative(1.)),
+        };
         self
     }
 
@@ -314,6 +378,70 @@ impl InputState {
     pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.placeholder = placeholder.into();
         self
+    }
+
+    /// Set enable/disable line number, only for [`InputMode::CodeEditor`] mode.
+    pub fn line_number(mut self, line_number: bool) -> Self {
+        if let InputMode::CodeEditor { line_number: l, .. } = &mut self.mode {
+            *l = line_number;
+        }
+        self
+    }
+
+    /// Set line number, only for [`InputMode::CodeEditor`] mode.
+    pub fn set_line_number(&mut self, line_number: bool, _: &mut Window, cx: &mut Context<Self>) {
+        if let InputMode::CodeEditor { line_number: l, .. } = &mut self.mode {
+            *l = line_number;
+        }
+        cx.notify();
+    }
+
+    /// Set the tab size for the input.
+    ///
+    /// Only for [`InputMode::MultiLine`] and [`InputMode::CodeEditor`] mode.
+    pub fn tab_size(mut self, tab: TabSize) -> Self {
+        match &mut self.mode {
+            InputMode::MultiLine { tab: t, .. } => *t = tab,
+            InputMode::CodeEditor { tab: t, .. } => *t = tab,
+            _ => {}
+        }
+        self
+    }
+
+    /// Set the number of rows for the multi-line Textarea.
+    ///
+    /// This is only used when `multi_line` is set to true.
+    ///
+    /// default: 2
+    pub fn rows(mut self, rows: usize) -> Self {
+        match &mut self.mode {
+            InputMode::MultiLine { rows: r, .. } => *r = rows,
+            InputMode::AutoGrow {
+                max_rows: max_r,
+                rows: r,
+                ..
+            } => {
+                *r = rows;
+                *max_r = rows;
+            }
+            _ => {}
+        }
+        self
+    }
+
+    /// Set highlighter, only for [`InputMode::CodeEditor`] mode.
+    pub fn set_highlighter(&mut self, highlighter: Highlighter<'static>, cx: &mut Context<Self>) {
+        let new_highlighter = Rc::new(highlighter);
+        match &mut self.mode {
+            InputMode::CodeEditor {
+                highlighter, cache, ..
+            } => {
+                *highlighter = Some(new_highlighter);
+                *cache = (0, vec![]);
+            }
+            _ => {}
+        }
+        cx.notify();
     }
 
     /// Set placeholder
@@ -456,35 +584,20 @@ impl InputState {
 
     #[inline]
     pub(super) fn is_multi_line(&self) -> bool {
-        self.multi_line
+        matches!(
+            self.mode,
+            InputMode::MultiLine { .. } | InputMode::AutoGrow { .. } | InputMode::CodeEditor { .. }
+        )
     }
 
     #[inline]
     pub(super) fn is_single_line(&self) -> bool {
-        !self.multi_line
+        matches!(self.mode, InputMode::SingleLine)
     }
 
-    /// Set the number of rows for the multi-line Textarea.
-    ///
-    /// This is only used when `multi_line` is set to true.
-    ///
-    /// default: 2
-    pub fn rows(mut self, rows: usize) -> Self {
-        self.rows = rows;
-        self.min_rows = rows;
-        self
-    }
-
-    /// Set the maximum number of rows for the multi-line Textarea.
-    ///
-    /// If max_rows is more than rows, then will enable auto-grow.
-    ///
-    /// This is only used when `multi_line` is set to true.
-    ///
-    /// default: None
-    pub fn max_rows(mut self, max_rows: usize) -> Self {
-        self.max_rows = Some(max_rows);
-        self
+    #[inline]
+    pub(super) fn is_auto_grow(&self) -> bool {
+        matches!(self.mode, InputMode::AutoGrow { .. })
     }
 
     /// Set the text of the input field.
@@ -600,6 +713,7 @@ impl InputState {
     /// Set the default value of the input field.
     pub fn default_value(mut self, value: impl Into<SharedString>) -> Self {
         self.text = value.into();
+        self.text_wrapper.text = self.text.clone();
         self
     }
 
@@ -644,6 +758,10 @@ impl InputState {
         if self.is_single_line() {
             return;
         }
+
+        if !self.selected_range.is_empty() {
+            self.move_to(self.selected_range.start.saturating_sub(1), window, cx);
+        }
         self.pause_blink_cursor(cx);
         self.move_vertical(-1, window, cx);
     }
@@ -652,6 +770,11 @@ impl InputState {
         if self.is_single_line() {
             return;
         }
+
+        if !self.selected_range.is_empty() {
+            self.move_to(self.selected_range.end.saturating_sub(1), window, cx);
+        }
+
         self.pause_blink_cursor(cx);
         self.move_vertical(1, window, cx);
     }
@@ -852,6 +975,24 @@ impl InputState {
         line
     }
 
+    /// Get start line of selection start or end (The min value).
+    ///
+    /// This is means is always get the first line of selection.
+    fn start_of_line_of_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) -> usize {
+        if self.is_single_line() {
+            return 0;
+        }
+
+        let offset = self.previous_boundary(self.selected_range.start.min(self.selected_range.end));
+        let line = self
+            .text_for_range(self.range_to_utf16(&(0..offset + 1)), &mut None, window, cx)
+            .unwrap_or_default()
+            .rfind('\n')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        line
+    }
+
     /// Get end of line
     fn end_of_line(&mut self, window: &mut Window, cx: &mut Context<Self>) -> usize {
         if self.is_single_line() {
@@ -885,6 +1026,49 @@ impl InputState {
             .map(|i| i + offset)
             .unwrap_or(self.text.len());
         line
+    }
+
+    /// Get indent string of next line.
+    ///
+    /// To get current and next line indent, to return more depth one.
+    pub(super) fn indent_of_next_line(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> String {
+        if self.is_single_line() {
+            return "".into();
+        }
+
+        let mut current_indent = String::new();
+        let mut next_indent = String::new();
+        let current_line_start_pos = self.start_of_line(window, cx);
+        let next_line_start_pos = self.end_of_line(window, cx);
+        for c in self.text.chars().skip(current_line_start_pos) {
+            if !c.is_whitespace() {
+                break;
+            }
+            if c == '\n' || c == '\r' {
+                break;
+            }
+            current_indent.push(c);
+        }
+
+        for c in self.text.chars().skip(next_line_start_pos) {
+            if !c.is_whitespace() {
+                break;
+            }
+            if c == '\n' || c == '\r' {
+                break;
+            }
+            next_indent.push(c);
+        }
+
+        if next_indent.len() > current_indent.len() {
+            return next_indent;
+        } else {
+            return current_indent;
+        }
     }
 
     pub(super) fn backspace(&mut self, _: &Backspace, window: &mut Window, cx: &mut Context<Self>) {
@@ -977,6 +1161,9 @@ impl InputState {
     pub(super) fn enter(&mut self, action: &Enter, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_multi_line() {
             let is_eof = self.selected_range.end == self.text.len();
+
+            // Get current line indent
+            let indent = self.indent_of_next_line(window, cx);
             self.replace_text_in_range(None, "\n", window, cx);
 
             // Move cursor to the start of the next line
@@ -985,6 +1172,14 @@ impl InputState {
                 new_offset += 1;
             }
             self.move_to(new_offset, window, cx);
+
+            // Add indent
+            self.replace_text_in_range(
+                Some(self.range_to_utf16(&(self.cursor_offset()..self.cursor_offset()))),
+                &indent,
+                window,
+                cx,
+            );
         }
 
         cx.emit(InputEvent::PressEnter {
@@ -992,21 +1187,123 @@ impl InputState {
         });
     }
 
-    fn check_to_auto_grow(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.is_multi_line() {
-            return;
-        }
-        let Some(max_rows) = self.max_rows else {
+    pub(super) fn indent(&mut self, _: &Indent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab_size) = self.mode.tab_size() else {
             return;
         };
 
-        let changed_rows = ((self.scroll_size.height - self.input_bounds.size.height)
-            / self.last_line_height) as isize;
+        let tab_indent = tab_size.to_string();
+        let selected_range = self.selected_range.clone();
+        let mut added_len = 0;
 
-        self.rows = (self.rows as isize + changed_rows)
-            .clamp(self.min_rows as isize, max_rows as isize)
-            .max(0) as usize;
-        cx.notify();
+        if !self.selected_range.is_empty() {
+            let mut offset = self.start_of_line_of_selection(window, cx);
+
+            let selected_text = self
+                .text_for_range(
+                    self.range_to_utf16(&(offset..selected_range.end)),
+                    &mut None,
+                    window,
+                    cx,
+                )
+                .unwrap_or("".into());
+
+            let mut lines_count = 0;
+            for line in selected_text.lines() {
+                lines_count += 1;
+                self.replace_text_in_range(
+                    Some(self.range_to_utf16(&(offset..offset))),
+                    &tab_indent,
+                    window,
+                    cx,
+                );
+                added_len += tab_indent.len();
+                // +1 for "\n"
+                offset += line.len() + tab_indent.len() + 1;
+            }
+
+            if lines_count > 1 {
+                self.selected_range =
+                    selected_range.start + tab_indent.len()..selected_range.end + added_len;
+            } else {
+                self.selected_range =
+                    selected_range.start + added_len..selected_range.end + added_len;
+            }
+        } else {
+            // Selected none
+            let offset = self.selected_range.start;
+            self.replace_text_in_range(
+                Some(self.range_to_utf16(&(offset..offset))),
+                &tab_indent,
+                window,
+                cx,
+            );
+            added_len = tab_indent.len();
+
+            self.selected_range = selected_range.start + added_len..selected_range.end + added_len;
+        }
+    }
+
+    pub(super) fn outdent(&mut self, _: &Outdent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab_size) = self.mode.tab_size() else {
+            return;
+        };
+
+        let tab_indent = tab_size.to_string();
+        let selected_range = self.selected_range.clone();
+        let mut removed_len = 0;
+
+        if !self.selected_range.is_empty() {
+            let mut offset = self.start_of_line_of_selection(window, cx);
+
+            let selected_text = self
+                .text_for_range(
+                    self.range_to_utf16(&(offset..selected_range.end)),
+                    &mut None,
+                    window,
+                    cx,
+                )
+                .unwrap_or("".into());
+
+            let mut lines_count = 0;
+            for line in selected_text.lines() {
+                lines_count += 1;
+                if line.starts_with(tab_indent.as_ref()) {
+                    self.replace_text_in_range(
+                        Some(self.range_to_utf16(&(offset..offset + tab_indent.len()))),
+                        "",
+                        window,
+                        cx,
+                    );
+                    removed_len += tab_indent.len();
+                }
+                // +1 for "\n"
+                offset += line.len().saturating_sub(tab_indent.len()) + 1;
+            }
+
+            if lines_count > 1 {
+                self.selected_range = selected_range.start.saturating_sub(tab_indent.len())
+                    ..selected_range.end.saturating_sub(removed_len);
+            } else {
+                self.selected_range = selected_range.start.saturating_sub(tab_indent.len())
+                    ..selected_range.end.saturating_sub(tab_indent.len());
+            }
+        } else {
+            // Selected none
+            let offset = self.start_of_line_of_selection(window, cx);
+            if self.text[offset..].starts_with(tab_indent.as_ref()) {
+                self.replace_text_in_range(
+                    Some(self.range_to_utf16(&(offset..offset + tab_indent.len()))),
+                    "",
+                    window,
+                    cx,
+                );
+                removed_len = tab_indent.len();
+
+                self.selected_range = selected_range.start.saturating_sub(removed_len)
+                    ..selected_range.end.saturating_sub(removed_len);
+            }
+        }
     }
 
     pub(super) fn clean(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1111,7 +1408,7 @@ impl InputState {
     pub(super) fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(clipboard) = cx.read_from_clipboard() {
             let mut new_text = clipboard.text().unwrap_or_default();
-            if !self.multi_line {
+            if !self.is_multi_line() {
                 new_text = new_text.replace('\n', "");
             }
 
@@ -1215,19 +1512,18 @@ impl InputState {
         //
         // - included the input padding.
         // - included the scroll offset.
-        let inner_position = position - bounds.origin;
+        let inner_position = position - bounds.origin - point(self.line_number_width, px(0.));
 
         let mut index = 0;
         let mut y_offset = px(0.);
 
-        for line in lines.iter() {
+        for (_, line) in lines.iter().enumerate() {
             let line_origin = self.line_origin_with_y_offset(&mut y_offset, &line, line_height);
             let pos = inner_position - line_origin;
-            let closest_index = line.unwrapped_layout.closest_index_for_x(pos.x);
 
             // Return offset by use closest_index_for_x if is single line mode.
             if self.is_single_line() {
-                return closest_index;
+                return line.unwrapped_layout.closest_index_for_x(pos.x);
             }
 
             let index_result = line.closest_index_for_position(pos, line_height);
@@ -1239,13 +1535,14 @@ impl InputState {
                 // The fallback index is saved in Err from `index_for_position` method.
                 index += index_result.unwrap_err();
                 break;
-            } else if line.len() == 0 {
-                // empty line
+            } else if line.text.trim_end_matches(|c| c == '\r').len() == 0 {
+                // empty line on Windows is `\r`, other is ''
                 let line_bounds = Bounds {
                     origin: line_origin,
                     size: gpui::size(bounds.size.width, line_height),
                 };
                 let pos = inner_position;
+                index += line.len();
                 if line_bounds.contains(&pos) {
                     break;
                 }
@@ -1253,7 +1550,7 @@ impl InputState {
                 index += line.len();
             }
 
-            // add 1 for \n
+            // +1 for revert `lines` split `\n`
             index += 1;
         }
 
@@ -1321,40 +1618,66 @@ impl InputState {
     /// Select the word at the given offset.
     ///
     /// The offset is the UTF-8 offset.
+    ///
+    /// FIXME: When click on a non-word character, the word is not selected.
     fn select_word(&mut self, offset: usize, window: &mut Window, cx: &mut Context<Self>) {
+        #[inline(always)]
         fn is_word(c: char) -> bool {
             c.is_alphanumeric() || matches!(c, '_')
         }
 
-        let mut start = self.offset_to_utf16(offset);
+        let mut start = offset;
         let mut end = start;
         let prev_text = self
-            .text_for_range(0..start, &mut None, window, cx)
+            .text_for_range(self.range_to_utf16(&(0..start + 1)), &mut None, window, cx)
             .unwrap_or_default();
         let next_text = self
-            .text_for_range(end..self.text.len(), &mut None, window, cx)
+            .text_for_range(
+                self.range_to_utf16(&(end..self.text.len())),
+                &mut None,
+                window,
+                cx,
+            )
             .unwrap_or_default();
 
-        let prev_chars = prev_text.chars().rev().peekable();
-        let next_chars = next_text.chars().peekable();
+        let prev_chars = prev_text.chars().rev();
+        let next_chars = next_text.chars();
 
+        let mut last_char_len = 0;
         for (_, c) in prev_chars.enumerate() {
             if !is_word(c) {
                 break;
             }
 
-            start -= c.len_utf16();
+            last_char_len = c.len_utf8();
+            start = start.saturating_sub(last_char_len);
         }
+        start += last_char_len;
 
         for (_, c) in next_chars.enumerate() {
             if !is_word(c) {
                 break;
             }
 
-            end += c.len_utf16();
+            end += c.len_utf8();
         }
 
-        self.selected_range = self.range_from_utf16(&(start..end));
+        // Ensure at least one character is selected
+        if start == end {
+            end = end + 1;
+
+            // Avoid select empty range
+            match self.text.get(start..end) {
+                None => return,
+                Some(part) => {
+                    if part.trim().len() == 0 {
+                        return;
+                    }
+                }
+            }
+        }
+
+        self.selected_range = start..end;
         self.selected_word_range = Some(self.selected_range.clone());
         cx.notify()
     }
@@ -1527,6 +1850,18 @@ impl InputState {
         }
         cx.notify();
     }
+
+    pub(super) fn set_input_bounds(&mut self, new_bounds: Bounds<Pixels>, cx: &mut Context<Self>) {
+        let wrap_width_changed = self.input_bounds.size.width != new_bounds.size.width;
+        self.input_bounds = new_bounds;
+
+        // Update text_wrapper wrap_width if changed.
+        if wrap_width_changed {
+            self.text_wrapper
+                .set_wrap_width(Some(new_bounds.size.width), cx);
+            self.mode.update_auto_grow(&self.text_wrapper);
+        }
+    }
 }
 
 impl EntityInputHandler for InputState {
@@ -1568,6 +1903,10 @@ impl EntityInputHandler for InputState {
         self.marked_range = None;
     }
 
+    /// Replace text in range.
+    ///
+    /// - If the new text is invalid, it will not be replaced.
+    /// - If `range_utf16` is not provided, the current selected range will be used.
     fn replace_text_in_range(
         &mut self,
         range_utf16: Option<Range<usize>>,
@@ -1598,11 +1937,12 @@ impl EntityInputHandler for InputState {
 
         self.push_history(&range, &new_text, window, cx);
         self.text = mask_text;
+        self.text_wrapper.update(self.text.clone(), false, cx);
         self.selected_range = new_pos..new_pos;
         self.marked_range.take();
         self.update_preferred_x_offset(cx);
         self.update_scroll_offset(None, cx);
-        self.check_to_auto_grow(window, cx);
+        self.mode.update_auto_grow(&self.text_wrapper);
         cx.emit(InputEvent::Change(self.unmask_value()));
         cx.notify();
     }
@@ -1718,6 +2058,8 @@ impl Focusable for InputState {
 
 impl Render for InputState {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.text_wrapper.update(self.text.clone(), false, cx);
+
         div()
             .id("text-element")
             .flex_1()

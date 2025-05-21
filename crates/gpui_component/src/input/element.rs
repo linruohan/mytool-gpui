@@ -1,16 +1,20 @@
+use std::ops::Range;
+
 use gpui::{
-    fill, point, px, relative, size, App, Bounds, Corners, Element, ElementId, ElementInputHandler,
-    Entity, GlobalElementId, IntoElement, LayoutId, MouseButton, MouseMoveEvent, PaintQuad, Path,
-    Pixels, Point, SharedString, Style, TextAlign, TextRun, UnderlineStyle, Window, WrappedLine,
+    fill, hash, point, px, relative, size, App, Bounds, Corners, Element, ElementId,
+    ElementInputHandler, Entity, GlobalElementId, HighlightStyle, IntoElement, LayoutId,
+    MouseButton, MouseMoveEvent, PaintQuad, Path, Pixels, Point, SharedString, Style, TextAlign,
+    TextRun, UnderlineStyle, Window, WrappedLine,
 };
 use smallvec::SmallVec;
 
 use crate::{ActiveTheme as _, Root};
 
-use super::InputState;
+use super::{mode::InputMode, InputState};
 
 const RIGHT_MARGIN: Pixels = px(5.);
-const BOTTOM_MARGIN: Pixels = px(20.);
+const BOTTOM_MARGIN_ROWS: usize = 1;
+const LINE_NUMBER_MARGIN_RIGHT: Pixels = px(10.);
 
 pub(super) struct TextElement {
     input: Entity<InputState>,
@@ -50,6 +54,7 @@ impl TextElement {
         lines: &[WrappedLine],
         line_height: Pixels,
         bounds: &mut Bounds<Pixels>,
+        line_number_width: Pixels,
         window: &mut Window,
         cx: &mut App,
     ) -> (Option<PaintQuad>, Point<Pixels>) {
@@ -59,6 +64,12 @@ impl TextElement {
         let mut scroll_offset = input.scroll_handle.offset();
         let mut cursor = None;
 
+        // If the input has a fixed height (Otherwise is auto-grow), we need to add a bottom margin to the input.
+        let bottom_margin = if input.is_auto_grow() {
+            px(0.) + line_height
+        } else {
+            BOTTOM_MARGIN_ROWS * line_height + line_height
+        };
         // The cursor corresponds to the current cursor position in the text no only the line.
         let mut cursor_pos = None;
         let mut cursor_start = None;
@@ -114,16 +125,17 @@ impl TextElement {
                     } else {
                         scroll_offset.x
                     };
-                scroll_offset.y =
-                    if scroll_offset.y + cursor_pos.y > (bounds.size.height - BOTTOM_MARGIN) {
-                        // cursor is out of bottom
-                        bounds.size.height - BOTTOM_MARGIN - cursor_pos.y
-                    } else if scroll_offset.y + cursor_pos.y < px(0.) {
-                        // cursor is out of top
-                        scroll_offset.y - cursor_pos.y
-                    } else {
-                        scroll_offset.y
-                    };
+                scroll_offset.y = if scroll_offset.y + cursor_pos.y + line_height
+                    > bounds.size.height - bottom_margin
+                {
+                    // cursor is out of bottom
+                    bounds.size.height - bottom_margin - cursor_pos.y
+                } else if scroll_offset.y + cursor_pos.y < px(0.) {
+                    // cursor is out of top
+                    scroll_offset.y - cursor_pos.y
+                } else {
+                    scroll_offset.y
+                };
 
                 if input.selection_reversed {
                     if scroll_offset.x + cursor_start.x < px(0.) {
@@ -155,7 +167,7 @@ impl TextElement {
                 cursor = Some(fill(
                     Bounds::new(
                         point(
-                            bounds.left() + cursor_pos.x,
+                            bounds.left() + cursor_pos.x + line_number_width,
                             bounds.top() + cursor_pos.y + ((line_height - cursor_height) / 2.),
                         ),
                         size(px(1.), cursor_height),
@@ -173,6 +185,7 @@ impl TextElement {
         lines: &[WrappedLine],
         line_height: Pixels,
         bounds: &mut Bounds<Pixels>,
+        line_number_width: Pixels,
         _: &mut Window,
         cx: &mut App,
     ) -> Option<Path<Pixels>> {
@@ -218,6 +231,9 @@ impl TextElement {
                 if wrapped_lines > 0 {
                     end_x = line_wrap_width;
                 }
+
+                // Ensure at least 6px width for the selection for empty lines.
+                end_x = end_x.max(start.x + px(6.));
 
                 line_corners.push(Corners {
                     top_left: line_origin + point(start.x, start.y),
@@ -283,19 +299,53 @@ impl TextElement {
 
         // print_points_as_svg_path(&line_corners, &points);
 
+        let path_origin = bounds.origin + point(line_number_width, px(0.));
         let first_p = *points.get(0).unwrap();
         let mut builder = gpui::PathBuilder::fill();
-        builder.move_to(bounds.origin + first_p);
+        builder.move_to(path_origin + first_p);
         for p in points.iter().skip(1) {
-            builder.line_to(bounds.origin + *p);
+            builder.line_to(path_origin + *p);
         }
 
         builder.build().ok()
+    }
+
+    fn highlight_text(&self, cx: &mut App) -> Option<Vec<(Range<usize>, HighlightStyle)>> {
+        let input = self.input.read(cx);
+        let text = input.text.as_ref();
+
+        let cache_key = hash(&text);
+
+        match &input.mode {
+            InputMode::CodeEditor {
+                highlighter, cache, ..
+            } => {
+                if cache.0 == cache_key {
+                    return Some(cache.1.clone());
+                }
+
+                if let Some(highlighter) = highlighter {
+                    let styles = highlighter.highlight(&text);
+                    self.input.update(cx, |input, _cx| {
+                        input
+                            .mode
+                            .set_code_editor_cache((cache_key, styles.clone()));
+                    });
+
+                    Some(styles)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 }
 
 pub(super) struct PrepaintState {
     lines: SmallVec<[WrappedLine; 1]>,
+    line_numbers: Option<SmallVec<[WrappedLine; 1]>>,
+    line_number_width: Pixels,
     cursor: Option<PaintQuad>,
     cursor_scroll_offset: Point<Pixels>,
     selection_path: Option<Path<Pixels>>,
@@ -353,20 +403,22 @@ impl Element for TextElement {
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let input = self.input.read(cx);
+        let line_height = window.line_height();
+
         let mut style = Style::default();
         style.size.width = relative(1.).into();
         if self.input.read(cx).is_multi_line() {
             style.flex_grow = 1.0;
-            if let Some(h) = input.height {
+            if let Some(h) = input.mode.height() {
                 style.size.height = h.into();
-                style.min_size.height = window.line_height().into();
+                style.min_size.height = line_height.into();
             } else {
                 style.size.height = relative(1.).into();
-                style.min_size.height = (input.rows.max(1) as f32 * window.line_height()).into();
+                style.min_size.height = (input.mode.rows() * line_height).into();
             }
         } else {
             // For single-line inputs, the minimum height should be the line height
-            style.size.height = window.line_height().into();
+            style.size.height = line_height.into();
         };
 
         (window.request_layout(style, [], cx), ())
@@ -380,12 +432,14 @@ impl Element for TextElement {
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
+        let highlights = self.highlight_text(cx);
         let multi_line = self.input.read(cx).is_multi_line();
         let line_height = window.line_height();
         let input = self.input.read(cx);
         let text = input.text.clone();
         let placeholder = self.placeholder.clone();
         let style = window.text_style();
+        let font_size = style.font_size.to_pixels(window.rem_size());
         let mut bounds = bounds;
 
         let (display_text, text_color) = if text.is_empty() {
@@ -397,6 +451,52 @@ impl Element for TextElement {
             )
         } else {
             (text, cx.theme().foreground)
+        };
+
+        let text_style = window.text_style();
+
+        // Calculate the width of the line numbers
+        let mut line_number_width = px(0.);
+        let line_numbers = if input.mode.line_number() {
+            let mut line_numbers = SmallVec::new();
+            let total_lines = input.text_wrapper.lines.len();
+            let run_len = if total_lines > 999 { 4 } else { 3 };
+            let runs = vec![TextRun {
+                len: run_len,
+                font: style.font(),
+                color: cx.theme().muted_foreground,
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            }];
+
+            for (i, line_wrap) in input.text_wrapper.lines.iter().enumerate() {
+                let line_no = if run_len == 4 {
+                    format!("{:>4}", i + 1).into()
+                } else {
+                    format!("{:>3}", i + 1).into()
+                };
+
+                let line = window
+                    .text_system()
+                    .shape_text(line_no, font_size, &runs, None, None)
+                    .unwrap();
+                line_number_width = (line.last().unwrap().width() + LINE_NUMBER_MARGIN_RIGHT)
+                    .max(line_number_width);
+                line_numbers.extend(line);
+
+                for _ in 0..line_wrap.wrap_lines {
+                    // Empty line no for wrapped lines
+                    let line = window
+                        .text_system()
+                        .shape_text("    ".into(), font_size, &runs, None, None)
+                        .unwrap();
+                    line_numbers.extend(line);
+                }
+            }
+            Some(line_numbers)
+        } else {
+            None
         };
 
         let run = TextRun {
@@ -432,12 +532,25 @@ impl Element for TextElement {
             .filter(|run| run.len > 0)
             .collect()
         } else {
-            vec![run]
+            if let Some(highlights) = highlights {
+                let mut runs = vec![];
+                for (range, style) in highlights {
+                    let run = text_style
+                        .clone()
+                        .highlight(style)
+                        .to_run(range.end - range.start);
+                    if run.len > 0 {
+                        runs.push(run);
+                    }
+                }
+                runs
+            } else {
+                vec![run]
+            }
         };
 
-        let font_size = style.font_size.to_pixels(window.rem_size());
         let wrap_width = if multi_line {
-            Some(bounds.size.width - RIGHT_MARGIN)
+            Some(bounds.size.width - line_number_width - RIGHT_MARGIN)
         } else {
             None
         };
@@ -478,14 +591,29 @@ impl Element for TextElement {
 
         // Calculate the scroll offset to keep the cursor in view
 
-        let (cursor, cursor_scroll_offset) =
-            self.layout_cursor(&lines, line_height, &mut bounds, window, cx);
+        let (cursor, cursor_scroll_offset) = self.layout_cursor(
+            &lines,
+            line_height,
+            &mut bounds,
+            line_number_width,
+            window,
+            cx,
+        );
 
-        let selection_path = self.layout_selections(&lines, line_height, &mut bounds, window, cx);
+        let selection_path = self.layout_selections(
+            &lines,
+            line_height,
+            &mut bounds,
+            line_number_width,
+            window,
+            cx,
+        );
 
         PrepaintState {
             bounds,
             lines,
+            line_numbers,
+            line_number_width,
             cursor,
             cursor_scroll_offset,
             selection_path,
@@ -554,8 +682,19 @@ impl Element for TextElement {
                 offset_y = px(2.5);
             }
         }
+
+        if let Some(line_numbers) = prepaint.line_numbers.as_ref() {
+            for line in line_numbers.iter() {
+                let p = point(origin.x, origin.y + offset_y);
+                _ = line.paint(p, line_height, TextAlign::Left, None, window, cx);
+                let line_size = line.size(line_height);
+                offset_y += line_size.height;
+            }
+        }
+
+        let mut offset_y = px(0.);
         for line in prepaint.lines.iter() {
-            let p = point(origin.x, origin.y + offset_y);
+            let p = point(origin.x + prepaint.line_number_width, origin.y + offset_y);
             _ = line.paint(p, line_height, TextAlign::Left, None, window, cx);
             offset_y += line.size(line_height).height;
         }
@@ -572,25 +711,22 @@ impl Element for TextElement {
             .map(|l| l.width())
             .max()
             .unwrap_or_default();
-        let height = prepaint
-            .lines
-            .iter()
-            .map(|l| l.size(line_height).height.0)
-            .sum::<f32>();
+        let height = offset_y;
+        let scroll_size = size(width, height);
 
-        let scroll_size = size(width, px(height));
-
-        self.input.update(cx, |input, _cx| {
+        self.input.update(cx, |input, cx| {
             input.last_layout = Some(prepaint.lines.clone());
             input.last_bounds = Some(bounds);
             input.last_cursor_offset = Some(input.cursor_offset());
             input.last_line_height = line_height;
-            input.input_bounds = input_bounds;
+            input.set_input_bounds(input_bounds, cx);
             input.last_selected_range = Some(selected_range);
+            input.scroll_size = scroll_size;
+            input.line_number_width = prepaint.line_number_width;
             input
                 .scroll_handle
                 .set_offset(prepaint.cursor_scroll_offset);
-            input.scroll_size = scroll_size;
+            cx.notify();
         });
 
         self.paint_mouse_listeners(window, cx);
