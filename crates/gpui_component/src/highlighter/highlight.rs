@@ -52,6 +52,10 @@ impl HighlightTheme {
             inner: Arc::new(theme),
         })
     }
+
+    pub fn settings(&self) -> &highlighting::ThemeSettings {
+        &self.inner.settings
+    }
 }
 
 /// Inspired by the `iced` crate's `Highlighter` struct.
@@ -59,6 +63,7 @@ impl HighlightTheme {
 /// https://github.com/iced-rs/iced/blob/master/highlighter/src/lib.rs#L24
 pub struct Highlighter<'a> {
     syntax: &'static parsing::SyntaxReference,
+    pub(crate) theme: &'a HighlightTheme,
     highlighter: highlighting::Highlighter<'a>,
 }
 
@@ -71,20 +76,21 @@ impl<'a> Highlighter<'a> {
 
         Self {
             syntax,
+            theme,
             highlighter,
         }
     }
 
-    /// Highlight a text and returns a vector of ranges and highlight styles
-    pub fn highlight(&self, text: &str) -> Vec<(Range<usize>, HighlightStyle)> {
+    /// Highlight a line and returns a vector of ranges and highlight styles
+    pub fn highlight(&self, line: &str) -> Vec<(Range<usize>, HighlightStyle)> {
         let mut parser = parsing::ParseState::new(self.syntax);
         let mut stack = parsing::ScopeStack::new();
 
-        let ops = parser.parse_line(text, &SYNTAXES).unwrap_or_default();
+        let ops = parser.parse_line(line, &SYNTAXES).unwrap_or_default();
 
         ScopeRangeIterator {
             ops,
-            line_length: text.len(),
+            line_length: line.len(),
             index: 0,
             last_str_index: 0,
         }
@@ -104,7 +110,7 @@ impl<'a> Highlighter<'a> {
     }
 }
 
-fn color_to_hsla(color: highlighting::Color) -> Hsla {
+pub fn color_to_hsla(color: highlighting::Color) -> Hsla {
     gpui::Rgba {
         r: color.r as f32 / 255.,
         g: color.g as f32 / 255.,

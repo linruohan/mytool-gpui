@@ -25,6 +25,7 @@ use gpui::{
 use super::{
     blink_cursor::BlinkCursor,
     change::Change,
+    code_highlighter::CodeHighlighter,
     element::TextElement,
     mask_pattern::MaskPattern,
     mode::{InputMode, TabSize},
@@ -222,6 +223,9 @@ pub struct InputState {
     /// Range for save the selected word, use to keep word range when drag move.
     pub(super) selected_word_range: Option<Range<usize>>,
     pub(super) selection_reversed: bool,
+    /// The index of the current line, zero-based.
+    pub(super) current_line_index: Option<usize>,
+    /// The marked range is the temporary insert text on IME typing.
     pub(super) marked_range: Option<Range<usize>>,
     pub(super) last_layout: Option<SmallVec<[WrappedLine; 1]>>,
     pub(super) last_cursor_offset: Option<usize>,
@@ -297,6 +301,7 @@ impl InputState {
             selected_range: 0..0,
             selected_word_range: None,
             selection_reversed: false,
+            current_line_index: None,
             marked_range: None,
             input_bounds: Bounds::default(),
             selecting: false,
@@ -362,12 +367,11 @@ impl InputState {
     /// - Auto Indent
     /// - Line Number
     pub fn code_editor(mut self, language: Option<&str>, theme: &'static HighlightTheme) -> Self {
-        let highlighter = Highlighter::new(language, theme);
+        let highlighter = Rc::new(Highlighter::new(language, theme));
         self.mode = InputMode::CodeEditor {
             rows: 2,
             tab: TabSize::default(),
-            highlighter: Some(Rc::new(highlighter)),
-            cache: (0, vec![]),
+            highlighter: CodeHighlighter::new(highlighter),
             line_number: true,
             height: Some(relative(1.)),
         };
@@ -433,11 +437,8 @@ impl InputState {
     pub fn set_highlighter(&mut self, highlighter: Highlighter<'static>, cx: &mut Context<Self>) {
         let new_highlighter = Rc::new(highlighter);
         match &mut self.mode {
-            InputMode::CodeEditor {
-                highlighter, cache, ..
-            } => {
-                *highlighter = Some(new_highlighter);
-                *cache = (0, vec![]);
+            InputMode::CodeEditor { highlighter, .. } => {
+                highlighter.set_highlighter(new_highlighter, cx);
             }
             _ => {}
         }
@@ -983,7 +984,12 @@ impl InputState {
             return 0;
         }
 
-        let offset = self.previous_boundary(self.selected_range.start.min(self.selected_range.end));
+        let mut offset =
+            self.previous_boundary(self.selected_range.start.min(self.selected_range.end));
+        if self.text.chars().nth(offset) == Some('\r') {
+            offset += 1;
+        }
+
         let line = self
             .text_for_range(self.range_to_utf16(&(0..offset + 1)), &mut None, window, cx)
             .unwrap_or_default()
@@ -1197,7 +1203,8 @@ impl InputState {
         let mut added_len = 0;
 
         if !self.selected_range.is_empty() {
-            let mut offset = self.start_of_line_of_selection(window, cx);
+            let start_offset = self.start_of_line_of_selection(window, cx);
+            let mut offset = start_offset;
 
             let selected_text = self
                 .text_for_range(
@@ -1208,9 +1215,7 @@ impl InputState {
                 )
                 .unwrap_or("".into());
 
-            let mut lines_count = 0;
-            for line in selected_text.lines() {
-                lines_count += 1;
+            for line in selected_text.split('\n') {
                 self.replace_text_in_range(
                     Some(self.range_to_utf16(&(offset..offset))),
                     &tab_indent,
@@ -1218,17 +1223,11 @@ impl InputState {
                     cx,
                 );
                 added_len += tab_indent.len();
-                // +1 for "\n"
+                // +1 for "\n", the `\r` is included in the `line`.
                 offset += line.len() + tab_indent.len() + 1;
             }
 
-            if lines_count > 1 {
-                self.selected_range =
-                    selected_range.start + tab_indent.len()..selected_range.end + added_len;
-            } else {
-                self.selected_range =
-                    selected_range.start + added_len..selected_range.end + added_len;
-            }
+            self.selected_range = start_offset..selected_range.end + added_len;
         } else {
             // Selected none
             let offset = self.selected_range.start;
@@ -1254,7 +1253,8 @@ impl InputState {
         let mut removed_len = 0;
 
         if !self.selected_range.is_empty() {
-            let mut offset = self.start_of_line_of_selection(window, cx);
+            let start_offset = self.start_of_line_of_selection(window, cx);
+            let mut offset = start_offset;
 
             let selected_text = self
                 .text_for_range(
@@ -1265,9 +1265,7 @@ impl InputState {
                 )
                 .unwrap_or("".into());
 
-            let mut lines_count = 0;
-            for line in selected_text.lines() {
-                lines_count += 1;
+            for line in selected_text.split('\n') {
                 if line.starts_with(tab_indent.as_ref()) {
                     self.replace_text_in_range(
                         Some(self.range_to_utf16(&(offset..offset + tab_indent.len()))),
@@ -1281,15 +1279,10 @@ impl InputState {
                 offset += line.len().saturating_sub(tab_indent.len()) + 1;
             }
 
-            if lines_count > 1 {
-                self.selected_range = selected_range.start.saturating_sub(tab_indent.len())
-                    ..selected_range.end.saturating_sub(removed_len);
-            } else {
-                self.selected_range = selected_range.start.saturating_sub(tab_indent.len())
-                    ..selected_range.end.saturating_sub(tab_indent.len());
-            }
+            self.selected_range = start_offset..selected_range.end.saturating_sub(removed_len);
         } else {
             // Selected none
+            let start_offset = self.selected_range.start;
             let offset = self.start_of_line_of_selection(window, cx);
             if self.text[offset..].starts_with(tab_indent.as_ref()) {
                 self.replace_text_in_range(
@@ -1299,9 +1292,8 @@ impl InputState {
                     cx,
                 );
                 removed_len = tab_indent.len();
-
-                self.selected_range = selected_range.start.saturating_sub(removed_len)
-                    ..selected_range.end.saturating_sub(removed_len);
+                let new_offset = start_offset.saturating_sub(removed_len);
+                self.selected_range = new_offset..new_offset;
             }
         }
     }
@@ -1311,6 +1303,9 @@ impl InputState {
     }
 
     pub(super) fn escape(&mut self, _: &Escape, window: &mut Window, cx: &mut Context<Self>) {
+        if self.marked_range.is_some() {
+            self.unmark_text(window, cx);
+        }
         if self.selected_range.len() > 0 {
             return self.unselect(window, cx);
         }
@@ -1328,6 +1323,14 @@ impl InputState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // If there have IME marked range and is empty (Means pressed Esc to abort IME typing)
+        // Clear the marked range.
+        if let Some(marked_range) = &self.marked_range {
+            if marked_range.len() == 0 {
+                self.marked_range = None;
+            }
+        }
+
         self.selecting = true;
         let offset = self.index_for_mouse_position(event.position, window, cx);
         // Double click to select word
@@ -1477,6 +1480,10 @@ impl InputState {
     }
 
     pub(super) fn cursor_offset(&self) -> usize {
+        if let Some(marked_range) = &self.marked_range {
+            return marked_range.end;
+        }
+
         if self.selection_reversed {
             self.selected_range.start
         } else {
@@ -1947,6 +1954,7 @@ impl EntityInputHandler for InputState {
         cx.notify();
     }
 
+    /// Mark text is the IME temporary insert on typing.
     fn replace_and_mark_text_in_range(
         &mut self,
         range_utf16: Option<Range<usize>>,
@@ -1972,12 +1980,20 @@ impl EntityInputHandler for InputState {
 
         self.push_history(&range, new_text, window, cx);
         self.text = pending_text;
-        self.marked_range = Some(range.start..range.start + new_text.len());
-        self.selected_range = new_selected_range_utf16
-            .as_ref()
-            .map(|range_utf16| self.range_from_utf16(range_utf16))
-            .map(|new_range| new_range.start + range.start..new_range.end + range.end)
-            .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len());
+        self.text_wrapper.update(self.text.clone(), false, cx);
+        if new_text.is_empty() {
+            // Cancel selection, when cancel IME input.
+            self.selected_range = range.start..range.start;
+            self.marked_range = None;
+        } else {
+            self.marked_range = Some(range.start..range.start + new_text.len());
+            self.selected_range = new_selected_range_utf16
+                .as_ref()
+                .map(|range_utf16| self.range_from_utf16(range_utf16))
+                .map(|new_range| new_range.start + range.start..new_range.end + range.end)
+                .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len());
+        }
+        self.mode.update_auto_grow(&self.text_wrapper);
         cx.emit(InputEvent::Change(self.unmask_value()));
         cx.notify();
     }
@@ -1997,36 +2013,44 @@ impl EntityInputHandler for InputState {
 
         let mut start_origin = None;
         let mut end_origin = None;
+        let line_number_origin = point(self.line_number_width, px(0.));
         let mut y_offset = px(0.);
         let mut index_offset = 0;
 
         for line in lines.iter() {
-            if let Some(p) =
-                line.position_for_index(range.start.saturating_sub(index_offset), line_height)
-            {
-                start_origin = Some(p + point(px(0.), y_offset));
-            }
-            if let Some(p) =
-                line.position_for_index(range.end.saturating_sub(index_offset), line_height)
-            {
-                end_origin = Some(p + point(px(0.), y_offset));
-            }
-
-            y_offset += line.size(line_height).height;
             if start_origin.is_some() && end_origin.is_some() {
                 break;
             }
 
-            index_offset += line.len();
+            if start_origin.is_none() {
+                if let Some(p) =
+                    line.position_for_index(range.start.saturating_sub(index_offset), line_height)
+                {
+                    start_origin = Some(p + point(px(0.), y_offset));
+                }
+            }
+
+            if end_origin.is_none() {
+                if let Some(p) =
+                    line.position_for_index(range.end.saturating_sub(index_offset), line_height)
+                {
+                    end_origin = Some(p + point(px(0.), y_offset));
+                }
+            }
+
+            index_offset += line.len() + 1;
+            y_offset += line.size(line_height).height;
         }
 
         let start_origin = start_origin.unwrap_or_default();
-        let end_origin = end_origin.unwrap_or_default();
+        let mut end_origin = end_origin.unwrap_or_default();
+        // Ensure at same line.
+        end_origin.y = start_origin.y;
 
         Some(Bounds::from_corners(
-            bounds.origin + start_origin,
+            bounds.origin + line_number_origin + start_origin,
             // + line_height for show IME panel under the cursor line.
-            bounds.origin + point(end_origin.x, end_origin.y + line_height),
+            bounds.origin + line_number_origin + point(end_origin.x, end_origin.y + line_height),
         ))
     }
 

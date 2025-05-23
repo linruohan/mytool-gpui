@@ -1,10 +1,9 @@
-use gpui::{DefiniteLength, HighlightStyle, SharedString};
-
-use std::ops::Range;
 use std::rc::Rc;
 
+use gpui::{DefiniteLength, SharedString};
+
+use super::code_highlighter::CodeHighlighter;
 use super::text_wrapper::TextWrapper;
-use crate::highlighter::Highlighter;
 
 #[derive(Debug, Copy, Clone)]
 pub struct TabSize {
@@ -48,8 +47,7 @@ pub enum InputMode {
         height: Option<DefiniteLength>,
         /// Show line number
         line_number: bool,
-        highlighter: Option<Rc<Highlighter<'static>>>,
-        cache: (u64, Vec<(Range<usize>, HighlightStyle)>),
+        highlighter: CodeHighlighter,
     },
     AutoGrow {
         rows: usize,
@@ -134,15 +132,6 @@ impl InputMode {
         }
     }
 
-    pub(super) fn set_code_editor_cache(
-        &mut self,
-        cache: (u64, Vec<(Range<usize>, HighlightStyle)>),
-    ) {
-        if let InputMode::CodeEditor { cache: c, .. } = self {
-            *c = cache;
-        }
-    }
-
     /// Return false if the mode is not [`InputMode::CodeEditor`].
     #[allow(unused)]
     #[inline]
@@ -158,6 +147,13 @@ impl InputMode {
         match self {
             InputMode::MultiLine { tab, .. } => Some(tab),
             InputMode::CodeEditor { tab, .. } => Some(tab),
+            _ => None,
+        }
+    }
+
+    pub(super) fn highlighter(&self) -> Option<Rc<crate::highlighter::Highlighter<'static>>> {
+        match &self {
+            InputMode::CodeEditor { highlighter, .. } => Some(highlighter.highlighter.clone()),
             _ => None,
         }
     }

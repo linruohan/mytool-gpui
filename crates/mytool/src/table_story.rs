@@ -11,7 +11,6 @@ use gpui::{
 };
 use gpui_component::{
     button::Button,
-    checkbox::Checkbox,
     green, h_flex,
     indicator::Indicator,
     input::{InputEvent, InputState, TextInput},
@@ -19,7 +18,7 @@ use gpui_component::{
     popup_menu::{PopupMenu, PopupMenuExt},
     red,
     table::{self, ColFixed, ColSort, Table, TableDelegate, TableEvent},
-    v_flex, ActiveTheme as _, Selectable, Sizable as _, Size, StyleSized as _,
+    v_flex, ActiveTheme as _, Sizable as _, Size, StyleSized as _,
 };
 use serde::Deserialize;
 

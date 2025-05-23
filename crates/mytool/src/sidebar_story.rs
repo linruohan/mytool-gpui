@@ -1,22 +1,21 @@
 use std::collections::HashMap;
 
 use gpui::{
-    blue, div, green, impl_internal_actions, prelude::FluentBuilder, px, App, AppContext,
+    blue, green, impl_internal_actions, prelude::FluentBuilder, px, App, AppContext,
     ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString,
     Styled, Window,
 };
 
 use gpui_component::{
-    badge::Badge,
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     divider::Divider,
     gray_400, h_flex, purple_100, red_400,
     sidebar::{
-        Sidebar, SidebarBoard, SidebarBoardItem, SidebarGroup, SidebarMenu, SidebarMenuItem,
+        Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem,
         SidebarToggleButton,
     },
     switch::Switch,
-    v_flex, yellow_400, ActiveTheme, Icon, IconName, Side,
+    v_flex, yellow_400, ActiveTheme, IconName, Side,
 };
 use serde::Deserialize;
 
@@ -227,7 +226,7 @@ impl Render for SidebarStory {
             Item::Labels,
             Item::Completed,
         ];
-        let mut projects = Item::Projects;
+        let projects = Item::Projects;
         // let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
 
         h_flex()
