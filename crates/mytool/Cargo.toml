@@ -19,8 +19,6 @@ serde_json = "1"
 jiff.workspace = true
 whoami.workspace = true
 rodio.workspace = true
-onig_sys = "69.9.1"
-bindgen = "0.71.1"
 
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
