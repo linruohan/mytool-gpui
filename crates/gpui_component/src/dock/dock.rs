@@ -422,6 +422,7 @@ impl Element for DockElement {
     fn request_layout(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut gpui::Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -431,6 +432,7 @@ impl Element for DockElement {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         _window: &mut gpui::Window,
@@ -442,6 +444,7 @@ impl Element for DockElement {
     fn paint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,
@@ -472,5 +475,9 @@ impl Element for DockElement {
                 }
             }
         })
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
     }
 }

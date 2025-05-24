@@ -98,10 +98,13 @@ impl Element for ContextMenu {
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
     }
-
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
     fn request_layout(
         &mut self,
         id: Option<&gpui::GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -178,6 +181,7 @@ impl Element for ContextMenu {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -191,6 +195,7 @@ impl Element for ContextMenu {
     fn paint(
         &mut self,
         id: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,

@@ -1,2 +1,13 @@
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "link-arg=/STACK:8000000"]
+rustflags = [
+    "-C",
+    "link-arg=/STACK:8000000",
+    "-C",
+    "link-arg=/MANIFEST:NO",
+    "-C",
+    "link-arg=/DEBUG:FULL",    # 可选：生成完整调试信息
+]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+rustflags = ["-C", "link-args=-Wl,--stack,8000000"]

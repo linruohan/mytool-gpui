@@ -222,10 +222,13 @@ impl<M: ManagedView> Element for Popover<M> {
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
     }
-
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
     fn request_layout(
         &mut self,
         id: Option<&gpui::GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -324,6 +327,7 @@ impl<M: ManagedView> Element for Popover<M> {
     fn prepaint(
         &mut self,
         _id: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _bounds: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -356,6 +360,7 @@ impl<M: ManagedView> Element for Popover<M> {
     fn paint(
         &mut self,
         id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _bounds: Bounds<Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,

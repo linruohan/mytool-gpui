@@ -87,10 +87,13 @@ impl<T: 'static, E: 'static + Render> Element for ResizeHandle<T, E> {
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
     }
-
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
     fn request_layout(
         &mut self,
         id: Option<&GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -165,6 +168,7 @@ impl<T: 'static, E: 'static + Render> Element for ResizeHandle<T, E> {
     fn prepaint(
         &mut self,
         _: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -176,6 +180,7 @@ impl<T: 'static, E: 'static + Render> Element for ResizeHandle<T, E> {
     fn paint(
         &mut self,
         id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: gpui::Bounds<Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,

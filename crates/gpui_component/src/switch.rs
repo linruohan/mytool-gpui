@@ -107,10 +107,13 @@ impl Element for Switch {
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
     }
-
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
     fn request_layout(
         &mut self,
         global_id: Option<&GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
@@ -257,6 +260,7 @@ impl Element for Switch {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<gpui::Pixels>,
         element: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -268,6 +272,7 @@ impl Element for Switch {
     fn paint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<gpui::Pixels>,
         element: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,

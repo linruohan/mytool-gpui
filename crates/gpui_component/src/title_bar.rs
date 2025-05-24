@@ -3,8 +3,9 @@ use std::rc::Rc;
 use crate::{h_flex, ActiveTheme, Icon, IconName, InteractiveElementExt as _, Sizable as _};
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, AnyElement, App, ClickEvent, Div, Element,
-    Hsla, InteractiveElement as _, IntoElement, MouseButton, ParentElement, Pixels, RenderOnce,
-    Stateful, StatefulInteractiveElement as _, Style, Styled, TitlebarOptions, Window,
+    Hsla, InspectorElementId, InteractiveElement as _, IntoElement, MouseButton, ParentElement,
+    Pixels, RenderOnce, Stateful, StatefulInteractiveElement as _, Style, Styled, TitlebarOptions,
+    Window,
 };
 
 pub const TITLE_BAR_HEIGHT: Pixels = px(34.);
@@ -294,6 +295,7 @@ impl Element for TitleBarElement {
     fn request_layout(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -310,6 +312,7 @@ impl Element for TitleBarElement {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         _window: &mut Window,
@@ -321,6 +324,7 @@ impl Element for TitleBarElement {
     fn paint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: gpui::Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,
@@ -343,5 +347,9 @@ impl Element for TitleBarElement {
                 }
             },
         );
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        todo!()
     }
 }

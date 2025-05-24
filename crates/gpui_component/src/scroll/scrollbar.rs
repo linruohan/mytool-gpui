@@ -436,6 +436,7 @@ impl Element for Scrollbar {
     fn request_layout(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -452,6 +453,7 @@ impl Element for Scrollbar {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -633,6 +635,7 @@ impl Element for Scrollbar {
     fn paint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
@@ -872,5 +875,9 @@ impl Element for Scrollbar {
                 }
             },
         );
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
     }
 }

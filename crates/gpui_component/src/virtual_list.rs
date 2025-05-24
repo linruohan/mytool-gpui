@@ -176,6 +176,7 @@ impl Element for VirtualList {
     fn request_layout(
         &mut self,
         global_id: Option<&GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -244,7 +245,7 @@ impl Element for VirtualList {
         };
         // println!("layout: {} {:?}", item_sizes.len(), start.elapsed());
 
-        let (layout_id, _) = self.base.request_layout(global_id, window, cx);
+        let (layout_id, _) = self.base.request_layout(global_id, None, window, cx);
 
         (
             layout_id,
@@ -259,6 +260,7 @@ impl Element for VirtualList {
     fn prepaint(
         &mut self,
         global_id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -303,6 +305,7 @@ impl Element for VirtualList {
 
         self.base.interactivity().prepaint(
             global_id,
+            None,
             bounds,
             content_size,
             window,
@@ -452,6 +455,7 @@ impl Element for VirtualList {
     fn paint(
         &mut self,
         global_id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         layout: &mut Self::RequestLayoutState,
         hitbox: &mut Self::PrepaintState,
@@ -460,6 +464,7 @@ impl Element for VirtualList {
     ) {
         self.base.interactivity().paint(
             global_id,
+            _inspector_id,
             bounds,
             hitbox.as_ref(),
             window,
@@ -470,5 +475,9 @@ impl Element for VirtualList {
                 }
             },
         )
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        todo!()
     }
 }

@@ -6,7 +6,6 @@ version = "0.1.0"
 
 [dependencies]
 anyhow.workspace = true
-charts-rs = "0.3"
 chrono = "0.4"
 # fake 伪造数据生成器 
 fake = { version = "4.2.0", features = ["dummy"] }
@@ -14,17 +13,14 @@ gpui.workspace = true
 gpui-component = { workspace = true }
 rand.workspace = true
 raw-window-handle = { version = "0.6", features = ["std"] }
-regex = "1"
 rust-embed = "8.5.0"
 serde = "1"
 serde_json = "1"
-unindent = "0.2.3"
-bonsaidb.workspace = true
 jiff.workspace = true
-env_logger.workspace = true
 whoami.workspace = true
 rodio.workspace = true
-ogg.workspace = true
+onig_sys = "69.9.1"
+bindgen = "0.71.1"
 
 
 [target.'cfg(target_os = "windows")'.build-dependencies]

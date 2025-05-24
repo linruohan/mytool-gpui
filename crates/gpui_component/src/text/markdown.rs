@@ -92,6 +92,7 @@ impl Element for MarkdownElement {
     fn request_layout(
         &mut self,
         id: Option<&gpui::GlobalElementId>,
+        __inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut gpui::App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -125,6 +126,7 @@ impl Element for MarkdownElement {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -136,6 +138,7 @@ impl Element for MarkdownElement {
     fn paint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
         _: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,
@@ -143,6 +146,10 @@ impl Element for MarkdownElement {
         cx: &mut gpui::App,
     ) {
         request_layout.paint(window, cx);
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
     }
 }
 
