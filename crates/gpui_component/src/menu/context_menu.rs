@@ -3,8 +3,8 @@ use std::{cell::RefCell, rc::Rc};
 use gpui::{
     anchored, deferred, div, prelude::FluentBuilder, px, relative, AnyElement, App, Context,
     Corner, DismissEvent, DispatchPhase, Element, ElementId, Entity, Focusable, FocusableWrapper,
-    GlobalElementId, InteractiveElement, IntoElement, MouseButton, MouseDownEvent, ParentElement,
-    Pixels, Point, Position, Stateful, Style, Window,
+    GlobalElementId, InspectorElementId, InteractiveElement, IntoElement, MouseButton,
+    MouseDownEvent, ParentElement, Pixels, Point, Position, Stateful, Style, Window,
 };
 
 use crate::menu::popup_menu::PopupMenu;
@@ -98,13 +98,15 @@ impl Element for ContextMenu {
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
     }
-    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
         None
     }
+
     fn request_layout(
         &mut self,
         id: Option<&gpui::GlobalElementId>,
-        __inspector_id: Option<&gpui::InspectorElementId>,
+        _: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
@@ -181,7 +183,7 @@ impl Element for ContextMenu {
     fn prepaint(
         &mut self,
         _: Option<&gpui::GlobalElementId>,
-        _inspector_id: Option<&gpui::InspectorElementId>,
+        _: Option<&InspectorElementId>,
         _: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -195,7 +197,7 @@ impl Element for ContextMenu {
     fn paint(
         &mut self,
         id: Option<&gpui::GlobalElementId>,
-        _inspector_id: Option<&gpui::InspectorElementId>,
+        _: Option<&InspectorElementId>,
         bounds: gpui::Bounds<gpui::Pixels>,
         request_layout: &mut Self::RequestLayoutState,
         _: &mut Self::PrepaintState,

@@ -359,6 +359,8 @@ impl InputState {
     /// - hard_tabs: false
     /// - height: full
     ///
+    /// If `highlighter` is None, will use the default highlighter.
+    ///
     /// Code Editor aim for help used to simple code editing or display, not a full-featured code editor.
     ///
     /// ## Features
@@ -366,12 +368,15 @@ impl InputState {
     /// - Syntax Highlighting
     /// - Auto Indent
     /// - Line Number
-    pub fn code_editor(mut self, language: Option<&str>, theme: &'static HighlightTheme) -> Self {
-        let highlighter = Rc::new(Highlighter::new(language, theme));
+    pub fn code_editor(mut self, language: Option<&str>) -> Self {
         self.mode = InputMode::CodeEditor {
             rows: 2,
             tab: TabSize::default(),
-            highlighter: CodeHighlighter::new(highlighter),
+            highlighter: CodeHighlighter::new(Rc::new(Highlighter::new(
+                language,
+                &HighlightTheme::default_light(),
+                &HighlightTheme::default_dark(),
+            ))),
             line_number: true,
             height: Some(relative(1.)),
         };
@@ -614,7 +619,13 @@ impl InputState {
         self.replace_text(value, window, cx);
         self.history.ignore = false;
         // Ensure cursor to start when set text
-        self.selected_range = self.text.len()..self.text.len();
+        if self.is_single_line() {
+            self.selected_range = self.text.len()..self.text.len();
+        } else {
+            self.selected_range = 0..0;
+        }
+        // Move scroll to top
+        self.scroll_handle.set_offset(point(px(0.), px(0.)));
 
         cx.notify();
     }
@@ -629,8 +640,8 @@ impl InputState {
         cx: &mut Context<Self>,
     ) {
         let text: SharedString = text.into();
-        let range = self.range_to_utf16(&(self.cursor_offset()..self.cursor_offset()));
-        self.replace_text_in_range(Some(range), &text, window, cx);
+        let range_utf16 = self.range_to_utf16(&(self.cursor_offset()..self.cursor_offset()));
+        self.replace_text_in_range(Some(range_utf16), &text, window, cx);
         self.selected_range = self.selected_range.end..self.selected_range.end;
     }
 
@@ -659,10 +670,25 @@ impl InputState {
         self.replace_text_in_range(Some(range), &text, window, cx);
     }
 
+    /// Set with disabled mode.
+    ///
+    /// See also: [`Self::set_disabled`], [`Self::is_disabled`].
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
     /// Set the disabled state of the input field.
+    ///
+    /// See also: [`Self::disabled`], [`Self::is_disabled`].
     pub fn set_disabled(&mut self, disabled: bool, _: &mut Window, cx: &mut Context<Self>) {
         self.disabled = disabled;
         cx.notify();
+    }
+
+    /// Return is the input field is disabled.
+    pub fn is_disabled(&self) -> bool {
+        self.disabled
     }
 
     /// Set with password masked state.
@@ -728,10 +754,6 @@ impl InputState {
         self.mask_pattern.unmask(&self.text).into()
     }
 
-    pub fn disabled(&self) -> bool {
-        self.disabled
-    }
-
     /// Focus the input field.
     pub fn focus(&self, window: &mut Window, _: &mut Context<Self>) {
         self.focus_handle.focus(window);
@@ -761,7 +783,11 @@ impl InputState {
         }
 
         if !self.selected_range.is_empty() {
-            self.move_to(self.selected_range.start.saturating_sub(1), window, cx);
+            self.move_to(
+                self.previous_boundary(self.selected_range.start.saturating_sub(1)),
+                window,
+                cx,
+            );
         }
         self.pause_blink_cursor(cx);
         self.move_vertical(-1, window, cx);
@@ -773,7 +799,11 @@ impl InputState {
         }
 
         if !self.selected_range.is_empty() {
-            self.move_to(self.selected_range.end.saturating_sub(1), window, cx);
+            self.move_to(
+                self.next_boundary(self.selected_range.end.saturating_sub(1)),
+                window,
+                cx,
+            );
         }
 
         self.pause_blink_cursor(cx);
@@ -803,7 +833,7 @@ impl InputState {
             return;
         }
         let offset = self.start_of_line(window, cx).saturating_sub(1);
-        self.select_to(offset, window, cx);
+        self.select_to(self.previous_boundary(offset), window, cx);
     }
 
     pub(super) fn select_down(
@@ -942,8 +972,8 @@ impl InputState {
     /// Return the start offset of the previous word.
     fn previous_start_of_word(&mut self) -> usize {
         let offset = self.selected_range.start;
-        let prev_str = &self.text[..offset].to_string();
-        UnicodeSegmentation::split_word_bound_indices(prev_str as &str)
+        let prev_str = self.text_for_range_utf8(0..offset);
+        UnicodeSegmentation::split_word_bound_indices(prev_str)
             .filter(|(_, s)| !s.trim_start().is_empty())
             .next_back()
             .map(|(i, _)| i)
@@ -953,8 +983,8 @@ impl InputState {
     /// Return the next end offset of the next word.
     fn next_end_of_word(&mut self) -> usize {
         let offset = self.cursor_offset();
-        let next_str = &self.text[offset..].to_string();
-        UnicodeSegmentation::split_word_bound_indices(next_str as &str)
+        let next_str = self.text_for_range_utf8(offset..self.text.len());
+        UnicodeSegmentation::split_word_bound_indices(next_str)
             .find(|(_, s)| !s.trim_start().is_empty())
             .map(|(i, s)| offset + i + s.len())
             .unwrap_or(self.text.len())
@@ -1173,11 +1203,11 @@ impl InputState {
             self.replace_text_in_range(None, "\n", window, cx);
 
             // Move cursor to the start of the next line
-            let mut new_offset = self.next_boundary(self.cursor_offset()) - 1;
+            let mut new_offset = self.cursor_offset() - 1;
             if is_eof {
                 new_offset += 1;
             }
-            self.move_to(new_offset, window, cx);
+            self.move_to(self.next_boundary(new_offset), window, cx);
 
             // Add indent
             self.replace_text_in_range(
@@ -1274,9 +1304,12 @@ impl InputState {
                         cx,
                     );
                     removed_len += tab_indent.len();
+
+                    // +1 for "\n"
+                    offset += line.len().saturating_sub(tab_indent.len()) + 1;
+                } else {
+                    offset += line.len() + 1;
                 }
-                // +1 for "\n"
-                offset += line.len().saturating_sub(tab_indent.len()) + 1;
             }
 
             self.selected_range = start_offset..selected_range.end.saturating_sub(removed_len);
@@ -1284,7 +1317,10 @@ impl InputState {
             // Selected none
             let start_offset = self.selected_range.start;
             let offset = self.start_of_line_of_selection(window, cx);
-            if self.text[offset..].starts_with(tab_indent.as_ref()) {
+            if self
+                .text_for_range_utf8(offset..self.text.len())
+                .starts_with(tab_indent.as_ref())
+            {
                 self.replace_text_in_range(
                     Some(self.range_to_utf16(&(offset..offset + tab_indent.len()))),
                     "",
@@ -1394,7 +1430,9 @@ impl InputState {
             return;
         }
 
-        let selected_text = self.text[self.selected_range.clone()].to_string();
+        let selected_text = self
+            .text_for_range_utf8(self.selected_range.clone())
+            .to_string();
         cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
     }
 
@@ -1403,7 +1441,9 @@ impl InputState {
             return;
         }
 
-        let selected_text = self.text[self.selected_range.clone()].to_string();
+        let selected_text = self
+            .text_for_range_utf8(self.selected_range.clone())
+            .to_string();
         cx.write_to_clipboard(ClipboardItem::new_string(selected_text));
         self.replace_text_in_range(None, "", window, cx);
     }
@@ -1636,7 +1676,7 @@ impl InputState {
         let mut start = offset;
         let mut end = start;
         let prev_text = self
-            .text_for_range(self.range_to_utf16(&(0..start + 1)), &mut None, window, cx)
+            .text_for_range(self.range_to_utf16(&(0..start)), &mut None, window, cx)
             .unwrap_or_default();
         let next_text = self
             .text_for_range(
@@ -1650,16 +1690,16 @@ impl InputState {
         let prev_chars = prev_text.chars().rev();
         let next_chars = next_text.chars();
 
-        let mut last_char_len = 0;
-        for (_, c) in prev_chars.enumerate() {
+        let pre_chars_count = prev_chars.clone().count();
+        for (ix, c) in prev_chars.enumerate() {
             if !is_word(c) {
                 break;
             }
 
-            last_char_len = c.len_utf8();
-            start = start.saturating_sub(last_char_len);
+            if ix < pre_chars_count {
+                start = start.saturating_sub(c.len_utf8());
+            }
         }
-        start += last_char_len;
 
         for (_, c) in next_chars.enumerate() {
             if !is_word(c) {
@@ -1669,19 +1709,8 @@ impl InputState {
             end += c.len_utf8();
         }
 
-        // Ensure at least one character is selected
         if start == end {
-            end = end + 1;
-
-            // Avoid select empty range
-            match self.text.get(start..end) {
-                None => return,
-                Some(part) => {
-                    if part.trim().len() == 0 {
-                        return;
-                    }
-                }
-            }
+            return;
         }
 
         self.selected_range = start..end;
@@ -1869,6 +1898,11 @@ impl InputState {
             self.mode.update_auto_grow(&self.text_wrapper);
         }
     }
+
+    fn text_for_range_utf8(&mut self, range: impl Into<Range<usize>>) -> &str {
+        let range = self.range_from_utf16(&self.range_to_utf16(&range.into()));
+        &self.text[range]
+    }
 }
 
 impl EntityInputHandler for InputState {
@@ -1931,8 +1965,10 @@ impl EntityInputHandler for InputState {
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
 
-        let pending_text: SharedString =
-            (self.text[0..range.start].to_owned() + new_text + &self.text[range.end..]).into();
+        let pending_text: SharedString = (self.text_for_range_utf8(0..range.start).to_owned()
+            + new_text
+            + self.text_for_range_utf8(range.end..self.text.len()))
+        .into();
         // Check if the new text is valid
         if !self.is_valid_input(&pending_text) {
             return;
@@ -1972,8 +2008,10 @@ impl EntityInputHandler for InputState {
             .map(|range_utf16| self.range_from_utf16(range_utf16))
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
-        let pending_text: SharedString =
-            (self.text[0..range.start].to_owned() + new_text + &self.text[range.end..]).into();
+        let pending_text: SharedString = (self.text_for_range_utf8(0..range.start).to_owned()
+            + new_text
+            + self.text_for_range_utf8(range.end..self.text.len()))
+        .into();
         if !self.is_valid_input(&pending_text) {
             return;
         }

@@ -209,26 +209,27 @@ impl Element for SvgImg {
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
     }
-    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
         None
     }
+
     fn request_layout(
         &mut self,
         global_id: Option<&GlobalElementId>,
-        __inspector_id: Option<&gpui::InspectorElementId>,
+        inspector_id: Option<&gpui::InspectorElementId>,
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
-        let global_id = global_id.unwrap();
-
         let layout_id = self.interactivity.request_layout(
-            Some(global_id),
-            None,
+            global_id,
+            inspector_id,
             window,
             cx,
             |style, window, cx| window.request_layout(style, None, cx),
         );
 
+        let global_id = global_id.unwrap();
         let source = &self.source;
         let source_hash = hash(source);
 
@@ -288,7 +289,7 @@ impl Element for SvgImg {
     fn prepaint(
         &mut self,
         global_id: Option<&GlobalElementId>,
-        _inspector_id: Option<&gpui::InspectorElementId>,
+        inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         state: &mut Self::RequestLayoutState,
         window: &mut Window,
@@ -296,7 +297,7 @@ impl Element for SvgImg {
     ) -> Self::PrepaintState {
         let hitbox = self.interactivity.prepaint(
             global_id,
-            None,
+            inspector_id,
             bounds,
             bounds.size,
             window,
@@ -310,7 +311,7 @@ impl Element for SvgImg {
     fn paint(
         &mut self,
         global_id: Option<&GlobalElementId>,
-        _inspector_id: Option<&gpui::InspectorElementId>,
+        inspector_id: Option<&gpui::InspectorElementId>,
         bounds: Bounds<Pixels>,
         _: &mut Self::RequestLayoutState,
         state: &mut Self::PrepaintState,
@@ -325,7 +326,7 @@ impl Element for SvgImg {
 
         self.interactivity.paint(
             global_id,
-            None,
+            inspector_id,
             bounds,
             hitbox,
             window,

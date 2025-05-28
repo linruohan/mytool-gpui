@@ -27,6 +27,7 @@ pub struct TextInput {
     cleanable: bool,
     mask_toggle: bool,
     disabled: bool,
+    bordered: bool,
 }
 
 impl Sizable for TextInput {
@@ -47,6 +48,7 @@ impl TextInput {
             suffix: None,
             height: None,
             appearance: true,
+            bordered: true,
             cleanable: false,
             mask_toggle: false,
             disabled: false,
@@ -78,6 +80,12 @@ impl TextInput {
     /// Set the appearance of the input field.
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.appearance = appearance;
+        self
+    }
+
+    /// Set the bordered for the input field, default: true
+    pub fn bordered(mut self, bordered: bool) -> Self {
+        self.bordered = bordered;
         self
     }
 
@@ -180,6 +188,12 @@ impl RenderOnce for TextInput {
                     .on_action(window.listener_for(&self.state, InputState::delete_next_word))
                     .on_action(window.listener_for(&self.state, InputState::enter))
                     .on_action(window.listener_for(&self.state, InputState::escape))
+                    .on_action(window.listener_for(&self.state, InputState::indent))
+                    .on_action(window.listener_for(&self.state, InputState::outdent))
+                    .on_action(window.listener_for(&self.state, InputState::paste))
+                    .on_action(window.listener_for(&self.state, InputState::cut))
+                    .on_action(window.listener_for(&self.state, InputState::undo))
+                    .on_action(window.listener_for(&self.state, InputState::redo))
             })
             .on_action(window.listener_for(&self.state, InputState::left))
             .on_action(window.listener_for(&self.state, InputState::right))
@@ -190,8 +204,6 @@ impl RenderOnce for TextInput {
                     .on_action(window.listener_for(&self.state, InputState::down))
                     .on_action(window.listener_for(&self.state, InputState::select_up))
                     .on_action(window.listener_for(&self.state, InputState::select_down))
-                    .on_action(window.listener_for(&self.state, InputState::indent))
-                    .on_action(window.listener_for(&self.state, InputState::outdent))
             })
             .on_action(window.listener_for(&self.state, InputState::select_all))
             .on_action(window.listener_for(&self.state, InputState::select_to_start_of_line))
@@ -208,10 +220,6 @@ impl RenderOnce for TextInput {
             .on_action(window.listener_for(&self.state, InputState::select_to_end))
             .on_action(window.listener_for(&self.state, InputState::show_character_palette))
             .on_action(window.listener_for(&self.state, InputState::copy))
-            .on_action(window.listener_for(&self.state, InputState::paste))
-            .on_action(window.listener_for(&self.state, InputState::cut))
-            .on_action(window.listener_for(&self.state, InputState::undo))
-            .on_action(window.listener_for(&self.state, InputState::redo))
             .on_key_down(window.listener_for(&self.state, InputState::on_key_down))
             .on_mouse_down(
                 MouseButton::Left,
@@ -234,11 +242,13 @@ impl RenderOnce for TextInput {
             })
             .when(self.appearance, |this| {
                 this.bg(bg)
-                    .border_color(cx.theme().input)
-                    .border_1()
                     .rounded(cx.theme().radius)
-                    .when(cx.theme().shadow, |this| this.shadow_sm())
-                    .when(focused, |this| this.focused_border(cx))
+                    .when(self.bordered, |this| {
+                        this.border_color(cx.theme().input)
+                            .border_1()
+                            .when(cx.theme().shadow, |this| this.shadow_sm())
+                            .when(focused, |this| this.focused_border(cx))
+                    })
             })
             .when(prefix.is_none(), |this| this.input_pl(self.size))
             .input_pr(self.size)
