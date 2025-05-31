@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use gpui::{
-    blue, green, impl_internal_actions, prelude::FluentBuilder, px, App, AppContext,
-    ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString,
-    Styled, Window,
+    blue, green, impl_internal_actions, prelude::FluentBuilder, px, App, AppContext, ClickEvent,
+    Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString, Styled,
+    Window,
 };
 
 use gpui_component::{
@@ -11,8 +11,7 @@ use gpui_component::{
     divider::Divider,
     gray_400, h_flex, purple_100, red_400,
     sidebar::{
-        Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem,
-        SidebarToggleButton,
+        Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
     },
     switch::Switch,
     v_flex, yellow_400, ActiveTheme, IconName, Side,
@@ -198,7 +197,7 @@ impl super::Mytool for SidebarStory {
     }
 
     fn description() -> &'static str {
-        "A composable, themeable and customizable sidebar component."
+        "my todoist sidebar story"
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {

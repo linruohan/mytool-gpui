@@ -163,23 +163,10 @@ impl Render for DatePickerStory {
         v_flex()
             .gap_3()
             .child(
-                section("Normal").max_w_md().child(
-                    DatePicker::new(&self.date_picker)
-                        .cleanable()
-                        .presets(presets),
-                ),
-            )
-            .child(
-                section("Small with 180px width").max_w_md().child(
-                    DatePicker::new(&self.date_picker_small)
-                        .small()
-                        .width(px(180.)),
-                ),
-            )
-            .child(
                 section("Large").max_w_md().child(
                     DatePicker::new(&self.date_picker_large)
                         .large()
+                        .presets(presets)
                         .width(px(300.)),
                 ),
             )
