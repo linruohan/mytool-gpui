@@ -7,9 +7,9 @@ use std::{
 use crate::ActiveTheme;
 use gpui::{
     fill, point, px, relative, size, App, BorderStyle, Bounds, ContentMask, Corner, CursorStyle,
-    Edges, Element, EntityId, Hitbox, Hsla, IntoElement, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, PaintQuad, Pixels, Point, Position, ScrollHandle, ScrollWheelEvent, Style,
-    UniformListScrollHandle, Window,
+    Edges, Element, EntityId, Hitbox, HitboxBehavior, Hsla, IntoElement, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, Position, ScrollHandle,
+    ScrollWheelEvent, Style, UniformListScrollHandle, Window,
 };
 use serde::{Deserialize, Serialize};
 
@@ -464,7 +464,7 @@ impl Element for Scrollbar {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let hitbox = window.with_content_mask(Some(ContentMask { bounds }), |window| {
-            window.insert_hitbox(bounds, false)
+            window.insert_hitbox(bounds, HitboxBehavior::Normal)
         });
 
         let mut states = vec![];
@@ -613,7 +613,7 @@ impl Element for Scrollbar {
             };
 
             let bar_hitbox = window.with_content_mask(Some(ContentMask { bounds }), |window| {
-                window.insert_hitbox(bounds, false)
+                window.insert_hitbox(bounds, HitboxBehavior::Normal)
             });
 
             states.push(AxisPrepaintState {

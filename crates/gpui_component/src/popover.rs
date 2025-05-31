@@ -1,9 +1,9 @@
 use gpui::{
     anchored, deferred, div, prelude::FluentBuilder as _, px, AnyElement, App, Bounds, Context,
     Corner, DismissEvent, DispatchPhase, Element, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, GlobalElementId, Hitbox, InteractiveElement as _, IntoElement, KeyBinding, LayoutId,
-    ManagedView, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, Style,
-    StyleRefinement, Styled, Window,
+    Focusable, GlobalElementId, Hitbox, HitboxBehavior, InteractiveElement as _, IntoElement,
+    KeyBinding, LayoutId, ManagedView, MouseButton, MouseDownEvent, ParentElement, Pixels, Point,
+    Render, Style, StyleRefinement, Styled, Window,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -351,7 +351,8 @@ impl<M: ManagedView> Element for Popover<M> {
             .popover_layout_id
             .map(|id| window.layout_bounds(id));
 
-        let hitbox = window.insert_hitbox(trigger_bounds.unwrap_or_default(), false);
+        let hitbox =
+            window.insert_hitbox(trigger_bounds.unwrap_or_default(), HitboxBehavior::Normal);
 
         PrepaintState {
             trigger_bounds,
