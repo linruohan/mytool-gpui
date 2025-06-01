@@ -6,6 +6,7 @@ use gpui::{
     Window,
 };
 
+use crate::play_ogg_file;
 use gpui_component::{
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     divider::Divider,
@@ -17,8 +18,7 @@ use gpui_component::{
     v_flex, yellow_400, ActiveTheme, IconName, Side,
 };
 use serde::Deserialize;
-
-use crate::play_ogg_file;
+use todos::enums::object_type::ObjectType;
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectCompany(SharedString);

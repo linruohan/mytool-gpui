@@ -19,6 +19,7 @@ serde_json = "1"
 jiff.workspace = true
 whoami.workspace = true
 rodio.workspace = true
+todos.workspace = true
 
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
