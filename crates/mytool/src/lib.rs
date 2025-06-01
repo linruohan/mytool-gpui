@@ -31,6 +31,7 @@ pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
 pub use utils::play_ogg_file;
 // views
+pub use views::TodayView;
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{

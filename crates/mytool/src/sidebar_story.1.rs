@@ -1,45 +1,39 @@
-use std::collections::HashMap;
-
 use gpui::{
-    actions, blue, div, green, impl_internal_actions, prelude::FluentBuilder as _, px, App,
-    AppContext, ClickEvent, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement as _,
-    IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    blue, green, impl_internal_actions, prelude::FluentBuilder, px, App, AppContext, ClickEvent,
+    Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString, Styled,
+    Window,
 };
 
+use crate::play_ogg_file;
 use gpui_component::{
     breadcrumb::{Breadcrumb, BreadcrumbItem},
-    button::{Button, ButtonVariants as _},
-    date_picker::{DatePicker, DatePickerState},
     divider::Divider,
-    dropdown::{Dropdown, DropdownState},
-    gray_400, h_flex,
-    input::{InputState, TextInput},
-    modal::ModalButtonProps,
-    purple_100, red_400,
+    gray_400, h_flex, purple_100, red_400,
     sidebar::{
         Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
     },
     switch::Switch,
-    v_flex, yellow_400, ActiveTheme, ContextModal as _, IconName, Side,
+    v_flex, yellow_400, ActiveTheme, IconName, Side,
 };
-
-use crate::{color_picker_story, list_story, play_ogg_file, TodayView};
 use serde::Deserialize;
-
+use todos::objects::filters::{
+    all_items::AllItems, completed::Completed, labels::Labels, pinboard::Pinboard,
+    scheduled::Scheduled, today::Today,
+};
+use todos::objects::project::ProjectLogic;
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectCompany(SharedString);
 
 impl_internal_actions!(sidebar_story, [SelectCompany]);
 
 pub struct SidebarStory {
-    active_items: HashMap<Item, bool>,
-    last_active_item: Item,
+    active_items: Vec<ViewItem>,
+    last_active_item: ViewItem,
     active_subitem: Option<SubItem>,
     collapsed: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
     checked: bool,
-    projects: Vec<SubItem>,
 }
 
 impl SidebarStory {
@@ -48,118 +42,45 @@ impl SidebarStory {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let mut active_items = HashMap::new();
-        active_items.insert(Item::Inbox, true);
+        let mut active_items = Vec::new();
+        let inbox = ViewItem::Inbox(AllItems::default());
+        active_items.insert(0, inbox.clone());
 
         Self {
             active_items,
-            last_active_item: Item::Inbox,
+            last_active_item: inbox.clone(),
             active_subitem: None,
             collapsed: false,
             side: Side::Left,
             focus_handle: cx.focus_handle(),
             checked: false,
-            projects: vec![],
         }
     }
-    fn add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Your Name"));
-        let input2 = cx.new(|cx| -> InputState {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let date = cx.new(|cx| DatePickerState::new(window, cx));
-        let dropdown = cx.new(|cx| {
-            DropdownState::new(
-                vec![
-                    "Option 1".to_string(),
-                    "Option 2".to_string(),
-                    "Option 3".to_string(),
-                ],
-                None,
-                window,
-                cx,
-            )
-        });
-        let view = cx.entity().clone();
 
-        window.open_modal(cx, move |modal, _, _| {
-            modal
-                .title("Form Modal")
-                .overlay(false)
-                .keyboard(true)
-                .show_close(true)
-                .overlay_closable(true)
-                .child(
-                    v_flex()
-                        .gap_3()
-                        .child("This is a modal dialog.")
-                        .child("You can put anything here.")
-                        .child(TextInput::new(&input1))
-                        .child(Dropdown::new(&dropdown))
-                        .child(DatePicker::new(&date).placeholder("Date of Birth")),
-                )
-                .footer({
-                    let view = view.clone();
-                    let input1 = input1.clone();
-                    let date = date.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("confirm").primary().label("Confirm").on_click({
-                                let view = view.clone();
-                                let input1 = input1.clone();
-                                let date = date.clone();
-                                move |_, window, cx| {
-                                    window.close_modal(cx);
-
-                                    view.update(cx, |view, cx| {
-                                        view.projects.push(
-                                            SubItem::History, // format!(
-                                                              //     "Hello, {}, date: {}",
-                                                              //     input1.read(cx).value(),
-                                                              //     date.read(cx).date()
-                                                              // )
-                                                              // .into(),
-                                        )
-                                    });
-                                }
-                            }),
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(move |_, window, cx| {
-                                    window.close_modal(cx);
-                                }),
-                        ]
-                    }
-                })
-        });
-    }
-
-    fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .child(
-                h_flex().gap_2().child(
-                    Switch::new("side")
-                        .label("Placement Right")
-                        .checked(self.side.is_right())
-                        .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                            this.side = if *checked { Side::Right } else { Side::Left };
-                            cx.notify();
-                        })),
-                ),
-            )
-            .child(TodayView::view(window, cx))
+    fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        v_flex().child(
+            h_flex().gap_2().child(
+                Switch::new("side")
+                    .label("Placement Right")
+                    .checked(self.side.is_right())
+                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                        this.side = if *checked { Side::Right } else { Side::Left };
+                        cx.notify();
+                    })),
+            ),
+        )
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum Item {
-    Inbox,
-    Today,
-    Scheduled,
-    Pinboard,
-    Labels,
-    Completed,
-    Projects,
+#[derive(Clone, PartialEq, Eq)]
+enum ViewItem {
+    Inbox(AllItems),
+    Today(Today),
+    Scheduled(Scheduled),
+    Pinboard(Pinboard),
+    Labels(Labels),
+    Completed(Completed),
+    Projects(ProjectLogic),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -169,51 +90,53 @@ enum SubItem {
     Settings,
 }
 
-impl Item {
-    pub fn label(&self) -> &'static str {
+impl ViewItem {
+    pub fn label(&self) -> String {
         match self {
-            Self::Inbox => "Inbox",
-            Self::Today => "Today",
-            Self::Scheduled => "Scheduled",
-            Self::Pinboard => "Pinboard",
-            Self::Labels => "Labels",
-            Self::Completed => "Completed",
-            Self::Projects => "Project",
+            ViewItem::Inbox(_) => "Inbox".to_string(),
+            ViewItem::Today(Today { base, .. })
+            | ViewItem::Scheduled(Scheduled { base, .. })
+            | ViewItem::Pinboard(Pinboard { base, .. })
+            | ViewItem::Labels(Labels { base, .. })
+            | ViewItem::Completed(Completed { base, .. })
+            | ViewItem::Projects(ProjectLogic { base, .. }) => base.name().to_string(),
         }
     }
 
     pub fn icon(&self) -> IconName {
         match self {
-            Self::Inbox => IconName::MailboxSymbolic,
-            Self::Today => IconName::StarOutlineThickSymbolic,
-            Self::Scheduled => IconName::MonthSymbolic,
-            Self::Pinboard => IconName::PinSymbolic,
-            Self::Labels => IconName::TagOutlineSymbolic,
-            Self::Completed => IconName::CheckRoundOutlineSymbolic,
-            Self::Projects => IconName::ProcessErrorSymbolic,
+            ViewItem::Inbox(_) => IconName::MailboxSymbolic,
+            ViewItem::Today(Today { base, .. })
+            | ViewItem::Scheduled(Scheduled { base, .. })
+            | ViewItem::Pinboard(Pinboard { base, .. })
+            | ViewItem::Labels(Labels { base, .. })
+            | ViewItem::Completed(Completed { base, .. })
+            | ViewItem::Projects(ProjectLogic { base, .. }) => {
+                IconName::from_str(&base.icon_name().to_string())
+            }
         }
     }
     pub fn count(&self) -> usize {
         match self {
-            Self::Inbox => 10,
-            Self::Today => 2,
-            Self::Scheduled => 3,
-            Self::Pinboard => 5,
-            Self::Labels => 6,
-            Self::Completed => 2,
-            Self::Projects => self.items().len(),
+            ViewItem::Inbox(_) => 0,
+            ViewItem::Today(today) => today.count(),
+            ViewItem::Scheduled(s) => s.count(),
+            ViewItem::Pinboard(s) => s.pinboard_count(),
+            ViewItem::Labels(s) => s.count(),
+            ViewItem::Completed(s) => s.count(),
+            ViewItem::Projects(s) => s.project_count(),
         }
     }
     pub fn color(&self) -> Hsla {
         match self {
             // Self::Inbox => gpui::rgb(0xf0f0f0).into(),
-            Self::Inbox => blue(),
-            Self::Today => green(),
-            Self::Scheduled => purple_100(),
-            Self::Pinboard => red_400(),
-            Self::Labels => gray_400(),
-            Self::Completed => yellow_400(),
-            Self::Projects => Hsla::default(),
+            Self::Inbox(_) => blue(),
+            Self::Today(_) => green(),
+            Self::Scheduled(_) => purple_100(),
+            Self::Pinboard(_) => red_400(),
+            Self::Labels(_) => gray_400(),
+            Self::Completed(_) => yellow_400(),
+            Self::Projects(_) => Hsla::default(),
         }
     }
 
@@ -221,22 +144,26 @@ impl Item {
         &self,
     ) -> impl Fn(&mut SidebarStory, &ClickEvent, &mut Window, &mut Context<SidebarStory>) + 'static
     {
-        let item = *self;
+        let item = self.clone();
         move |this, _, _, cx| {
-            if this.active_items.contains_key(&item) {
-                this.active_items.remove(&item);
+            if this.active_items.contains(&item) {
+                // 存在则移除
+                this.active_items.retain(|x| *x != item);
             } else {
-                this.active_items.insert(item, true);
-                this.active_items.remove(&this.last_active_item);
+                // 不存在则添加
+                this.active_items.push(item.clone());
+
+                // 移除上一次活动的项目
+                this.active_items.retain(|x| x != &this.last_active_item);
             }
 
-            this.last_active_item = item;
+            this.last_active_item = item.clone();
             cx.notify();
         }
     }
     pub fn items(&self) -> Vec<SubItem> {
         match self {
-            Self::Projects => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
+            ViewItem::Projects(_) => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
             _ => Vec::new(),
         }
     }
@@ -253,10 +180,10 @@ impl SubItem {
 
     pub fn handler(
         &self,
-        item: &Item,
+        item: &ViewItem,
     ) -> impl Fn(&mut SidebarStory, &ClickEvent, &mut Window, &mut Context<SidebarStory>) + 'static
     {
-        let item = *item;
+        let item = item.clone();
         let subitem = *self;
         move |this, _, _, cx| {
             println!(
@@ -264,8 +191,8 @@ impl SubItem {
                 item.label(),
                 subitem.label()
             );
-            this.active_items.insert(item, true);
-            this.last_active_item = item;
+            this.active_items.push(item.clone());
+            this.last_active_item = item.clone();
             this.active_subitem = Some(subitem);
             cx.notify();
         }
@@ -299,15 +226,18 @@ impl Render for SidebarStory {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let item_groups = vec![
-            Item::Inbox,
-            Item::Today,
-            Item::Scheduled,
-            Item::Pinboard,
-            Item::Labels,
-            Item::Completed,
+            ViewItem::Inbox(AllItems::default()),
+            ViewItem::Today(Today::default()),
+            ViewItem::Scheduled(Scheduled::default()),
+            ViewItem::Pinboard(Pinboard::default()),
+            ViewItem::Labels(Labels::default()),
+            ViewItem::Completed(Completed::default()),
         ];
-        let projects = Item::Projects;
+        let projects = ViewItem::Projects(ProjectLogic::default());
         // let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
+
+        let projects_for_add = projects.clone();
+        let projects_for_menu = projects.clone();
 
         h_flex()
             .rounded(cx.theme().radius)
@@ -338,7 +268,7 @@ impl Render for SidebarStory {
                                                 gpui::DefiniteLength::Fraction(0.5),
                                             ))
                                             .icon(item.icon())
-                                            .active(self.active_items.contains_key(item))
+                                            .active(self.active_items.contains(item))
                                             .on_click(cx.listener(item.handler()))
                                         })
                                         .collect::<Vec<_>>(),
@@ -361,11 +291,11 @@ impl Render for SidebarStory {
                         // 添加项目按钮：
                         SidebarMenu::new().child(
                             SidebarMenuItem::new("On This Computer                     ➕")
-                                .on_click(cx.listener(move |this, _, window: &mut Window, cx| {
+                                .on_click(cx.listener(move |_this, _, _, cx| {
                                     // let projects = projects.read(cx);
                                     println!("{}", "add projects");
                                     play_ogg_file("assets/sounds/success.ogg").ok();
-                                    this.add_project(window, cx);
+                                    projects_for_add.items().push(SubItem::History);
                                     cx.notify();
                                 })),
                         ),
@@ -373,13 +303,18 @@ impl Render for SidebarStory {
                     .child(
                         // SidebarGroup::new("Projects").child(),
                         // 项目列表：
-                        SidebarMenu::new().children(projects.items().into_iter().enumerate().map(
-                            |(_, project)| {
-                                SidebarMenuItem::new(project.label())
-                                    .active(self.active_subitem == Some(project))
-                                    .on_click(cx.listener(project.handler(&projects)))
-                            },
-                        )),
+                        SidebarMenu::new().children(
+                            projects_for_menu
+                                .clone()
+                                .items()
+                                .into_iter()
+                                .enumerate()
+                                .map(|(_, project)| {
+                                    SidebarMenuItem::new(project.label())
+                                        .active(self.active_subitem == Some(project))
+                                        .on_click(cx.listener(project.handler(&projects_for_menu)))
+                                }),
+                        ),
                     ),
             )
             .child(
@@ -408,7 +343,8 @@ impl Render for SidebarStory {
                                 Breadcrumb::new()
                                     .item(BreadcrumbItem::new("0", "Home").on_click(cx.listener(
                                         |this, _, _, cx| {
-                                            this.last_active_item = Item::Inbox;
+                                            this.last_active_item =
+                                                ViewItem::Inbox(AllItems::default());
                                             cx.notify();
                                         },
                                     )))
