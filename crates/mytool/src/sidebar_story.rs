@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Sub};
 
 use gpui::{
     actions, blue, div, green, impl_internal_actions, prelude::FluentBuilder as _, px, App,
@@ -13,7 +13,7 @@ use gpui_component::{
     divider::Divider,
     dropdown::{Dropdown, DropdownState},
     gray_400, h_flex,
-    input::{InputState, TextInput},
+    input::{self, InputState, TextInput},
     modal::ModalButtonProps,
     purple_100, red_400,
     sidebar::{
@@ -23,7 +23,7 @@ use gpui_component::{
     v_flex, yellow_400, ActiveTheme, ContextModal as _, IconName, Side,
 };
 
-use crate::{color_picker_story, list_story, play_ogg_file, TodayView};
+use crate::{play_ogg_file, TodayView};
 use serde::Deserialize;
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
@@ -40,6 +40,7 @@ pub struct SidebarStory {
     focus_handle: gpui::FocusHandle,
     checked: bool,
     projects: Vec<SubItem>,
+    search_input: Entity<InputState>,
 }
 
 impl SidebarStory {
@@ -50,7 +51,7 @@ impl SidebarStory {
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut active_items = HashMap::new();
         active_items.insert(Item::Inbox, true);
-
+        let input = cx.new(|cx| InputState::new(cx.window(), cx).placeholder("Search..."));
         Self {
             active_items,
             last_active_item: Item::Inbox,
@@ -60,6 +61,7 @@ impl SidebarStory {
             focus_handle: cx.focus_handle(),
             checked: false,
             projects: vec![],
+            search_input: input,
         }
     }
     fn add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
