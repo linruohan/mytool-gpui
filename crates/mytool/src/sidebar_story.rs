@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Sub};
+use std::{borrow::Borrow, collections::HashMap, ops::Sub};
 
 use gpui::{
     actions, blue, div, green, impl_internal_actions, prelude::FluentBuilder as _, px, App,
@@ -9,7 +9,7 @@ use gpui::{
 use gpui_component::{
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     button::{Button, ButtonVariants as _},
-    date_picker::{DatePicker, DatePickerState},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     divider::Divider,
     dropdown::{Dropdown, DropdownState},
     gray_400, h_flex,
@@ -25,6 +25,7 @@ use gpui_component::{
 
 use crate::{play_ogg_file, TodayView};
 use serde::Deserialize;
+use todos::objects::project::{self, imp::Project};
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectCompany(SharedString);
@@ -34,13 +35,13 @@ impl_internal_actions!(sidebar_story, [SelectCompany]);
 pub struct SidebarStory {
     active_items: HashMap<Item, bool>,
     last_active_item: Item,
-    active_subitem: Option<SubItem>,
+    active_subitem: Option<Project>,
     collapsed: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
-    checked: bool,
-    projects: Vec<SubItem>,
+    projects: Vec<Project>,
     search_input: Entity<InputState>,
+    project_date: Option<String>,
 }
 
 impl SidebarStory {
@@ -48,10 +49,10 @@ impl SidebarStory {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut active_items = HashMap::new();
         active_items.insert(Item::Inbox, true);
-        let input = cx.new(|cx| InputState::new(cx.window(), cx).placeholder("Search..."));
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         Self {
             active_items,
             last_active_item: Item::Inbox,
@@ -59,9 +60,9 @@ impl SidebarStory {
             collapsed: false,
             side: Side::Left,
             focus_handle: cx.focus_handle(),
-            checked: false,
             projects: vec![],
             search_input: input,
+            project_date: None,
         }
     }
     fn add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -69,7 +70,18 @@ impl SidebarStory {
         let input2 = cx.new(|cx| -> InputState {
             InputState::new(window, cx).placeholder("For test focus back on modal close.")
         });
-        let date = cx.new(|cx| DatePickerState::new(window, cx));
+        let now = chrono::Local::now().naive_local().date();
+        let date_picker = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx);
+            picker.set_date(now, window, cx);
+            picker.set_disabled(vec![0, 6], window, cx);
+            picker
+        });
+        cx.subscribe(&date_picker, |this, _, ev, _| match ev {
+            DatePickerEvent::Change(date) => {
+                this.project_date = date.format("%Y-%m-%d").map(|s| s.to_string());
+            }
+        });
         let dropdown = cx.new(|cx| {
             DropdownState::new(
                 vec![
@@ -98,30 +110,24 @@ impl SidebarStory {
                         .child("You can put anything here.")
                         .child(TextInput::new(&input1))
                         .child(Dropdown::new(&dropdown))
-                        .child(DatePicker::new(&date).placeholder("Date of Birth")),
+                        .child(DatePicker::new(&date_picker).placeholder("Date of Birth")),
                 )
                 .footer({
                     let view = view.clone();
                     let input1 = input1.clone();
-                    let date = date.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("confirm").primary().label("Confirm").on_click({
                                 let view = view.clone();
                                 let input1 = input1.clone();
-                                let date = date.clone();
                                 move |_, window, cx| {
                                     window.close_modal(cx);
-
                                     view.update(cx, |view, cx| {
-                                        view.projects.push(
-                                            SubItem::History, // format!(
-                                                              //     "Hello, {}, date: {}",
-                                                              //     input1.read(cx).value(),
-                                                              //     date.read(cx).date()
-                                                              // )
-                                                              // .into(),
-                                        )
+                                        let mut project = Project::default();
+                                        project.name = input1.read(cx).value().to_string();
+                                        project.due_date = view.project_date.clone();
+                                        view.projects.push(project);
+                                        cx.notify();
                                     });
                                 }
                             }),
@@ -164,13 +170,6 @@ enum Item {
     Projects,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SubItem {
-    History,
-    Starred,
-    Settings,
-}
-
 impl Item {
     pub fn label(&self) -> &'static str {
         match self {
@@ -203,7 +202,7 @@ impl Item {
             Self::Pinboard => 5,
             Self::Labels => 6,
             Self::Completed => 2,
-            Self::Projects => self.items().len(),
+            Self::Projects => 10,
         }
     }
     pub fn color(&self) -> Hsla {
@@ -233,42 +232,6 @@ impl Item {
             }
 
             this.last_active_item = item;
-            cx.notify();
-        }
-    }
-    pub fn items(&self) -> Vec<SubItem> {
-        match self {
-            Self::Projects => vec![SubItem::History, SubItem::Starred, SubItem::Settings],
-            _ => Vec::new(),
-        }
-    }
-}
-
-impl SubItem {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::History => "History",
-            Self::Starred => "Starred",
-            Self::Settings => "Settings",
-        }
-    }
-
-    pub fn handler(
-        &self,
-        item: &Item,
-    ) -> impl Fn(&mut SidebarStory, &ClickEvent, &mut Window, &mut Context<SidebarStory>) + 'static
-    {
-        let item = *item;
-        let subitem = *self;
-        move |this, _, _, cx| {
-            println!(
-                "Clicked on item: {}, child: {}",
-                item.label(),
-                subitem.label()
-            );
-            this.active_items.insert(item, true);
-            this.last_active_item = item;
-            this.active_subitem = Some(subitem);
             cx.notify();
         }
     }
@@ -308,7 +271,7 @@ impl Render for SidebarStory {
             Item::Labels,
             Item::Completed,
         ];
-        let projects = Item::Projects;
+        let projects = self.projects.clone();
         // let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
 
         h_flex()
@@ -375,11 +338,15 @@ impl Render for SidebarStory {
                     .child(
                         // SidebarGroup::new("Projects").child(),
                         // 项目列表：
-                        SidebarMenu::new().children(projects.items().into_iter().enumerate().map(
+                        SidebarMenu::new().children(projects.into_iter().enumerate().map(
                             |(_, project)| {
-                                SidebarMenuItem::new(project.label())
-                                    .active(self.active_subitem == Some(project))
-                                    .on_click(cx.listener(project.handler(&projects)))
+                                SidebarMenuItem::new(project.name.clone())
+                                    .active(self.active_subitem == Some(project.clone()))
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.active_subitem = Some(project.clone());
+                                        this.last_active_item = Item::Projects;
+                                        cx.notify();
+                                    }))
                             },
                         )),
                     ),
@@ -421,8 +388,8 @@ impl Render for SidebarStory {
                                                 cx.notify();
                                             })),
                                     )
-                                    .when_some(self.active_subitem, |this, subitem| {
-                                        this.item(BreadcrumbItem::new("2", subitem.label()))
+                                    .when_some(self.active_subitem.clone(), |this, subitem| {
+                                        this.item(BreadcrumbItem::new("2", subitem.name))
                                     }),
                             ),
                     )
