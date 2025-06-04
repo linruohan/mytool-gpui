@@ -535,11 +535,11 @@ impl Calendar {
             .disabled
             .as_ref()
             .map_or(false, |disabled| disabled.matched(&date));
-        let holiday = get_holiday(date);
+
         self.item_button(
             d.ordinal() as usize,
             // day.to_string(),
-            holiday,
+            get_holiday(date),
             is_active,
             is_in_range,
             !is_current_month || disabled,

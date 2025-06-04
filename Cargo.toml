@@ -2,7 +2,7 @@
 publish = false
 edition = "2021"
 [workspace]
-members = ["crates/mytool", "crates/gpui_component"]
+members = ["crates/mytool", "crates/gpui_component", "crates/macros"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
@@ -14,6 +14,7 @@ gpui = { path = "../zed/crates/gpui", default-features = false, features = [
 gpui_macros = { path = "../zed/crates/gpui_macros" }
 gpui_tokio = { path = "../zed/crates/gpui_tokio" }
 gpui-component = { path = "crates/gpui_component" }
+gpui-component-macros = { path = "crates/macros" }
 mytool = { path = "crates/mytool" }
 todos = { path = "../todos" }
 #
