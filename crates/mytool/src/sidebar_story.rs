@@ -77,7 +77,7 @@ impl SidebarStory {
             picker.set_disabled(vec![0, 6], window, cx);
             picker
         });
-        cx.subscribe(&date_picker, |this, _, ev, _| match ev {
+        let _ = cx.subscribe(&date_picker, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.project_date = date.format("%Y-%m-%d").map(|s| s.to_string());
             }

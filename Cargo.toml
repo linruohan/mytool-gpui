@@ -2,10 +2,10 @@
 publish = false
 edition = "2021"
 [workspace]
-members = ["crates/mytool", "crates/gpui_component", "crates/macros"]
+members = ["crates/mytool"]
 
 default-members = ["crates/mytool"]
-resolver = "2"
+resolver = "1"
 
 [workspace.dependencies]
 gpui = { path = "../zed/crates/gpui", default-features = false, features = [
@@ -13,8 +13,8 @@ gpui = { path = "../zed/crates/gpui", default-features = false, features = [
 ] }
 gpui_macros = { path = "../zed/crates/gpui_macros" }
 gpui_tokio = { path = "../zed/crates/gpui_tokio" }
-gpui-component = { path = "crates/gpui_component" }
-gpui-component-macros = { path = "crates/macros" }
+# gpui-component = { git = "https://github.com/linruohan/gpui-component" }
+gpui-component = { path = "../gpui-component/crates/ui" }
 mytool = { path = "crates/mytool" }
 todos = { path = "../todos" }
 #
@@ -38,12 +38,12 @@ whoami = { version = "1.4.1", default-features = false }
 catppuccin = "2.5.1"
 jiff = { version = "0.2.10", features = ["serde"] }
 global-hotkey = "0.7.0"
-parking_lot = "0.12.3"
+parking_lot = "0.12.4"
 crossbeam-channel = "0.5.15"
 clap = { version = "4.5.37", features = ["cargo", "derive", "string"] }
 notify = "8.0.0"
 notify-debouncer-full = "0.5.0"
-winresource = "0.1.20"
+winresource = "0.1.22"
 lunar_rust = { git = "https://github.com/linruohan/lunar_rust" }
 rodio = "0.20.1"
 
