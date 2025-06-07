@@ -850,8 +850,8 @@ impl Store {
             .cloned()
             .collect()
     }
-    pub fn insert_reminder(&self, reminder: Reminder) {
-        if Database::default().insert_reminder(reminder) {
+    pub fn insert_reminder(&self, reminder: &Reminder) {
+        if Database::default().insert_reminder(&reminder) {
             // reminders.add (reminder);
             // reminder_added (reminder);
             // reminder.item.reminder_added (reminder);

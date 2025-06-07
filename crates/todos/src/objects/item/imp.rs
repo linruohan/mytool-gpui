@@ -1,8 +1,8 @@
 use crate::enums::{ItemType, ReminderType, SourceType};
-use crate::objects::{BaseTrait, DueDate, ToBool};
+use crate::objects::{BaseTrait, DueDate, ToBool, reminder};
 use crate::schema::items;
 use crate::services::store;
-use crate::utils::{self, EMPTY_DATETIME};
+use crate::utils::{self, DateTime, EMPTY_DATETIME};
 use crate::{
     Attachment, Label, Project, Reminder, Section, Source, Store, Util, constants,
     generate_accessors,
@@ -342,6 +342,12 @@ impl Item {
             .as_ref()
             .map_or(Some(Source::default()), |p| p.source())
     }
+    pub fn add_reminder_events(&self, reminder: &Reminder) {
+        // Store::instance().reminder_added(reminder);
+        // Store::instance().reminders().add(reminder);
+        // reminder.item().reminder_added(reminder);
+        // _add_reminder(reminder);
+    }
     pub fn remove_all_relative_reminders(&self) {
         self.reminders()
             .iter()
@@ -350,8 +356,63 @@ impl Item {
                 r.delete();
             });
     }
+    pub fn update_date(&mut self, date: &NaiveDateTime) {
+        let mut my_due = self.due().clone();
+        my_due.date = if *date == EMPTY_DATETIME {
+            "".to_string()
+        } else {
+            DateTime::default().get_todoist_datetime_format(date)
+        };
+        self.update_due(&mut my_due);
+    }
+    pub fn update_sync(&self, update_id: &str) {
+        if let Some(project) = self.project() {
+            match project.source_type() {
+                SourceType::LOCAL => {
+                    Store::instance().update_item(self, update_id);
+                }
+                SourceType::TODOIST => {
+                    // Services.Todoist.get_default ().update_item (this, update_id);
+                }
+                SourceType::CALDAV => {
+                    // Services.CalDAV.Core.get_default ().update_item (this, update_id);
+                }
+                _ => {}
+            }
+        }
+    }
+    pub fn update_due(&mut self, due: &mut DueDate) {
+        let mut my_due = self.due().clone();
+        my_due.date = due.date.clone();
+        if self.has_time() {
+            self.remove_all_relative_reminders();
+            let mut reminder = Reminder::new();
+            reminder.set_mm_offset(Util::get_default().get_reminders_mm_offset());
+            reminder.set_reminder_type(&ReminderType::RELATIVE);
+            self.add_reminder(&mut reminder);
+        }
+        if due.date.is_empty() {
+            due.reset();
+            self.remove_all_relative_reminders();
+        }
+        if !self.has_time() {
+            self.remove_all_relative_reminders();
+        }
+        self.update_sync("");
+    }
+    fn get_reminder(&self, reminder: &Reminder) -> Option<Reminder> {
+        self.reminders()
+            .iter()
+            .find(|r| r.datetime() == reminder.datetime())
+            .cloned()
+    }
     fn add_reminder_if_not_exists(&self, reminder: &Reminder) {
-        todo!()
+        let ret = self.get_reminder(reminder);
+        if ret.is_none() {
+            Store::instance().insert_reminder(reminder);
+        } else {
+            self.reminder_added(reminder);
+        }
     }
     pub fn add_reminder(&self, reminder: &mut Reminder) {
         reminder.item_id = self.id.clone();
@@ -379,6 +440,7 @@ impl Item {
             }
         }
     }
+
     pub fn complete_item(&self) {
         if let Some(project) = self.project() {
             match project.source_type() {

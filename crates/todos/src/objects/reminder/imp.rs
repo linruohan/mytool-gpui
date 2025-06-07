@@ -38,6 +38,18 @@ pub struct Reminder {
     pub is_deleted: Option<i32>,
 }
 impl Reminder {
+    pub fn new() -> Self {
+        Self {
+            id: None,
+            item_id: None,
+            notify_uid: None,
+            service: None,
+            reminder_type: Some(ReminderType::ABSOLUTE.to_string()),
+            due: None,
+            mm_offset: None,
+            is_deleted: Some(0),
+        }
+    }
     generate_accessors!(item_id:Option<String>);
     generate_accessors!(notify_uid:Option<i32>);
     generate_accessors!(service:Option<String>);

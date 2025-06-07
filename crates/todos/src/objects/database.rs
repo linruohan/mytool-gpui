@@ -403,10 +403,10 @@ impl Database {
         .load::<Reminder>(&mut conn)
         .expect("Failed to get Label")
     }
-    pub fn insert_reminder(&self, reminder: Reminder) -> bool {
+    pub fn insert_reminder(&self, reminder: &Reminder) -> bool {
         let mut conn = self.get_conn();
         diesel::insert_into(reminders::table)
-            .values(&reminder)
+            .values(reminder)
             .execute(&mut conn)
             .is_ok()
     }
