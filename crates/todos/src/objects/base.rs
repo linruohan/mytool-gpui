@@ -193,7 +193,7 @@ pub trait BaseTrait {
     fn id(&self) -> &str;
     fn set_id(&mut self, id: &str);
     fn id_string(&self) -> &str {
-        self.id().into()
+        self.id()
     }
 
     // signal

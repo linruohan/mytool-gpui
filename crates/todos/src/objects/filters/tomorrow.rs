@@ -3,8 +3,8 @@ use crate::BaseObject;
 pub struct Tomorrow {
     pub base: BaseObject,
 }
-impl Tomorrow {
-    pub fn default() -> Tomorrow {
+impl Default for Tomorrow {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Tomorrow".to_string(),

@@ -209,7 +209,7 @@ impl RenderOnce for SidebarBoardItem {
                                         div().when_some(self.icon.clone(), |this, icon| {
                                             this.child(icon.text_color(self.board_text_color))
                                         }),
-                                        div().when(self.board_count.clone() > 0, |this| {
+                                        div().when(self.board_count > 0, |this| {
                                             this.child(
                                                 Label::new(board_count.to_string())
                                                     .text_right()

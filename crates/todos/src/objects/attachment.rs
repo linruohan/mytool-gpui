@@ -1,3 +1,5 @@
+use std::fmt;
+
 use uuid::Uuid;
 
 use crate::Store;
@@ -49,8 +51,20 @@ impl Attachment {
     pub fn set_item(&mut self, new_item_id: String) {
         self.item_id = Some(new_item_id);
     }
-    pub fn to_string(&self) -> String {
-        format!(
+
+    pub fn duplicate(&self) -> Attachment {
+        Attachment::new(
+            self.file_type.clone(),
+            self.file_name.clone(),
+            self.file_size.clone(),
+            self.file_path.clone(),
+        )
+    }
+}
+impl fmt::Display for Attachment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
             "_________________________________\nID: {}\nITEM ID: {}\nFILE TYPE: {}\nFILE NAME: {}\nFILE SIZE: {}\nFILE PATH: {}\n---------------------------------",
             self.id.clone().unwrap(),
             self.item_id.clone().unwrap(),
@@ -59,14 +73,5 @@ impl Attachment {
             self.file_size.clone().unwrap(),
             self.file_path.clone().unwrap(),
         )
-    }
-    pub fn duplicate(&self) -> Attachment {
-        let new = Attachment::new(
-            self.file_type.clone(),
-            self.file_name.clone(),
-            self.file_size.clone(),
-            self.file_path.clone(),
-        );
-        new
     }
 }

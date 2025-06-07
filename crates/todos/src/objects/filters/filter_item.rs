@@ -10,7 +10,7 @@ pub struct FilterItem {
 }
 impl FilterItem {
     pub fn filter_type(&self) -> FilterItemType {
-        self.filter_type.clone()
+        self.filter_type
     }
     pub fn name(&self) -> String {
         self.name.clone()

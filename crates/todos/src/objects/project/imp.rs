@@ -47,8 +47,8 @@ impl Project {
     }
 }
 
-impl Project {
-    pub fn default() -> Project {
+impl Default for Project {
+    fn default() -> Self {
         Self {
             id: None,
             parent_id: None,
@@ -75,6 +75,9 @@ impl Project {
             sync_id: None,
         }
     }
+}
+
+impl Project {
     pub fn is_deleted(&self) -> bool {
         self.is_deleted.unwrap_or(0) > 0
     }
@@ -106,7 +109,7 @@ impl Project {
             .and_then(|id| Store::instance().get_project(id))
     }
     pub fn add_subproject(&self, subproject: &Project) {
-        Store::instance().insert_project(&subproject);
+        Store::instance().insert_project(subproject);
     }
     pub fn source(&self) -> Option<Source> {
         self.source_id

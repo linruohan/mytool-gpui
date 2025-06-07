@@ -21,9 +21,15 @@ impl ObjectEventType {
             ObjectEventType::UPDATE => "Task Updated",
         }
     }
+    pub fn to_lowercase(&self) -> String {
+        match self {
+            ObjectEventType::INSERT => "insert".to_string(),
+            ObjectEventType::UPDATE => "update".to_string(),
+        }
+    }
 }
 impl fmt::Display for ObjectEventType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string().to_lowercase())
+        write!(f, "{}", self.to_lowercase())
     }
 }

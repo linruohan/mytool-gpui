@@ -9,8 +9,8 @@ pub struct AllItems {
     pub base: BaseObject,
 }
 
-impl AllItems {
-    pub fn default() -> AllItems {
+impl Default for AllItems {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "All Tasks".to_string(),

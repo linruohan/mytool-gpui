@@ -21,9 +21,9 @@ impl RecurrencyType {
                     .replace("ly", "")
                     .replace("every", "");
                 if interval == 0 {
-                    return format!("Every {}", s);
+                    format!("Every {s}")
                 } else {
-                    return format!("Every {}  Every {} {}s", s, interval, s);
+                    format!("Every {s}  Every {interval} {s}s")
                 }
             }
         }

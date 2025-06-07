@@ -16,8 +16,8 @@ impl Deref for ProjectLogic {
     }
 }
 
-impl ProjectLogic {
-    pub fn default() -> ProjectLogic {
+impl Default for ProjectLogic {
+    fn default() -> Self {
         let project = Project::default();
         let base = BaseObject::new(
             "Projects".to_string(),

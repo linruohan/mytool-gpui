@@ -15,7 +15,7 @@ impl Priority {
             Util::get_default().get_priority_keywords(priority),
             "filters"
         );
-        let view_id = format!("priority-{}", priority);
+        let view_id = format!("priority-{priority}");
         Self {
             base: BaseObject::new(name, keywords, "".to_string(), view_id),
             count: None,
@@ -23,7 +23,7 @@ impl Priority {
         }
     }
     pub fn count(&self) -> usize {
-        self.count.clone().unwrap_or(
+        self.count.unwrap_or(
             Store::instance()
                 .get_items_by_priority(self.priority, false)
                 .len(),

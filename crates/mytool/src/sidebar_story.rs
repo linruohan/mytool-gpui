@@ -1,9 +1,9 @@
-use std::{borrow::Borrow, collections::HashMap, ops::Sub};
+use std::collections::HashMap;
 
 use gpui::{
-    actions, blue, div, green, impl_internal_actions, prelude::FluentBuilder as _, px, App,
-    AppContext, ClickEvent, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement as _,
-    IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    blue, green, impl_internal_actions, prelude::FluentBuilder as _, px, App, AppContext,
+    ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString,
+    Styled, Window,
 };
 
 use gpui_component::{
@@ -13,8 +13,7 @@ use gpui_component::{
     divider::Divider,
     dropdown::{Dropdown, DropdownState},
     gray_400, h_flex,
-    input::{self, InputState, TextInput},
-    modal::ModalButtonProps,
+    input::{InputState, TextInput},
     purple_100, red_400,
     sidebar::{
         Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
@@ -25,7 +24,7 @@ use gpui_component::{
 
 use crate::{play_ogg_file, TodayView};
 use serde::Deserialize;
-use todos::objects::project::{self, imp::Project};
+use todos::objects::project::imp::Project;
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectCompany(SharedString);
@@ -40,7 +39,7 @@ pub struct SidebarStory {
     side: Side,
     focus_handle: gpui::FocusHandle,
     projects: Vec<Project>,
-    search_input: Entity<InputState>,
+    _search_input: Entity<InputState>,
     project_date: Option<String>,
 }
 
@@ -61,13 +60,13 @@ impl SidebarStory {
             side: Side::Left,
             focus_handle: cx.focus_handle(),
             projects: vec![],
-            search_input: input,
+            _search_input: input,
             project_date: None,
         }
     }
     fn add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Your Name"));
-        let input2 = cx.new(|cx| -> InputState {
+        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
+        let _input2 = cx.new(|cx| -> InputState {
             InputState::new(window, cx).placeholder("For test focus back on modal close.")
         });
         let now = chrono::Local::now().naive_local().date();
@@ -98,7 +97,7 @@ impl SidebarStory {
 
         window.open_modal(cx, move |modal, _, _| {
             modal
-                .title("Form Modal")
+                .title("Add Project")
                 .overlay(false)
                 .keyboard(true)
                 .show_close(true)
@@ -106,11 +105,9 @@ impl SidebarStory {
                 .child(
                     v_flex()
                         .gap_3()
-                        .child("This is a modal dialog.")
-                        .child("You can put anything here.")
                         .child(TextInput::new(&input1))
                         .child(Dropdown::new(&dropdown))
-                        .child(DatePicker::new(&date_picker).placeholder("Date of Birth")),
+                        .child(DatePicker::new(&date_picker).placeholder("DueDate of Project")),
                 )
                 .footer({
                     let view = view.clone();
@@ -263,7 +260,7 @@ impl Render for SidebarStory {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        let item_groups = vec![
+        let item_groups = [
             Item::Inbox,
             Item::Today,
             Item::Scheduled,

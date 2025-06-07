@@ -9,21 +9,17 @@ use chrono_humanize::{Accuracy, HumanTime};
 use diesel::sql_types::Json;
 pub const EMPTY_DATETIME: NaiveDateTime =
     chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc();
+#[derive(Default)]
 pub struct DateTime {}
+
 impl DateTime {
-    pub fn default() -> DateTime {
-        Self {}
-    }
     pub fn get_todoist_datetime(&self, date: String) -> Result<NaiveDateTime, ParseError> {
         // YYYY-MM-DD
         if date.len() == 10 {
-            return NaiveDateTime::parse_from_str(
-                format!("{} 00:00:00", date).as_str(),
-                "%Y-%m-%d %H:%M:%S",
-            );
+            NaiveDateTime::parse_from_str(format!("{date} 00:00:00").as_str(), "%Y-%m-%d %H:%M:%S")
         } else {
             // YYYY-MM-DDTHH:MM:SS
-            return NaiveDateTime::parse_from_str(&date, "%Y-%m-%d %H:%M:%S");
+            NaiveDateTime::parse_from_str(&date, "%Y-%m-%d %H:%M:%S")
         }
     }
 
@@ -46,18 +42,17 @@ impl DateTime {
                 datetime.format(self.get_default_time_format())
             );
         }
-        return returned.to_string();
+        returned.to_string()
     }
 
     pub fn get_relative_datetime(&self, datetime: NaiveDateTime) -> String {
         let now = Local::now().naive_local();
-
         let human_time = HumanTime::from(now - datetime);
         human_time.to_text_en(Accuracy::Rough, chrono_humanize::Tense::Past)
     }
     fn format_duration(&self, days: i64, suffix: &str) -> String {
         let unit = if days > 1 { "days" } else { "day" };
-        format!("{} {} {}", days, unit, suffix)
+        format!("{days} {unit} {suffix}")
     }
     pub fn days_left(&self, datetime: &NaiveDateTime, show_today: bool) -> String {
         let days = (*datetime - Local::now().naive_local()).num_days();
@@ -84,11 +79,11 @@ impl DateTime {
     }
 
     pub fn is_yesterday(&self, date: &NaiveDateTime) -> bool {
-        return self.is_same_day(date, &(Local::now().naive_local() - Duration::days(1)));
+        self.is_same_day(date, &(Local::now().naive_local() - Duration::days(1)))
     }
 
     pub fn is_same_day(&self, dt1: &NaiveDateTime, dt2: &NaiveDateTime) -> bool {
-        return dt1.year() == dt2.year() && dt1.day() == dt2.day();
+        dt1.year() == dt2.year() && dt1.day() == dt2.day()
     }
 
     pub fn is_overdue(&self, date: &NaiveDateTime) -> bool {
@@ -96,14 +91,14 @@ impl DateTime {
         if date < &Local::now().naive_local() {
             return true;
         }
-        return false;
+        false
     }
 
     pub fn get_calendar_icon(&self, date: &NaiveDateTime) -> &str {
         if self.is_today(date) {
             return "planner-today";
         }
-        return "planner-scheduled";
+        "planner-scheduled"
     }
 
     pub fn parse_todoist_recurrency(duedate: DueDate, object: Json) {
@@ -120,21 +115,21 @@ impl DateTime {
         if date == &EMPTY_DATETIME {
             return false;
         }
-        return self.is_same_day(date, &Local::now().naive_local());
+        self.is_same_day(date, &Local::now().naive_local())
     }
 
     pub fn is_tomorrow(&self, date: &NaiveDateTime) -> bool {
         if date == &EMPTY_DATETIME {
             return false;
         }
-        return self.is_same_day(date, &(Local::now().naive_local() + Duration::days(1)));
+        self.is_same_day(date, &(Local::now().naive_local() + Duration::days(1)))
     }
 
     pub fn is_next_week(&self, date: &NaiveDateTime) -> bool {
         if date == &EMPTY_DATETIME {
             return false;
         }
-        return self.is_same_day(date, &(Local::now().naive_local() + Duration::days(7)));
+        self.is_same_day(date, &(Local::now().naive_local() + Duration::days(7)))
     }
 
     pub fn get_date_from_string(&self, date: String) -> NaiveDateTime {
@@ -183,7 +178,7 @@ impl DateTime {
                 recurrency_weeks.push_str("6,");
             }
             let week_array: Vec<&str> = recurrency_weeks.split(",").collect();
-            if (week_array.len() > 0) {
+            if (!week_array.is_empty()) {
                 let new_idx = recurrency_weeks.len().saturating_sub(1);
                 recurrency_weeks = recurrency_weeks[0..new_idx].to_string();
             }
@@ -191,13 +186,13 @@ impl DateTime {
         }
     }
 
-    fn check_by_day(&self, day: &str, day_array: &Vec<NaiveDateTime>) -> bool {
+    fn check_by_day(&self, day: &str, day_array: &[NaiveDateTime]) -> bool {
         for day1 in day_array.iter() {
-            if day1.to_string() == day.to_string() {
+            if day1.to_string() == day {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn format_date(&self, format_date: NaiveDate) -> NaiveDateTime {
@@ -213,7 +208,7 @@ impl DateTime {
         if date >= self.format_date(start_of_week) && date <= self.format_date(end_of_week) {
             return true;
         }
-        return false;
+        false
     }
 
     pub fn is_next_x_week(&self, date: NaiveDateTime, days: i64) -> bool {
@@ -223,12 +218,12 @@ impl DateTime {
         if date >= current_date && date <= end_date {
             return true;
         }
-        return false;
+        false
     }
 
     pub fn is_this_month(&self, date: NaiveDateTime) -> bool {
         let current_date = Local::now().naive_local();
-        return current_date.month() == date.month() && current_date.year() == date.year();
+        current_date.month() == date.month() && current_date.year() == date.year()
     }
 
     pub fn add_years(&self, datetime: NaiveDateTime, years: i32) -> NaiveDateTime {
@@ -264,10 +259,10 @@ impl DateTime {
             RecurrencyType::HOURLY => returned + Duration::hours(duedate.recurrency_interval),
             RecurrencyType::EveryDay => returned + Duration::days(duedate.recurrency_interval),
             RecurrencyType::EveryWeek => {
-                if duedate.recurrency_weeks == "" {
-                    return returned + Duration::days(duedate.recurrency_interval * 7);
+                if duedate.recurrency_weeks.is_empty() {
+                    returned + Duration::days(duedate.recurrency_interval * 7)
                 } else {
-                    return self.next_recurrency_week(datetime, duedate, false);
+                    self.next_recurrency_week(datetime, duedate, false)
                 }
             }
             RecurrencyType::EveryMonth => {
@@ -296,10 +291,10 @@ impl DateTime {
             }
         }
 
-        if let Some(first_week_str) = weeks.get(0) {
-            if let Ok(first_week) = first_week_str.parse::<i32>() {
-                return Some(first_week);
-            }
+        if let Some(first_week_str) = weeks.first()
+            && let Ok(first_week) = first_week_str.parse::<i32>()
+        {
+            return Some(first_week);
         }
         None
     }
@@ -317,8 +312,8 @@ impl DateTime {
         let mut index = 0;
         let mut recurrency_interval = 0;
 
-        for i in 0..weeks.len() {
-            if day_of_week < weeks[i].parse::<i64>().unwrap() {
+        for (i, week_str) in weeks.iter().enumerate() {
+            if day_of_week < week_str.parse::<i64>().unwrap() {
                 index = i;
                 break;
             }
@@ -335,7 +330,7 @@ impl DateTime {
             recurrency_interval = (duedate.recurrency_interval - 1) * 7;
         }
 
-        return datetime + Duration::days(days) + Duration::days(recurrency_interval);
+        datetime + Duration::days(days) + Duration::days(recurrency_interval)
     }
 
     pub fn get_recurrency_weeks(
@@ -381,13 +376,13 @@ impl DateTime {
                 weeks.pop(); // Remove the trailing comma
             }
 
-            returned = format!("{} ({})", returned, weeks);
+            returned = format!("{returned} ({weeks})");
         }
-        format!("{} {}", returned, end)
+        format!("{returned} {end}")
     }
 
     pub fn get_today_format_date(&self) -> NaiveDateTime {
-        return self.get_date_only(&Local::now().naive_local());
+        self.get_date_only(&Local::now().naive_local())
     }
 
     pub fn get_date_only(&self, date: &NaiveDateTime) -> NaiveDateTime {
@@ -395,30 +390,25 @@ impl DateTime {
     }
 
     pub fn get_default_date_format_from_date(&self, date: &NaiveDateTime) -> String {
-        let year = if date.year() == Local::now().year() {
-            ""
+        if date.year() == Local::now().year() {
+            "%m-%d %p".to_string()
         } else {
-            "%Y-"
-        };
-        format!("{}%m-%d %p", year)
+            "%Y-%m-%d %p".to_string()
+        }
     }
 
     pub fn get_todoist_datetime_format(&self, date: &NaiveDateTime) -> String {
         if (self.has_time(date)) {
-            return format!(
-                "{}T{}",
-                date.format("%F").to_string(),
-                date.format("%T").to_string()
-            );
+            return format!("{}T{}", date.format("%F"), date.format("%T"));
         } else {
             return date.format("%F").to_string();
         }
 
-        return "".to_string();
+        "".to_string()
     }
 
     pub fn has_time_from_string(&self, date: &NaiveDateTime) -> bool {
-        return self.has_time(date);
+        self.has_time(date)
     }
 
     pub fn get_days_of_month(index: i32, year_nav: i32) -> i32 {
@@ -430,17 +420,11 @@ impl DateTime {
             || (index == 10)
             || (index == 12))
         {
-            return 31;
+            31
+        } else if (index == 2) {
+            if (year_nav % 4 == 0) { 29 } else { 28 }
         } else {
-            if (index == 2) {
-                if (year_nav % 4 == 0) {
-                    return 29;
-                } else {
-                    return 28;
-                }
-            } else {
-                return 30;
-            }
+            30
         }
     }
 
@@ -456,13 +440,9 @@ impl DateTime {
     pub fn is_current_month(&self, date: NaiveDateTime) -> bool {
         let now = Local::now().naive_local();
         if (date.year() == now.year()) {
-            if (date.month() == now.month()) {
-                return true;
-            } else {
-                return false;
-            }
+            date.month() == now.month()
         } else {
-            return false;
+            false
         }
     }
 

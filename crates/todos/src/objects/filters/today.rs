@@ -7,8 +7,8 @@ pub struct Today {
     pub count: Option<usize>,
 }
 
-impl Today {
-    pub fn default() -> Today {
+impl Default for Today {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Today".to_string(),
@@ -19,9 +19,11 @@ impl Today {
             count: None,
         }
     }
+}
+
+impl Today {
     pub fn count(&self) -> usize {
         self.count
-            .clone()
             .unwrap_or(Store::instance().get_items_by_overdeue_view(false).len())
     }
 

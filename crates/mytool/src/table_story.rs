@@ -426,7 +426,7 @@ impl TableDelegate for ProjectTableDelegate {
 pub struct TableStory {
     table: Entity<Table<ProjectTableDelegate>>,
     num_stocks_input: Entity<InputState>,
-    stripe: bool,
+    _stripe: bool,
     refresh_data: bool,
     size: Size,
 }
@@ -510,7 +510,7 @@ impl TableStory {
         Self {
             table,
             num_stocks_input,
-            stripe: false,
+            _stripe: false,
             refresh_data: false,
             size: Size::default(),
         }
@@ -538,14 +538,14 @@ impl TableStory {
             _ => {}
         }
     }
-
+    #[allow(dead_code)]
     fn toggle_loop_selection(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().loop_selection = *checked;
             cx.notify();
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_col_resize(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_resize = *checked;
@@ -553,7 +553,7 @@ impl TableStory {
             cx.notify();
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_col_order(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_order = *checked;
@@ -561,7 +561,7 @@ impl TableStory {
             cx.notify();
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_col_sort(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_sort = *checked;
@@ -569,7 +569,7 @@ impl TableStory {
             cx.notify();
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_col_selection(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_selection = *checked;
@@ -577,16 +577,16 @@ impl TableStory {
             cx.notify();
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_stripe(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.stripe = *checked;
-        let stripe = self.stripe;
+        self._stripe = *checked;
+        let stripe = self._stripe;
         self.table.update(cx, |table, cx| {
             table.set_stripe(stripe, cx);
             cx.notify();
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_fixed_cols(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().fixed_cols = *checked;
@@ -602,7 +602,7 @@ impl TableStory {
             table.delegate_mut().size = a.0;
         });
     }
-
+    #[allow(dead_code)]
     fn toggle_refresh_data(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.refresh_data = *checked;
         cx.notify();

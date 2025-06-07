@@ -7,6 +7,12 @@ use once_cell::sync::OnceCell;
 use std::sync::Arc;
 pub struct Store {}
 
+impl Default for Store {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 static STOREINSTANCE: OnceCell<Arc<Store>> = OnceCell::new();
 
 pub enum Collection {
@@ -26,10 +32,10 @@ impl Store {
     }
 
     pub fn is_database_empty(&self) -> bool {
-        self.projects().len() <= 0
+        self.projects().is_empty()
     }
     pub fn is_sources_empty(&self) -> bool {
-        self.sources().len() <= 0
+        self.sources().is_empty()
     }
     fn convert_to_trait_objects<T: BaseTrait + Clone + 'static>(
         &self,
@@ -135,10 +141,10 @@ impl Store {
         Database::default().get_projects_collection()
     }
     pub fn insert_project(&self, project: &Project) {
-        if Database::default().insert_project(&project) {
-            if let Some(parent) = project.parent() {
-                parent.add_subproject(project);
-            }
+        if Database::default().insert_project(project)
+            && let Some(parent) = project.parent()
+        {
+            parent.add_subproject(project);
         }
     }
     pub fn get_project(&self, id: &str) -> Option<Project> {
@@ -168,7 +174,7 @@ impl Store {
             for item in self.get_items_by_project(project) {
                 self.delete_item(&item);
             }
-            for subproject in self.get_subprojects(&project_id) {
+            for subproject in self.get_subprojects(project_id) {
                 self.delete_project(&subproject);
             }
         }
@@ -290,13 +296,13 @@ impl Store {
         }
     }
     pub fn move_section(&self, section: &Section, project_id: &str) {
-        if Database::default().move_section(section, project_id) {
-            if Database::default().move_section_items(section) {
-                for mut item in section.items() {
-                    item.project_id = Some(project_id.to_string());
-                }
-                // section_moved(section, old_project_id);
+        if Database::default().move_section(section, project_id)
+            && Database::default().move_section_items(section)
+        {
+            for mut item in section.items() {
+                item.project_id = Some(project_id.to_string());
             }
+            // section_moved(section, old_project_id);
         }
     }
     pub fn update_section_id(&self, cur_id: &str, new_id: &str) {
@@ -384,21 +390,21 @@ impl Store {
         }
     }
     pub fn move_item(&self, item: &Item, project_id: &str, section_id: &str) {
-        if Database::default().move_item(&item) {
+        if Database::default().move_item(item) {
             for subitem in self.get_subitems(item) {
                 let mut sub = subitem.clone();
                 sub.project_id = item.project_id.clone();
                 self.move_item(&sub, "", "");
             }
-            if let Some(section_id) = item.section_id.clone() {
-                if let Some(section) = self.get_section(&section_id) {
-                    section.update_count();
-                }
+            if let Some(section_id) = item.section_id.clone()
+                && let Some(section) = self.get_section(&section_id)
+            {
+                section.update_count();
             }
-            if let Some(project_id) = item.project_id.clone() {
-                if let Some(project) = self.get_project(&project_id) {
-                    project.update_count();
-                }
+            if let Some(project_id) = item.project_id.clone()
+                && let Some(project) = self.get_project(&project_id)
+            {
+                project.update_count();
             }
         }
     }
@@ -408,9 +414,13 @@ impl Store {
             for subitem in self.get_subitems(item) {
                 self.delete_item(&subitem);
             }
-            item.project().and_then(|p| Some(p.item_deleted(item)));
-            if item.has_section() {
-                item.section().and_then(|s| Some(s.item_deleted(item)));
+            if let Some(p) = item.project() {
+                p.item_deleted(item)
+            }
+            if item.has_section()
+                && let Some(s) = item.section()
+            {
+                s.item_deleted(item)
             }
         }
     }
@@ -526,7 +536,7 @@ impl Store {
     pub fn get_items_by_label(&self, label_id: &str, checked: bool) -> Vec<Item> {
         self.items()
             .iter()
-            .filter(|i| i.has_label(&label_id) && i.checked() == checked && !i.was_archived())
+            .filter(|i| i.has_label(label_id) && i.checked() == checked && !i.was_archived())
             .cloned()
             .collect()
     }
@@ -658,7 +668,7 @@ impl Store {
     pub fn get_items_unlabeled(&self, checked: bool) -> Vec<Item> {
         self.items()
             .iter()
-            .filter(|s| s.labels().len() <= 0 && s.checked() == checked && !s.was_archived())
+            .filter(|s| s.labels().is_empty() && s.checked() == checked && !s.was_archived())
             .cloned()
             .collect()
     }
@@ -677,7 +687,7 @@ impl Store {
             && item
                 .due()
                 .datetime()
-                .map_or(false, |dt| DateTime::default().is_same_day(&dt, date))
+                .is_some_and(|dt| DateTime::default().is_same_day(&dt, date))
     }
 
     pub fn valid_item_by_date_range(
@@ -691,7 +701,7 @@ impl Store {
 
         !(item.has_due() || item.was_archived())
             && item.checked() == checked
-            && item.due().datetime().map_or(false, |dt| {
+            && item.due().datetime().is_some_and(|dt| {
                 let date = date_util.get_date_only(&dt);
                 let start = date_util.get_date_only(start_date);
                 let end = date_util.get_date_only(end_date);
@@ -701,9 +711,10 @@ impl Store {
     pub fn valid_item_by_month(&self, item: &Item, date: &NaiveDateTime, checked: bool) -> bool {
         !(item.has_due() || item.was_archived())
             && item.checked() == checked
-            && item.due().datetime().map_or(false, |dt| {
-                dt.month() == date.month() && dt.year() == date.year()
-            })
+            && item
+                .due()
+                .datetime()
+                .is_some_and(|dt| dt.month() == date.month() && dt.year() == date.year())
     }
 
     pub fn get_items_by_overdeue_view(&self, checked: bool) -> Vec<Item> {
@@ -718,7 +729,7 @@ impl Store {
                     && i.checked()
                     && i.due()
                         .datetime()
-                        .map_or(false, |dt| dt < now && !date_util.is_same_day(&dt, &now))
+                        .is_some_and(|dt| dt < now && !date_util.is_same_day(&dt, &now))
             })
             .cloned()
             .collect()
@@ -748,7 +759,7 @@ impl Store {
             && item
                 .due()
                 .datetime()
-                .map_or(false, |dt| dt <= now && date_util.is_same_day(&dt, &now))
+                .is_some_and(|dt| dt <= now && date_util.is_same_day(&dt, &now))
     }
 
     // labels
@@ -776,10 +787,7 @@ impl Store {
         }
     }
     pub fn label_exists(&self, id: &str) -> bool {
-        self.labels()
-            .iter()
-            .find(|s| s.id.as_deref() == Some(id))
-            .is_some()
+        self.labels().iter().any(|s| s.id.as_deref() == Some(id))
     }
     pub fn get_label(&self, id: &str) -> Option<Label> {
         self.labels()
@@ -799,7 +807,7 @@ impl Store {
             .find(|l| {
                 l.name
                     .as_deref()
-                    .map_or(false, |n| n.eq_ignore_ascii_case(name))
+                    .is_some_and(|n| n.eq_ignore_ascii_case(name))
                     && l.source_id.as_deref() == Some(source_id)
             })
             .cloned()

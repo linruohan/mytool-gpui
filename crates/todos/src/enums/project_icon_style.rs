@@ -15,9 +15,15 @@ impl ProjectIconStyle {
             _ => ProjectIconStyle::LIST,
         }
     }
+    pub fn to_lowercase(&self) -> String {
+        match self {
+            ProjectIconStyle::LIST => "list".to_string(),
+            ProjectIconStyle::BOARD => "board".to_string(),
+        }
+    }
 }
 impl fmt::Display for ProjectIconStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string().to_lowercase())
+        write!(f, "{}", self.to_lowercase())
     }
 }

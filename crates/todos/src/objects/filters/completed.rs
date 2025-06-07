@@ -10,9 +10,8 @@ pub struct Completed {
     #[builder(default, setter(into, strip_option))]
     pub count: Option<usize>,
 }
-
-impl Completed {
-    pub fn default() -> Completed {
+impl Default for Completed {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Completed".to_string(),
@@ -23,9 +22,10 @@ impl Completed {
             count: None,
         }
     }
+}
+impl Completed {
     pub fn count(&self) -> usize {
         self.count
-            .clone()
             .unwrap_or(Store::instance().get_items_completed().len())
     }
     pub fn count_updated() {

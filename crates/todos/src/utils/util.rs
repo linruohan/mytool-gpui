@@ -68,21 +68,21 @@ impl Util {
             colors.insert("grey".to_string(), Color::new(48, "Grey", "#b8b8b8"));
             colors.insert("taupe".to_string(), Color::new(49, "Taupe", "#ccac93"));
         }
-        return colors;
+        colors
     }
 
     pub fn get_color_name(&self, key: String) -> String {
         if let Some(color) = self.get_colors().get(&key) {
             return color.name.clone();
         }
-        return "".to_string();
+        "".to_string()
     }
 
     pub fn get_color(&self, key: String) -> String {
         if let Some(color) = self.get_colors().get(&key) {
             return color.hexadecimal.clone();
         }
-        return key;
+        key
     }
 
     pub fn get_random_color(&self) -> String {
@@ -94,7 +94,7 @@ impl Util {
                 break;
             }
         }
-        return returned;
+        returned
     }
 
     // Providers
@@ -1098,7 +1098,7 @@ impl Util {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn get_reminders_mm_offset(&self) -> i32 {
@@ -1164,7 +1164,7 @@ pub fn truncate_at(input: &str, max: i32) -> String {
     let max_len: usize = max as usize;
     if input.len() > max_len {
         let truncated = &input[..(max_len - 3)];
-        return format!("{}...", truncated);
+        return format!("{truncated}...");
     };
 
     input.to_string()
@@ -1176,8 +1176,8 @@ pub fn verify_db_path(db_folder: &str) -> Result<(), Error> {
     if !Path::new(db_folder).exists() {
         // Check if the folder doesn't exist
         match fs::create_dir(db_folder) {
-            Ok(_) => println!("Folder '{}' created.", db_folder),
-            Err(e) => eprintln!("Error creating folder: {}", e),
+            Ok(_) => println!("Folder '{db_folder}' created."),
+            Err(e) => eprintln!("Error creating folder: {e}"),
         }
     }
     Ok(())
@@ -1190,11 +1190,11 @@ fn get_home() -> String {
         Err(_) => {
             // Fallback for Windows and macOS
             if cfg!(target_os = "windows") {
-                if let Some(userprofile) = env::var("USERPROFILE").ok() {
+                if let Ok(userprofile) = env::var("USERPROFILE") {
                     PathBuf::from(userprofile)
-                } else if let Some(homedrive) = env::var("HOMEDRIVE").ok() {
+                } else if let Ok(homedrive) = env::var("HOMEDRIVE") {
                     let homepath = env::var("HOMEPATH").unwrap_or("".to_string());
-                    PathBuf::from(format!("{}{}", homedrive, homepath))
+                    PathBuf::from(format!("{homedrive}{homepath}"))
                 } else {
                     panic!("Could not determine the user's home directory.");
                 }

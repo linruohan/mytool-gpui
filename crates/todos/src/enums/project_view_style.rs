@@ -15,9 +15,15 @@ impl ProjectViewStyle {
             _ => ProjectViewStyle::PROGRESS,
         }
     }
+    pub fn to_lowercase(&self) -> String {
+        match self {
+            ProjectViewStyle::PROGRESS => "progress".to_string(),
+            ProjectViewStyle::EMOJI => "emoji".to_string(),
+        }
+    }
 }
 impl fmt::Display for ProjectViewStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string().to_lowercase())
+        write!(f, "{}", self.to_lowercase())
     }
 }

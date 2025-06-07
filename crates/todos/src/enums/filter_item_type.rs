@@ -1,4 +1,7 @@
-use std::{default, fmt};
+use std::{
+    default,
+    fmt::{self, Display},
+};
 use strum::{Display, EnumString};
 #[derive(Debug, Clone, PartialEq, EnumString, Default, Copy, Eq, Hash)]
 #[strum(serialize_all = "camelCase")]
@@ -26,9 +29,18 @@ impl FilterItemType {
             FilterItemType::SECTION => "arrow3-right-symbolic",
         }
     }
+    pub fn to_lowercase(&self) -> String {
+        match self {
+            FilterItemType::PRIORITY => "priority".to_string(),
+            FilterItemType::LABEL => "label".to_string(),
+            FilterItemType::DueDate => "duedate".to_string(),
+            FilterItemType::SECTION => "section".to_string(),
+        }
+    }
 }
+
 impl fmt::Display for FilterItemType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string().to_lowercase())
+        write!(f, "{}", self.to_lowercase())
     }
 }

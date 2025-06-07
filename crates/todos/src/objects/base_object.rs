@@ -71,9 +71,7 @@ impl BaseObject {
         }
     }
     pub fn add_filter(&mut self, filter: FilterItem) {
-        if !self.filters.contains_key(&filter.id().clone()) {
-            self.filters.insert(filter.id().clone(), filter);
-        }
+        self.filters.entry(filter.id().clone()).or_insert(filter);
     }
     pub fn update_filter(&mut self, update_filter: FilterItem) {
         if let Some(filter) = self.filters.get_mut(&update_filter.id().clone()) {

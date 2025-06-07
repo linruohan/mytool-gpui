@@ -17,9 +17,18 @@ impl SourceType {
             .and_then(|s| s.parse().ok())
             .unwrap_or(SourceType::NONE)
     }
+    pub fn to_lowercase(&self) -> String {
+        match self {
+            SourceType::NONE => "none".to_string(),
+            SourceType::LOCAL => "local".to_string(),
+            SourceType::TODOIST => "todoist".to_string(),
+            SourceType::GoogleTasks => "google-tasks".to_string(),
+            SourceType::CALDAV => "caldav".to_string(),
+        }
+    }
 }
 impl fmt::Display for SourceType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string().to_lowercase())
+        write!(f, "{}", self.to_lowercase())
     }
 }

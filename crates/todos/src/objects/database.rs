@@ -40,10 +40,12 @@ fn get_db_pool() -> &'static DbPool {
 // pub fn get_conn(pool: &DbPool) -> PooledConnection {
 //     pool.get().expect("Failed to get connection from pool")
 // }
-impl Database {
-    pub fn default() -> Database {
-        Self {}
+impl Default for Database {
+    fn default() -> Self {
+        Database {}
     }
+}
+impl Database {
     /// 从连接池中获取一个连接
     pub fn get_conn(&self) -> PooledConnection {
         let pool = get_db_pool().clone();
@@ -67,7 +69,7 @@ impl Database {
     }
     pub fn clear_database(&self, pool: DbPool) -> Result<(), String> {
         // 1 关闭连接池
-        let _ = drop(pool);
+        drop(pool);
         // 2 删除文件
         // 2.1 获取数据库 URL
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -83,7 +85,7 @@ impl Database {
         // 3.4删除文件
         fs::remove_file(file_path).map_err(|e| e.to_string())?;
 
-        println!("Database file deleted: {}", file_path);
+        println!("Database file deleted: {file_path}");
         Ok(())
     }
 

@@ -78,7 +78,7 @@ impl Reminder {
         match self.reminder_type() {
             ReminderType::ABSOLUTE => self.due().datetime(),
             _ => self.item()?.due().datetime().map(|dt| {
-                let offset = self.mm_offset.unwrap_or(0) * -1;
+                let offset = -self.mm_offset.unwrap_or(0);
                 let duration = Duration::minutes(offset as i64);
                 dt + duration
             }),
@@ -102,7 +102,7 @@ impl Reminder {
     }
     pub fn duplicate(&self) -> Reminder {
         Self {
-            notify_uid: self.notify_uid.clone(),
+            notify_uid: self.notify_uid,
             service: self.service.clone(),
             due: self.due.clone(),
             mm_offset: self.mm_offset,

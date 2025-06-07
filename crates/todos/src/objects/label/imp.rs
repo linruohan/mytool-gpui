@@ -48,13 +48,13 @@ impl Label {
         self.color.clone().unwrap_or("".to_string())
     }
     pub fn item_order(&self) -> i32 {
-        self.item_order.clone().unwrap_or(0)
+        self.item_order.unwrap_or(0)
     }
     pub fn is_deleted(&self) -> bool {
-        self.is_deleted.map_or(false, |x| x != 0)
+        self.is_deleted.is_some_and(|x| x != 0)
     }
     pub fn is_favorite(&self) -> bool {
-        self.is_favorite.map_or(false, |x| x != 0)
+        self.is_favorite.is_some_and(|x| x != 0)
     }
     pub fn backend_type(&self) -> SourceType {
         match self.backend_type {

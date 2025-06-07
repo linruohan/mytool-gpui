@@ -3,8 +3,8 @@ use crate::BaseObject;
 pub struct Repeating {
     pub base: BaseObject,
 }
-impl Repeating {
-    pub fn default() -> Repeating {
+impl Default for Repeating {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Repeating".to_string(),

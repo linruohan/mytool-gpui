@@ -6,8 +6,8 @@ pub struct Scheduled {
     #[builder(default, setter(into, strip_option))]
     pub count: Option<usize>,
 }
-impl Scheduled {
-    pub fn default() -> Scheduled {
+impl Default for Scheduled {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Scheduled".to_string(),
@@ -18,10 +18,10 @@ impl Scheduled {
             count: None,
         }
     }
-
+}
+impl Scheduled {
     pub fn count(&self) -> usize {
         self.count
-            .clone()
             .unwrap_or(Store::instance().get_items_by_scheduled(false).len())
     }
 

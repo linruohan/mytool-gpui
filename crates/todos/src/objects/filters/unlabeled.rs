@@ -3,8 +3,8 @@ use crate::BaseObject;
 pub struct Unlabeled {
     pub base: BaseObject,
 }
-impl Unlabeled {
-    pub fn default() -> Unlabeled {
+impl Default for Unlabeled {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Unlabeled".to_string(),

@@ -13,8 +13,8 @@ pub struct Labels {
     pub count: Option<usize>,
 }
 
-impl Labels {
-    pub fn default() -> Labels {
+impl Default for Labels {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Labels".to_string(),
@@ -25,9 +25,11 @@ impl Labels {
             count: None,
         }
     }
+}
+
+impl Labels {
     pub fn count(&self) -> usize {
         self.count
-            .clone()
             .unwrap_or(Store::instance().get_items_has_labels().len())
     }
     pub fn count_updated(&self) {

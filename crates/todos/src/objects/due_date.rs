@@ -2,6 +2,7 @@ use crate::enums::{RecurrencyEndType, RecurrencyType};
 use crate::utils::DateTime;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::str::FromStr;
 #[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize)]
 pub struct DueDate {
@@ -15,8 +16,8 @@ pub struct DueDate {
     pub recurrency_end: String,
     pub recurrency_supported: bool,
 }
-impl DueDate {
-    pub fn default() -> DueDate {
+impl Default for DueDate {
+    fn default() -> Self {
         Self {
             date: "".to_string(),
             timezone: "".to_string(),
@@ -29,6 +30,9 @@ impl DueDate {
             recurrency_supported: false,
         }
     }
+}
+
+impl DueDate {
     pub fn datetime(&self) -> Option<NaiveDateTime> {
         NaiveDateTime::from_str(&self.date).ok()
     }
@@ -39,16 +43,16 @@ impl DueDate {
         NaiveDateTime::from_str(&self.recurrency_end).unwrap()
     }
     pub fn has_weeks(&self) -> bool {
-        self.recurrency_weeks != ""
+        self.recurrency_weeks.is_empty()
     }
     pub fn end_type(&self) -> RecurrencyEndType {
-        if self.recurrency_end != "" {
+        if !self.recurrency_end.is_empty() {
             return RecurrencyEndType::OnDate;
         }
         if self.recurrency_count > 0 {
             return RecurrencyEndType::AFTER;
         }
-        return RecurrencyEndType::NEVER;
+        RecurrencyEndType::NEVER
     }
     pub fn is_recurrency_end(&self) -> bool {
         match self.end_type() {
@@ -58,27 +62,24 @@ impl DueDate {
                     .datetime()
                     .map(|dt| DateTime::default().next_recurrency(dt, self.clone()))
                     .unwrap_or_default();
-                return next_recurrency > self.end_datetime();
+                next_recurrency > self.end_datetime()
             }
             _ => false,
         }
     }
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
+
     pub fn is_recurrency_equal(&self, duedate: DueDate) -> bool {
-        return self.recurrency_type == duedate.recurrency_type
+        self.recurrency_type == duedate.recurrency_type
             && self.recurrency_interval == duedate.recurrency_interval
             && self.recurrency_weeks == duedate.recurrency_weeks
             && self.recurrency_count == duedate.recurrency_count
             && self.recurrency_end == duedate.recurrency_end
-            && self.is_recurring == duedate.is_recurring;
+            && self.is_recurring == duedate.is_recurring
     }
 
     pub fn to_friendly_string(&self) -> String {
-        return self
-            .recurrency_type
-            .to_friendly_string(self.recurrency_interval as i32);
+        self.recurrency_type
+            .to_friendly_string(self.recurrency_interval as i32)
     }
     pub fn reset(&mut self) {
         self.date = "".to_string();
@@ -89,16 +90,21 @@ impl DueDate {
         self.recurrency_end = "".to_string();
     }
     pub fn duplicate(&self) -> DueDate {
-        let mut new_due = DueDate::default();
-        new_due.date = self.date.clone();
-        new_due.timezone = self.timezone.clone();
-        new_due.recurrency_weeks = self.recurrency_weeks.clone();
-        new_due.is_recurring = self.is_recurring;
-        new_due.recurrency_type = self.recurrency_type.clone();
-        new_due.recurrency_interval = self.recurrency_interval;
-        new_due.recurrency_count = self.recurrency_count;
-        new_due.recurrency_end = self.recurrency_end.clone();
-        new_due.recurrency_supported = self.recurrency_supported;
-        new_due
+        DueDate {
+            date: self.date.clone(),
+            timezone: self.timezone.clone(),
+            recurrency_weeks: self.recurrency_weeks.clone(),
+            is_recurring: self.is_recurring,
+            recurrency_type: self.recurrency_type.clone(),
+            recurrency_interval: self.recurrency_interval,
+            recurrency_count: self.recurrency_count,
+            recurrency_end: self.recurrency_end.clone(),
+            recurrency_supported: self.recurrency_supported,
+        }
+    }
+}
+impl fmt::Display for DueDate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }

@@ -5,8 +5,8 @@ use crate::{BaseObject, Store, enums::FilterType};
 pub struct Pinboard {
     pub base: BaseObject,
 }
-impl Pinboard {
-    pub fn default() -> Pinboard {
+impl Default for Pinboard {
+    fn default() -> Self {
         Self {
             base: BaseObject::new(
                 "Pinboard".to_string(),
@@ -16,6 +16,9 @@ impl Pinboard {
             ),
         }
     }
+}
+
+impl Pinboard {
     pub fn pinboard_count(&self) -> usize {
         Store::instance().get_items_pinned(false).len()
     }

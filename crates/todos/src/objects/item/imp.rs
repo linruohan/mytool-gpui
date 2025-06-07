@@ -126,7 +126,7 @@ impl Item {
     }
 
     pub(crate) fn has_labels(&self) -> bool {
-        self.labels().len() > 0
+        !self.labels().is_empty()
     }
     pub fn has_label(&self, id: &str) -> bool {
         self.get_label(id).is_some()
@@ -137,7 +137,7 @@ impl Item {
             return true;
         }
         self.parent()
-            .map_or(false, |parent| parent.exists_project(project))
+            .is_some_and(|parent| parent.exists_project(project))
     }
     pub fn get_label(&self, id: &str) -> Option<Label> {
         self.labels()
@@ -163,7 +163,7 @@ impl Item {
         }
     }
     pub fn has_reminders(&self) -> bool {
-        self.reminders().len() > 0
+        !self.reminders().is_empty()
     }
 
     pub fn priority_color(&self) -> &str {
@@ -199,14 +199,12 @@ impl Item {
         self.checked == Some(1)
     }
     pub fn has_due(&self) -> bool {
-        self.due()
-            .datetime()
-            .map_or(false, |dt| dt != EMPTY_DATETIME)
+        self.due().datetime().is_some_and(|dt| dt != EMPTY_DATETIME)
     }
     pub fn has_time(&self) -> bool {
         self.due()
             .datetime()
-            .map_or(false, |dt| utils::DateTime::default().has_time(&dt))
+            .is_some_and(|dt| utils::DateTime::default().has_time(&dt))
     }
     pub fn completed_date(&self) -> NaiveDateTime {
         self.completed_at
@@ -216,7 +214,7 @@ impl Item {
                     .get_date_from_string(s.to_string())
                     .into()
             })
-            .unwrap_or_else(|| EMPTY_DATETIME)
+            .unwrap_or(EMPTY_DATETIME)
     }
     pub fn has_parent(&self) -> bool {
         self.parent_id
@@ -248,7 +246,7 @@ impl Item {
                     .get_date_from_string(s.to_string())
                     .into()
             })
-            .unwrap_or_else(|| EMPTY_DATETIME)
+            .unwrap_or(EMPTY_DATETIME)
     }
     pub fn updated_datetime(&self) -> NaiveDateTime {
         self.updated_at
@@ -258,7 +256,7 @@ impl Item {
                     .get_date_from_string(s.to_string())
                     .into()
             })
-            .unwrap_or_else(|| EMPTY_DATETIME)
+            .unwrap_or(EMPTY_DATETIME)
     }
     pub fn parent(&self) -> Option<Item> {
         self.parent_id
@@ -295,7 +293,7 @@ impl Item {
     pub fn check_labels(&self, new_labels: HashMap<String, Label>) {
         for (key, label) in &new_labels {
             let label_id = label.id();
-            if self.get_label(label_id) == None {
+            if self.get_label(label_id).is_none() {
                 self.add_label_if_not_exist(label.clone());
             }
         }
@@ -327,20 +325,17 @@ impl Item {
         Store::instance().update_item(self, "");
     }
     pub fn update(&self, update_id: &str) {
-        if let Some(project) = self.project() {
-            match project.source_type() {
-                SourceType::LOCAL => {
-                    Store::instance().update_item(self, update_id);
-                }
-                _ => {}
-            }
+        if let Some(project) = self.project()
+            && project.source_type() == SourceType::LOCAL
+        {
+            Store::instance().update_item(self, update_id);
         }
     }
     pub fn was_archived(&self) -> bool {
         self.parent()
             .map(|p| p.was_archived())
             .or_else(|| self.section().map(|s| s.was_archived()))
-            .unwrap_or_else(|| self.project().map_or(false, |p| p.is_archived()))
+            .unwrap_or_else(|| self.project().is_some_and(|p| p.is_archived()))
     }
     fn source(&self) -> Option<Source> {
         self.project()

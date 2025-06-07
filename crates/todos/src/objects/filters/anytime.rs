@@ -8,8 +8,8 @@ pub struct Anytime {
     pub base: BaseObject,
 }
 
-impl Anytime {
-    pub fn default() -> Anytime {
+impl Default for Anytime {
+    fn default() -> Self {
         Anytime {
             base: BaseObject::new(
                 "Anytime".to_string(),

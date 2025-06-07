@@ -11,14 +11,20 @@ pub enum ItemType {
 impl ItemType {
     pub fn parse(value: Option<&str>) -> ItemType {
         match value {
-            Some("task") => return ItemType::TASK,
-            Some("note") => return ItemType::NOTE,
+            Some("task") => ItemType::TASK,
+            Some("note") => ItemType::NOTE,
             _ => ItemType::TASK,
+        }
+    }
+    pub fn to_lowercase(&self) -> String {
+        match self {
+            ItemType::TASK => "task".to_string(),
+            ItemType::NOTE => "note".to_string(),
         }
     }
 }
 impl fmt::Display for ItemType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string().to_lowercase())
+        write!(f, "{}", self.to_lowercase())
     }
 }

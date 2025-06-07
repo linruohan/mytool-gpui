@@ -25,3 +25,9 @@ pacman -U --nodeps --force mingw-w64-x86_64-gcc-libs-13.2.0-1-any.pkg.tar.zst
 # 锁定版本
 echo "IgnorePkg = mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-libs" >> /etc/pacman.conf
 ```
+
+## 批量修复
+
+```bash
+cargo fmt --all && cargo clippy --fix --allow-dirty --allow-staged
+```

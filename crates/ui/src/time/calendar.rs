@@ -525,7 +525,7 @@ impl Calendar {
     ) -> impl IntoElement {
         let state = self.state.read(cx);
         let (_, month) = state.offset_year_month(offset_month);
-        let day = d.day();
+        let _day = d.day();
         let is_current_month = d.month() == month;
         let is_active = state.date.is_active(d) && is_current_month;
         let is_in_range = state.date.is_in_range(d);
@@ -764,9 +764,7 @@ impl Calendar {
                                     .text_size(px(9.))
                                     .text_color(gpui::green())
                                     .child(flag.clone())
-                                    .when(flag == "班".to_string(), |this| {
-                                        this.text_color(gpui::red())
-                                    }),
+                                    .when(flag == "班", |this| this.text_color(gpui::red())),
                             ),
                     )
                     .child(
@@ -776,9 +774,7 @@ impl Calendar {
                             .text_size(px(9.))
                             .child(holiday.clone())
                             .when(holiday.len() > 6, |this| this.text_color(gpui::green()))
-                            .when(flag == "班".to_string(), |this| {
-                                this.text_color(gpui::red())
-                            }),
+                            .when(flag == "班", |this| this.text_color(gpui::red())),
                     ),
             )
     }
