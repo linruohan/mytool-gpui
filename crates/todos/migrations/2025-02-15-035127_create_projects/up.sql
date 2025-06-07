@@ -1,0 +1,26 @@
+-- Your SQL goes here
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    color TEXT,
+    backend_type TEXT,
+    inbox_project INTEGER,
+    team_inbox INTEGER,
+    child_order INTEGER,
+    is_deleted INTEGER,
+    is_archived INTEGER,
+    is_favorite INTEGER,
+    shared INTEGER,
+    view_style TEXT,
+    sort_order INTEGER,
+    parent_id TEXT,
+    collapsed INTEGER,
+    icon_style TEXT,
+    emoji TEXT,
+    show_completed INTEGER,
+    description TEXT,
+    due_date TEXT,
+    inbox_section_hidded INTEGER,
+    sync_id TEXT,
+    source_id TEXT
+);

@@ -1,22 +1,25 @@
 [workspace.package]
 publish = false
-edition = "2021"
+edition = "2024"
 [workspace]
-members = ["crates/mytool"]
+members = ["crates/mytool", "crates/macros", "crates/ui", "crates/todos"]
 
 default-members = ["crates/mytool"]
-resolver = "1"
+resolver = "2"
 
 [workspace.dependencies]
+# inner crates
+gpui-component = { path = "crates/ui" }
+gpui-component-macros = { path = "crates/macros" }
+# story = { path = "crates/story" }
+mytool = { path = "crates/mytool" }
+todos = { path = "crates/todos" }
+# gpui
 gpui = { path = "../zed/crates/gpui", default-features = false, features = [
     "http_client",
 ] }
 gpui_macros = { path = "../zed/crates/gpui_macros" }
 gpui_tokio = { path = "../zed/crates/gpui_tokio" }
-# gpui-component = { git = "https://github.com/linruohan/gpui-component" }
-gpui-component = { path = "../gpui-component/crates/ui" }
-mytool = { path = "crates/mytool" }
-todos = { path = "../todos" }
 #
 # External crates
 #
@@ -29,7 +32,7 @@ raw-window-handle = { version = "0.6", features = ["std"] }
 tokio = { version = "1.44.2", features = ["full"] }
 async-std = "1.13.0"
 log = "0.4.26"
-toml = "0.8.22"
+toml = "0.8.23"
 once_cell = "1.21.3"
 paste = "1.0.15"
 rust-i18n = "3.1.4"
