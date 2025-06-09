@@ -8,7 +8,16 @@ use std::{
 };
 
 use super::LanguageConfig;
-use crate::ThemeMode;
+use crate::{highlighter::languages, ThemeMode};
+
+pub(super) fn init(cx: &mut App) {
+    let mut register = LanguageRegistry::new();
+    for language in languages::Language::all() {
+        register.register(language.name(), &language.config());
+    }
+
+    cx.set_global(register);
+}
 
 pub(super) const HIGHLIGHT_NAMES: [&str; 40] = [
     "attribute",
@@ -238,22 +247,32 @@ pub struct StatusColors {
     error: Option<Hsla>,
     #[serde(rename = "error.background")]
     error_background: Option<Hsla>,
+    #[serde(rename = "error.border")]
+    error_border: Option<Hsla>,
     #[serde(rename = "warning")]
     warning: Option<Hsla>,
     #[serde(rename = "warning.background")]
     warning_background: Option<Hsla>,
+    #[serde(rename = "warning.border")]
+    warning_border: Option<Hsla>,
     #[serde(rename = "info")]
     info: Option<Hsla>,
     #[serde(rename = "info.background")]
     info_background: Option<Hsla>,
+    #[serde(rename = "info.border")]
+    info_border: Option<Hsla>,
     #[serde(rename = "success")]
     success: Option<Hsla>,
     #[serde(rename = "success.background")]
     success_background: Option<Hsla>,
+    #[serde(rename = "success.border")]
+    success_border: Option<Hsla>,
     #[serde(rename = "hint")]
     hint: Option<Hsla>,
     #[serde(rename = "hint.background")]
     hint_background: Option<Hsla>,
+    #[serde(rename = "hint.border")]
+    hint_border: Option<Hsla>,
 }
 
 impl StatusColors {
@@ -264,7 +283,12 @@ impl StatusColors {
 
     #[inline]
     pub fn error_background(&self) -> Hsla {
-        self.error_background.unwrap_or(self.error())
+        self.error_background.unwrap_or(crate::red_200())
+    }
+
+    #[inline]
+    pub fn error_border(&self) -> Hsla {
+        self.error_border.unwrap_or(crate::red_500())
     }
 
     #[inline]
@@ -274,7 +298,12 @@ impl StatusColors {
 
     #[inline]
     pub fn warning_background(&self) -> Hsla {
-        self.warning_background.unwrap_or(self.warning())
+        self.warning_background.unwrap_or(crate::yellow_200())
+    }
+
+    #[inline]
+    pub fn warning_border(&self) -> Hsla {
+        self.warning_border.unwrap_or(crate::yellow_500())
     }
 
     #[inline]
@@ -284,7 +313,12 @@ impl StatusColors {
 
     #[inline]
     pub fn info_background(&self) -> Hsla {
-        self.info_background.unwrap_or(self.info())
+        self.info_background.unwrap_or(crate::blue_200())
+    }
+
+    #[inline]
+    pub fn info_border(&self) -> Hsla {
+        self.info_border.unwrap_or(crate::blue_500())
     }
 
     #[inline]
@@ -294,17 +328,27 @@ impl StatusColors {
 
     #[inline]
     pub fn success_background(&self) -> Hsla {
-        self.success_background.unwrap_or(self.success())
+        self.success_background.unwrap_or(crate::green_200())
+    }
+
+    #[inline]
+    pub fn success_border(&self) -> Hsla {
+        self.success_border.unwrap_or(crate::green_500())
     }
 
     #[inline]
     pub fn hint(&self) -> Hsla {
-        self.hint.unwrap_or(crate::cyan_500().opacity(0.5))
+        self.hint.unwrap_or(crate::gray_500())
     }
 
     #[inline]
     pub fn hint_background(&self) -> Hsla {
-        self.hint_background.unwrap_or(self.hint())
+        self.hint_background.unwrap_or(crate::gray_200())
+    }
+
+    #[inline]
+    pub fn hint_border(&self) -> Hsla {
+        self.hint_border.unwrap_or(crate::gray_500())
     }
 }
 
@@ -359,10 +403,6 @@ impl HighlightTheme {
     }
 }
 
-pub fn init(cx: &mut App) {
-    cx.set_global(LanguageRegistry::new());
-}
-
 /// Registry for code highlighter languages.
 #[derive(Clone)]
 pub struct LanguageRegistry {
@@ -394,19 +434,28 @@ impl LanguageRegistry {
         self.languages.insert(lang.to_string(), config.clone());
     }
 
-    #[allow(unused)]
-    pub(crate) fn set_theme(&mut self, light_theme: &HighlightTheme, dark_theme: &HighlightTheme) {
-        self.light_theme = Arc::new(light_theme.clone());
-        self.dark_theme = Arc::new(dark_theme.clone());
+    /// Set highlighter theme.
+    pub fn set_theme(&mut self, light: &HighlightTheme, dark: &HighlightTheme) {
+        self.light_theme = Arc::new(light.clone());
+        self.dark_theme = Arc::new(dark.clone());
     }
 
-    #[allow(unused)]
     pub(crate) fn theme(&self, is_dark: bool) -> &Arc<HighlightTheme> {
         if is_dark {
             &self.dark_theme
         } else {
             &self.light_theme
         }
+    }
+
+    /// Returns a reference to the map of registered languages.
+    pub fn languages(&self) -> &HashMap<String, LanguageConfig> {
+        &self.languages
+    }
+
+    /// Returns the language configuration for the given language name.
+    pub fn language(&self, name: &str) -> Option<&LanguageConfig> {
+        self.languages.get(name)
     }
 }
 

@@ -1,16 +1,16 @@
-use crate::Item;
-use crate::Source;
-use crate::Store;
 use crate::enums::{ReminderType, SourceType};
 use crate::generate_accessors;
 use crate::objects::{BaseTrait, DueDate, ToBool};
 use crate::schema::reminders;
 use crate::utils;
+use crate::Item;
+use crate::Source;
+use crate::Store;
 
 use chrono::Duration;
 use chrono::NaiveDateTime;
-use diesel::Queryable;
 use diesel::prelude::*;
+use diesel::Queryable;
 use serde::{Deserialize, Serialize};
 
 #[derive(
@@ -37,8 +37,10 @@ pub struct Reminder {
     pub mm_offset: Option<i32>,
     pub is_deleted: Option<i32>,
 }
-impl Reminder {
-    pub fn new() -> Self {
+impl Reminder {}
+
+impl Default for Reminder {
+    fn default() -> Self {
         Self {
             id: None,
             item_id: None,
@@ -49,6 +51,11 @@ impl Reminder {
             mm_offset: None,
             is_deleted: Some(0),
         }
+    }
+}
+impl Reminder {
+    pub fn new() -> Self {
+        Self::default()
     }
     generate_accessors!(item_id:Option<String>);
     generate_accessors!(notify_uid:Option<i32>);

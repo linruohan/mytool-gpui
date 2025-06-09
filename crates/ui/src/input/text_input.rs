@@ -188,8 +188,10 @@ impl RenderOnce for TextInput {
                     .on_action(window.listener_for(&self.state, InputState::delete_next_word))
                     .on_action(window.listener_for(&self.state, InputState::enter))
                     .on_action(window.listener_for(&self.state, InputState::escape))
-                    .on_action(window.listener_for(&self.state, InputState::indent))
-                    .on_action(window.listener_for(&self.state, InputState::outdent))
+                    .on_action(window.listener_for(&self.state, InputState::indent_inline))
+                    .on_action(window.listener_for(&self.state, InputState::outdent_inline))
+                    .on_action(window.listener_for(&self.state, InputState::indent_block))
+                    .on_action(window.listener_for(&self.state, InputState::outdent_block))
                     .on_action(window.listener_for(&self.state, InputState::paste))
                     .on_action(window.listener_for(&self.state, InputState::cut))
                     .on_action(window.listener_for(&self.state, InputState::undo))
@@ -229,6 +231,7 @@ impl RenderOnce for TextInput {
                 MouseButton::Left,
                 window.listener_for(&self.state, InputState::on_mouse_up),
             )
+            .on_mouse_move(window.listener_for(&self.state, InputState::on_mouse_move))
             .on_scroll_wheel(window.listener_for(&self.state, InputState::on_scroll_wheel))
             .size_full()
             .line_height(LINE_HEIGHT)
