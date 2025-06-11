@@ -1,16 +1,16 @@
+use crate::Item;
+use crate::Source;
+use crate::Store;
 use crate::enums::{ReminderType, SourceType};
 use crate::generate_accessors;
 use crate::objects::{BaseTrait, DueDate, ToBool};
 use crate::schema::reminders;
 use crate::utils;
-use crate::Item;
-use crate::Source;
-use crate::Store;
 
 use chrono::Duration;
 use chrono::NaiveDateTime;
-use diesel::prelude::*;
 use diesel::Queryable;
+use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(
