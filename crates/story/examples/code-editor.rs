@@ -13,6 +13,7 @@ fn init(cx: &mut App) {
     LanguageRegistry::global_mut(cx).register(
         "navi",
         &LanguageConfig::new(
+            "navi",
             tree_sitter_navi::LANGUAGE.into(),
             vec![],
             tree_sitter_navi::HIGHLIGHTS_QUERY,
@@ -46,7 +47,7 @@ impl Lang {
     }
 }
 
-const LANGUAGES: [(Lang, &'static str); 8] = [
+const LANGUAGES: [(Lang, &'static str); 9] = [
     (
         Lang::BuiltIn(Language::Rust),
         include_str!("./fixtures/test.rs"),
@@ -54,6 +55,10 @@ const LANGUAGES: [(Lang, &'static str); 8] = [
     (
         Lang::BuiltIn(Language::JavaScript),
         include_str!("./fixtures/test.js"),
+    ),
+    (
+        Lang::BuiltIn(Language::TypeScript),
+        include_str!("./fixtures/test.ts"),
     ),
     (
         Lang::BuiltIn(Language::Go),
@@ -207,7 +212,11 @@ impl Render for Example {
                     .p_4()
                     .font_family("Monaco")
                     .text_size(px(12.))
-                    .child(TextInput::new(&self.input_state).h_full()),
+                    .child(
+                        TextInput::new(&self.input_state)
+                            .h_full()
+                            .focus_bordered(false),
+                    ),
             )
     }
 }

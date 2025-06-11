@@ -16,6 +16,7 @@ raw-window-handle = { version = "0.6", features = ["std"] }
 rust-embed = "8.5.0"
 serde = "1"
 serde_json = "1"
+tracing-subscriber.workspace = true
 jiff.workspace = true
 whoami.workspace = true
 rodio.workspace = true

@@ -799,7 +799,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234113d19d0d7d613b40e86fb654acf958910802bcceab913a4f9e7cda03b1a4"
 dependencies = [
  "memchr",
- "regex-automata",
+ "regex-automata 0.4.9",
  "serde",
 ]
 
@@ -1174,6 +1174,16 @@ checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
  "memchr",
+]
+
+[[package]]
+name = "command-fds"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ec1052629a80c28594777d1252efc8a6b005d13f9edfd8c3fc0f44d5b32489a"
+dependencies = [
+ "nix",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -2251,6 +2261,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ftree"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ae0379499242d3b9355c5069b43b9417def8c9b09903b930db1fe49318dc9e9"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2627,8 +2646,8 @@ dependencies = [
  "aho-corasick 1.1.3",
  "bstr",
  "log",
- "regex-automata",
- "regex-syntax",
+ "regex-automata 0.4.9",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -2782,6 +2801,7 @@ dependencies = [
  "gpui-component-macros",
  "html5ever 0.27.0",
  "image",
+ "indexset",
  "indoc",
  "itertools 0.13.0",
  "lunar_rust",
@@ -2813,10 +2833,10 @@ dependencies = [
  "tree-sitter-embedded-template",
  "tree-sitter-go",
  "tree-sitter-graphql",
- "tree-sitter-highlight",
  "tree-sitter-html",
  "tree-sitter-java",
  "tree-sitter-javascript",
+ "tree-sitter-jsdoc",
  "tree-sitter-json",
  "tree-sitter-make",
  "tree-sitter-md",
@@ -3242,7 +3262,7 @@ dependencies = [
  "globset",
  "log",
  "memchr",
- "regex-automata",
+ "regex-automata 0.4.9",
  "same-file",
  "walkdir",
  "winapi-util",
@@ -3312,6 +3332,15 @@ dependencies = [
  "equivalent",
  "hashbrown 0.15.3",
  "serde",
+]
+
+[[package]]
+name = "indexset"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d55bfb73496dd673d99571597bfe757c0b227339da7d842ef6159e211de1075"
+dependencies = [
+ "ftree",
 ]
 
 [[package]]
@@ -3917,6 +3946,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "matchers"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
+dependencies = [
+ "regex-automata 0.1.10",
+]
+
+[[package]]
 name = "matches"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4099,6 +4137,7 @@ dependencies = [
  "serde",
  "serde_json",
  "todos",
+ "tracing-subscriber",
  "whoami",
  "winresource",
 ]
@@ -4238,6 +4277,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8911957c4b1549ac0dc74e30db9c8b0e66ddcd6d7acc33098f4c63a64a6d7ed"
 dependencies = [
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "nu-ansi-term"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
+dependencies = [
+ "overload",
+ "winapi",
 ]
 
 [[package]]
@@ -4787,6 +4836,12 @@ name = "outref"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f222829ae9293e33a9f5e9f440c6760a3d450a64affe1846486b140db81c1f4"
+
+[[package]]
+name = "overload"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "pango"
@@ -5721,8 +5776,17 @@ checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
  "aho-corasick 1.1.3",
  "memchr",
- "regex-automata",
- "regex-syntax",
+ "regex-automata 0.4.9",
+ "regex-syntax 0.8.5",
+]
+
+[[package]]
+name = "regex-automata"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
+dependencies = [
+ "regex-syntax 0.6.29",
 ]
 
 [[package]]
@@ -5733,8 +5797,14 @@ checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
  "aho-corasick 1.1.3",
  "memchr",
- "regex-syntax",
+ "regex-syntax 0.8.5",
 ]
+
+[[package]]
+name = "regex-syntax"
+version = "0.6.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
@@ -6255,6 +6325,15 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "sharded-slab"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
+dependencies = [
+ "lazy_static",
 ]
 
 [[package]]
@@ -6870,6 +6949,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "thread_local"
+version = "1.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b9ef9bad013ada3808854ceac7b46812a6465ba368859a37e2100283d2d719c"
+dependencies = [
+ "cfg-if",
+ "once_cell",
+]
+
+[[package]]
 name = "tiff"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7087,6 +7176,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
 dependencies = [
  "once_cell",
+ "valuable",
+]
+
+[[package]]
+name = "tracing-log"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
+dependencies = [
+ "log",
+ "once_cell",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-subscriber"
+version = "0.3.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008"
+dependencies = [
+ "matchers",
+ "nu-ansi-term",
+ "once_cell",
+ "regex",
+ "sharded-slab",
+ "smallvec",
+ "thread_local",
+ "tracing",
+ "tracing-core",
+ "tracing-log",
 ]
 
 [[package]]
@@ -7097,7 +7216,7 @@ checksum = "ac5fff5c47490dfdf473b5228039bfacad9d765d9b6939d26bf7cc064c1c7822"
 dependencies = [
  "cc",
  "regex",
- "regex-syntax",
+ "regex-syntax 0.8.5",
  "serde_json",
  "streaming-iterator",
  "tree-sitter-language",
@@ -7214,18 +7333,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-highlight"
-version = "0.25.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b95a758838aa4272d7c5c40fe35a4c8266fd3e3a36e019eef952ec5840b60ed"
-dependencies = [
- "regex",
- "streaming-iterator",
- "thiserror 2.0.12",
- "tree-sitter",
-]
-
-[[package]]
 name = "tree-sitter-html"
 version = "0.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7250,6 +7357,16 @@ name = "tree-sitter-javascript"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf40bf599e0416c16c125c3cec10ee5ddc7d1bb8b0c60fa5c4de249ad34dc1b1"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-jsdoc"
+version = "0.23.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3862dfcb1038fc5e7812d7df14190afdeb7e1415288fd5f51f58395f8cb0faf"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -7592,6 +7709,7 @@ dependencies = [
  "async-fs 2.1.2",
  "async_zip",
  "collections",
+ "command-fds",
  "dirs",
  "dunce",
  "futures",
@@ -7650,6 +7768,12 @@ dependencies = [
  "num-traits",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "valuable"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "value-bag"

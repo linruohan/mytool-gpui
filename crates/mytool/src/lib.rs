@@ -31,6 +31,7 @@ pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
 pub use utils::play_ogg_file;
 // views
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use views::TodayView;
 pub use welcome_story::WelcomeStory;
 
@@ -56,6 +57,7 @@ pub struct SelectFont(usize);
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectRadius(usize);
+
 impl_internal_actions!(
     mytool,
     [SelectLocale, SelectFont, SelectRadius, SelectScrollbarShow]
@@ -179,6 +181,14 @@ impl Render for StoryRoot {
 impl Global for AppState {}
 
 pub fn init(cx: &mut App) {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("gpui_component=trace".parse().unwrap()),
+        )
+        .init();
+
     gpui_component::init(cx);
     AppState::init(cx);
     // input_story::init(cx);
@@ -480,7 +490,8 @@ impl StoryContainer {
         cx: &mut Context<Self>,
     ) {
         struct Info;
-        let note = Notification::new(format!("You have clicked panel info on: {}", self.name))
+        let note = Notification::new()
+            .message(format!("You have clicked panel info on: {}", self.name))
             .id::<Info>();
         window.push_notification(note, cx);
     }
@@ -497,8 +508,9 @@ impl StoryContainer {
         }
 
         struct Search;
-        let note =
-            Notification::new(format!("You have toggled search on: {}", self.name)).id::<Search>();
+        let note = Notification::new()
+            .message(format!("You have toggled search on: {}", self.name))
+            .id::<Search>();
         window.push_notification(note, cx);
     }
 }
@@ -545,26 +557,26 @@ impl StoryState {
         }
 
         match self.story_klass.to_string().as_str() {
-            // "ButtonStory" => mytool!(ButtonStory),
+            // "ButtonStory" => story!(ButtonStory),
             "CalendarStory" => mytool!(CalendarStory),
-            // "DropdownStory" => mytool!(DropdownStory),
-            // "IconStory" => mytool!(IconStory),
-            // "ImageStory" => mytool!(ImageStory),
-            // "InputStory" => mytool!(InputStory),
+            // "DropdownStory" => story!(DropdownStory),
+            // "IconStory" => story!(IconStory),
+            // "ImageStory" => story!(ImageStory),
+            // "InputStory" => story!(InputStory),
             "ListStory" => mytool!(ListStory),
             "ModalStory" => mytool!(ModalStory),
-            // "PopoverStory" => mytool!(PopoverStory),
-            // "ProgressStory" => mytool!(ProgressStory),
-            // "ResizableStory" => mytool!(ResizableStory),
-            // "ScrollableStory" => mytool!(ScrollableStory),
-            // "SwitchStory" => mytool!(SwitchStory),
+            // "PopoverStory" => story!(PopoverStory),
+            // "ProgressStory" => story!(ProgressStory),
+            // "ResizableStory" => story!(ResizableStory),
+            // "ScrollableStory" => story!(ScrollableStory),
+            // "SwitchStory" => story!(SwitchStory),
             "TableStory" => mytool!(TableStory),
-            // "LabelStory" => mytool!(LabelStory),
-            // "TooltipStory" => mytool!(TooltipStory),
-            // "WebViewStory" => mytool!(WebViewStory),
-            // "AccordionStory" => mytool!(AccordionStory),
+            // "LabelStory" => story!(LabelStory),
+            // "TooltipStory" => story!(TooltipStory),
+            // "WebViewStory" => story!(WebViewStory),
+            // "AccordionStory" => story!(AccordionStory),
             "SidebarStory" => mytool!(SidebarStory),
-            // "FormStory" => mytool!(FormStory),
+            // "FormStory" => story!(FormStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }
