@@ -477,6 +477,16 @@ impl InputState {
         cx.notify();
     }
 
+    fn reset_highlighter(&mut self, cx: &mut Context<Self>) {
+        match &mut self.mode {
+            InputMode::CodeEditor { highlighter, .. } => {
+                *highlighter.borrow_mut() = None;
+            }
+            _ => {}
+        }
+        cx.notify();
+    }
+
     /// Set markers, only for [`InputMode::CodeEditor`] mode.
     ///
     /// For example to set the diagnostic markers in the code editor.
@@ -715,6 +725,7 @@ impl InputState {
         let text: SharedString = text.into();
         let range = 0..self.text.chars().map(|c| c.len_utf16()).sum();
         self.replace_text_in_range(Some(range), &text, window, cx);
+        self.reset_highlighter(cx);
     }
 
     /// Set with disabled mode.
@@ -1243,26 +1254,16 @@ impl InputState {
 
     pub(super) fn enter(&mut self, action: &Enter, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_multi_line() {
-            let is_eof = self.selected_range.end == self.text.len();
-
             // Get current line indent
-            let indent = self.indent_of_next_line(window, cx);
-            self.replace_text_in_range(None, "\n", window, cx);
+            let indent = if self.mode.is_code_editor() {
+                self.indent_of_next_line(window, cx)
+            } else {
+                "".to_string()
+            };
 
-            // Move cursor to the start of the next line
-            let mut new_offset = self.cursor_offset() - 1;
-            if is_eof {
-                new_offset += 1;
-            }
-            self.move_to(self.next_boundary(new_offset), window, cx);
-
-            // Add indent
-            self.replace_text_in_range(
-                Some(self.range_to_utf16(&(self.cursor_offset()..self.cursor_offset()))),
-                &indent,
-                window,
-                cx,
-            );
+            // Add newline and indent
+            let new_line_text = format!("\n{}", indent);
+            self.replace_text_in_range(None, &new_line_text, window, cx);
         }
 
         cx.emit(InputEvent::PressEnter {

@@ -47,7 +47,7 @@ impl Lang {
     }
 }
 
-const LANGUAGES: [(Lang, &'static str); 9] = [
+const LANGUAGES: [(Lang, &'static str); 10] = [
     (
         Lang::BuiltIn(Language::Rust),
         include_str!("./fixtures/test.rs"),
@@ -79,6 +79,10 @@ const LANGUAGES: [(Lang, &'static str); 9] = [
     (
         Lang::BuiltIn(Language::Sql),
         include_str!("./fixtures/test.sql"),
+    ),
+    (
+        Lang::BuiltIn(Language::Json),
+        include_str!("./fixtures/test.json"),
     ),
     (Lang::External("navi"), include_str!("./fixtures/test.nv")),
 ];
@@ -114,11 +118,12 @@ impl Example {
                 &language_state,
                 |this, state, _: &DropdownEvent<Vec<SharedString>>, cx| {
                     if let Some(val) = state.read(cx).selected_value() {
-                        if let Some(language) = Language::from_str(&val) {
-                            this.language = Lang::BuiltIn(language);
-                        } else {
+                        if val == "navi" {
                             this.language = Lang::External("navi");
+                        } else {
+                            this.language = Lang::BuiltIn(Language::from_str(&val));
                         }
+
                         this.need_update = true;
                         cx.notify();
                     }
