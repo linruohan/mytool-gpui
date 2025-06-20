@@ -1,11 +1,9 @@
-use crate::MyIcon;
-use crate::MyIconName;
 use gpui::{
     AnyElement, App, ClickEvent, DefiniteLength, InteractiveElement as _, IntoElement,
     ParentElement, Pixels, RenderOnce, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Collapsible, Side, Sizable, StyledExt,
+    ActiveTheme, Collapsible, Icon, IconName, Side, Sizable, StyledExt,
     button::{Button, ButtonVariants},
     h_flex,
     scroll::ScrollbarAxis,
@@ -172,15 +170,15 @@ impl RenderOnce for SidebarToggleButton {
 
         let icon = if collapsed {
             if self.side.is_left() {
-                MyIconName::PanelLeftOpen
+                IconName::PanelLeftOpen
             } else {
-                MyIconName::PanelRightOpen
+                IconName::PanelRightOpen
             }
         } else {
             if self.side.is_left() {
-                MyIconName::PanelLeftClose
+                IconName::PanelLeftClose
             } else {
-                MyIconName::PanelRightClose
+                IconName::PanelRightClose
             }
         };
 
@@ -190,7 +188,7 @@ impl RenderOnce for SidebarToggleButton {
                     on_click(ev, window, cx);
                 })
             })
-            .icon(MyIcon::new(icon).size_4())
+            .icon(Icon::new(icon).size_4())
     }
 }
 

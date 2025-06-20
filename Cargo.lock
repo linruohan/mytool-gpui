@@ -1004,6 +1004,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -4328,8 +4329,11 @@ name = "my_components"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "gpui",
  "gpui-component",
+ "lunar_rust",
+ "rust-i18n",
 ]
 
 [[package]]

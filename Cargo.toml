@@ -45,7 +45,7 @@ winresource = "0.1.22"
 lunar_rust = { git = "https://github.com/linruohan/lunar_rust" }
 rodio = "0.20.1"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-
+chrono = { version = "0.4.38", features = ["serde"] }
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"

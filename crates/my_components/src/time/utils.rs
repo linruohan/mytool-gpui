@@ -117,7 +117,7 @@ pub(crate) fn get_holiday(date: NaiveDate) -> String {
 mod tests {
     use chrono::{Datelike, NaiveDate};
 
-    use super::{days_in_month, NaiveDateExt};
+    use super::{NaiveDateExt, days_in_month};
 
     #[test]
     fn test_days_in_month() {

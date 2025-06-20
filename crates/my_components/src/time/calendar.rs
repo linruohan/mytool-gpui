@@ -11,7 +11,7 @@ use gpui::{
 use rust_i18n::t;
 
 use gpui_component::{
-    ActiveTheme, Disableable as _, MyIconName, Selectable, Sizable, Size,
+    ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size,
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
 };
@@ -607,7 +607,7 @@ impl Calendar {
             .items_center()
             .child(
                 Button::new("prev")
-                    .icon(MyIconName::ArrowLeft)
+                    .icon(IconName::ArrowLeft)
                     .ghost()
                     .disabled(disabled)
                     .with_size(icon_size)
@@ -683,7 +683,7 @@ impl Calendar {
             })
             .child(
                 Button::new("next")
-                    .icon(MyIconName::ArrowRight)
+                    .icon(IconName::ArrowRight)
                     .ghost()
                     .disabled(disabled)
                     .with_size(icon_size)
