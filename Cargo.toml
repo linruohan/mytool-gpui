@@ -2,16 +2,14 @@
 publish = false
 edition = "2024"
 [workspace]
-members = ["crates/mytool", "crates/macros", "crates/ui", "crates/todos"]
+members = ["crates/mytool", "crates/todos"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
 
 [workspace.dependencies]
 # inner crates
-gpui-component = { path = "crates/ui" }
-gpui-component-macros = { path = "crates/macros" }
-# story = { path = "crates/story" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component.git" }
 mytool = { path = "crates/mytool" }
 todos = { path = "crates/todos" }
 # gpui
