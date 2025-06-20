@@ -15,11 +15,12 @@ use gpui_component::{
     gray_400, h_flex,
     input::{InputState, TextInput},
     purple_100, red_400,
-    sidebar::{
-        Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
-    },
     switch::Switch,
-    v_flex, yellow_400, ActiveTheme, ContextModal as _, IconName, Side,
+    v_flex, yellow_400, ActiveTheme, ContextModal as _, Side,
+};
+use my_components::icon::MyIconName;
+use my_components::sidebar::{
+    Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
 };
 
 use crate::{play_ogg_file, TodayView};
@@ -180,15 +181,15 @@ impl Item {
         }
     }
 
-    pub fn icon(&self) -> IconName {
+    pub fn icon(&self) -> MyIconName {
         match self {
-            Self::Inbox => IconName::MailboxSymbolic,
-            Self::Today => IconName::StarOutlineThickSymbolic,
-            Self::Scheduled => IconName::MonthSymbolic,
-            Self::Pinboard => IconName::PinSymbolic,
-            Self::Labels => IconName::TagOutlineSymbolic,
-            Self::Completed => IconName::CheckRoundOutlineSymbolic,
-            Self::Projects => IconName::ProcessErrorSymbolic,
+            Self::Inbox => MyIconName::MailboxSymbolic,
+            Self::Today => MyIconName::StarOutlineThickSymbolic,
+            Self::Scheduled => MyIconName::MonthSymbolic,
+            Self::Pinboard => MyIconName::PinSymbolic,
+            Self::Labels => MyIconName::TagOutlineSymbolic,
+            Self::Completed => MyIconName::CheckRoundOutlineSymbolic,
+            Self::Projects => MyIconName::ProcessErrorSymbolic,
         }
     }
     pub fn count(&self) -> usize {
@@ -314,7 +315,7 @@ impl Render for SidebarStory {
                                     .justify_between()
                                     .mt(px(35.0)), // .child(div().child("On This Computer").text_left())
                                                    // .child(div().child(
-                                                   //     Icon::new(IconName::PlusLargeSymbolic).text_right(),
+                                                   //     Icon::new(MyIconName::PlusLargeSymbolic).text_right(),
                                                    // )),
                             ),
                     )

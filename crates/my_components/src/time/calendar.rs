@@ -3,15 +3,17 @@ use std::borrow::Cow;
 use super::utils::get_holiday;
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
-    blue, div, green, prelude::FluentBuilder as _, px, relative, App, ClickEvent, Context,
-    ElementId, Empty, Entity, EventEmitter, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, Render, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
+    App, ClickEvent, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
+    InteractiveElement, IntoElement, ParentElement, Render, RenderOnce, SharedString,
+    StatefulInteractiveElement, Styled, Window, blue, div, green, prelude::FluentBuilder as _, px,
+    relative,
 };
 use rust_i18n::t;
 
-use crate::{
+use gpui_component::{
+    ActiveTheme, Disableable as _, MyIconName, Selectable, Sizable, Size,
     button::{Button, ButtonVariants as _},
-    h_flex, v_flex, ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size,
+    h_flex, v_flex,
 };
 
 use super::utils::days_in_month;
@@ -605,7 +607,7 @@ impl Calendar {
             .items_center()
             .child(
                 Button::new("prev")
-                    .icon(IconName::ArrowLeft)
+                    .icon(MyIconName::ArrowLeft)
                     .ghost()
                     .disabled(disabled)
                     .with_size(icon_size)
@@ -681,7 +683,7 @@ impl Calendar {
             })
             .child(
                 Button::new("next")
-                    .icon(IconName::ArrowRight)
+                    .icon(MyIconName::ArrowRight)
                     .ghost()
                     .disabled(disabled)
                     .with_size(icon_size)

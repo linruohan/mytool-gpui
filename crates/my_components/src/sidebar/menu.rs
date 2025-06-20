@@ -1,9 +1,10 @@
-use crate::{h_flex, v_flex, ActiveTheme as _, Collapsible, Icon, IconName, StyledExt};
+use crate::{MyIcon, MyIconName};
 use gpui::{
-    div, percentage, prelude::FluentBuilder as _, AnyElement, App, ClickEvent, ElementId,
-    InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Window,
+    AnyElement, App, ClickEvent, ElementId, InteractiveElement as _, IntoElement,
+    ParentElement as _, RenderOnce, SharedString, StatefulInteractiveElement as _, Styled as _,
+    Window, div, percentage, prelude::FluentBuilder as _,
 };
+use gpui_component::{ActiveTheme as _, Collapsible, StyledExt, h_flex, v_flex};
 use std::rc::Rc;
 
 #[derive(IntoElement)]
@@ -58,7 +59,7 @@ impl RenderOnce for SidebarMenu {
 #[derive(IntoElement)]
 pub struct SidebarMenuItem {
     id: ElementId,
-    icon: Option<Icon>,
+    icon: Option<MyIcon>,
     label: SharedString,
     handler: Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
     active: bool,
@@ -83,7 +84,7 @@ impl SidebarMenuItem {
     }
 
     /// Set the icon for the menu item
-    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+    pub fn icon(mut self, icon: impl Into<MyIcon>) -> Self {
         self.icon = Some(icon.into());
         self
     }
@@ -198,7 +199,7 @@ impl RenderOnce for SidebarMenuItem {
                             )
                             .when(is_submenu, |this| {
                                 this.child(
-                                    Icon::new(IconName::ChevronRight)
+                                    MyIcon::new(MyIconName::ChevronRight)
                                         .size_4()
                                         .when(is_open, |this| this.rotate(percentage(90. / 360.))),
                                 )

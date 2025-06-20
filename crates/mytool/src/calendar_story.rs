@@ -2,10 +2,8 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, ParentElement as _,
     Render, Styled as _, Window,
 };
-use gpui_component::{
-    calendar::{Calendar, CalendarState},
-    v_flex,
-};
+use gpui_component::v_flex;
+use my_components::calendar::{Calendar, CalendarState};
 
 use crate::section;
 

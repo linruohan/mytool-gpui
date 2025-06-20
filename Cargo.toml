@@ -2,7 +2,7 @@
 publish = false
 edition = "2024"
 [workspace]
-members = ["crates/mytool", "crates/todos"]
+members = ["crates/my_components", "crates/mytool", "crates/todos"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
@@ -10,14 +10,11 @@ resolver = "2"
 [workspace.dependencies]
 # inner crates
 gpui-component = { git = "https://github.com/longbridge/gpui-component.git" }
-mytool = { path = "crates/mytool" }
 todos = { path = "crates/todos" }
+my_components = { path = "crates/my_components" }
 # gpui
-gpui = { path = "../zed/crates/gpui", default-features = false, features = [
-    "http_client",
-] }
-gpui_macros = { path = "../zed/crates/gpui_macros" }
-gpui_tokio = { path = "../zed/crates/gpui_tokio" }
+# gpui = { path = "../zed/crates/gpui" }
+gpui = { git = "https://github.com/zed-industries/zed.git" }
 #
 # External crates
 #

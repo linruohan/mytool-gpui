@@ -1,6 +1,7 @@
 mod assets;
 mod calendar_story;
 mod color_picker_story;
+
 mod date_picker_story;
 mod list_story;
 mod modal_story;
@@ -19,6 +20,7 @@ use gpui::{
     SharedString, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowKind,
     WindowOptions,
 };
+use std::ops::Deref;
 
 pub use calendar_story::CalendarStory;
 pub use color_picker_story::ColorPickerStory;
@@ -45,6 +47,17 @@ use gpui_component::{
     scroll::ScrollbarShow,
     v_flex, ActiveTheme, ContextModal, IconName, Root, TitleBar,
 };
+
+rust_i18n::i18n!("locales", fallback = "en");
+#[inline]
+pub fn locale() -> impl Deref<Target = str> {
+    rust_i18n::locale()
+}
+
+#[inline]
+pub fn set_locale(locale: &str) {
+    rust_i18n::set_locale(locale)
+}
 
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectScrollbarShow(ScrollbarShow);

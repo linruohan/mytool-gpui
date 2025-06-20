@@ -3,27 +3,27 @@ use gpui::{
     RenderOnce, SharedString, Styled,
 };
 
-use crate::{h_flex, popup_menu::PopupMenuExt, ActiveTheme as _, Collapsible, Selectable};
+use gpui_component::{h_flex, popup_menu::PopupMenuExt, ActiveTheme as _, Collapsible, Selectable};
 
 #[derive(IntoElement)]
-pub struct SidebarFooter {
+pub struct SidebarHeader {
     id: ElementId,
     base: Div,
     selected: bool,
     collapsed: bool,
 }
 
-impl SidebarFooter {
+impl SidebarHeader {
     pub fn new() -> Self {
         Self {
-            id: SharedString::from("sidebar-footer").into(),
+            id: SharedString::from("sidebar-header").into(),
             base: h_flex().gap_2().w_full(),
             selected: false,
             collapsed: false,
         }
     }
 }
-impl Selectable for SidebarFooter {
+impl Selectable for SidebarHeader {
     fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
@@ -37,7 +37,8 @@ impl Selectable for SidebarFooter {
         self.selected
     }
 }
-impl Collapsible for SidebarFooter {
+
+impl Collapsible for SidebarHeader {
     fn is_collapsed(&self) -> bool {
         self.collapsed
     }
@@ -47,18 +48,18 @@ impl Collapsible for SidebarFooter {
         self
     }
 }
-impl ParentElement for SidebarFooter {
+impl ParentElement for SidebarHeader {
     fn extend(&mut self, elements: impl IntoIterator<Item = gpui::AnyElement>) {
         self.base.extend(elements);
     }
 }
-impl Styled for SidebarFooter {
+impl Styled for SidebarHeader {
     fn style(&mut self) -> &mut gpui::StyleRefinement {
         self.base.style()
     }
 }
-impl PopupMenuExt for SidebarFooter {}
-impl RenderOnce for SidebarFooter {
+impl PopupMenuExt for SidebarHeader {}
+impl RenderOnce for SidebarHeader {
     fn render(self, _: &mut gpui::Window, cx: &mut gpui::App) -> impl gpui::IntoElement {
         h_flex()
             .id(self.id)

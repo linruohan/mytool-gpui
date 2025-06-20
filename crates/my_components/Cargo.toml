@@ -1,0 +1,13 @@
+[package]
+name = "my_components"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+gpui.workspace = true
+gpui-component = { workspace = true, features = ["webview"] }
+
+[lints]
+workspace = true

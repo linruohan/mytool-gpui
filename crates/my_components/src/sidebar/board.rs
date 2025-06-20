@@ -1,9 +1,9 @@
-use crate::{h_flex, label::Label, v_flex, ActiveTheme as _, Collapsible, Icon};
 use gpui::{
     div, prelude::FluentBuilder as _, px, relative, AnyElement, App, ClickEvent, ElementId, Hsla,
     InteractiveElement as _, IntoElement, Length, ParentElement as _, RenderOnce, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
+use gpui_component::{h_flex, label::Label, v_flex, ActiveTheme as _, Collapsible, Icon};
 use std::rc::Rc;
 
 #[derive(IntoElement)]
@@ -45,17 +45,12 @@ impl Collapsible for SidebarBoard {
 }
 impl RenderOnce for SidebarBoard {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        h_flex()
-            .flex()
-            .flex_wrap()
-            .size_full()
-            .h(px(115.))
-            .children(
-                self.items
-                    .into_iter()
-                    .enumerate()
-                    .map(|(ix, item)| item.id(ix).collapsed(self.collapsed)),
-            )
+        h_flex().flex_wrap().size_full().h(px(115.)).children(
+            self.items
+                .into_iter()
+                .enumerate()
+                .map(|(ix, item)| item.id(ix).collapsed(self.collapsed)),
+        )
     }
 }
 
