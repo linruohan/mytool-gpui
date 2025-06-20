@@ -16,9 +16,8 @@ use gpui_component::{
     input::{InputState, TextInput},
     purple_100, red_400,
     switch::Switch,
-    v_flex, yellow_400, ActiveTheme, ContextModal as _, Side,
+    v_flex, yellow_400, ActiveTheme, ContextModal as _, IconName, Side,
 };
-use my_components::icon::MyIconName;
 use my_components::sidebar::{
     Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
 };
@@ -181,15 +180,22 @@ impl Item {
         }
     }
 
-    pub fn icon(&self) -> MyIconName {
+    pub fn icon(&self) -> IconName {
         match self {
-            Self::Inbox => MyIconName::MailboxSymbolic,
-            Self::Today => MyIconName::StarOutlineThickSymbolic,
-            Self::Scheduled => MyIconName::MonthSymbolic,
-            Self::Pinboard => MyIconName::PinSymbolic,
-            Self::Labels => MyIconName::TagOutlineSymbolic,
-            Self::Completed => MyIconName::CheckRoundOutlineSymbolic,
-            Self::Projects => MyIconName::ProcessErrorSymbolic,
+            Self::Inbox => IconName::BookOpen,
+            Self::Today => IconName::BookOpen,
+            Self::Scheduled => IconName::BookOpen,
+            Self::Pinboard => IconName::BookOpen,
+            Self::Labels => IconName::BookOpen,
+            Self::Completed => IconName::BookOpen,
+            Self::Projects => IconName::BookOpen,
+            // Self::Inbox => IconName::MailboxSymbolic,
+            // Self::Today => IconName::StarOutlineThickSymbolic,
+            // Self::Scheduled => IconName::MonthSymbolic,
+            // Self::Pinboard => IconName::PinSymbolic,
+            // Self::Labels => IconName::TagOutlineSymbolic,
+            // Self::Completed => IconName::CheckRoundOutlineSymbolic,
+            // Self::Projects => IconName::ProcessErrorSymbolic,
         }
     }
     pub fn count(&self) -> usize {
@@ -315,7 +321,7 @@ impl Render for SidebarStory {
                                     .justify_between()
                                     .mt(px(35.0)), // .child(div().child("On This Computer").text_left())
                                                    // .child(div().child(
-                                                   //     Icon::new(MyIconName::PlusLargeSymbolic).text_right(),
+                                                   //     Icon::new(IconName::PlusLargeSymbolic).text_right(),
                                                    // )),
                             ),
                     )

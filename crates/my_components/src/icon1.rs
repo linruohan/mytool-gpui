@@ -6,7 +6,7 @@ use gpui::{
 use gpui_component::{ActiveTheme, Sizable, Size};
 
 #[derive(IntoElement, Clone)]
-pub enum IconName {
+pub enum MyIconName {
     ALargeSmall,
     ArrowDown,
     ArrowLeft,
@@ -156,7 +156,7 @@ pub enum IconName {
     WorkWeekSymbolic,
 }
 
-impl IconName {
+impl MyIconName {
     pub fn path(self) -> SharedString {
         match self {
             Self::ALargeSmall => "icons/a-large-small.svg",
@@ -479,19 +479,19 @@ impl IconName {
     }
 }
 
-impl From<IconName> for Icon {
-    fn from(val: IconName) -> Self {
+impl From<MyIconName> for Icon {
+    fn from(val: MyIconName) -> Self {
         Icon::build(val)
     }
 }
 
-impl From<IconName> for AnyElement {
-    fn from(val: IconName) -> Self {
+impl From<MyIconName> for AnyElement {
+    fn from(val: MyIconName) -> Self {
         Icon::build(val).into_any_element()
     }
 }
 
-impl RenderOnce for IconName {
+impl RenderOnce for MyIconName {
     fn render(self, _: &mut Window, _cx: &mut App) -> impl IntoElement {
         Icon::build(self)
     }
@@ -540,7 +540,7 @@ impl Icon {
         icon.into()
     }
 
-    fn build(name: IconName) -> Self {
+    fn build(name: MyIconName) -> Self {
         Self::default().path(name.path())
     }
 

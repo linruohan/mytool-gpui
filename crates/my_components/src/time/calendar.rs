@@ -2,17 +2,15 @@ use std::borrow::Cow;
 
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
-    App, ClickEvent, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
-    InteractiveElement, IntoElement, ParentElement, Render, RenderOnce, SharedString,
-    StatefulInteractiveElement, Styled, Window, blue, div, green, prelude::FluentBuilder as _, px,
-    relative,
+    blue, div, green, prelude::FluentBuilder as _, px, relative, App, ClickEvent, Context,
+    ElementId, Empty, Entity, EventEmitter, FocusHandle, InteractiveElement, IntoElement,
+    ParentElement, Render, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
 };
 use rust_i18n::t;
 
 use gpui_component::{
-    ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size,
     button::{Button, ButtonVariants as _},
-    h_flex, v_flex,
+    h_flex, v_flex, ActiveTheme, Disableable as _, IconName, Selectable, Sizable, Size,
 };
 
 use super::utils::{days_in_month, get_holiday};

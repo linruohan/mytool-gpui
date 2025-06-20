@@ -1,4 +1,4 @@
-mod icon;
+pub mod icon;
 mod time;
 
 pub mod sidebar;
