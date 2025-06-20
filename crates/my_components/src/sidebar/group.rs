@@ -1,8 +1,8 @@
 use gpui::{
-    div, prelude::FluentBuilder as _, App, Div, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled as _, Window,
+    App, Div, IntoElement, ParentElement, RenderOnce, SharedString, Styled as _, Window, div,
+    prelude::FluentBuilder as _,
 };
-use gpui_component::{v_flex, ActiveTheme, Collapsible};
+use gpui_component::{ActiveTheme, Collapsible, v_flex};
 
 /// A sidebar group
 #[derive(IntoElement)]

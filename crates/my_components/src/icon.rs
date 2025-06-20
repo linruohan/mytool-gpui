@@ -6,7 +6,7 @@ use gpui::{
 use gpui_component::{ActiveTheme, Sizable, Size};
 
 #[derive(IntoElement, Clone)]
-pub enum MyIconName {
+pub enum IconName {
     ALargeSmall,
     ArrowDown,
     ArrowLeft,
@@ -156,7 +156,7 @@ pub enum MyIconName {
     WorkWeekSymbolic,
 }
 
-impl MyIconName {
+impl IconName {
     pub fn path(self) -> SharedString {
         match self {
             Self::ALargeSmall => "icons/a-large-small.svg",
@@ -474,31 +474,31 @@ impl MyIconName {
         }
     }
     /// Return the icon as a Entity<MyIcon>
-    pub fn view(self, cx: &mut App) -> Entity<MyIcon> {
-        MyIcon::build(self).view(cx)
+    pub fn view(self, cx: &mut App) -> Entity<Icon> {
+        Icon::build(self).view(cx)
     }
 }
 
-impl From<MyIconName> for MyIcon {
-    fn from(val: MyIconName) -> Self {
-        MyIcon::build(val)
+impl From<IconName> for Icon {
+    fn from(val: IconName) -> Self {
+        Icon::build(val)
     }
 }
 
-impl From<MyIconName> for AnyElement {
-    fn from(val: MyIconName) -> Self {
-        MyIcon::build(val).into_any_element()
+impl From<IconName> for AnyElement {
+    fn from(val: IconName) -> Self {
+        Icon::build(val).into_any_element()
     }
 }
 
-impl RenderOnce for MyIconName {
+impl RenderOnce for IconName {
     fn render(self, _: &mut Window, _cx: &mut App) -> impl IntoElement {
-        MyIcon::build(self)
+        Icon::build(self)
     }
 }
 
 #[derive(IntoElement)]
-pub struct MyIcon {
+pub struct Icon {
     base: Svg,
     style: StyleRefinement,
     path: SharedString,
@@ -507,7 +507,7 @@ pub struct MyIcon {
     rotation: Option<Radians>,
 }
 
-impl Default for MyIcon {
+impl Default for Icon {
     fn default() -> Self {
         Self {
             base: svg().flex_none().size_4(),
@@ -520,7 +520,7 @@ impl Default for MyIcon {
     }
 }
 
-impl Clone for MyIcon {
+impl Clone for Icon {
     fn clone(&self) -> Self {
         let mut this = Self::default().path(self.path.clone());
         this.style = self.style.clone();
@@ -535,12 +535,12 @@ pub trait IconNamed {
     fn path(&self) -> SharedString;
 }
 
-impl MyIcon {
-    pub fn new(icon: impl Into<MyIcon>) -> Self {
+impl Icon {
+    pub fn new(icon: impl Into<Icon>) -> Self {
         icon.into()
     }
 
-    fn build(name: MyIconName) -> Self {
+    fn build(name: IconName) -> Self {
         Self::default().path(name.path())
     }
 
@@ -553,7 +553,7 @@ impl MyIcon {
     }
 
     /// Create a new view for the icon
-    pub fn view(self, cx: &mut App) -> Entity<MyIcon> {
+    pub fn view(self, cx: &mut App) -> Entity<Icon> {
         cx.new(|_| self)
     }
 
@@ -575,7 +575,7 @@ impl MyIcon {
     }
 }
 
-impl Styled for MyIcon {
+impl Styled for Icon {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
     }
@@ -586,14 +586,14 @@ impl Styled for MyIcon {
     }
 }
 
-impl Sizable for MyIcon {
+impl Sizable for Icon {
     fn with_size(mut self, size: impl Into<Size>) -> Self {
         self.size = Some(size.into());
         self
     }
 }
 
-impl RenderOnce for MyIcon {
+impl RenderOnce for Icon {
     fn render(self, window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let text_color = self.text_color.unwrap_or_else(|| window.text_style().color);
         let text_size = window.text_style().font_size.to_pixels(window.rem_size());
@@ -616,13 +616,13 @@ impl RenderOnce for MyIcon {
     }
 }
 
-impl From<MyIcon> for AnyElement {
-    fn from(val: MyIcon) -> Self {
+impl From<Icon> for AnyElement {
+    fn from(val: Icon) -> Self {
         val.into_any_element()
     }
 }
 
-impl Render for MyIcon {
+impl Render for Icon {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let text_color = self.text_color.unwrap_or_else(|| cx.theme().foreground);
         let text_size = window.text_style().font_size.to_pixels(window.rem_size());

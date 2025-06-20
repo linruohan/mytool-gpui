@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 anyhow.workspace = true
 gpui.workspace = true
-gpui-component = { workspace = true, features = ["webview"] }
+gpui-component.workspace = true
 chrono.workspace = true
 lunar_rust.workspace = true
 rust-i18n.workspace = true

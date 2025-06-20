@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use super::utils::get_holiday;
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
     App, ClickEvent, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
@@ -16,7 +15,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use super::utils::days_in_month;
+use super::utils::{days_in_month, get_holiday};
 
 pub enum CalendarEvent {
     /// The user selected a date.
