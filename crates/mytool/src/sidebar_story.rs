@@ -182,20 +182,13 @@ impl Item {
 
     pub fn icon(&self) -> IconName {
         match self {
-            Self::Inbox => IconName::BookOpen,
-            Self::Today => IconName::BookOpen,
-            Self::Scheduled => IconName::BookOpen,
-            Self::Pinboard => IconName::BookOpen,
-            Self::Labels => IconName::BookOpen,
-            Self::Completed => IconName::BookOpen,
-            Self::Projects => IconName::BookOpen,
-            // Self::Inbox => IconName::MailboxSymbolic,
-            // Self::Today => IconName::StarOutlineThickSymbolic,
-            // Self::Scheduled => IconName::MonthSymbolic,
-            // Self::Pinboard => IconName::PinSymbolic,
-            // Self::Labels => IconName::TagOutlineSymbolic,
-            // Self::Completed => IconName::CheckRoundOutlineSymbolic,
-            // Self::Projects => IconName::ProcessErrorSymbolic,
+            Self::Inbox => IconName::MailboxSymbolic,
+            Self::Today => IconName::StarOutlineThickSymbolic,
+            Self::Scheduled => IconName::MonthSymbolic,
+            Self::Pinboard => IconName::PinSymbolic,
+            Self::Labels => IconName::TagOutlineSymbolic,
+            Self::Completed => IconName::CheckRoundOutlineSymbolic,
+            Self::Projects => IconName::ProcessErrorSymbolic,
         }
     }
     pub fn count(&self) -> usize {

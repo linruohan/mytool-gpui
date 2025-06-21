@@ -2679,7 +2679,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.1.0"
-source = "git+https://github.com/longbridge/gpui-component.git#7360d2834db5b9550d9635708160669d5e2b6ade"
+source = "git+https://github.com/linruohan/gpui-component.git#bbf2d8aa3cfcf8910e057a8d5a233751c01e399c"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2691,6 +2691,7 @@ dependencies = [
  "image",
  "indexset",
  "itertools 0.13.0",
+ "lunar_rust",
  "markdown",
  "markup5ever_rcdom",
  "minify-html",
@@ -2744,7 +2745,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.1.0"
-source = "git+https://github.com/longbridge/gpui-component.git#7360d2834db5b9550d9635708160669d5e2b6ade"
+source = "git+https://github.com/linruohan/gpui-component.git#bbf2d8aa3cfcf8910e057a8d5a233751c01e399c"
 dependencies = [
  "proc-macro2",
  "quote",

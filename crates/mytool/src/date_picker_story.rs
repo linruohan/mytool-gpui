@@ -1,3 +1,4 @@
+use crate::section;
 use chrono::{Days, Duration, Utc};
 use gpui::{
     px, App, AppContext, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
@@ -8,8 +9,6 @@ use gpui_component::{
     date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset},
     v_flex, Sizable as _,
 };
-
-use crate::section;
 
 pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,

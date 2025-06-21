@@ -9,8 +9,9 @@ resolver = "2"
 
 [workspace.dependencies]
 # inner crates
-gpui-component = { git = "https://github.com/longbridge/gpui-component.git" }
+gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 todos = { path = "crates/todos" }
+mytool = { path = "crates/mytool" }
 my_components = { path = "crates/my_components" }
 # gpui
 # gpui = { path = "../zed/crates/gpui" }
