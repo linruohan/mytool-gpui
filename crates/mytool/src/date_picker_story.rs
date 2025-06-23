@@ -5,10 +5,13 @@ use gpui::{
     Styled as _, Subscription, Window,
 };
 use gpui_component::{
-    calendar,
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset},
-    v_flex, Sizable as _,
+    // calendar,
+    // date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset},
+    v_flex,
+    Sizable as _,
 };
+use my_components::calendar;
+use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset};
 
 pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,
@@ -61,16 +64,7 @@ impl DatePickerStory {
             );
             picker
         });
-        let date_picker_small = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx);
-            picker.set_disabled(
-                calendar::Matcher::interval(Some(now), now.checked_add_days(Days::new(5))),
-                window,
-                cx,
-            );
-            picker.set_date(now, window, cx);
-            picker
-        });
+
         let date_range_picker = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx);
             picker.set_date(

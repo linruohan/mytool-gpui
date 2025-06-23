@@ -14,6 +14,7 @@ mytool = { path = "crates/mytool" }
 my_components = { path = "crates/my_components" }
 # gpui
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
+# gpui-component = { git = "https://github.com/longbridge/gpui-component.git" }
 gpui = { git = "https://github.com/zed-industries/zed.git" }
 #
 # External crates
