@@ -3,8 +3,6 @@ mod calendar_story;
 mod color_picker_story;
 
 mod date_picker_story;
-mod list_story;
-mod modal_story;
 mod sidebar_story;
 mod table_story;
 mod title_bar;
@@ -25,8 +23,6 @@ use std::ops::Deref;
 pub use calendar_story::CalendarStory;
 pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
-pub use list_story::ListStory;
-pub use modal_story::ModalStory;
 use serde::{Deserialize, Serialize};
 pub use sidebar_story::SidebarStory;
 pub use table_story::TableStory;
@@ -570,26 +566,9 @@ impl StoryState {
         }
 
         match self.story_klass.to_string().as_str() {
-            // "ButtonStory" => story!(ButtonStory),
             "CalendarStory" => mytool!(CalendarStory),
-            // "DropdownStory" => story!(DropdownStory),
-            // "IconStory" => story!(IconStory),
-            // "ImageStory" => story!(ImageStory),
-            // "InputStory" => story!(InputStory),
-            "ListStory" => mytool!(ListStory),
-            "ModalStory" => mytool!(ModalStory),
-            // "PopoverStory" => story!(PopoverStory),
-            // "ProgressStory" => story!(ProgressStory),
-            // "ResizableStory" => story!(ResizableStory),
-            // "ScrollableStory" => story!(ScrollableStory),
-            // "SwitchStory" => story!(SwitchStory),
             "TableStory" => mytool!(TableStory),
-            // "LabelStory" => story!(LabelStory),
-            // "TooltipStory" => story!(TooltipStory),
-            // "WebViewStory" => story!(WebViewStory),
-            // "AccordionStory" => story!(AccordionStory),
             "SidebarStory" => mytool!(SidebarStory),
-            // "FormStory" => story!(FormStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }

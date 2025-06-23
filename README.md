@@ -29,5 +29,8 @@ echo "IgnorePkg = mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-libs" >> /etc/pacman
 ## 批量修复
 
 ```bash
+### 删除未使用的依赖项
+cargo install cargo-machete && cargo machete
+### 格式化
 cargo fmt --all && cargo clippy --fix --allow-dirty --allow-staged
 ```

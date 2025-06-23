@@ -1,9 +1,9 @@
 use gpui::{
-    AnyElement, App, ClickEvent, ElementId, InteractiveElement as _, IntoElement,
-    ParentElement as _, RenderOnce, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Window, div, percentage, prelude::FluentBuilder as _,
+    div, percentage, prelude::FluentBuilder as _, AnyElement, App, ClickEvent, ElementId,
+    InteractiveElement as _, IntoElement, ParentElement as _, RenderOnce, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::{ActiveTheme as _, Collapsible, Icon, IconName, StyledExt, h_flex, v_flex};
+use gpui_component::{h_flex, v_flex, ActiveTheme as _, Collapsible, Icon, IconName, StyledExt};
 use std::rc::Rc;
 
 #[derive(IntoElement)]

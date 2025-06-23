@@ -13,17 +13,14 @@ fake = { version = "4.2.0", features = ["dummy"] }
 gpui.workspace = true
 gpui-component = { workspace = true }
 my_components = { workspace = true }
-rand.workspace = true
 raw-window-handle = { version = "0.6", features = ["std"] }
 rust-embed = "8.5.0"
 serde = "1"
 serde_json = "1"
 tracing-subscriber.workspace = true
-jiff.workspace = true
 whoami.workspace = true
 rodio.workspace = true
 todos.workspace = true
-lunar_rust.workspace = true
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 naga = { version = "25.0", features = ["wgsl-in"] }
@@ -32,3 +29,6 @@ winresource.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["embed-resource", "winresource", "naga"]

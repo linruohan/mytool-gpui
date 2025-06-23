@@ -9,20 +9,20 @@ resolver = "2"
 
 [workspace.dependencies]
 # inner crates
-gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 todos = { path = "crates/todos" }
 mytool = { path = "crates/mytool" }
 my_components = { path = "crates/my_components" }
 # gpui
-# gpui = { path = "../zed/crates/gpui" }
+gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 gpui = { git = "https://github.com/zed-industries/zed.git" }
 #
 # External crates
 #
+
 anyhow = "1.0.98"
 rand = "0.9.1"
 rust-embed = "8.7.0"
-serde = "1"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 raw-window-handle = { version = "0.6", features = ["std"] }
 tokio = { version = "1.44.2", features = ["full"] }
@@ -65,11 +65,28 @@ type_complexity = "allow"
 
 [profile.dev]
 codegen-units = 16
-debug = "limited"
+# debug = "limited"
 split-debuginfo = "unpacked"
+opt-level = 2
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+rpath = false
+# 禁用debug
+debug = 0
+strip = "debuginfo"
 
 [profile.dev.package]
 resvg = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }
 taffy = { opt-level = 3 }
 ttf-parser = { opt-level = 3 }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 8
+strip = true
+debug = false

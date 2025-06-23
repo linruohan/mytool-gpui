@@ -12,7 +12,6 @@ use gpui_component::{
 
 pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,
-    date_picker_small: Entity<DatePickerState>,
     date_picker_large: Entity<DatePickerState>,
     date_picker_value: Option<String>,
     date_range_picker: Entity<DatePickerState>,
@@ -105,7 +104,6 @@ impl DatePickerStory {
         Self {
             date_picker,
             date_picker_large,
-            date_picker_small,
             date_range_picker,
             default_range_mode_picker,
             date_picker_value: None,

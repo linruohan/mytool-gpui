@@ -5,7 +5,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-anyhow.workspace = true
 gpui.workspace = true
 gpui-component.workspace = true
 chrono.workspace = true

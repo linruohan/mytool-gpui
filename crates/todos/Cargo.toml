@@ -2,26 +2,23 @@
 name = "todos"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
-# libsqlite3-sys = { version = "0.32.0", features = ["bundled"] }
-# build libsqlite3 as part of the build process
-# uncomment this line if you run into setup issues
-# axum = { version = "0.8.1", features = ["json"] }
-# axum-macros = "0.5.0"
-anyhow = "1.0.98"
-diesel = { version = "2.2.10", features = [
+anyhow.workspace = true
+diesel = { version = "2.2.11", features = [
     "sqlite",
     "returning_clauses_for_sqlite_3_35",
     "r2d2",
 ] }
+
 dotenvy = "0.15.7"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
-chrono = "0.4.40"
-once_cell = "1.21.3"
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+once_cell.workspace = true
 chrono-humanize = "0.2"
-uuid = { version = "1.16.0", features = [
+uuid = { version = "1.17.0", features = [
     "v4",                # Lets you generate random UUIDs
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
@@ -33,60 +30,20 @@ config = "0.15.11" # 用于读取配置文件
 # wasm-bindgen-futures = "0.4.49"
 derive_builder = "0.20.2"
 strum = { version = "0.27.1", features = ["derive"] }
-rand = "0.9.1"
+rand.workspace = true
 paste = "1.0.15"
 rust-embed = { version = "8.7.2", features = ["include-exclude"] }
 
 
 [dev-dependencies]
 assert_cmd = "2.0.17"
-tempfile = "3.19.1"
+tempfile = "3.20.0"
 diesel_migrations = { version = "2.2.0" }
 
-
-# [[bin]]
-# name = "show_posts"
-# path = "src/bin/show_posts.rs"
-# doc = false
-
-# [[bin]]
-# name = "write_post"
-# path = "src/bin/write_post.rs"
-# doc = false
-# [[bin]]
-# name = "get_post"
-# path = "src/bin/get_post.rs"
-# doc = false
-
-# [[bin]]
-# name = "publish_post"
-# path = "src/bin/publish_post.rs"
-# doc = false
-
-# [[bin]]
-# name = "delete_post"
-# path = "src/bin/delete_post.rs"
-# doc = false
 
 [lib]
 doc = false
 # crate-type = ["cdylib"]
 
-
-[profile.dev]
-debug = true
-opt-level = 2
-debug-assertions = true
-overflow-checks = true
-lto = false
-panic = 'unwind'
-incremental = true
-codegen-units = 16
-rpath = false
-
-[profile.release]
-codegen-units = 1
-lto = "fat"
-opt-level = 3
-# We want to be able to debug in the release build as well
-debug = true
+[lints]
+workspace = true

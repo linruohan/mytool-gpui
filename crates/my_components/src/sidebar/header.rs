@@ -1,9 +1,9 @@
 use gpui::{
-    Div, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, prelude::FluentBuilder as _,
+    prelude::FluentBuilder as _, Div, ElementId, InteractiveElement, IntoElement, ParentElement,
+    RenderOnce, SharedString, Styled,
 };
 
-use gpui_component::{ActiveTheme as _, Collapsible, Selectable, h_flex, popup_menu::PopupMenuExt};
+use gpui_component::{h_flex, popup_menu::PopupMenuExt, ActiveTheme as _, Collapsible, Selectable};
 
 #[derive(IntoElement)]
 pub struct SidebarHeader {
