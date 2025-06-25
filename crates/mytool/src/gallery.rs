@@ -1,11 +1,14 @@
+use crate::{
+    CalendarStory, ColorPickerStory, DatePickerStory, SidebarStory, StoryContainer, TableStory,
+};
 use gpui::{prelude::*, *};
 use gpui_component::{
+    h_flex,
     input::{InputEvent, InputState, TextInput},
     resizable::{h_resizable, resizable_panel, ResizableState},
-    sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
-    v_flex, ActiveTheme as _,
+    sidebar::{Sidebar, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
+    v_flex, ActiveTheme as _, Icon, IconName,
 };
-use mytool::*;
 
 pub struct Gallery {
     stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
@@ -103,7 +106,7 @@ impl Render for Gallery {
             .and(active_group)
             .and_then(|group| group.1.get(self.active_index.unwrap()));
         let (_story_name, _description) =
-            if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
+            if let Some(story) = active_story.as_ref().map(|&story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())
             } else {
                 ("".into(), "".into())

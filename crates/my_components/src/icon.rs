@@ -3,6 +3,8 @@ use gpui::{
     IntoElement, Radians, Render, RenderOnce, SharedString, StyleRefinement, Styled, Svg,
     Transformation, Window,
 };
+// 暂时无法添加自定义的IconName
+// 要正常使用需要将自己的svg图标放在gpui_component的icons目录下，并重命名为gpui-component/assets/icons中的图片名，只能使用写死的IconName::*
 use gpui_component::{ActiveTheme, Icon, Sizable, Size};
 
 #[derive(IntoElement, Clone)]

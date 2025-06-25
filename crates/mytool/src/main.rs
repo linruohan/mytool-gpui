@@ -3,12 +3,8 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
-#![allow(dead_code)]
-use gpui::*;
+use gpui::Application;
 use mytool::*;
-mod gallery;
-
-use gallery::Gallery;
 
 fn main() {
     let app = Application::new().with_assets(Assets);

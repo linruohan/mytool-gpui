@@ -1,6 +1,7 @@
 mod assets;
 mod calendar_story;
 mod color_picker_story;
+mod gallery;
 
 mod date_picker_story;
 mod sidebar_story;
@@ -11,6 +12,7 @@ mod views;
 mod welcome_story;
 
 pub use assets::Assets;
+pub use gallery::Gallery;
 use gpui::{
     actions, div, impl_internal_actions, prelude::FluentBuilder as _, px, rems, size, AnyElement,
     AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter, Focusable, Global, Hsla,
@@ -43,7 +45,6 @@ use gpui_component::{
     scroll::ScrollbarShow,
     v_flex, ActiveTheme, ContextModal, IconName, Root, TitleBar,
 };
-
 rust_i18n::i18n!("locales", fallback = "en");
 #[inline]
 pub fn locale() -> impl Deref<Target = str> {
@@ -54,7 +55,6 @@ pub fn locale() -> impl Deref<Target = str> {
 pub fn set_locale(locale: &str) {
     rust_i18n::set_locale(locale)
 }
-
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 pub struct SelectScrollbarShow(ScrollbarShow);
 
@@ -211,7 +211,7 @@ pub fn init(cx: &mut App) {
     // otp_input_story::init(cx);
 
     // let http_client = std::sync::Arc::new(
-    //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),
+    //     reqwest_client::ReqwestClient::user_agent("gpui-component/mytool").unwrap(),
     // );
     // cx.set_http_client(http_client);
 
