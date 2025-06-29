@@ -4,6 +4,7 @@ use gpui::{
     blue, green, prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity,
     Focusable, Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
+use gpui_component::{pink_800, purple};
 
 use crate::{play_ogg_file, TodayView};
 use gpui_component::button::{Button, ButtonVariants};
@@ -205,14 +206,13 @@ impl Item {
     }
     pub fn color(&self) -> Hsla {
         match self {
-            // Self::Inbox => gpui::rgb(0xf0f0f0).into(),
-            Self::Inbox => blue(),
-            Self::Today => green(),
-            Self::Scheduled => purple_100(),
-            Self::Pinboard => red_400(),
-            Self::Labels => gray_400(),
-            Self::Completed => yellow_400(),
-            Self::Projects => Hsla::default(),
+            Self::Inbox => gpui::rgb(0x99c1f1).into(),
+            Self::Today => gpui::rgb(0x33d17a).into(),
+            Self::Scheduled => gpui::rgb(0xdc8add).into(),
+            Self::Pinboard => gpui::rgb(0xf66151).into(),
+            Self::Labels => gpui::rgb(0xcdab8f).into(),
+            Self::Completed => gpui::rgb(0xffbe6f).into(),
+            Self::Projects => gpui::rgb(0x33D17A).into(),
         }
     }
 
@@ -226,7 +226,7 @@ impl Item {
                 this.active_items.remove(&item);
             } else {
                 this.active_items.insert(item, true);
-                // this.active_items.remove(&this.last_active_item);// 我自己写的不一定正确
+                this.active_items.remove(&this.last_active_item); // 我自己写的不一定正确
             }
 
             this.last_active_item = item;

@@ -4,12 +4,7 @@ use gpui::{
     px, App, AppContext, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     Styled as _, Subscription, Window,
 };
-use gpui_component::{
-    // calendar,
-    // date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset},
-    v_flex,
-    Sizable as _,
-};
+use gpui_component::{v_flex, Sizable as _};
 use my_components::calendar;
 use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset};
 
@@ -17,6 +12,7 @@ pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,
     date_picker_value: Option<String>,
     date_range_picker: Entity<DatePickerState>,
+    date_picker_large: Entity<DatePickerState>,
     default_range_mode_picker: Entity<DatePickerState>,
     _subscriptions: Vec<Subscription>,
 }
@@ -57,7 +53,20 @@ impl DatePickerStory {
             );
             picker
         });
-
+        let date_picker_large = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx).date_format("%Y-%m-%d");
+            picker.set_disabled(
+                calendar::Matcher::range(Some(now), now.checked_add_days(Days::new(7))),
+                window,
+                cx,
+            );
+            picker.set_date(
+                now.checked_sub_days(Days::new(1)).unwrap_or_default(),
+                window,
+                cx,
+            );
+            picker
+        });
         let default_range_mode_picker = cx.new(|cx| DatePickerState::range(window, cx));
 
         let _subscriptions = vec![
@@ -83,6 +92,7 @@ impl DatePickerStory {
             date_range_picker,
             default_range_mode_picker,
             date_picker_value: None,
+            date_picker_large,
             _subscriptions,
         }
     }
@@ -136,11 +146,9 @@ impl Render for DatePickerStory {
         v_flex()
             .gap_3()
             .child(
-                section("Normal").max_w_128().child(
-                    DatePicker::new(&self.date_picker)
-                        .cleanable()
-                        .presets(presets),
-                ),
+                section("Large")
+                    .max_w_128()
+                    .child(DatePicker::new(&self.date_picker_large).large().w(px(300.))),
             )
             .child(
                 section("Date Range").max_w_128().child(

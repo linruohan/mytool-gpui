@@ -3,7 +3,9 @@ use gpui::{
     InteractiveElement as _, IntoElement, Length, ParentElement as _, RenderOnce, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window,
 };
-use gpui_component::{h_flex, label::Label, v_flex, ActiveTheme as _, Collapsible, Icon};
+use gpui_component::{
+    h_flex, label::Label, red_400, v_flex, ActiveTheme as _, Collapsible, Colorize, Icon,
+};
 use std::rc::Rc;
 
 #[derive(IntoElement)]
@@ -162,17 +164,24 @@ impl RenderOnce for SidebarBoardItem {
 
         v_flex()
             .id(self.id.clone())
-            .gap_2()
+            .gap_12()
             .p_2()
             .w_full()
+            .when(is_active, |this| {
+                this.border_1()
+                    .border_color(self.board_text_color)
+                    .bg(cx.theme().sidebar_accent)
+            })
+            // .bg(self.board_bg.darken(10.0))
             .justify_between()
+            .opacity(0.8)
             .rounded(cx.theme().radius)
             .hover(|this| {
                 this.bg(cx.theme().sidebar_accent)
                     .text_color(cx.theme().sidebar_accent_foreground)
             })
             .size(size)
-            .bg(self.board_bg.opacity(0.15))
+            .bg(self.board_bg.darken(0.85))
             .rounded(cx.theme().radius)
             .child(
                 v_flex()
@@ -216,27 +225,16 @@ impl RenderOnce for SidebarBoardItem {
                                 div().flex().justify_between().children([
                                     div().child(
                                         Label::new(self.label.clone())
-                                            .size(Length::Definite(gpui::DefiniteLength::Fraction(
-                                                0.5,
-                                            )))
                                             .text_left()
                                             .text_color(board_text_color),
                                     ), // 左下角
-                                    div()
-                                        .when(is_active, |this| {
-                                            this.child(
-                                                Label::new("🔴")
-                                                    .text_right()
-                                                    .text_color(board_text_color),
-                                            )
-                                        })
-                                        .when(!is_active, |this| {
-                                            this.child(
-                                                Label::new("")
-                                                    .text_right()
-                                                    .text_color(board_text_color),
-                                            )
-                                        }), // 右下角
+                                    div().when(is_active, |this| {
+                                        this.child(
+                                            Label::new("🔴")
+                                                .text_right()
+                                                .text_color(board_text_color),
+                                        )
+                                    }), //右下角
                                 ]),
                             ])
                     })
