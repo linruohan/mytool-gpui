@@ -1,5 +1,5 @@
 use crate::section;
-use chrono::{Days, Duration, Utc};
+use chrono::{Datelike, Days, Duration, Utc};
 use gpui::{
     px, App, AppContext, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
     Styled as _, Subscription, Window,
@@ -15,11 +15,9 @@ use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState, D
 
 pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,
-    date_picker_large: Entity<DatePickerState>,
     date_picker_value: Option<String>,
     date_range_picker: Entity<DatePickerState>,
     default_range_mode_picker: Entity<DatePickerState>,
-
     _subscriptions: Vec<Subscription>,
 }
 
@@ -50,21 +48,6 @@ impl DatePickerStory {
             picker.set_disabled(vec![0, 6], window, cx);
             picker
         });
-        let date_picker_large = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx).date_format("%Y-%m-%d");
-            picker.set_disabled(
-                calendar::Matcher::range(Some(now), now.checked_add_days(Days::new(7))),
-                window,
-                cx,
-            );
-            picker.set_date(
-                now.checked_sub_days(Days::new(1)).unwrap_or_default(),
-                window,
-                cx,
-            );
-            picker
-        });
-
         let date_range_picker = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx);
             picker.set_date(
@@ -97,7 +80,6 @@ impl DatePickerStory {
 
         Self {
             date_picker,
-            date_picker_large,
             date_range_picker,
             default_range_mode_picker,
             date_picker_value: None,
@@ -154,15 +136,14 @@ impl Render for DatePickerStory {
         v_flex()
             .gap_3()
             .child(
-                section("Large").max_w_md().child(
-                    DatePicker::new(&self.date_picker_large)
-                        .large()
-                        .presets(presets)
-                        .width(px(300.)),
+                section("Normal").max_w_128().child(
+                    DatePicker::new(&self.date_picker)
+                        .cleanable()
+                        .presets(presets),
                 ),
             )
             .child(
-                section("Date Range").max_w_md().child(
+                section("Date Range").max_w_128().child(
                     DatePicker::new(&self.date_range_picker)
                         .number_of_months(2)
                         .cleanable()
@@ -170,7 +151,7 @@ impl Render for DatePickerStory {
                 ),
             )
             .child(
-                section("Default Range Mode").max_w_md().child(
+                section("Default Range Mode").max_w_128().child(
                     DatePicker::new(&self.default_range_mode_picker)
                         .placeholder("Range mode picker")
                         .cleanable()
@@ -178,7 +159,7 @@ impl Render for DatePickerStory {
                 ),
             )
             .child(
-                section("Date Picker Value").max_w_md().child(
+                section("Date Picker Value").max_w_128().child(
                     format!("Date picker value: {:?}", self.date_picker_value).into_element(),
                 ),
             )

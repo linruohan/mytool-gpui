@@ -5,9 +5,9 @@ use std::{
 
 use fake::{Fake, Faker};
 use gpui::{
-    div, impl_internal_actions, prelude::FluentBuilder as _, px, AnyElement, App, AppContext,
-    ClickEvent, Context, Edges, Entity, Focusable, InteractiveElement, IntoElement, ParentElement,
-    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Timer, Window,
+    div, prelude::FluentBuilder as _, px, Action, AnyElement, App, AppContext, ClickEvent, Context,
+    Edges, Entity, Focusable, InteractiveElement, IntoElement, ParentElement, Pixels, Render,
+    SharedString, StatefulInteractiveElement, Styled, Timer, Window,
 };
 use gpui_component::{
     button::Button,
@@ -22,15 +22,14 @@ use gpui_component::{
 };
 use serde::Deserialize;
 
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = story, no_json)]
 struct ChangeSize(Size);
 
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = story, no_json)]
 struct OpenDetail(usize);
 
-impl_internal_actions!(table_story, [ChangeSize, OpenDetail]);
-
-// 数据结构体
 #[derive(Clone, Debug, Default)]
 struct Project {
     id: usize,
@@ -440,12 +439,12 @@ impl super::Mytool for TableStory {
         "A complex data table with selection, sorting, column moving, and loading more."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx)
-    }
-
     fn closable() -> bool {
         false
+    }
+
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+        Self::view(window, cx)
     }
 }
 
@@ -492,7 +491,7 @@ impl TableStory {
                     this.table.update(cx, |table, _| {
                         table.delegate_mut().stocks.iter_mut().enumerate().for_each(
                             |(i, stock)| {
-                                let n: usize = (3..10).fake::<usize>();
+                                let n = (3..10).fake::<usize>();
                                 // update 30% of the stocks
                                 if i % n == 0 {
                                     stock.random_update();

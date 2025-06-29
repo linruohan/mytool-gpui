@@ -1,35 +1,33 @@
 use std::collections::HashMap;
 
 use gpui::{
-    blue, green, impl_internal_actions, prelude::FluentBuilder as _, px, App, AppContext,
-    ClickEvent, Context, Entity, Focusable, Hsla, IntoElement, ParentElement, Render, SharedString,
-    Styled, Window,
-};
-
-use gpui_component::{
-    breadcrumb::{Breadcrumb, BreadcrumbItem},
-    button::{Button, ButtonVariants as _},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    divider::Divider,
-    dropdown::{Dropdown, DropdownState},
-    gray_400, h_flex,
-    input::{InputState, TextInput},
-    purple_100, red_400,
-    switch::Switch,
-    v_flex, yellow_400, ActiveTheme, ContextModal as _, IconName, Side,
-};
-use my_components::sidebar::{
-    Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
+    blue, green, prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity,
+    Focusable, Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
 use crate::{play_ogg_file, TodayView};
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::dropdown::{Dropdown, DropdownState};
+use gpui_component::input::TextInput;
+use gpui_component::{
+    breadcrumb::{Breadcrumb, BreadcrumbItem},
+    divider::Divider,
+    gray_400, h_flex,
+    input::InputState,
+    purple_100, red_400,
+    switch::Switch,
+    v_flex, yellow_400, ActiveTheme, ContextModal, IconName, Side,
+};
+use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
+use my_components::sidebar::{
+    Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
+};
 use serde::Deserialize;
 use todos::objects::project::imp::Project;
 
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = story, no_json)]
 pub struct SelectCompany(SharedString);
-
-impl_internal_actions!(sidebar_story, [SelectCompany]);
 
 pub struct SidebarStory {
     active_items: HashMap<Item, bool>,
@@ -38,6 +36,7 @@ pub struct SidebarStory {
     collapsed: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
+    checked: bool,
     projects: Vec<Project>,
     _search_input: Entity<InputState>,
     project_date: Option<String>,
@@ -59,6 +58,7 @@ impl SidebarStory {
             collapsed: false,
             side: Side::Left,
             focus_handle: cx.focus_handle(),
+            checked: false,
             projects: vec![],
             _search_input: input,
             project_date: None,
@@ -140,9 +140,10 @@ impl SidebarStory {
     }
 
     fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .child(
-                h_flex().gap_2().child(
+        v_flex().child(
+            h_flex()
+                .gap_2()
+                .child(
                     Switch::new("side")
                         .label("Placement Right")
                         .checked(self.side.is_right())
@@ -150,9 +151,9 @@ impl SidebarStory {
                             this.side = if *checked { Side::Right } else { Side::Left };
                             cx.notify();
                         })),
-                ),
-            )
-            .child(TodayView::view(window, cx))
+                )
+                .child(TodayView::view(window, cx)),
+        )
     }
 }
 
@@ -225,7 +226,7 @@ impl Item {
                 this.active_items.remove(&item);
             } else {
                 this.active_items.insert(item, true);
-                this.active_items.remove(&this.last_active_item);
+                // this.active_items.remove(&this.last_active_item);// 我自己写的不一定正确
             }
 
             this.last_active_item = item;
@@ -333,7 +334,6 @@ impl Render for SidebarStory {
                         ),
                     )
                     .child(
-                        // SidebarGroup::new("Projects").child(),
                         // 项目列表：
                         SidebarMenu::new().children(projects.into_iter().enumerate().map(
                             |(_, project)| {

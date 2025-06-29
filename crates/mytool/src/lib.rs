@@ -1,9 +1,8 @@
 mod assets;
 mod calendar_story;
 mod color_picker_story;
-mod gallery;
-
 mod date_picker_story;
+mod gallery;
 mod sidebar_story;
 mod table_story;
 mod title_bar;
@@ -14,25 +13,24 @@ mod welcome_story;
 pub use assets::Assets;
 pub use gallery::Gallery;
 use gpui::{
-    actions, div, impl_internal_actions, prelude::FluentBuilder as _, px, rems, size, AnyElement,
-    AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter, Focusable, Global, Hsla,
+    actions, div, prelude::FluentBuilder as _, px, rems, size, Action, AnyElement, AnyView, App,
+    AppContext, Bounds, Context, Div, Entity, EventEmitter, Focusable, Global, Hsla,
     InteractiveElement, IntoElement, KeyBinding, Menu, MenuItem, ParentElement, Render, RenderOnce,
     SharedString, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowKind,
     WindowOptions,
 };
-use std::ops::Deref;
+pub use utils::play_ogg_file;
+pub use views::TodayView;
 
 pub use calendar_story::CalendarStory;
+
 pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
 use serde::{Deserialize, Serialize};
 pub use sidebar_story::SidebarStory;
 pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
-pub use utils::play_ogg_file;
-// views
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
-pub use views::TodayView;
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{
@@ -46,31 +44,22 @@ use gpui_component::{
     v_flex, ActiveTheme, ContextModal, IconName, Root, TitleBar,
 };
 rust_i18n::i18n!("locales", fallback = "en");
-#[inline]
-pub fn locale() -> impl Deref<Target = str> {
-    rust_i18n::locale()
-}
 
-#[inline]
-pub fn set_locale(locale: &str) {
-    rust_i18n::set_locale(locale)
-}
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = mytool, no_json)]
 pub struct SelectScrollbarShow(ScrollbarShow);
 
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = mytool, no_json)]
 pub struct SelectLocale(SharedString);
 
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = mytool, no_json)]
 pub struct SelectFont(usize);
 
-#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = mytool, no_json)]
 pub struct SelectRadius(usize);
-
-impl_internal_actions!(
-    mytool,
-    [SelectLocale, SelectFont, SelectRadius, SelectScrollbarShow]
-);
 
 actions!(mytool, [Quit, Open, CloseWindow, ToggleSearch]);
 
@@ -611,10 +600,6 @@ impl Panel for StoryContainer {
             .contains(&self.name)
     }
 
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
-    }
-
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -622,6 +607,10 @@ impl Panel for StoryContainer {
                 on_active(mytool, active, _window, cx);
             }
         }
+    }
+
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     fn popup_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {
