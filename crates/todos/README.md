@@ -79,22 +79,31 @@ curl -X DELETE http://localhost:5002/todos/1
 2. 执行生成表格动作
    diesel migration run
 
-## wasm 使用sqlite
 
-Compile wasm and start the web server:
+
+# rust sea-orm sqlite axum vite
+
+## format
 
 ```bash
-rustup target add wasm32-unknown-unknown
-# Add wasm32-unknown-unknown toolchain
-
-cargo install wasm-pack
-# Install the wasm-pack toolchain
-
-wasm-pack build --target web
-# Build wasm
-
-python3 server.py
-# Start server
+### 删除未使用的依赖项
+cargo install cargo-machete && cargo machete
+### 格式化
+cargo fmt --all && cargo clippy --fix --allow-dirty --allow-staged
 ```
 
-Next, try it on the web page: [on the web page](http://localhost:8000)
+## postgres
+
+```bash
+# demo schema
+sea-orm-cli generate entity --with-serde both -s demo --model-extra-attributes 'serde(rename_all="camelCase")' --date-time-crate
+chrono -o ./src/entity
+```
+
+## sqlite
+
+```bash
+
+sea-orm-cli generate entity --with-serde both --model-extra-attributes 'serde(rename_all="camelCase")' --date-time-crate chrono -o ./src/entity --database-url "sqlite://db.sqlite?mode=rwc"
+
+```

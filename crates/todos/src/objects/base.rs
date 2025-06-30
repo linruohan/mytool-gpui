@@ -1,5 +1,6 @@
-use super::{FilterItem, Item, Label, Project, Reminder, Section, Source};
+use super::{Item, Label, Project, Reminder, Section, Source};
 use crate::enums::ObjectType;
+use crate::filters::FilterItem;
 use crate::objects::DueDate;
 use chrono::{
     Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,

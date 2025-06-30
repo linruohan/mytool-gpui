@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use gpui::{
-    blue, green, prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity,
+    prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity,
     Focusable, Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
-use gpui_component::{pink_800, purple};
 
 use crate::{play_ogg_file, TodayView};
 use gpui_component::button::{Button, ButtonVariants};
@@ -12,12 +11,10 @@ use gpui_component::dropdown::{Dropdown, DropdownState};
 use gpui_component::input::TextInput;
 use gpui_component::{
     breadcrumb::{Breadcrumb, BreadcrumbItem},
-    divider::Divider,
-    gray_400, h_flex,
+    divider::Divider, h_flex,
     input::InputState,
-    purple_100, red_400,
     switch::Switch,
-    v_flex, yellow_400, ActiveTheme, ContextModal, IconName, Side,
+    v_flex, ActiveTheme, ContextModal, IconName, Side,
 };
 use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use my_components::sidebar::{
@@ -152,8 +149,7 @@ impl SidebarStory {
                             this.side = if *checked { Side::Right } else { Side::Left };
                             cx.notify();
                         })),
-                )
-                .child(TodayView::view(window, cx)),
+                ).child(TodayView::view(window, cx))
         )
     }
 }

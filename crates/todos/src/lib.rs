@@ -3,26 +3,24 @@
 use std::error::Error;
 pub mod constants;
 pub mod enums;
-pub mod objects;
 pub mod services;
+pub mod settings;
 use paste::paste;
+mod app;
+mod entity;
+mod filters;
+mod objects;
 
 pub mod utils;
 use chrono::Datelike;
 pub(crate) use objects::{
-    Attachment, BaseObject, BaseTrait, Database, Item, Label, Project, Reminder, Section, Source,
-    ToBool, filters, schema,
+    Attachment, BaseObject, BaseTrait, Item, Label, Project, Reminder, Section, Source, ToBool,
 };
-pub(crate) use services::{Store, load_config};
+pub(crate) use services::Store;
 pub(crate) use utils::Util;
 #[macro_use]
 extern crate paste;
-fn init() {
-    // let db = Database::default();
-    // db.get_sources_collection();
 
-    let config = load_config().expect("failed get config");
-    println!("Server: {}:{}", config.server.host, config.server.port);
-    println!("Database URL: {}", config.database.url);
-    println!("Database Pool Size: {}", config.database.pool_size);
+pub async fn init() -> anyhow::Result<()> {
+    app::init().await
 }

@@ -1,3 +1,10 @@
+use gpui::{Context, IntoElement, Render, Window};
+use gpui_component::v_flex;
+
+mod list;
+mod board;
+pub use list::*;
+
 pub struct ProjectStory {
     pub name: String,
     pub description: String,
@@ -11,5 +18,10 @@ impl ProjectStory {
             description,
             story,
         }
+    }
+}
+impl Render for ProjectStory {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        v_flex()
     }
 }

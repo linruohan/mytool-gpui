@@ -1,9 +1,10 @@
+use super::{Item, Label, Project, Reminder, Section, Source};
 use crate::enums::ObjectType;
+use crate::filters::FilterItem;
 use std::{any::type_name, collections::HashMap};
-
-use super::{FilterItem, Item, Label, Project, Reminder, Section, Source};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseObject {
+    pub id: String,
     pub name: String,
     pub keywords: String,
     pub icon_name: String,
@@ -14,6 +15,7 @@ pub struct BaseObject {
 impl BaseObject {
     pub fn new(name: String, keywords: String, icon_name: String, view_id: String) -> BaseObject {
         Self {
+            id: String::from(""),
             name,
             keywords,
             icon_name,

@@ -6,23 +6,30 @@ publish = false
 
 [dependencies]
 anyhow.workspace = true
-diesel = { version = "2.2.11", features = [
-    "sqlite",
-    "returning_clauses_for_sqlite_3_35",
-    "r2d2",
-] }
 
+sea-orm = { version = "1.1.12", features = [
+    "with-chrono",
+    "debug-print",
+    "sqlx-sqlite",
+    "with-rust_decimal",
+    "runtime-tokio",
+] }
 dotenvy = "0.15.7"
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
 once_cell.workspace = true
+num_cpus = "1.17.0"
+regex = "1.11.1"
 chrono-humanize = "0.2"
 uuid = { version = "1.17.0", features = [
     "v4",                # Lets you generate random UUIDs
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ] }
+tokio = { version = "1.45.1", features = ["full"] }
+tracing = { version = "0.1.41", features = ["async-await"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "chrono"] }
 config = "0.15.11" # 用于读取配置文件
 # gimli={version="0.31.1"}
 # serde-wasm-bindgen = "0.6.5"

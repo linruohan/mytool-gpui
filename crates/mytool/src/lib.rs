@@ -9,6 +9,7 @@ mod title_bar;
 mod utils;
 mod views;
 mod welcome_story;
+mod layouts;
 
 pub use assets::Assets;
 pub use gallery::Gallery;

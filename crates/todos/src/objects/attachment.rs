@@ -5,15 +5,7 @@ use uuid::Uuid;
 use crate::Store;
 
 use super::Item;
-use crate::schema::attachments;
-use diesel::Queryable;
-use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-#[derive(
-    QueryableByName, Queryable, PartialEq, Insertable, Clone, Eq, Selectable, Serialize, Debug,
-)]
-#[diesel(table_name = attachments)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Attachment {
     pub id: Option<String>,
     pub item_id: Option<String>,

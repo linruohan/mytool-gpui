@@ -1,15 +1,4 @@
 use crate::Source;
-use crate::schema::{attachments, items, labels, projects, queue, reminders, sections, sources};
-use diesel::QueryDsl;
-use diesel::SqliteConnection;
-use diesel::prelude::*;
-use diesel::r2d2::{self, ConnectionManager};
-use diesel::{
-    Table,
-    expression::BoxableExpression,
-    query_builder::{AsChangeset, IntoUpdateTarget},
-    sql_types::Bool,
-};
 use dotenvy::dotenv;
 use once_cell::sync::OnceCell;
 use std::env;
@@ -19,27 +8,7 @@ use std::sync::Arc;
 
 use super::{Attachment, BaseTrait, Item, Label, Project, Reminder};
 use super::{Queue, Section};
-pub type DbPool = Arc<r2d2::Pool<ConnectionManager<SqliteConnection>>>;
-// 定义全局的数据库连接池
-pub static DB_POOL: OnceCell<DbPool> = OnceCell::new();
-pub type PooledConnection = r2d2::PooledConnection<ConnectionManager<SqliteConnection>>;
-pub struct Database {}
-fn get_db_pool() -> &'static DbPool {
-    DB_POOL.get_or_init(|| {
-        dotenv().ok(); // 加载 .env 文件
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-        let pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create database pool");
-        Arc::new(pool)
-    })
-}
 
-/// 从连接池中获取一个连接
-// pub fn get_conn(pool: &DbPool) -> PooledConnection {
-//     pool.get().expect("Failed to get connection from pool")
-// }
 impl Default for Database {
     fn default() -> Self {
         Database {}
