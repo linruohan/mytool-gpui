@@ -1,7 +1,7 @@
 use crate::enums::ObjectType;
 use crate::objects::{BaseObject, BaseTrait, item};
 use crate::utils::DateTime;
-use crate::{Attachment, Database, Item, Label, Project, Reminder, Section, Source};
+use crate::{Attachment, Item, Label, Project, Reminder, Section, Source};
 use chrono::{Datelike, Local, NaiveDateTime};
 use once_cell::sync::OnceCell;
 use std::sync::Arc;

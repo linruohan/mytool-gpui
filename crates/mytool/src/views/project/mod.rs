@@ -1,8 +1,8 @@
 use gpui::{Context, IntoElement, Render, Window};
 use gpui_component::v_flex;
 
-mod list;
 mod board;
+mod list;
 pub use list::*;
 
 pub struct ProjectStory {

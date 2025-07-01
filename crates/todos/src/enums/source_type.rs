@@ -1,7 +1,8 @@
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
-#[derive(Debug, Clone, PartialEq, EnumString)]
+#[derive(Debug, Clone, PartialEq, EnumString, Eq, Deserialize, Serialize)]
 #[strum(serialize_all = "kebab-case")] // 自动处理连字符格式
 pub enum SourceType {
     NONE,

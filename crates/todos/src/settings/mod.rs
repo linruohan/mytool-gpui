@@ -10,11 +10,7 @@ use database::DatabaseConfig;
 use rust_embed::RustEmbed;
 use server::ServerConfig;
 use std::{borrow::Cow, error::Error};
-#[derive(Debug, Deserialize, RustEmbed)]
-#[folder = "assets"]
-#[include = "settings/*"]
-#[exclude = "*.DS_Store"]
-pub struct SettingsAssets;
+
 static CONFIG: LazyLock<AppConfig> =
     LazyLock::new(|| AppConfig::load().expect("Failed to initialize app_config"));
 #[derive(Deserialize, Debug)]
@@ -50,7 +46,4 @@ impl AppConfig {
 }
 pub fn get() -> &'static AppConfig {
     &CONFIG
-}
-pub fn default_settings() -> Cow<'static, str> {
-    asset_str::<SettingsAssets>("settings/settings.json")
 }

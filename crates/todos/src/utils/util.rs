@@ -1,7 +1,5 @@
-use crate::load_config;
-use crate::services::settings::AppConfig;
+use crate::settings::AppConfig;
 use crate::{constants, objects::Color};
-use diesel::Connection;
 use rand::Rng;
 use std::borrow::Cow;
 use std::collections::HashMap;

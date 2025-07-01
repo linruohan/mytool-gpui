@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::{
     default,
     fmt::{self, Display},
 };
 use strum::{Display, EnumString};
-#[derive(Debug, Clone, PartialEq, EnumString, Default, Copy, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, EnumString, Default, Eq, Hash, Deserialize, Serialize)]
 #[strum(serialize_all = "camelCase")]
 pub enum FilterItemType {
     #[default]

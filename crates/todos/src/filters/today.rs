@@ -1,10 +1,8 @@
 use crate::{BaseObject, Store, enums::FilterType};
-use derive_builder::Builder;
-#[derive(Builder, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Today {
     pub base: BaseObject,
-    #[builder(default, setter(into, strip_option))]
-    pub count: Option<usize>,
+    pub count: usize,
 }
 
 impl Default for Today {
@@ -16,15 +14,14 @@ impl Default for Today {
                 "star-outline-thick-symbolic".to_string(),
                 FilterType::TODAY.to_string(),
             ),
-            count: None,
+            count: 0,
         }
     }
 }
 
 impl Today {
     pub fn count(&self) -> usize {
-        self.count
-            .unwrap_or(Store::instance().get_items_by_overdeue_view(false).len())
+        Store::instance().get_items_by_overdeue_view(false).len()
     }
 
     pub fn today_count_updated(&self) {

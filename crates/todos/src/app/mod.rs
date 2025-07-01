@@ -14,8 +14,9 @@ impl AppState {
     }
 }
 
-pub async fn init() -> anyhow::Result<()> {
+pub async fn init() -> anyhow::Result<(), Box<dyn std::error::Error>> {
     logger::init();
     tracing::info!("Starting app");
     let db = database::init().await?;
+    Ok(())
 }

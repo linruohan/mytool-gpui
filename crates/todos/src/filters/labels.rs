@@ -5,12 +5,10 @@ use uuid::Uuid;
 use super::FilterItem;
 use crate::{BaseObject, BaseTrait};
 use crate::{Store, enums::FilterType};
-use derive_builder::Builder;
-#[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Labels {
     pub base: BaseObject,
-    #[builder(default=Some(Store::instance().get_items_has_labels().len()), setter(into, strip_option))]
-    pub count: Option<usize>,
+    pub count: usize,
 }
 
 impl Default for Labels {
@@ -22,15 +20,14 @@ impl Default for Labels {
                 "tag-outline-symbolic".to_string(),
                 FilterType::LABELS.to_string(),
             ),
-            count: None,
+            count: 0,
         }
     }
 }
 
 impl Labels {
     pub fn count(&self) -> usize {
-        self.count
-            .unwrap_or(Store::instance().get_items_has_labels().len())
+        Store::instance().get_items_has_labels().len()
     }
     pub fn count_updated(&self) {
 

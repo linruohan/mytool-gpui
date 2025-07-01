@@ -1,28 +1,12 @@
 use crate::objects::{BaseTrait, Item};
-use crate::schema::sections;
-use crate::{Source, Store};
-use derive_builder::Builder;
-use diesel::Queryable;
-use diesel::prelude::*;
+use crate::{BaseObject, Source, Store};
+
 use serde::{Deserialize, Serialize};
 
 use crate::Project;
-#[derive(
-    QueryableByName,
-    Builder,
-    Clone,
-    Queryable,
-    Insertable,
-    PartialEq,
-    Eq,
-    Selectable,
-    Serialize,
-    Debug,
-)]
-#[diesel(table_name = sections)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[derive(Clone, PartialEq, Eq, Serialize, Debug)]
 pub struct Section {
-    pub id: Option<String>,
+    pub base: BaseObject,
     pub name: Option<String>,
     pub archived_at: Option<String>,
     pub added_at: Option<String>,
@@ -35,7 +19,14 @@ pub struct Section {
     pub description: Option<String>,
     pub hidded: Option<i32>,
 }
+use std::ops::Deref;
+impl Deref for Section {
+    type Target = BaseObject;
 
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
 impl Section {
     pub fn item_added(&self, item: &Item) {
         todo!()
@@ -76,9 +67,10 @@ impl Section {
 
 impl BaseTrait for Section {
     fn id(&self) -> &str {
-        self.id.as_deref().unwrap_or_default()
+        &self.id
     }
+
     fn set_id(&mut self, id: &str) {
-        self.id = Some(id.into());
+        self.base.id = id.into();
     }
 }

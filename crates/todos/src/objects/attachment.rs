@@ -7,7 +7,7 @@ use crate::Store;
 use super::Item;
 use serde::{Deserialize, Serialize};
 pub struct Attachment {
-    pub id: Option<String>,
+    pub id: String,
     pub item_id: Option<String>,
     pub file_type: Option<String>,
     pub file_name: Option<String>,
@@ -23,7 +23,7 @@ impl Attachment {
         file_path: Option<String>,
     ) -> Attachment {
         Self {
-            id: Some(Uuid::new_v4().to_string()),
+            id: Uuid::new_v4().to_string(),
             item_id: Some("".to_string()),
             file_type,
             file_name,
@@ -31,14 +31,12 @@ impl Attachment {
             file_path,
         }
     }
-    pub fn id(&self) -> &str {
-        self.id.as_deref().unwrap_or("")
-    }
+
     pub fn delete(&self) {
         Store::instance().delete_attachment(self);
     }
     pub fn item(&self) -> Item {
-        Store::instance().get_item(self.id()).unwrap()
+        Store::instance().get_item(&self.id).unwrap()
     }
     pub fn set_item(&mut self, new_item_id: String) {
         self.item_id = Some(new_item_id);
@@ -58,7 +56,7 @@ impl fmt::Display for Attachment {
         write!(
             f,
             "_________________________________\nID: {}\nITEM ID: {}\nFILE TYPE: {}\nFILE NAME: {}\nFILE SIZE: {}\nFILE PATH: {}\n---------------------------------",
-            self.id.clone().unwrap(),
+            self.id.clone(),
             self.item_id.clone().unwrap(),
             self.file_type.clone().unwrap(),
             self.file_name.clone().unwrap(),

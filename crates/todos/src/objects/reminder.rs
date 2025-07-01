@@ -1,55 +1,42 @@
+use crate::BaseObject;
 use crate::Item;
 use crate::Source;
 use crate::Store;
 use crate::enums::{ReminderType, SourceType};
 use crate::generate_accessors;
 use crate::objects::{BaseTrait, DueDate, ToBool};
-use crate::schema::reminders;
 use crate::utils;
-
 use chrono::Duration;
 use chrono::NaiveDateTime;
-use diesel::Queryable;
-use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
-#[derive(
-    QueryableByName,
-    Queryable,
-    PartialEq,
-    Insertable,
-    Clone,
-    Eq,
-    Selectable,
-    Serialize,
-    Debug,
-    Identifiable,
-)]
-#[diesel(table_name = reminders)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+use serde::{Deserialize, Serialize};
+impl Deref for Reminder {
+    type Target = BaseObject;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Reminder {
-    pub id: Option<String>,
-    pub item_id: Option<String>,
-    pub notify_uid: Option<i32>,
-    pub service: Option<String>,
-    pub reminder_type: Option<String>,
-    pub due: Option<String>,
-    pub mm_offset: Option<i32>,
-    pub is_deleted: Option<i32>,
+    pub base: BaseObject,
+    pub item_id: String,
+    pub notify_uid: i32,
+    pub service: String,
+    pub reminder_type: ReminderType,
+    pub due: DueDate,
+    pub mm_offset: i32,
+    pub is_deleted: bool,
 }
 impl Reminder {}
 
 impl Default for Reminder {
     fn default() -> Self {
         Self {
-            id: None,
-            item_id: None,
-            notify_uid: None,
-            service: None,
-            reminder_type: Some(ReminderType::ABSOLUTE.to_string()),
-            due: None,
-            mm_offset: None,
-            is_deleted: Some(0),
+            base: BaseObject::default(),
+            reminder_type: ReminderType::ABSOLUTE,
+            ..Default::default()
         }
     }
 }
@@ -131,10 +118,10 @@ impl Reminder {
 }
 impl BaseTrait for Reminder {
     fn id(&self) -> &str {
-        self.id.as_deref().unwrap_or_default()
+        &self.id
     }
 
     fn set_id(&mut self, id: &str) {
-        self.id = Some(id.into());
+        self.base.id = id.into();
     }
 }

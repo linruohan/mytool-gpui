@@ -1,10 +1,7 @@
 use crate::{BaseObject, Store, Util};
-use derive_builder::Builder;
-#[derive(Builder)]
 pub struct Priority {
     pub base: BaseObject,
-    #[builder(default, setter(into, strip_option))]
-    pub count: Option<usize>,
+    pub count: usize,
     pub priority: i32,
 }
 impl Priority {
@@ -18,16 +15,14 @@ impl Priority {
         let view_id = format!("priority-{priority}");
         Self {
             base: BaseObject::new(name, keywords, "".to_string(), view_id),
-            count: None,
+            count: 0,
             priority,
         }
     }
     pub fn count(&self) -> usize {
-        self.count.unwrap_or(
-            Store::instance()
-                .get_items_by_priority(self.priority, false)
-                .len(),
-        )
+        Store::instance()
+            .get_items_by_priority(self.priority, false)
+            .len()
     }
     pub fn count_updated(&self) {
 

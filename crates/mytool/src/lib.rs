@@ -3,13 +3,13 @@ mod calendar_story;
 mod color_picker_story;
 mod date_picker_story;
 mod gallery;
+mod layouts;
 mod sidebar_story;
 mod table_story;
 mod title_bar;
 mod utils;
 mod views;
 mod welcome_story;
-mod layouts;
 
 pub use assets::Assets;
 pub use gallery::Gallery;

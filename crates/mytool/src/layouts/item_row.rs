@@ -5,8 +5,4 @@ pub struct ItemRow {
     parent_id: String,
 }
 
-
-impl ItemRow {
-    
-}
-
+impl ItemRow {}

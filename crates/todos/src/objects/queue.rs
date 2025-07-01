@@ -1,16 +1,7 @@
 use std::str::FromStr;
 
 use crate::generate_accessors;
-use crate::schema::queue;
 use chrono::{Local, NaiveDateTime};
-use diesel::Queryable;
-use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
-#[derive(
-    QueryableByName, Queryable, PartialEq, Insertable, Clone, Eq, Selectable, Serialize, Debug,
-)]
-#[diesel(table_name = queue)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Queue {
     pub uuid: Option<String>,
     pub object_id: Option<String>,
@@ -20,11 +11,11 @@ pub struct Queue {
     pub date_added: Option<String>,
 }
 impl Queue {
-    generate_accessors!(uuid:Option<String>);
-    generate_accessors!(object_id:Option<String>);
-    generate_accessors!(temp_id:Option<String>);
-    generate_accessors!(query:Option<String>);
-    generate_accessors!(args:Option<String>);
+    // generate_accessors!(uuid:Option<String>);
+    // generate_accessors!(object_id:Option<String>);
+    // generate_accessors!(temp_id:Option<String>);
+    // generate_accessors!(query:Option<String>);
+    // generate_accessors!(args:Option<String>);
     // generate_accessors!(date_added:Option<String>);
     pub fn date_added(&self) -> NaiveDateTime {
         self.date_added

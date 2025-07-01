@@ -1,6 +1,5 @@
 use std::fmt;
-
-use strum::{Display, EnumString};
+use strum::EnumString;
 #[derive(Debug, Clone, PartialEq, EnumString)]
 #[strum(serialize_all = "camelCase")] // 自动处理连字符格式
 pub enum FilterType {
@@ -79,6 +78,7 @@ impl FilterType {
         }
     }
 }
+
 impl fmt::Display for FilterType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_lowercase())

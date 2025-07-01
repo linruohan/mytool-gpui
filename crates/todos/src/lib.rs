@@ -21,6 +21,7 @@ pub(crate) use utils::Util;
 #[macro_use]
 extern crate paste;
 
-pub async fn init() -> anyhow::Result<()> {
-    app::init().await
+pub async fn init() -> anyhow::Result<(), Box<dyn Error>> {
+    app::init().await?;
+    Ok(())
 }

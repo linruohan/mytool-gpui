@@ -6,7 +6,7 @@ use chrono::{
     Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,
 };
 use chrono_humanize::{Accuracy, HumanTime};
-use diesel::sql_types::Json;
+use serde_json::Value;
 pub const EMPTY_DATETIME: NaiveDateTime =
     chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc();
 #[derive(Default)]
@@ -101,7 +101,7 @@ impl DateTime {
         "planner-scheduled"
     }
 
-    pub fn parse_todoist_recurrency(duedate: DueDate, object: Json) {
+    pub fn parse_todoist_recurrency(duedate: DueDate, object: Value) {
         // if (object.has_member("lang") && object.get_string_member("lang") != "en") {
         //     duedate.recurrency_supported = false;
         // }

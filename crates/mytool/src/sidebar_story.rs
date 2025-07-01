@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use gpui::{
-    prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity,
-    Focusable, Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity, Focusable,
+    Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
 use crate::{play_ogg_file, TodayView};
@@ -11,7 +11,8 @@ use gpui_component::dropdown::{Dropdown, DropdownState};
 use gpui_component::input::TextInput;
 use gpui_component::{
     breadcrumb::{Breadcrumb, BreadcrumbItem},
-    divider::Divider, h_flex,
+    divider::Divider,
+    h_flex,
     input::InputState,
     switch::Switch,
     v_flex, ActiveTheme, ContextModal, IconName, Side,
@@ -21,7 +22,7 @@ use my_components::sidebar::{
     Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
 };
 use serde::Deserialize;
-use todos::objects::project::imp::Project;
+use todos::objects::project::project::Project;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = story, no_json)]
@@ -149,7 +150,8 @@ impl SidebarStory {
                             this.side = if *checked { Side::Right } else { Side::Left };
                             cx.notify();
                         })),
-                ).child(TodayView::view(window, cx))
+                )
+                .child(TodayView::view(window, cx)),
         )
     }
 }

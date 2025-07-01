@@ -1,8 +1,7 @@
-use super::label_source_row::{Label,LabelListDelegate, SelectedLabel};
+use super::label_source_row::{Label, LabelListDelegate, SelectedLabel};
 use gpui::{
-    div, App, AppContext, Context, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled,
-    Subscription, Window,
+    div, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::{
     button::Button,
@@ -38,7 +37,9 @@ impl LabelsView {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let labels = (0..1_000).map(|_| random_label()).collect::<Vec<LabelItem>>();
+        let labels = (0..1_000)
+            .map(|_| random_label())
+            .collect::<Vec<LabelItem>>();
 
         let delegate = LabelListDelegate {
             matched_labels: labels.clone(),
@@ -54,31 +55,38 @@ impl LabelsView {
         // company_list.update(cx, |list, cx| {
         //     list.set_selected_index(Some(3), cx);
         // });
-        let _subscriptions = vec![
-            cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
-                ListEvent::Select(ix) => {
-                    println!("List Selected: {:?}", ix);
-                }
-                ListEvent::Confirm(ix) => {
-                    println!("List Confirmed: {:?}", ix);
-                }
-                ListEvent::Cancel => {
-                    println!("List Cancelled");
-                }
-            }),
-        ];
+        let _subscriptions =
+            vec![
+                cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
+                    ListEvent::Select(ix) => {
+                        println!("List Selected: {:?}", ix);
+                    }
+                    ListEvent::Confirm(ix) => {
+                        println!("List Confirmed: {:?}", ix);
+                    }
+                    ListEvent::Cancel => {
+                        println!("List Cancelled");
+                    }
+                }),
+            ];
 
         // Spawn a background to random refresh the list
         cx.spawn(async move |this, cx| {
             this.update(cx, |this, cx| {
                 this.company_list.update(cx, |picker, _| {
-                    picker.delegate_mut().companies.iter_mut().for_each(|company| {
-                        company.random_update();
-                    });
+                    picker
+                        .delegate_mut()
+                        .companies
+                        .iter_mut()
+                        .for_each(|company| {
+                            company.random_update();
+                        });
                 });
                 cx.notify();
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
 
         Self {
             focus_handle: cx.focus_handle(),
@@ -104,41 +112,71 @@ impl Focusable for LabelsView {
 
 impl Render for LabelsView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex().track_focus(&self.focus_handle).on_action(cx.listener(Self::selected_company)).size_full().gap_4().child(
-            h_flex().gap_2().flex_wrap().child(
-                Button::new("scroll-top").child("Scroll to Top").small().on_click(cx.listener(|this, _, window, cx| {
-                    this.labels_list.update(cx, |list, cx| {
-                        list.scroll_to_item(0, window, cx);
-                    })
-                })),
-            ).child(
-                Button::new("scroll-bottom").child("Scroll to Bottom").small().on_click(cx.listener(|this, _, window, cx| {
-                    this.labels_list.update(cx, |list, cx| {
-                        list.scroll_to_item(
-                            list.delegate().items_count(cx) - 1,
-                            window,
-                            cx,
-                        );
-                    })
-                })),
-            ).child(
-                Button::new("scroll-to-selected").child("Scroll to Selected").small().on_click(cx.listener(|this, _, window, cx| {
-                    this.labels_list.update(cx, |list, cx| {
-                        if let Some(selected) = list.selected_index() {
-                            list.scroll_to_item(selected, window, cx);
-                        }
-                    })
-                })),
-            ).child(
-                Checkbox::new("loading").label("Loading").checked(self.labels_list.read(cx).delegate().loading).on_click(cx.listener(|this, check: &bool, _, cx| {
-                    this.labels_list.update(cx, |this, cx| {
-                        this.delegate_mut().loading = *check;
-                        cx.notify();
-                    })
-                })),
-            ),
-        ).child(
-            div().flex_1().w_full().border_1().border_color(cx.theme().border).rounded(cx.theme().radius).child(self.labels_list.clone()),
-        )
+        v_flex()
+            .track_focus(&self.focus_handle)
+            .on_action(cx.listener(Self::selected_company))
+            .size_full()
+            .gap_4()
+            .child(
+                h_flex()
+                    .gap_2()
+                    .flex_wrap()
+                    .child(
+                        Button::new("scroll-top")
+                            .child("Scroll to Top")
+                            .small()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.labels_list.update(cx, |list, cx| {
+                                    list.scroll_to_item(0, window, cx);
+                                })
+                            })),
+                    )
+                    .child(
+                        Button::new("scroll-bottom")
+                            .child("Scroll to Bottom")
+                            .small()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.labels_list.update(cx, |list, cx| {
+                                    list.scroll_to_item(
+                                        list.delegate().items_count(cx) - 1,
+                                        window,
+                                        cx,
+                                    );
+                                })
+                            })),
+                    )
+                    .child(
+                        Button::new("scroll-to-selected")
+                            .child("Scroll to Selected")
+                            .small()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.labels_list.update(cx, |list, cx| {
+                                    if let Some(selected) = list.selected_index() {
+                                        list.scroll_to_item(selected, window, cx);
+                                    }
+                                })
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("loading")
+                            .label("Loading")
+                            .checked(self.labels_list.read(cx).delegate().loading)
+                            .on_click(cx.listener(|this, check: &bool, _, cx| {
+                                this.labels_list.update(cx, |this, cx| {
+                                    this.delegate_mut().loading = *check;
+                                    cx.notify();
+                                })
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .w_full()
+                    .border_1()
+                    .border_color(cx.theme().border)
+                    .rounded(cx.theme().radius)
+                    .child(self.labels_list.clone()),
+            )
     }
 }

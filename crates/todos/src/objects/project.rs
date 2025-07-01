@@ -1,19 +1,13 @@
+use std::ops::Deref;
+
 use crate::enums::SourceType;
 use crate::objects::{BaseTrait, Item};
-use crate::schema::projects;
-use crate::{Source, Store};
-use diesel::Queryable;
-use diesel::prelude::*;
-use diesel::row::NamedRow;
+use crate::{BaseObject, Source, Store};
+
 use serde::{Deserialize, Serialize};
 
-#[derive(
-    QueryableByName, Queryable, PartialEq, Insertable, Clone, Eq, Selectable, Serialize, Debug,
-)]
-#[diesel(table_name = projects)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Project {
-    pub id: Option<String>,
+    pub base: BaseObject,
     pub parent_id: Option<String>,
     pub name: String,
     pub source_id: Option<String>,
@@ -38,6 +32,13 @@ pub struct Project {
     pub sync_id: Option<String>,
 }
 
+impl Deref for Project {
+    type Target = BaseObject;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
 impl Project {
     pub(crate) fn item_added(&self, item: &Item) {
         todo!()
@@ -49,8 +50,14 @@ impl Project {
 
 impl Default for Project {
     fn default() -> Self {
+        let base = BaseObject::new(
+            "Projects".to_string(),
+            format!("{};{}", "projects", "filters"),
+            "folder-symbolic".to_string(),
+            "projects-view".to_string(),
+        );
         Self {
-            id: None,
+            base,
             parent_id: None,
             name: String::new(),
             source_id: None,
@@ -119,9 +126,9 @@ impl Project {
 }
 impl BaseTrait for Project {
     fn id(&self) -> &str {
-        self.id.as_deref().unwrap_or_default()
+        &self.base.id
     }
     fn set_id(&mut self, id: &str) {
-        self.id = Some(id.into());
+        self.base.id = id.to_string()
     }
 }

@@ -36,19 +36,18 @@ impl Label {
         self.source().map_or(SourceType::NONE, |s| s.source_type())
     }
     pub fn source(&self) -> Option<Source> {
-        self.source_id
-            .as_deref()
-            .and_then(|id| Store::instance().get_source(id))
+        Store::instance().get_source(&self.source_id)
     }
-    fn update_label_count(&self) -> usize {
-        self.label_count = Store::instance().get_items_by_label(self.id(), false).len()
+    fn update_label_count(&mut self) -> usize {
+        self.label_count = Store::instance().get_items_by_label(self.id(), false).len();
+        return self.label_count;
     }
     pub fn set_label_count(&mut self, count: usize) {
         self.label_count = count;
     }
 
     pub fn short_name(&self) -> String {
-        Util::get_default().get_short_name(self.name, 0)
+        Util::get_default().get_short_name(self.name.clone(), 0)
     }
     pub fn delete_label(&self) {
         let items = Store::instance().get_items_by_label(self.id(), false);
@@ -65,6 +64,6 @@ impl BaseTrait for Label {
     }
 
     fn set_id(&mut self, id: &str) {
-        self.id = id.into();
+        self.base.id = id.into();
     }
 }

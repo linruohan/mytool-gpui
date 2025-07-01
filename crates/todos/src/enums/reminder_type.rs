@@ -2,7 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
-#[derive(Debug, Clone, PartialEq, EnumString, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Serialize, Deserialize)]
 #[strum(serialize_all = "camelCase")]
 pub enum ReminderType {
     ABSOLUTE,

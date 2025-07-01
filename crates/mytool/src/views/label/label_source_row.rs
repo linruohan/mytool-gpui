@@ -1,4 +1,7 @@
-use gpui::{actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce, Styled, Task, Timer, Window};
+use gpui::{
+    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce, Styled,
+    Task, Timer, Window,
+};
 use gpui_component::{
     h_flex,
     list::{List, ListDelegate, ListItem},
@@ -9,7 +12,6 @@ use todos::objects;
 
 actions!(story, [SelectedLabel]);
 
-
 #[derive(IntoElement)]
 pub struct Label {
     base: ListItem,
@@ -19,7 +21,12 @@ pub struct Label {
 }
 
 impl Label {
-    pub fn new(id: impl Into<ElementId>, label: objects::label::Label, ix: usize, selected: bool) -> Self {
+    pub fn new(
+        id: impl Into<ElementId>,
+        label: objects::label::Label,
+        ix: usize,
+        selected: bool,
+    ) -> Self {
         Label {
             label,
             ix,
@@ -45,23 +52,57 @@ impl RenderOnce for Label {
             cx.theme().list_even
         };
 
-        self.base.px_3().py_1().overflow_x_hidden().bg(bg_color).child(
-            h_flex().items_center().justify_between().gap_2().text_color(text_color).child(
-                v_flex().gap_1().max_w(px(500.)).overflow_x_hidden().flex_nowrap().child(gpui_component::label::Label::new(self.label.name.clone()).whitespace_nowrap()).child(
-                    div().text_sm().overflow_x_hidden().child(
-                        gpui_component::label::Label::new(self.label.industry.clone()).whitespace_nowrap().text_color(text_color.opacity(0.5)),
+        self.base
+            .px_3()
+            .py_1()
+            .overflow_x_hidden()
+            .bg(bg_color)
+            .child(
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .text_color(text_color)
+                    .child(
+                        v_flex()
+                            .gap_1()
+                            .max_w(px(500.))
+                            .overflow_x_hidden()
+                            .flex_nowrap()
+                            .child(
+                                gpui_component::label::Label::new(self.label.name.clone())
+                                    .whitespace_nowrap(),
+                            )
+                            .child(
+                                div().text_sm().overflow_x_hidden().child(
+                                    gpui_component::label::Label::new(self.label.industry.clone())
+                                        .whitespace_nowrap()
+                                        .text_color(text_color.opacity(0.5)),
+                                ),
+                            ),
+                    )
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .justify_end()
+                            .child(
+                                div()
+                                    .w(px(65.))
+                                    .text_color(text_color)
+                                    .child(self.label.last_done_str.clone()),
+                            )
+                            .child(
+                                h_flex().w(px(65.)).justify_end().child(
+                                    div()
+                                        .rounded(cx.theme().radius)
+                                        .whitespace_nowrap()
+                                        .text_size(px(12.))
+                                        .px_1(),
+                                ),
+                            ),
                     ),
-                ),
-            ).child(
-                h_flex().gap_2().items_center().justify_end().child(
-                    div().w(px(65.)).text_color(text_color).child(self.label.last_done_str.clone()),
-                ).child(
-                    h_flex().w(px(65.)).justify_end().child(
-                        div().rounded(cx.theme().radius).whitespace_nowrap().text_size(px(12.)).px_1()
-                    ),
-                ),
-            ),
-        )
+            )
     }
 }
 
@@ -85,7 +126,12 @@ impl ListDelegate for LabelListDelegate {
         _: &mut Context<List<Self>>,
     ) -> Task<()> {
         self.query = query.to_string();
-        self.matched_labels = self.labels.iter().filter(|company| company.name.to_lowercase().contains(&query.to_lowercase())).cloned().collect();
+        self.matched_labels = self
+            .labels
+            .iter()
+            .filter(|company| company.name.to_lowercase().contains(&query.to_lowercase()))
+            .cloned()
+            .collect();
         Task::ready(())
     }
 
@@ -141,14 +187,16 @@ impl ListDelegate for LabelListDelegate {
 
             _ = view.update_in(window, move |view, window, cx| {
                 let query = view.delegate().query.clone();
-                view.delegate_mut().labels.extend((0..200).map(|_| random_label()));
+                view.delegate_mut()
+                    .labels
+                    .extend((0..200).map(|_| random_label()));
                 _ = view.delegate_mut().perform_search(&query, window, cx);
                 view.delegate_mut().eof = view.delegate().labels.len() >= 6000;
             });
-        }).detach();
+        })
+        .detach();
     }
 }
-
 
 impl LabelListDelegate {
     pub fn selected_label(&self) -> Option<Label> {

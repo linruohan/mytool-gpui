@@ -1,5 +1,6 @@
 use gpui::{
-    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task, Timer, Window,
+    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Timer, Window,
 };
 use std::time::Duration;
 
@@ -82,23 +83,56 @@ impl RenderOnce for ProjectListItem {
             cx.theme().list_even
         };
 
-        self.base.px_3().py_1().overflow_x_hidden().bg(bg_color).child(
-            h_flex().items_center().justify_between().gap_2().text_color(text_color).child(
-                v_flex().gap_1().max_w(px(500.)).overflow_x_hidden().flex_nowrap().child(Label::new(self.project.name.clone()).whitespace_nowrap()).child(
-                    div().text_sm().overflow_x_hidden().child(
-                        Label::new(self.project.industry.clone()).whitespace_nowrap().text_color(text_color.opacity(0.5)),
+        self.base
+            .px_3()
+            .py_1()
+            .overflow_x_hidden()
+            .bg(bg_color)
+            .child(
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .text_color(text_color)
+                    .child(
+                        v_flex()
+                            .gap_1()
+                            .max_w(px(500.))
+                            .overflow_x_hidden()
+                            .flex_nowrap()
+                            .child(Label::new(self.project.name.clone()).whitespace_nowrap())
+                            .child(
+                                div().text_sm().overflow_x_hidden().child(
+                                    Label::new(self.project.industry.clone())
+                                        .whitespace_nowrap()
+                                        .text_color(text_color.opacity(0.5)),
+                                ),
+                            ),
+                    )
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .justify_end()
+                            .child(
+                                div()
+                                    .w(px(65.))
+                                    .text_color(text_color)
+                                    .child(self.project.last_done_str.clone()),
+                            )
+                            .child(
+                                h_flex().w(px(65.)).justify_end().child(
+                                    div()
+                                        .rounded(cx.theme().radius)
+                                        .whitespace_nowrap()
+                                        .text_size(px(12.))
+                                        .px_1()
+                                        .text_color(trend_color)
+                                        .child(self.project.change_percent_str.clone()),
+                                ),
+                            ),
                     ),
-                ),
-            ).child(
-                h_flex().gap_2().items_center().justify_end().child(
-                    div().w(px(65.)).text_color(text_color).child(self.project.last_done_str.clone()),
-                ).child(
-                    h_flex().w(px(65.)).justify_end().child(
-                        div().rounded(cx.theme().radius).whitespace_nowrap().text_size(px(12.)).px_1().text_color(trend_color).child(self.project.change_percent_str.clone()),
-                    ),
-                ),
-            ),
-        )
+            )
     }
 }
 
@@ -126,7 +160,12 @@ impl ListDelegate for ProjectListDelegate {
         _: &mut Context<List<Self>>,
     ) -> Task<()> {
         self.query = query.to_string();
-        self.matched_projects = self.projects.iter().filter(|project| project.name.to_lowercase().contains(&query.to_lowercase())).cloned().collect();
+        self.matched_projects = self
+            .projects
+            .iter()
+            .filter(|project| project.name.to_lowercase().contains(&query.to_lowercase()))
+            .cloned()
+            .collect();
         Task::ready(())
     }
 
@@ -178,11 +217,14 @@ impl ListDelegate for ProjectListDelegate {
 
             _ = view.update_in(window, move |view, window, cx| {
                 let query = view.delegate().query.clone();
-                view.delegate_mut().projects.extend((0..3).map(|_| random_project()));
+                view.delegate_mut()
+                    .projects
+                    .extend((0..3).map(|_| random_project()));
                 _ = view.delegate_mut().perform_search(&query, window, cx);
                 view.delegate_mut().eof = view.delegate().projects.len() >= 3;
             });
-        }).detach();
+        })
+        .detach();
     }
 }
 
@@ -201,10 +243,13 @@ pub fn random_project() -> Project {
     let prev_close = last_done * (-0.1..0.1).fake::<f64>();
 
     Project {
-        name: fake::faker::company::en::CompanyName().fake::<String>().into(),
+        name: fake::faker::company::en::CompanyName()
+            .fake::<String>()
+            .into(),
         industry: fake::faker::company::en::Industry().fake::<String>().into(),
         last_done,
         prev_close,
         ..Default::default()
-    }.prepare()
+    }
+    .prepare()
 }

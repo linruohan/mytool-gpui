@@ -1,7 +1,6 @@
 use gpui::{
-    div, App, AppContext, Context, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled,
-    Subscription, Window,
+    div, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 
 use gpui_component::{
@@ -105,7 +104,6 @@ impl TodayView {
     }
 }
 
-
 impl Focusable for TodayView {
     fn focus_handle(&self, _cx: &gpui::App) -> FocusHandle {
         self.focus_handle.clone()
@@ -172,7 +170,7 @@ impl Render for TodayView {
                     ),
             )
             .child(
-                div()   
+                div()
                     .flex_1()
                     .w_full()
                     .border_1()

@@ -1,10 +1,8 @@
 use crate::{BaseObject, Store, enums::FilterType};
-use derive_builder::Builder;
-#[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scheduled {
     pub base: BaseObject,
-    #[builder(default, setter(into, strip_option))]
-    pub count: Option<usize>,
+    pub count: usize,
 }
 impl Default for Scheduled {
     fn default() -> Self {
@@ -15,14 +13,13 @@ impl Default for Scheduled {
                 "month-symbolic".to_string(),
                 FilterType::SCHEDULED.to_string(),
             ),
-            count: None,
+            count: 0,
         }
     }
 }
 impl Scheduled {
     pub fn count(&self) -> usize {
-        self.count
-            .unwrap_or(Store::instance().get_items_by_scheduled(false).len())
+        Store::instance().get_items_by_scheduled(false).len()
     }
 
     pub fn scheduled_count_updated(&self) {
