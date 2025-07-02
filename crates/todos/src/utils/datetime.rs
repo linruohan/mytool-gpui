@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, str::FromStr};
 
-use crate::{Item, enums::RecurrencyType, objects::DueDate};
+use crate::{enums::RecurrencyType, objects::DueDate, Item};
 use anyhow::Result;
 use chrono::{
     Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,

@@ -1,16 +1,18 @@
+use crate::entity::{attachments, items, labels, prelude::*, projects, reminders, sources};
 use crate::enums::ObjectType;
 use crate::objects::{BaseObject, BaseTrait, item};
 use crate::utils::DateTime;
-use crate::{Attachment, Item, Label, Project, Reminder, Section, Source};
 use chrono::{Datelike, Local, NaiveDateTime};
 use once_cell::sync::OnceCell;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
+    TransactionTrait,
+};
 use std::sync::Arc;
-pub struct Store {}
-
-impl Default for Store {
-    fn default() -> Self {
-        Self::new()
-    }
+use thiserror::Error;
+#[derive(Clone, Debug)]
+pub struct Store {
+    db: DatabaseConnection,
 }
 
 static STOREINSTANCE: OnceCell<Arc<Store>> = OnceCell::new();
@@ -24,13 +26,9 @@ pub enum Collection {
 }
 
 impl Store {
-    pub fn new() -> Store {
-        Self {}
+    pub fn new(db: DatabaseConnection) -> Store {
+        Self { db }
     }
-    pub fn instance() -> Arc<Store> {
-        STOREINSTANCE.get_or_init(|| Arc::new(Store::new())).clone()
-    }
-
     pub fn is_database_empty(&self) -> bool {
         self.projects().is_empty()
     }
@@ -73,17 +71,16 @@ impl Store {
     }
 
     // attachments
-    pub fn attachments(&self) -> Vec<Attachment> {
-        Database::default().get_attachments_collection()
+    pub async fn attachments(&self) -> Result<Vec<attachments::Model>, DbErr> {
+        Attachments::find().all(&self.db).await
     }
-    pub fn delete_attachment(&self, attachment: &Attachment) {
-        if Database::default().delete_attachment(attachment) {
-            // attachment.deleted ();
-            // attachment_deleted (attachment);
-            // _attachments.remove (attachment);
-            //
-            // attachment.item.attachment_deleted (attachment);
-        }
+    pub async fn delete_attachment(&self, id: &str) -> Result<(), DbErr> {
+        Attachments::delete_by_id(id).exec(&self.db).await
+        // attachment.deleted ();
+        // attachment_deleted (attachment);
+        // _attachments.remove (attachment);
+        //
+        // attachment.item.attachment_deleted (attachment);
     }
 
     pub fn insert_attachment(&self, attachment: &Attachment) {
@@ -103,15 +100,15 @@ impl Store {
     }
 
     // sources
-    pub fn sources(&self) -> Vec<Source> {
-        Database::default().get_sources_collection()
+    async fn sources(&self) -> Result<Vec<sources::Model>, DbErr> {
+        Sources::find().all(&self.db).await
     }
 
-    pub fn get_source(&self, id: &str) -> Option<Source> {
-        self.sources()
-            .iter()
-            .find(|s| s.id.as_deref() == Some(id))
-            .cloned()
+    pub async fn get_source(&self, id: &str) -> Result<Option<sources::Model>, DbErr> {
+        Sources::find()
+            .filter(sources::Column::Id.eq(id))
+            .one(&self.db)
+            .await
     }
 
     pub fn insert_source(&self, source: &Source) {

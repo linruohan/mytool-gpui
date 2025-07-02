@@ -40,6 +40,8 @@ strum = { version = "0.27.1", features = ["derive"] }
 rand.workspace = true
 paste = "1.0.15"
 rust-embed = { version = "8.7.2", features = ["include-exclude"] }
+thiserror = "2.0.12"
+async-trait = "0.1.88"
 
 
 [dev-dependencies]

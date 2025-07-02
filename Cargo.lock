@@ -7202,6 +7202,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "async-trait",
  "chrono",
  "chrono-humanize",
  "config",
@@ -7219,6 +7220,7 @@ dependencies = [
  "serde_json",
  "strum 0.27.1",
  "tempfile",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
  "tracing-subscriber",

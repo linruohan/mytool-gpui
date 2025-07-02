@@ -1,27 +1,23 @@
 #![recursion_limit = "1024"]
 #![allow(unused)]
+#[macro_use]
+extern crate paste;
 use std::error::Error;
+mod app;
 pub mod constants;
+pub mod entity;
 pub mod enums;
+mod filters;
+pub mod objects;
 pub mod services;
 pub mod settings;
-use paste::paste;
-mod app;
-mod entity;
-mod filters;
-mod objects;
 
 pub mod utils;
+
+pub use app::init_db;
 use chrono::Datelike;
 pub(crate) use objects::{
     Attachment, BaseObject, BaseTrait, Item, Label, Project, Reminder, Section, Source, ToBool,
 };
 pub(crate) use services::Store;
 pub(crate) use utils::Util;
-#[macro_use]
-extern crate paste;
-
-pub async fn init() -> anyhow::Result<(), Box<dyn Error>> {
-    app::init().await?;
-    Ok(())
-}

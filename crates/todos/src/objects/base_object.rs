@@ -1,70 +1,52 @@
 use crate::enums::ObjectType;
 use crate::filters::FilterItem;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::any::type_name;
 use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
 pub struct BaseObject {
-    pub id: String,
     pub name: String,
     pub keywords: String,
     pub icon_name: String,
     pub view_id: String,
     pub update_timeout_id: u32,
     pub filters: HashMap<String, FilterItem>,
+    pub loading: bool,
+    pub sensitive: bool,
 }
 impl BaseObject {
     pub fn new(name: String, keywords: String, icon_name: String, view_id: String) -> BaseObject {
         Self {
-            id: String::from(""),
             name,
             keywords,
             icon_name,
             view_id,
             update_timeout_id: 0,
             filters: HashMap::new(),
+            loading: false,
+            sensitive: false,
         }
-    }
-    pub fn name(&self) -> &str {
-        &self.name
     }
     pub fn set_name(&mut self, value: impl Into<String>) {
         self.name = value.into();
     }
-    pub fn keywords(&self) -> &str {
-        &self.keywords
-    }
     pub fn set_keywords(&mut self, keywords: impl Into<String>) {
         self.keywords = keywords.into();
-    }
-    pub fn icon_name(&self) -> &str {
-        &self.icon_name
     }
 
     pub fn set_icon_name(&mut self, icon_name: impl Into<String>) {
         self.icon_name = icon_name.into();
     }
-    pub fn view_id(&self) -> &str {
-        &self.view_id
-    }
 
     pub fn set_view_id(&mut self, view_id: impl Into<String>) {
         self.view_id = view_id.into();
     }
-    pub fn update_timeout_id(&self) -> u32 {
-        self.update_timeout_id
-    }
-
     pub fn set_update_timeout_id(&mut self, timeout_id: u32) {
         self.update_timeout_id = timeout_id;
     }
-    pub fn loading(&self) -> bool {
-        false
-    }
+
     pub fn loading_change(&self) {}
-    pub fn sensitive(&self) -> bool {
-        false
-    }
     pub fn sensitive_change(&self) {}
     pub fn get_filter(&self, id: String) -> FilterItem {
         if let Some(filter) = self.filters.get(&id) {
@@ -88,6 +70,7 @@ impl BaseObject {
     }
 }
 
+#[async_trait]
 pub trait BaseTrait {
     fn type_name(&self) -> &str {
         let full_name = type_name::<Self>();
