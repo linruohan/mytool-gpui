@@ -1,91 +1,272 @@
 use super::{Attachment, BaseObject, Label};
+use crate::entity::{items, labels, projects, sections};
 use crate::enums::{ItemType, ReminderType, SourceType};
-use crate::objects::{BaseTrait, DueDate, ToBool};
+use crate::objects::{BaseTrait, DueDate};
 use crate::utils::{self, DateTime, EMPTY_DATETIME};
-use crate::{Project, Reminder, Section, Source, generate_accessors};
-use crate::{Store, Util, constants};
+use crate::{constants, Store, Util};
+use crate::{Project, Reminder, Section, Source};
 use chrono::{Local, NaiveDateTime};
 use sea_orm::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Deref;
+
 fn default_datetime_str() -> String {
     chrono::Local::now().naive_local().to_string()
 }
 fn default_priority() -> i32 {
     constants::PRIORITY_4
 }
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct Item {
-    pub base: BaseObject,
-    pub content: String,
-    pub description: String,
-    #[serde(default = "default_datetime_str")]
-    pub added_at: String,
-    pub completed_at: String,
-    pub updated_at: String,
-    pub section_id: String,
-    pub project_id: String,
-    pub parent_id: String,
-    #[serde(default = "default_priority")]
-    pub priority: i32,
-    pub activate_name_editable: bool,
-    pub child_order: Option<i32>,
-    pub checked: Option<i32>,
-    pub is_deleted: Option<i32>,
-    pub day_order: Option<i32>,
-    pub collapsed: Option<i32>,
-    pub pinned: Option<i32>,
-    pub labels: Vec<Label>,
-    pub extra_data: String,
-    #[serde(default = "ItemType::default")]
-    pub item_type: ItemType,
-    #[serde(default = "DueDate::default")]
-    pub due: DueDate,
-}
-impl Deref for Item {
-    type Target = BaseObject;
 
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
+#[derive(Clone, Debug)]
+pub struct Item {
+    pub model: items::Model,
+    base: BaseObject,
+    store: Store,
+    label_count: Option<usize>,
+    custom_order: bool,
+    show_item: bool,
 }
 impl Item {
-    // generate_accessors!(content:String);
-    // generate_accessors!(description: Option<String>);
-    // generate_accessors!(@due due: Option<String>);
-    // generate_accessors!(@nativedatetime added_at: Option<String>);
-    // generate_accessors!(@nativedatetime completed_at: Option<String>);
-    // generate_accessors!(@nativedatetime updated_at: Option<String>);
-    // generate_accessors!(section_id: Option<String>);
-    // generate_accessors!(project_id: Option<String>);
-    // generate_accessors!(parent_id: Option<String>);
-    // generate_accessors!(priority: Option<i32>);
-
-    pub fn set_priority(&mut self, priority: i32) {
-        self.priority = priority;
+    pub fn content(&self) -> &str {
+        &self.model.content
     }
-    // generate_accessors!(child_order: Option<i32>);
-    // generate_accessors!(@bool checked: Option<i32>);
-    // generate_accessors!(@bool is_deleted: Option<i32>);
-    // generate_accessors!(day_order: Option<i32>);
-    // generate_accessors!(@bool collapsed: Option<i32>);
-    // generate_accessors!(@bool pinned: Option<i32>);
-    // generate_accessors!(@labels labels: Option<String>);
-    // generate_accessors!(extra_data: Option<String>);
-    // generate_accessors!(item_type: Option<String>);
-
-    pub fn set_item_type(&mut self, item_type: ItemType) {
-        self.item_type = item_type
+    pub fn set_content(&mut self, content: impl Into<String>) -> &mut Self {
+        self.model.content = content.into();
+        self
     }
+    pub fn description(&self) -> Option<&str> {
+        self.model.description.as_deref()
+    }
+    pub fn set_description(&mut self, description: Option<String>) -> &mut Self {
+        self.model.description = description;
+        self
+    }
+    pub fn due(&self) -> Option<DueDate> {
+        self.model.due.as_ref().map(|json_str| serde_json::from_value::<DueDate>(json_str.clone()).ok()).unwrap_or_default()
+    }
+    pub fn set_due(&mut self, due: DueDate) -> &mut Self {
+        self.model.due = Some(serde_json::value::to_value(due).unwrap());
+        self
+    }
+    pub fn section_id(&self) -> Option<&str> {
+        self.model.section_id.as_deref()
+    }
+    pub fn set_section_id(&mut self, section_id: Option<String>) -> &mut Self {
+        self.model.section_id = section_id;
+        self
+    }
+    pub fn project_id(&self) -> Option<&str> {
+        self.model.project_id.as_deref()
+    }
+    pub fn set_project_id(&mut self, project_id: Option<String>) -> &mut Self {
+        self.model.project_id = project_id;
+        self
+    }
+    pub fn parent_id(&self) -> Option<&str> {
+        self.model.parent_id.as_deref()
+    }
+    pub fn set_parent_id(&mut self, parent_id: Option<String>) -> &mut Self {
+        self.model.parent_id = parent_id;
+        self
+    }
+    pub fn priority(&self) -> i32 {
+        self.model.priority.unwrap_or_else(|| constants::PRIORITY_4)
+    }
+    pub fn set_priority(&mut self, priority: i32) -> &mut Self {
+        self.model.priority = Some(priority.into());
+        self
+    }
+    pub fn child_order(&self) -> Option<i32> {
+        self.model.child_order
+    }
+    pub fn set_child_order(&mut self, child_order: Option<i32>) -> &mut Self {
+        self.model.child_order = child_order;
+        self
+    }
+    pub fn checked(&self) -> bool {
+        self.model.checked
+    }
+    pub fn set_checked(&mut self, checked: bool) -> &mut Self {
+        self.model.checked = checked;
+        self
+    }
+    pub fn is_deleted(&self) -> bool {
+        self.model.is_deleted
+    }
+    pub fn set_is_deleted(&mut self, is_deleted: bool) -> &mut Self {
+        self.model.is_deleted = is_deleted;
+        self
+    }
+    pub fn day_order(&self) -> Option<i32> {
+        self.model.day_order
+    }
+    pub fn set_day_order(&mut self, day_order: Option<i32>) -> &mut Self {
+        self.model.day_order = day_order;
+        self
+    }
+    pub fn collapsed(&self) -> bool {
+        self.model.collapsed
+    }
+    pub fn set_collapsed(&mut self, collapsed: bool) -> &mut Self {
+        self.model.collapsed = collapsed;
+        self
+    }
+    pub fn pinned(&self) -> bool {
+        self.model.pinned
+    }
+    pub fn set_pinned(&mut self, pinned: bool) -> &mut Self {
+        self.model.pinned = pinned;
+        self
+    }
+    pub fn labels(&self) -> Option<Vec<labels::Model>> {
+        self.model.labels.as_ref().map(|json_str| serde_json::from_value::<Vec<labels::Model>>(json_str.clone()).ok()).unwrap_or_default()
+    }
+    pub fn set_labels(&mut self, labels: Vec<labels::Model>) -> &mut Self {
+        self.model.labels = Some(serde_json::value::to_value(labels).unwrap());
+        self
+    }
+    pub fn extra_data(&self) -> Option<serde_json::Value> {
+        self.model.extra_data.clone()
+    }
+    pub fn set_extra_data(&mut self, extra_data: Option<serde_json::Value>) -> &mut Self {
+        self.model.extra_data = extra_data;
+        self
+    }
+    pub fn item_type(&self) -> Option<ItemType> {
+        self.model.item_type.as_deref().map(|item_type| serde_json::from_str::<ItemType>(item_type).ok()).unwrap_or_default()
+    }
+    pub fn set_item_type(&mut self, item_type: ItemType) -> &mut Self {
+        self.model.item_type = Some(serde_json::to_string(&item_type).unwrap());
+        self
+    }
+}
 
+impl Item {
+    pub fn new(model: items::Model, store: Store) -> Self {
+        let base = BaseObject::default();
+        Self {
+            model,
+            base,
+            store,
+            label_count: None,
+            show_item: false,
+        }
+    }
     pub fn activate_name_editable(&self) -> bool {
         false
     }
     pub fn set_activate_name_editable(&self, v: bool) {
         todo!();
     }
+    pub fn short_content(&self) -> String {
+        Util::get_default().get_short_name(self.content(), 0)
+    }
 
+    pub fn priority_icon(&self) -> &str {
+        match self.priority() {
+            constants::PRIORITY_1 => "priority-icon-1",
+            constants::PRIORITY_2 => "priority-icon-2",
+            constants::PRIORITY_3 => "priority-icon-3",
+            _ => "planner-flag",
+        }
+    }
+    pub fn priority_color(&self) -> &str {
+        match self.priority() {
+            constants::PRIORITY_1 => "#ff7066",
+            constants::PRIORITY_2 => "#ff9914",
+            constants::PRIORITY_3 => "#5297ff",
+            _ => "@text_color",
+        }
+    }
+
+    pub fn priority_text(&self) -> &str {
+        match self.priority() {
+            constants::PRIORITY_1 => "Priority 1: high",
+            constants::PRIORITY_2 => "Priority 2: medium",
+            constants::PRIORITY_3 => "Priority 3: low",
+            _ => "Priority 4: none",
+        }
+    }
+
+    pub fn set_custom_order(&mut self, order: bool) -> &mut Self {
+        self.custom_order = order;
+        self
+    }
+    pub fn pinned_icon(&self) -> &str {
+        if self.pinned() { "planner-pin-tack" } else { "planner-pinned" }
+    }
+
+    pub fn completed(&self) -> bool {
+        self.checked()
+    }
+    pub fn has_due(&self) -> bool {
+        self.due().and_then(|d| Some(d.datetime().is_some())).unwrap_or(false)
+    }
+    pub fn has_time(&self) -> bool {
+        self.due().and_then(|d|
+            d.datetime()).map_or(false, |dt| utils::DateTime::default().has_time(&dt))
+    }
+
+    pub fn completed_date(&self) -> Option<NaiveDateTime> {
+        self.model.completed_at.as_ref().and_then(|date| {
+            let local_date = date.and_local_timezone(&Local).to_string();
+            Some(utils::DateTime::default().get_date_from_string(&local_date))
+        })
+    }
+
+    pub async fn has_parent(&self) -> bool {
+        self.parent_id().as_deref().map_or(false, async move |id| self.store.get_item(id).await.is_some())
+    }
+    pub fn has_section(&self) -> bool {
+        self.section_id().as_deref().map_or(false, async move |id| self.store.get_section(id).await.is_some())
+    }
+
+    pub fn show_item(&self) -> bool {
+        self.show_item
+    }
+    pub fn set_show_item(&mut self, show_item: bool) -> &mut Self {
+        self.show_item = show_item;
+        self
+    }
+
+    pub fn ics(&self) -> &str {
+        // Services.Todoist.get_default ().get_string_member_by_object (extra_data, "ics")
+        ""
+    }
+
+    pub fn added_datetime(&self) -> NaiveDateTime {
+        let local_date = self.model.added_at.and_local_timezone(&Local).to_string();
+        utils::DateTime::default().get_date_from_string(&local_date)
+    }
+    pub fn updated_datetime(&self) -> NaiveDateTime {
+        let local_date = self.model.updated_at.and_local_timezone(&Local).to_string();
+        utils::DateTime::default().get_date_from_string(&local_date)
+    }
+
+
+    pub fn parent(&self) -> Option<items::Model> {
+        self.parent_id().as_deref().and_then(|id| self.store.get_item(id)).unwrap_or_default()
+    }
+    pub fn project(&self) -> Option<projects::Model> {
+        self.project_id().as_deref().and_then(|id| self.store.get_project(id)).unwrap_or_default()
+    }
+    pub fn section(&self) -> Option<sections::Model> {
+        self.section_id().as_deref().and_then(|id| self.store.get_section(id)).unwrap_or_default()
+    }
+    // subitems
+    pub fn items(&self) -> Vec<items::Model> {
+        let mut items = self.store.get_subitems(self.id());
+        items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
+        items
+    }
+    pub fn items_uncomplete(&self) -> Vec<items::Model> {
+        self.store.get_subitems_uncomplete(self)
+    }
+    pub fn reminders(&self) -> Vec<Reminder> {
+        self.store.get_reminders_by_item(self)
+    }
+    pub fn attachments(&self) -> Vec<Attachment> {
+        self.store.get_attachments_by_item(self)
+    }
     pub(crate) fn has_labels(&self) -> bool {
         !self.labels().is_empty()
     }
@@ -97,8 +278,7 @@ impl Item {
         if project.id == self.project_id {
             return true;
         }
-        self.parent()
-            .is_some_and(|parent| parent.exists_project(project))
+        self.parent().is_some_and(|parent| parent.exists_project(project))
     }
     pub fn get_label(&self, id: &str) -> Option<Label> {
         self.labels().iter().find(|l| l.id == id).cloned()
@@ -106,116 +286,12 @@ impl Item {
     pub fn get_label_by_name(&self, name: &str, labels_list: Vec<Label>) -> Option<Label> {
         labels_list.iter().find(|s| s.name == name).cloned()
     }
-    pub fn short_content(&self) -> String {
-        Util::get_default().get_short_name(self.content.clone(), 0)
-    }
-    pub fn priority_icon(&self) -> &str {
-        match self.priority {
-            constants::PRIORITY_1 => "priority-icon-1",
-            constants::PRIORITY_2 => "priority-icon-2",
-            constants::PRIORITY_3 => "priority-icon-3",
-            _ => "planner-flag",
-        }
-    }
+
+
     pub fn has_reminders(&self) -> bool {
         !self.reminders().is_empty()
     }
 
-    pub fn priority_color(&self) -> &str {
-        match self.priority {
-            constants::PRIORITY_1 => "#ff7066",
-            constants::PRIORITY_2 => "#ff9914",
-            constants::PRIORITY_3 => "#5297ff",
-            _ => "@text_color",
-        }
-    }
-
-    pub fn priority_text(&self) -> &str {
-        match self.priority {
-            constants::PRIORITY_1 => "Priority 1: high",
-            constants::PRIORITY_2 => "Priority 2: medium",
-            constants::PRIORITY_3 => "Priority 3: low",
-            _ => "Priority 4: none",
-        }
-    }
-    pub fn custom_order(&self) -> bool {
-        false
-    }
-    pub fn set_custom_order(&mut self, order: bool) {
-        todo!();
-    }
-    pub fn pinned_icon(&self) -> String {
-        match self.pinned {
-            Some(1) => "planner-pin-tack".to_string(),
-            _ => "planner-pinned".to_string(),
-        }
-    }
-    pub fn completed(&self) -> bool {
-        self.checked == Some(1)
-    }
-    pub fn has_due(&self) -> bool {
-        self.due().datetime().is_some_and(|dt| dt != EMPTY_DATETIME)
-    }
-    pub fn has_time(&self) -> bool {
-        self.due()
-            .datetime()
-            .is_some_and(|dt| utils::DateTime::default().has_time(&dt))
-    }
-    pub fn completed_date(&self) -> NaiveDateTime {
-        utils::DateTime::default()
-            .get_date_from_string(self.completed_at.clone())
-            .into()
-    }
-    pub fn has_parent(&self) -> bool {
-        Store::instance().get_item(&self.parent_id).is_some()
-    }
-    pub fn has_section(&self) -> bool {
-        Store::instance().get_item(&self.section_id).is_some()
-    }
-    pub fn show_item(&self) -> bool {
-        false
-    }
-    pub fn set_show_item(&mut self, v: bool) {
-        todo!();
-    }
-    pub fn ics(&self) -> &str {
-        // Services.Todoist.get_default ().get_string_member_by_object (extra_data, "ics")
-        ""
-    }
-    pub fn added_datetime(&self) -> NaiveDateTime {
-        utils::DateTime::default()
-            .get_date_from_string(self.added_at.clone())
-            .into()
-    }
-    pub fn updated_datetime(&self) -> NaiveDateTime {
-        utils::DateTime::default()
-            .get_date_from_string(self.updated_at.clone())
-            .into()
-    }
-    pub fn parent(&self) -> Option<Item> {
-        Store::instance().get_item(&self.parent_id)
-    }
-    pub fn project(&self) -> Option<Project> {
-        Store::instance().get_project(&self.project_id)
-    }
-    pub fn section(&self) -> Option<Section> {
-        Store::instance().get_section(&self.section_id)
-    }
-    // subitems
-    pub fn items(&self) -> Vec<Item> {
-        let mut items = Store::instance().get_subitems(self);
-        items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
-        items
-    }
-    pub fn items_uncomplete(&self) -> Vec<Item> {
-        Store::instance().get_subitems_uncomplete(self)
-    }
-    pub fn reminders(&self) -> Vec<Reminder> {
-        Store::instance().get_reminders_by_item(self)
-    }
-    pub fn attachments(&self) -> Vec<Attachment> {
-        Store::instance().get_attachments_by_item(self)
-    }
 
     pub fn get_caldav_categories(&self) {}
     pub fn check_labels(&self, new_labels: HashMap<String, Label>) {
@@ -250,13 +326,13 @@ impl Item {
         todo!()
     }
     pub fn update_local(&self) {
-        Store::instance().update_item(self, "");
+        self.store.update_item(self, "");
     }
     pub fn update(&self, update_id: &str) {
         if let Some(project) = self.project()
             && project.source_type() == SourceType::LOCAL
         {
-            Store::instance().update_item(self, update_id);
+            self.store.update_item(self, update_id);
         }
     }
     pub fn was_archived(&self) -> bool {
@@ -271,8 +347,8 @@ impl Item {
             .map_or(Some(Source::default()), |p| p.source())
     }
     pub fn add_reminder_events(&self, reminder: &Reminder) {
-        // Store::instance().reminder_added(reminder);
-        // Store::instance().reminders().add(reminder);
+        // self.store.reminder_added(reminder);
+        // self.store.reminders().add(reminder);
         // reminder.item().reminder_added(reminder);
         // _add_reminder(reminder);
     }
@@ -297,7 +373,7 @@ impl Item {
         if let Some(project) = self.project() {
             match project.source_type() {
                 SourceType::LOCAL => {
-                    Store::instance().update_item(self, update_id);
+                    self.store.update_item(self, update_id);
                 }
                 SourceType::TODOIST => {
                     // Services.Todoist.get_default ().update_item (this, update_id);
@@ -336,7 +412,7 @@ impl Item {
     }
     fn add_reminder_if_not_exists(&self, reminder: &Reminder) {
         if self.get_reminder(reminder).is_none() {
-            Store::instance().insert_reminder(reminder);
+            self.store.insert_reminder(reminder);
         }
     }
     pub fn add_reminder(&self, reminder: &mut Reminder) {
@@ -369,7 +445,7 @@ impl Item {
         if let Some(project) = self.project() {
             match project.source_type() {
                 SourceType::LOCAL => {
-                    Store::instance().complete_item(self);
+                    self.store.complete_item(self);
                 }
                 SourceType::TODOIST => {
                     // Services.Todoist.get_default ().complete_item (this)

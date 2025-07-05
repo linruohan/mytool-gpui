@@ -4,6 +4,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
+
 #[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize)]
 pub struct DueDate {
     pub date: String,
@@ -16,6 +17,8 @@ pub struct DueDate {
     pub recurrency_end: String,
     pub recurrency_supported: bool,
 }
+
+
 impl Default for DueDate {
     fn default() -> Self {
         Self {

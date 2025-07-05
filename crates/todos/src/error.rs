@@ -5,4 +5,6 @@ pub enum TodoError {
     DbError(#[from] sea_orm::DbErr),
     #[error("not found")]
     NotFound,
+    #[error("id not found")]
+    IDNotFound,
 }

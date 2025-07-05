@@ -2,7 +2,6 @@ use sea_orm::DatabaseConnection;
 
 mod database;
 mod logger;
-mod error;
 pub use database::init_db;
 #[derive(Clone)]
 pub struct AppState {

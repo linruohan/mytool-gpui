@@ -83,16 +83,29 @@ curl -X DELETE http://localhost:5002/todos/1
 
 # rust sea-orm sqlite axum vite
 
-## format
+## 创建数据库
 
 ```bash
-### 删除未使用的依赖项
-cargo install cargo-machete && cargo machete
-### 格式化
-cargo fmt --all && cargo clippy --fix --allow-dirty --allow-staged
+#创建迁移目录
+$ sea-orm-cli migrate init 
+# 指定迁移目录
+$ sea-orm-cli migrate init -d ./other/migration/dir
+
 ```
 
-## postgres
+```log
+migration
+├── Cargo.toml
+├── README.md
+└── src
+    ├── lib.rs                              # Migrator API, for integration
+    ├── m20220101_000001_create_table.rs    # A sample migration file
+    └── main.rs                             # Migrator CLI, for running manually
+```
+
+## 有数据库后，生成entity
+
+### postgres
 
 ```bash
 # demo schema
@@ -100,10 +113,19 @@ sea-orm-cli generate entity --with-serde both -s demo --model-extra-attributes '
 chrono -o ./src/entity
 ```
 
-## sqlite
+### sqlite
 
 ```bash
 
 sea-orm-cli generate entity --with-serde both --model-extra-attributes 'serde(rename_all="camelCase")' --date-time-crate chrono -o ./src/entity --database-url "sqlite://db.sqlite?mode=rwc"
 
+```
+
+## format
+
+```bash
+### 删除未使用的依赖项
+cargo install cargo-machete && cargo machete
+### 格式化
+cargo fmt --all && cargo clippy --fix --allow-dirty --allow-staged
 ```

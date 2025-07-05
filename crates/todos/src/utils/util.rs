@@ -224,14 +224,14 @@ impl Util {
     //         return text.length > 0;
     //     }
 
-    pub fn get_short_name(&self, name: String, size: usize) -> String {
+    pub fn get_short_name(&self, name: &str, size: usize) -> String {
         let mut size_default = size;
         if size_default == 0 {
             size_default = constants::SHORT_NAME_SIZE;
         }
         match size_default {
             s if s < name.len() => format!("{}...", &name[0..s]),
-            _ => name.clone(),
+            _ => name.to_string(),
         }
     }
 

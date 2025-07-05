@@ -132,8 +132,8 @@ impl DateTime {
         self.is_same_day(date, &(Local::now().naive_local() + Duration::days(7)))
     }
 
-    pub fn get_date_from_string(&self, date: String) -> NaiveDateTime {
-        NaiveDateTime::from_str(&date).unwrap()
+    pub fn get_date_from_string(&self, date: &str) -> NaiveDateTime {
+        NaiveDateTime::from_str(&date).unwrap_or_default()
     }
 
     pub fn recurrence_to_due(&self, recurrence: RecurrencyType, due: &mut DueDate) {

@@ -114,10 +114,22 @@ macro_rules! generate_accessors {
     ($field:ident: String) => {
         paste! {
             pub fn $field(&self) -> &str {
-                &self.$field
+                &self.model.$field
             }
             pub fn [<set_$field>](&mut self, value: impl Into<String>) -> &mut Self {
-                self.$field = value.into();
+                self.model.$field = value.into();
+                self
+            }
+        }
+    };
+    // 处理普通 i32 类型字段
+    ($field:ident: i32) => {
+        paste! {
+            pub fn $field(&self) -> i32 {
+                &self.model.$field
+            }
+            pub fn [<set_$field>](&mut self, value: i32) -> &mut Self {
+                self.model.$field = value.into();
                 self
             }
         }
