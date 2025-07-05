@@ -1,20 +1,24 @@
+use crate::entity::labels::ActiveModel as LabelActiveModel;
+use crate::entity::labels::Model as LabelModel;
+use crate::entity::prelude::LabelEntity;
+use crate::entity::sources::Model as SourceModel;
+use crate::enums::SourceType;
+use crate::error::TodoError;
+use crate::objects::BaseTrait;
 use crate::BaseObject;
 use crate::Store;
 use crate::Util;
-use crate::entity::{labels, sources};
-use crate::enums::SourceType;
-use crate::error::TodoError;
-use crate::generate_accessors;
-use crate::objects::BaseTrait;
 use sea_orm::prelude::*;
+use sea_orm::Set;
 
 #[derive(Clone, Debug)]
 pub struct Label {
-    pub model: labels::Model,
+    pub model: LabelModel,
     base: BaseObject,
     store: Store,
     label_count: Option<usize>,
 }
+
 impl Label {
     pub fn name(&self) -> &str {
         &self.model.name
@@ -24,10 +28,10 @@ impl Label {
         self
     }
     pub fn color(&self) -> &str {
-        self.model.color.as_deref().unwrap_or_default()
+        &self.model.color
     }
     pub fn set_color(&mut self, color: impl Into<String>) -> &mut Self {
-        self.model.color = Some(color.into());
+        self.model.color = color.into();
         self
     }
     pub fn item_order(&self) -> i32 {
@@ -51,11 +55,11 @@ impl Label {
         self.model.is_favorite = is_favorite;
         self
     }
-    pub fn backend_type(&self) -> Option<SourceType> {
-        self.model
-            .backend_type
+    pub fn backend_type(&self) -> SourceType {
+        self.model.backend_type
             .as_deref()
-            .and(|b| SourceType::from_str(b).unwrap_or(SourceType::NONE))
+            .and_then(|b| serde_json::from_str(b).ok())
+            .unwrap_or(SourceType::NONE)
     }
     pub fn set_backend_type(&mut self, backend_type: Option<String>) -> &mut Self {
         self.model.backend_type = backend_type;
@@ -64,8 +68,7 @@ impl Label {
     pub fn source_id(&self) -> String {
         self.model
             .source_id
-            .clone()
-            .unwrap_or(|| SourceType::LOCAL.to_string())
+            .as_deref().map_or_else(SourceType::LOCAL.to_string(), |id| id.to_string())
     }
     pub fn set_source_id(&mut self, source_id: Option<String>) -> &mut Self {
         self.model.source_id = source_id;
@@ -74,7 +77,7 @@ impl Label {
 }
 
 impl Label {
-    pub fn new(db: DatabaseConnection, model: labels::Model) -> Self {
+    pub fn new(db: DatabaseConnection, model: LabelModel) -> Self {
         let base = BaseObject::default();
         let store = Store::new(db);
         Self {
@@ -84,27 +87,37 @@ impl Label {
             label_count: None,
         }
     }
+    pub async fn from_db(db: DatabaseConnection, label_id: &str) -> Result<Self, TodoError> {
+        let label = LabelEntity::find_by_id(label_id)
+            .one(&db)
+            .await?
+            .ok_or_else(|| TodoError::NotFound(format!("Label {} not found", label_id)))?;
+
+        Ok(Self::new(db, label))
+    }
+
 
     pub async fn source_type(&self) -> SourceType {
         self.source()
             .await
-            .map_or(SourceType::NONE, |s| s.source_type())
+            .ok()
+            .and_then(|opt| opt.and_then(|s| serde_json::from_str(&s.source_type).ok()))
+            .unwrap_or(SourceType::NONE)
     }
-    pub async fn source(&self) -> Result<sources::Model, TodoError> {
-        let id = self.source_id().ok_or(TodoError::IDNotFound)?;
-        self.store.get_source(&id).await?
+    pub async fn source(&self) -> Result<Option<SourceModel>, TodoError> {
+        Ok(self.store.get_source(&self.source_id()).await?)
     }
     fn label_count(&mut self) -> usize {
-        self.label_count = self.store.get_items_by_label(self.id, false).len();
-        return self.label_count;
+        self.label_count = self.store.get_items_by_label(self.id(), false).len();
+        self.label_count;
     }
     pub fn set_label_count(&mut self, count: usize) -> &mut Self {
-        self.label_count = count;
+        self.label_count = Some(count);
         self
     }
 
     pub fn short_name(&self) -> String {
-        Util::get_default().get_short_name(self.name.clone(), 0)
+        Util::get_default().get_short_name(self.name().clone(), 0)
     }
     pub fn delete_label(&self) {
         let items = self.store.get_items_by_label(self.id(), false);
@@ -122,5 +135,33 @@ impl BaseTrait for Label {
 
     fn set_id(&mut self, id: &str) {
         self.model.id = id.into();
+    }
+}
+
+
+// impl From<LabelModel> for Label {
+//     fn from(model: LabelModel) -> Self {
+//         Label {
+//             model,
+//             base: BaseObject::default(),
+//             store: Store::default(),
+//             label_count: None,
+//         }
+//     }
+// }
+
+impl Label {
+    pub fn to_active_model(&self) -> LabelActiveModel {
+        LabelActiveModel {
+            id: self.id().into(),
+            name: Set(self.name().to_string()),
+            color: Set(self.color().to_string()),
+            item_order: Set(self.item_order()),
+            is_deleted: Set(self.is_deleted()),
+            is_favorite: Set(self.is_favorite()),
+            backend_type: Set(self.backend_type().map(|b| b.to_string())),
+            source_id: Set(Some(self.source_id())),
+            ..Default::default()
+        }
     }
 }

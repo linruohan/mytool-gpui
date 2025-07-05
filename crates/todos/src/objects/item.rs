@@ -1,24 +1,21 @@
 use super::{Attachment, BaseObject, Label};
-use crate::entity::{items, labels, projects, sections};
+use crate::entity::items::Model as ItemModel;
+use crate::entity::labels::Model as LabelModel;
+use crate::entity::prelude::ItemEntity;
+use crate::entity::{projects, sections};
 use crate::enums::{ItemType, ReminderType, SourceType};
+use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate};
-use crate::utils::{self, DateTime, EMPTY_DATETIME};
-use crate::{constants, Store, Util};
+use crate::{constants, utils, Store, Util};
 use crate::{Project, Reminder, Section, Source};
 use chrono::{Local, NaiveDateTime};
 use sea_orm::prelude::*;
 use std::collections::HashMap;
 
-fn default_datetime_str() -> String {
-    chrono::Local::now().naive_local().to_string()
-}
-fn default_priority() -> i32 {
-    constants::PRIORITY_4
-}
 
 #[derive(Clone, Debug)]
 pub struct Item {
-    pub model: items::Model,
+    pub model: ItemModel,
     base: BaseObject,
     store: Store,
     label_count: Option<usize>,
@@ -117,10 +114,10 @@ impl Item {
         self.model.pinned = pinned;
         self
     }
-    pub fn labels(&self) -> Option<Vec<labels::Model>> {
-        self.model.labels.as_ref().map(|json_str| serde_json::from_value::<Vec<labels::Model>>(json_str.clone()).ok()).unwrap_or_default()
+    pub fn labels(&self) -> Option<Vec<LabelModel>> {
+        self.model.labels.as_ref().map(|json_str| serde_json::from_value::<Vec<LabelModel>>(json_str.clone()).ok()).unwrap_or_default()
     }
-    pub fn set_labels(&mut self, labels: Vec<labels::Model>) -> &mut Self {
+    pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
         self.model.labels = Some(serde_json::value::to_value(labels).unwrap());
         self
     }
@@ -141,16 +138,27 @@ impl Item {
 }
 
 impl Item {
-    pub fn new(model: items::Model, store: Store) -> Self {
+    pub fn new(db: DatabaseConnection, model: ItemModel) -> Self {
         let base = BaseObject::default();
+        let store = Store::new(db);
         Self {
             model,
             base,
             store,
             label_count: None,
+            custom_order: false,
             show_item: false,
         }
     }
+    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+        let item = ItemEntity::find_by_id(item_id)
+            .one(&db)
+            .await?
+            .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
+
+        Ok(Self::new(db, item))
+    }
+
     pub fn activate_name_editable(&self) -> bool {
         false
     }
@@ -214,7 +222,12 @@ impl Item {
     }
 
     pub async fn has_parent(&self) -> bool {
-        self.parent_id().as_deref().map_or(false, async move |id| self.store.get_item(id).await.is_some())
+        match self.parent_id().as_deref() {
+            Some(parent_id) => {
+                self.store.get_item(parent_id).await.map_or(false, |item| item.is_some())
+            }
+            None => false
+        }
     }
     pub fn has_section(&self) -> bool {
         self.section_id().as_deref().map_or(false, async move |id| self.store.get_section(id).await.is_some())
@@ -243,7 +256,7 @@ impl Item {
     }
 
 
-    pub fn parent(&self) -> Option<items::Model> {
+    pub fn parent(&self) -> Option<ItemModel> {
         self.parent_id().as_deref().and_then(|id| self.store.get_item(id)).unwrap_or_default()
     }
     pub fn project(&self) -> Option<projects::Model> {
@@ -253,12 +266,12 @@ impl Item {
         self.section_id().as_deref().and_then(|id| self.store.get_section(id)).unwrap_or_default()
     }
     // subitems
-    pub fn items(&self) -> Vec<items::Model> {
+    pub fn items(&self) -> Vec<ItemModel> {
         let mut items = self.store.get_subitems(self.id());
         items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
         items
     }
-    pub fn items_uncomplete(&self) -> Vec<items::Model> {
+    pub fn items_uncomplete(&self) -> Vec<ItemModel> {
         self.store.get_subitems_uncomplete(self)
     }
     pub fn reminders(&self) -> Vec<Reminder> {
@@ -466,10 +479,10 @@ impl Item {
 
 impl BaseTrait for Item {
     fn id(&self) -> &str {
-        &self.id
+        &self.model.id
     }
 
     fn set_id(&mut self, id: &str) {
-        self.base.id = id.into();
+        self.model.id = id.into();
     }
 }
