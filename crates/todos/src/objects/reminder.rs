@@ -1,48 +1,46 @@
+use crate::entity::prelude::ReminderEntity;
+use crate::entity::ReminderModel;
+use crate::enums::ReminderType;
+use crate::error::TodoError;
+use crate::generate_accessors;
+use crate::objects::{BaseTrait, DueDate, ToBool};
+use crate::utils;
 use crate::BaseObject;
 use crate::Item;
 use crate::Source;
 use crate::Store;
-use crate::enums::{ReminderType, SourceType};
-use crate::generate_accessors;
-use crate::objects::{BaseTrait, DueDate, ToBool};
-use crate::utils;
 use chrono::Duration;
 use chrono::NaiveDateTime;
-use std::ops::Deref;
+use sea_orm::{DatabaseConnection, EntityTrait};
+use tokio::sync::OnceCell;
 
-use serde::{Deserialize, Serialize};
-impl Deref for Reminder {
-    type Target = BaseObject;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Reminder {
-    pub base: BaseObject,
-    pub item_id: String,
-    pub notify_uid: i32,
-    pub service: String,
-    pub reminder_type: ReminderType,
-    pub due: DueDate,
-    pub mm_offset: i32,
-    pub is_deleted: bool,
-}
-impl Reminder {}
+    pub model: ReminderModel,
+    base: BaseObject,
+    db: DatabaseConnection,
+    store: OnceCell<Store>,
 
-impl Default for Reminder {
-    fn default() -> Self {
-        Self {
-            base: BaseObject::default(),
-            reminder_type: ReminderType::ABSOLUTE,
-            ..Default::default()
-        }
-    }
 }
+
 impl Reminder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(db: DatabaseConnection, model: ReminderModel) -> Self {
+        let base = BaseObject::default();
+        Self { model, base, db, store: OnceCell::new() }
+    }
+
+    pub async fn store(&self) -> &Store {
+        self.store.get_or_init(|| async {
+            Store::new(self.db.clone()).await
+        }).await
+    }
+    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+        let item = ReminderEntity::find_by_id(item_id)
+            .one(&db)
+            .await?
+            .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
+
+        Ok(Self::new(db, item))
     }
     generate_accessors!(item_id:Option<String>);
     generate_accessors!(notify_uid:Option<i32>);
@@ -116,12 +114,14 @@ impl Reminder {
         }
     }
 }
+
 impl BaseTrait for Reminder {
     fn id(&self) -> &str {
-        &self.id
+        &self.model.id
     }
 
     fn set_id(&mut self, id: &str) {
-        self.base.id = id.into();
+        self.model.id = id.into();
     }
 }
+

@@ -1,44 +1,40 @@
 use crate::objects::{BaseTrait, Item};
 use crate::{BaseObject, Source, Store};
 
-use serde::{Deserialize, Serialize};
-
 use crate::Project;
-#[derive(Clone, PartialEq, Eq, Serialize, Debug)]
-pub struct Section {
-    pub base: BaseObject,
-    pub name: Option<String>,
-    pub archived_at: Option<String>,
-    pub added_at: Option<String>,
-    pub project_id: Option<String>,
-    pub section_order: Option<i32>,
-    pub collapsed: Option<i32>,
-    pub is_deleted: Option<i32>,
-    pub is_archived: Option<i32>,
-    pub color: Option<String>,
-    pub description: Option<String>,
-    pub hidded: Option<i32>,
-}
-use std::ops::Deref;
-impl Deref for Section {
-    type Target = BaseObject;
 
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
+use crate::entity::prelude::SectionEntity;
+use crate::entity::SectionModel;
+use crate::error::TodoError;
+use sea_orm::{DatabaseConnection, EntityTrait};
+use tokio::sync::OnceCell;
+
+#[derive(Clone, Debug)]
+pub struct Section {
+    pub model: SectionModel,
+    base: BaseObject,
+    db: DatabaseConnection,
+    store: OnceCell<Store>,
 }
 impl Section {
-    pub fn item_added(&self, item: &Item) {
-        todo!()
+    pub fn new(db: DatabaseConnection, model: SectionModel) -> Self {
+        let base = BaseObject::default();
+        Self { model, base, db, store: OnceCell::new() }
     }
-    pub fn item_deleted(&self, item: &Item) {
-        todo!()
+
+    pub async fn store(&self) -> &Store {
+        self.store.get_or_init(|| async {
+            Store::new(self.db.clone()).await
+        }).await
     }
-    pub fn section_count_updated(&self) {
-        todo!()
+    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+        let item = SectionEntity::find_by_id(item_id)
+            .one(&db)
+            .await?
+            .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
+
+        Ok(Self::new(db, item))
     }
-}
-impl Section {
     pub fn project(&self) -> Option<Project> {
         Store::instance().get_project(self.project_id.as_ref()?) // Assuming Store has a method to get project by ID
     }
@@ -65,12 +61,13 @@ impl Section {
     }
 }
 
+
 impl BaseTrait for Section {
     fn id(&self) -> &str {
-        &self.id
+        &self.model.id
     }
 
     fn set_id(&mut self, id: &str) {
-        self.base.id = id.into();
+        self.model.id = id.into();
     }
 }

@@ -10,12 +10,14 @@ use crate::Store;
 use crate::Util;
 use sea_orm::prelude::*;
 use sea_orm::Set;
+use tokio::sync::OnceCell;
 
 #[derive(Clone, Debug)]
 pub struct Label {
     pub model: LabelModel,
     base: BaseObject,
-    store: Store,
+    db: DatabaseConnection,
+    store: OnceCell<Store>,
     label_count: Option<usize>,
 }
 
@@ -68,7 +70,7 @@ impl Label {
     pub fn source_id(&self) -> String {
         self.model
             .source_id
-            .as_deref().map_or_else(SourceType::LOCAL.to_string(), |id| id.to_string())
+            .as_deref().map(|id| id.to_string()).unwrap_or_default()
     }
     pub fn set_source_id(&mut self, source_id: Option<String>) -> &mut Self {
         self.model.source_id = source_id;
@@ -79,13 +81,13 @@ impl Label {
 impl Label {
     pub fn new(db: DatabaseConnection, model: LabelModel) -> Self {
         let base = BaseObject::default();
-        let store = Store::new(db);
-        Self {
-            model,
-            base,
-            store,
-            label_count: None,
-        }
+        Self { model, base, db, store: OnceCell::new(), label_count: None }
+    }
+
+    pub async fn store(&self) -> &Store {
+        self.store.get_or_init(|| async {
+            Store::new(self.db.clone()).await
+        }).await
     }
     pub async fn from_db(db: DatabaseConnection, label_id: &str) -> Result<Self, TodoError> {
         let label = LabelEntity::find_by_id(label_id)
@@ -105,11 +107,12 @@ impl Label {
             .unwrap_or(SourceType::NONE)
     }
     pub async fn source(&self) -> Result<Option<SourceModel>, TodoError> {
-        Ok(self.store.get_source(&self.source_id()).await?)
+        Ok(self.store().await.get_source(&self.source_id()).await?)
     }
-    fn label_count(&mut self) -> usize {
-        self.label_count = self.store.get_items_by_label(self.id(), false).len();
-        self.label_count;
+    async fn label_count(&mut self) -> usize {
+        let count = self.store().await.get_items_by_label(self.id(), false).len();
+        self.label_count = Some(count);
+        count
     }
     pub fn set_label_count(&mut self, count: usize) -> &mut Self {
         self.label_count = Some(count);
@@ -119,12 +122,12 @@ impl Label {
     pub fn short_name(&self) -> String {
         Util::get_default().get_short_name(self.name().clone(), 0)
     }
-    pub fn delete_label(&self) {
-        let items = self.store.get_items_by_label(self.id(), false);
+    pub async fn delete_label(&self) {
+        let items = self.store().await.get_items_by_label(self.id(), false);
         for item in items {
             item.delete_item_label(self.id());
         }
-        self.store.delete_label(self.clone());
+        self.store().await.delete_label(self.id()).await;
     }
 }
 
@@ -159,7 +162,7 @@ impl Label {
             item_order: Set(self.item_order()),
             is_deleted: Set(self.is_deleted()),
             is_favorite: Set(self.is_favorite()),
-            backend_type: Set(self.backend_type().map(|b| b.to_string())),
+            backend_type: Set(self.backend_type().to_string()),
             source_id: Set(Some(self.source_id())),
             ..Default::default()
         }

@@ -10,6 +10,12 @@ pub struct Util {
 }
 
 impl Util {
+    pub(crate) fn default() -> Util {
+        todo!()
+    }
+}
+
+impl Util {
     pub fn get_default() -> Util {
         Self {
             colors: HashMap::new(),

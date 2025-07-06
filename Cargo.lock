@@ -7209,6 +7209,7 @@ dependencies = [
  "derive_builder",
  "diesel_migrations",
  "dotenvy",
+ "futures",
  "num_cpus",
  "once_cell",
  "paste",

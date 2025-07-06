@@ -11,13 +11,14 @@ use crate::{Project, Reminder, Section, Source};
 use chrono::{Local, NaiveDateTime};
 use sea_orm::prelude::*;
 use std::collections::HashMap;
-
+use tokio::sync::OnceCell;
 
 #[derive(Clone, Debug)]
 pub struct Item {
     pub model: ItemModel,
     base: BaseObject,
-    store: Store,
+    db: DatabaseConnection,
+    store: OnceCell<Store>,
     label_count: Option<usize>,
     custom_order: bool,
     show_item: bool,
@@ -140,15 +141,20 @@ impl Item {
 impl Item {
     pub fn new(db: DatabaseConnection, model: ItemModel) -> Self {
         let base = BaseObject::default();
-        let store = Store::new(db);
         Self {
             model,
             base,
-            store,
+            db,
+            store: OnceCell::new(),
             label_count: None,
             custom_order: false,
             show_item: false,
         }
+    }
+    pub async fn store(&self) -> &Store {
+        self.store.get_or_init(|| async {
+            Store::new(self.db.clone()).await
+        }).await
     }
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = ItemEntity::find_by_id(item_id)

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "attachments")]
 #[serde(rename_all = "camelCase")]
+#[derive(Default)]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false, column_type = "Text")]
     pub id: String,
@@ -44,8 +45,8 @@ impl Related<super::items::Entity> for Entity {
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {
     async fn before_save<C>(self, db: &C, insert: bool) -> Result<Self, DbErr>
-    where
-        C: ConnectionTrait,
+                            where
+                                C: ConnectionTrait,
     {
         let mut this = self;
         if insert {
