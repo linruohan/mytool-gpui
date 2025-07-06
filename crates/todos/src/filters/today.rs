@@ -1,4 +1,4 @@
-use crate::{BaseObject, Store, enums::FilterType};
+use crate::{enums::FilterType, BaseObject, Store};
 #[derive(Clone, PartialEq, Eq)]
 pub struct Today {
     pub base: BaseObject,
@@ -20,8 +20,8 @@ impl Default for Today {
 }
 
 impl Today {
-    pub fn count(&self) -> usize {
-        Store::instance().get_items_by_overdeue_view(false).len()
+    pub async fn count(&self, store: Store) -> usize {
+        store.get_items_by_overdeue_view(false).await.len()
     }
 
     pub fn today_count_updated(&self) {

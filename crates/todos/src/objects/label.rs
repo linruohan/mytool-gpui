@@ -4,7 +4,7 @@ use crate::entity::prelude::LabelEntity;
 use crate::entity::sources::Model as SourceModel;
 use crate::enums::SourceType;
 use crate::error::TodoError;
-use crate::objects::BaseTrait;
+use crate::objects::{BaseTrait, Item};
 use crate::BaseObject;
 use crate::Store;
 use crate::Util;
@@ -107,10 +107,10 @@ impl Label {
             .unwrap_or(SourceType::NONE)
     }
     pub async fn source(&self) -> Result<Option<SourceModel>, TodoError> {
-        Ok(self.store().await.get_source(&self.source_id()).await?)
+        Ok(self.store().await.get_source(&self.source_id()).await)
     }
     async fn label_count(&mut self) -> usize {
-        let count = self.store().await.get_items_by_label(self.id(), false).len();
+        let count = self.store().await.get_items_by_label(self.id(), false).await.len();
         self.label_count = Some(count);
         count
     }
@@ -122,12 +122,13 @@ impl Label {
     pub fn short_name(&self) -> String {
         Util::get_default().get_short_name(self.name().clone(), 0)
     }
-    pub async fn delete_label(&self) {
-        let items = self.store().await.get_items_by_label(self.id(), false);
-        for item in items {
-            item.delete_item_label(self.id());
+    pub async fn delete_label(&self) -> Result<u64, TodoError> {
+        let items_model = self.store().await.get_items_by_label(self.id(), false).await;
+        for item_model in items_model {
+            let item = Item::from_db(self.db.clone(), &item_model.id).await?;
+            item.delete_item_label(self.id()).await;
         }
-        self.store().await.delete_label(self.id()).await;
+        self.store().await.delete_label(self.id()).await
     }
 }
 
@@ -156,13 +157,13 @@ impl BaseTrait for Label {
 impl Label {
     pub fn to_active_model(&self) -> LabelActiveModel {
         LabelActiveModel {
-            id: self.id().into(),
+            id: Set(self.id().to_string()),
             name: Set(self.name().to_string()),
             color: Set(self.color().to_string()),
             item_order: Set(self.item_order()),
             is_deleted: Set(self.is_deleted()),
             is_favorite: Set(self.is_favorite()),
-            backend_type: Set(self.backend_type().to_string()),
+            backend_type: Set(Some(self.backend_type().to_string())),
             source_id: Set(Some(self.source_id())),
             ..Default::default()
         }

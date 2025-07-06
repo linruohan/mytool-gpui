@@ -1,4 +1,4 @@
-use crate::{BaseObject, Store, enums::FilterType};
+use crate::{enums::FilterType, BaseObject, Store};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scheduled {
     pub base: BaseObject,
@@ -18,8 +18,8 @@ impl Default for Scheduled {
     }
 }
 impl Scheduled {
-    pub fn count(&self) -> usize {
-        Store::instance().get_items_by_scheduled(false).len()
+    pub async fn count(&self, store: Store) -> usize {
+        store.get_items_by_scheduled(false).await.len()
     }
 
     pub fn scheduled_count_updated(&self) {

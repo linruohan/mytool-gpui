@@ -1,6 +1,4 @@
-use std::fmt::format;
-
-use crate::{BaseObject, Store, enums::FilterType};
+use crate::{enums::FilterType, BaseObject, Store};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pinboard {
     pub base: BaseObject,
@@ -19,8 +17,8 @@ impl Default for Pinboard {
 }
 
 impl Pinboard {
-    pub fn pinboard_count(&self) -> usize {
-        Store::instance().get_items_pinned(false).len()
+    pub async fn pinboard_count(&self, store: Store) -> usize {
+        store.get_items_pinned(false).await.len()
     }
 
     pub fn pinboard_count_updated(&self) {

@@ -19,9 +19,9 @@ impl Priority {
             priority,
         }
     }
-    pub fn count(&self) -> usize {
-        Store::instance()
-            .get_items_by_priority(self.priority, false)
+    pub async fn count(&self, store: Store) -> usize {
+        store
+            .get_items_by_priority(self.priority, false).await
             .len()
     }
     pub fn count_updated(&self) {

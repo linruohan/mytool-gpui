@@ -8,7 +8,7 @@ use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate};
 use crate::{constants, utils, Store, Util};
 use crate::{Project, Reminder, Section, Source};
-use chrono::{Local, NaiveDateTime};
+use chrono::NaiveDateTime;
 use sea_orm::prelude::*;
 use std::collections::HashMap;
 use tokio::sync::OnceCell;
@@ -341,11 +341,11 @@ impl Item {
         todo!()
     }
 
-    pub fn delete_item_label(&self, id: &str) {
+    pub async fn delete_item_label(&self, id: &str) -> Result<(), TodoError> {
         todo!()
     }
-    pub fn update_local(&self) {
-        self.store.update_item(self, "");
+    pub async fn update_local(&self) {
+        self.store.update_item(self, "").await;
     }
     pub fn update(&self, update_id: &str) {
         if let Some(project) = self.project()

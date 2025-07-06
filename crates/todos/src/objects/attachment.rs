@@ -82,7 +82,7 @@ impl Attachment {
         self.store().await.delete_attachment(self.id());
     }
     pub async fn item(&self) -> Option<ItemModel> {
-        self.store().await.get_item(&self.id()).await.ok()?
+        self.store().await.get_item(&self.id()).await
     }
     pub fn set_item(&mut self, new_item_id: String) {
         self.model.item_id = new_item_id;

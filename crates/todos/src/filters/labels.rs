@@ -1,10 +1,5 @@
-use std::{any::Any, collections::HashMap};
-
-use uuid::Uuid;
-
-use super::FilterItem;
-use crate::{BaseObject, BaseTrait};
-use crate::{Store, enums::FilterType};
+use crate::BaseObject;
+use crate::{enums::FilterType, Store};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Labels {
     pub base: BaseObject,
@@ -26,8 +21,8 @@ impl Default for Labels {
 }
 
 impl Labels {
-    pub fn count(&self) -> usize {
-        Store::instance().get_items_has_labels().len()
+    pub async fn count(&self, store: Store) -> usize {
+        store.get_items_has_labels().await.len()
     }
     pub fn count_updated(&self) {
 

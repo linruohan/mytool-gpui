@@ -1,13 +1,7 @@
-use std::{any::Any, collections::HashMap};
-
-use super::FilterItem;
-use crate::{BaseObject, BaseTrait, Store, enums::FilterType};
-use derive_builder::Builder;
-use uuid::Uuid;
-#[derive(Builder, Debug, Clone, PartialEq, Eq)]
+use crate::{enums::FilterType, BaseObject, Store};
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Completed {
     pub base: BaseObject,
-    #[builder(default, setter(into, strip_option))]
     pub count: Option<usize>,
 }
 impl Default for Completed {
@@ -24,9 +18,9 @@ impl Default for Completed {
     }
 }
 impl Completed {
-    pub fn count(&self) -> usize {
+    pub async fn count(&self, store: Store) -> usize {
         self.count
-            .unwrap_or(Store::instance().get_items_completed().len())
+            .unwrap_or(store.get_items_completed().await.len())
     }
     pub fn count_updated() {
         //Store::instance().item_added.connect (() => {
