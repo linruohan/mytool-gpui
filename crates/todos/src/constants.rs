@@ -22,3 +22,4 @@ pub const MATRIX_URL: &str = "https://matrix.to/#/#useplanify:matrix.org";
 pub const MASTODON_URL: &str = "https://mastodon.social/@planifyapp";
 pub const SHOW_WHATSNEW: bool = false;
 pub const BLOCK_PAST_DAYS: bool = false;
+pub const INBOX_PROJECT_ID: &str = "";

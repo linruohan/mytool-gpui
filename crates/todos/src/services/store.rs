@@ -1,3 +1,4 @@
+use crate::constants;
 use crate::entity::prelude::*;
 use crate::entity::{attachments, items, labels, projects, reminders, sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel, SectionActiveModel, SectionModel, SourceActiveModel, SourceModel};
 use crate::error::TodoError;
@@ -5,6 +6,7 @@ use crate::objects::{BaseTrait, Item, Section};
 use crate::utils::DateTime;
 use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
+use sea_orm::prelude::Expr;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set};
 
 #[derive(Clone, Debug)]
@@ -25,7 +27,6 @@ impl Store {
             .exec(&self.db)
             .await?
             .rows_affected)
-        // attachment.item.attachment_deleted (attachment);
     }
 
     pub async fn insert_attachment(
@@ -34,7 +35,6 @@ impl Store {
     ) -> Result<AttachmentModel, TodoError> {
         let mut active_attachment: AttachmentActiveModel = attachments.into();
         Ok(active_attachment.insert(&self.db).await?)
-        // attachment.item.attachment_added (attachment);
     }
 
     pub async fn get_attachments_by_itemid(
@@ -91,10 +91,6 @@ impl Store {
     ) -> Result<ProjectModel, TodoError> {
         let mut active_project: ProjectActiveModel = project.into();
         Ok(active_project.insert(&self.db).await?)
-        //     && let Some(parent) = project.parent()
-        // {
-        //     parent.add_subproject(project);
-        // }
     }
     pub async fn get_project(&self, id: &str) -> Option<ProjectModel> {
         ProjectEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
@@ -115,72 +111,75 @@ impl Store {
         let mut active_project: ProjectActiveModel = project.into();
         Ok(active_project.update(&self.db).await?)
     }
-    pub async fn delete_project(&self, id: &str) -> Result<u64, TodoError> {
-        let result = ProjectEntity::delete_by_id(id)
-            .exec(&self.db)
-            .await?;
-        if result.rows_affected > 0 {
-            for section in self.get_sections_by_project(id).await? {
-                self.delete_section(&section.id);
-            }
-            for item in self.get_items_by_project(id).await? {
-                self.delete_item(&item.id).await?;
-            }
-            for subproject in self.get_subprojects(id).await {
-                self.delete_project(&subproject.id).await?;
-            }
-        }
-        Ok(result.rows_affected)
+    pub async fn delete_project(&self, id: &str) -> Result<(), TodoError> {
+        Box::pin(async move {
+            ProjectEntity::delete_by_id(id)
+                .exec(&self.db)
+                .await?;
+            self.delete_project(&id).await?;
+            Ok(())
+        }).await
     }
-    // pub async fn update_project_id(&self, cur_id: &str, new_id: &str) {
-    //     if Database::default().update_project_id(cur_id, new_id) {
-    //         if let Some(mut project) = self.get_project(cur_id) {
-    //             project.id = Some(new_id.to_string());
-    //         }
-    //         if Database::default().update_project_section_id(cur_id, new_id) {
-    //             for mut section in self.sections() {
-    //                 if section.project_id.as_deref() == Some(cur_id) {
-    //                     section.project_id = Some(new_id.to_string());
-    //                 }
-    //             }
-    //         }
-    //         if Database::default().update_project_item_id(cur_id, new_id) {
-    //             for mut item in self.items() {
-    //                 if item.project_id.as_deref() == Some(cur_id) {
-    //                     item.project_id = Some(new_id.to_string());
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // pub async fn next_project_child_order(&self, source: &Source) -> i32 {
-    //     self.projects()
-    //         .iter()
-    //         .filter(|i| i.source_id == source.id && !i.is_deleted())
-    //         .count() as i32
-    // }
-    //
-    // pub async fn archive_project(&self, project_id: &str) -> Result<u64, TodoError> {
-    //     if let Some(mut project) = self.get_project(project_id).await? {
-    //         project.is_archived = true;
-    //         let items = self.get_items_by_project(project_id).await?;
-    //         for item in items {
-    //             self.archive_item(&item, true).await;
-    //         }
-    //     }
-    //
-    //     if Database::default().archive_project(project.clone()) {
-    //         for item in self.get_items_by_project(project) {
-    //             self.archive_item(&item, project.is_archived());
-    //         }
-    //         for section in self.get_sections_by_project(project) {
-    //             let mut sec = section.clone();
-    //             sec.is_archived = project.is_archived;
-    //             self.archive_section(&sec);
-    //         }
-    //     }
-    // }
-    //
+    async fn _delete_project(&self, project_id: &str) -> Result<(), TodoError> {
+        for section in self.get_sections_by_project(project_id).await {
+            self.delete_section(&section.id).await?;
+        }
+        for item in self.get_items_by_project(project_id).await {
+            self.delete_item(&item.id).await?;
+        }
+        for subproject in self.get_subprojects(project_id).await {
+            self.delete_project(&subproject.id).await?;
+        }
+        Ok(())
+    }
+    pub async fn update_project_id(&self, project_id: &str, new_id: &str) -> Result<(), TodoError> {
+        let project = ProjectEntity::find_by_id(project_id).one(&self.db).await?
+            .ok_or(TodoError::NotFound("project not found".to_string()))?;
+        ProjectEntity::update(ProjectActiveModel {
+            id: Set(new_id.to_string()),
+            is_archived: Set(true),
+            ..project.into()
+        }).exec(&self.db).await?;
+        SectionEntity::update_many().col_expr(sections::Column::ProjectId, Expr::value(new_id.to_string()))
+                                    .filter(sections::Column::ProjectId.eq(project_id))
+                                    .exec(&self.db).await?;
+        ItemEntity::update_many().col_expr(items::Column::ProjectId, Expr::value(new_id.to_string()))
+                                 .filter(items::Column::ProjectId.eq(project_id)).exec(&self.db).await?;
+        Ok(())
+    }
+    pub async fn next_project_child_order(&self, source_id: &str) -> i32 {
+        ProjectEntity::find()
+            .filter(projects::Column::SourceId.eq(source_id).and(
+                projects::Column::IsDeleted.eq(0).and(
+                    projects::Column::IsArchived.eq(0)
+                )
+            ))
+            .count(&self.db)
+            .await
+            .unwrap_or(0) as i32
+    }
+
+    pub async fn archive_project(&self, project_id: &str) -> Result<(), TodoError> {
+        let project = ProjectEntity::find_by_id(project_id).one(&self.db).await?
+            .ok_or(TodoError::NotFound("project not found".to_string()))?;
+        ProjectEntity::update(ProjectActiveModel {
+            id: Set(project_id.to_string()),
+            is_archived: Set(true),
+            ..project.into()
+        }).exec(&self.db).await?;
+
+        let items = self.get_items_by_project(project_id).await;
+        for item in items {
+            self.archive_item(&item.id, true).await?;
+        }
+
+        let sections = self.get_sections_by_project(project_id).await;
+        for section in sections {
+            self.archive_section(&*section.id, true).await?;
+        }
+        Ok(())
+    }
+
     pub async fn get_subprojects(&self, id: &str) -> Vec<ProjectModel> {
         ProjectEntity::find()
             .filter(projects::Column::ParentId.eq(id))
@@ -190,13 +189,11 @@ impl Store {
     }
 
     pub async fn get_inbox_project(&self) -> Vec<ProjectModel> {
-        let projects = self.projects().await;
-
-        self.projects()
-            .iter()
-            .filter(|s| s.is_inbox_project())
-            .cloned()
-            .collect()
+        ProjectEntity::find()
+            .filter(projects::Column::Id.eq(constants::INBOX_PROJECT_ID))
+            .all(&self.db)
+            .await
+            .unwrap_or_default()
     }
     pub async fn get_all_projects_archived(&self) -> Vec<ProjectModel> {
         ProjectEntity::find().filter(projects::Column::IsArchived.eq(1)).all(&self.db).await.unwrap_or_default()
@@ -217,7 +214,11 @@ impl Store {
         SectionEntity::find().filter(sections::Column::ProjectId.eq(project_id)).all(&self.db).await.unwrap_or_default()
     }
     pub async fn get_sections_archived_by_project(&self, project_id: &str) -> Vec<SectionModel> {
-        let sections_model = SectionEntity::find().filter(sections::Column::ProjectId.eq(project_id)).all(&self.db).await?;
+        let sections_model = match SectionEntity::find().filter(sections::Column::ProjectId.eq(project_id)).all(&self.db).await
+        {
+            Ok(sections) => sections,
+            Err(_) => return vec![],
+        };
         stream::iter(sections_model).filter_map(|model| async move {
             if let Ok(section) = Section::from_db(self.db.clone(), &model.id).await {
                 if section.was_archived() {
@@ -239,51 +240,41 @@ impl Store {
         let mut active_section: SectionActiveModel = section.into();
         Ok(active_section.update(&self.db).await?)
     }
-    // pub async fn move_section(&self, section: &Section, project_id: &str) {
-    //     if Database::default().move_section(section, project_id)
-    //         && Database::default().move_section_items(section)
-    //     {
-    //         for mut item in section.items() {
-    //             item.project_id = Some(project_id.to_string());
-    //         }
-    //         // section_moved(section, old_project_id);
-    //     }
-    // }
-    // pub async fn update_section_id(&self, cur_id: &str, new_id: &str) {
-    //     if Database::default().update_section_id(cur_id, new_id) {
-    //         for mut section in self.sections() {
-    //             if section.id.as_deref() == Some(cur_id) {
-    //                 section.id = Some(new_id.to_string());
-    //             }
-    //         }
-    //         if Database::default().update_section_item_id(cur_id, new_id) {
-    //             for mut item in self.items() {
-    //                 if item.section_id.as_deref() == Some(cur_id) {
-    //                     item.section_id = Some(new_id.to_string());
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    pub async fn archive_section(&self, section_id: &str) -> Result<(), TodoError> {
+    pub async fn move_section(&self, section_id: &str, project_id: &str) -> Result<(), TodoError> {
+        let section = SectionEntity::find_by_id(section_id).one(&self.db).await?
+            .ok_or(TodoError::NotFound("section not found".to_string()))?;
+        SectionActiveModel {
+            id: Set(section_id.to_string()),
+            project_id: Set(Some(project_id.to_string())),
+            ..section.into()
+        }.update(&self.db).await?;
+        ItemEntity::update_many().col_expr(items::Column::ProjectId, Expr::value(project_id.to_string()))
+                                 .filter(items::Column::SectionId.eq(section_id))
+                                 .exec(&self.db).await?;
+        Ok(())
+    }
+    pub async fn update_section_id(&self, section_id: &str, new_id: &str) -> Result<(), TodoError> {
+        let section = SectionEntity::find_by_id(section_id).one(&self.db).await?
+            .ok_or(TodoError::NotFound("section not found".to_string()))?;
+        SectionActiveModel {
+            id: Set(new_id.to_string()),
+            ..section.into()
+        }.update(&self.db).await?;
+        ItemEntity::update_many().col_expr(items::Column::SectionId, Expr::value(new_id.to_string())).filter(items::Column::SectionId.eq(section_id)).exec(&self.db).await?;
+        Ok(())
+    }
+    pub async fn archive_section(&self, section_id: &str, archived: bool) -> Result<(), TodoError> {
+        let section = SectionEntity::find_by_id(section_id).one(&self.db).await?.ok_or(TodoError::NotFound("section not found".to_string()))?;
+        let archived_new = if section.is_archived == archived { !archived } else { archived };
         let active_model = SectionActiveModel {
-            id: sea_orm::Set(section_id.to_string()),
-            is_archived: sea_orm::Set(true),
-            archived_at: sea_orm::Set(Some(Utc::now().naive_utc())),
-            ..SectionEntity::find_by_id(section_id)
-                .one(&self.db)
-                .await?
-                .ok_or(TodoError::NotFound("section not found".to_string()))?
-                .into()
+            is_archived: Set(archived_new),
+            archived_at: Set(Some(Utc::now().naive_utc())),
+            ..section.into()
         };
-        let section_model = active_model.update(&self.db).await?;
+        active_model.update(&self.db).await?;
         for item in self.get_items_by_section(section_id).await? {
             self.archive_item(&item.id, true).await?;
         }
-        let old = section_model.is_archived;
-        let mut section_active_model: SectionActiveModel = section_model.into();
-        section_active_model.is_archived = Set(!old);
-        section_active_model.update(&self.db).await?;
         Ok(())
     }
     pub async fn insert_section(
@@ -292,7 +283,6 @@ impl Store {
     ) -> Result<SectionModel, TodoError> {
         let mut active_section: sections::ActiveModel = section.into();
         Ok(active_section.insert(&self.db).await?)
-        // section.project.section_added (section);
     }
     pub async fn delete_section(&self, section_id: &str) -> Result<(), TodoError> {
         let result = SectionEntity::delete_by_id(section_id).exec(&self.db).await?;
@@ -321,48 +311,42 @@ impl Store {
     }
 
     pub async fn add_item(&self, item: ItemModel, insert: bool) {
-        if (insert) {
-            // if let Some(parent) = item.parent() {
-            //     parent.item_added(item);
-            // } else if let Some(section) = item.section() {
-            //     section.item_added(item);
-            // } else if let Some(project) = item.project() {
-            //     project.item_added(item);
-            // }
-        }
         // Services.EventBus.get_default ().update_items_position (item.project_id, item.section_id);
     }
 
-    // pub async fn update_item(&self, item: &Item, update_id: &str) {
-    //     if Database::default().update_item(item) {
-    //         // self.item_updated(item.clone(), update_id.clone());
-    //     }
-    // }
-    // pub async fn update_item_pin(&self, item: &Item) {
-    //     if Database::default().update_item(item) {
-    //         item.pin_updated();
-    //     }
-    // }
-    // pub async fn move_item(&self, item: &Item, project_id: &str, section_id: &str) {
-    //     if Database::default().move_item(item) {
-    //         for subitem in self.get_subitems(item) {
-    //             let mut sub = subitem.clone();
-    //             sub.project_id = item.project_id.clone();
-    //             self.move_item(&sub, "", "");
-    //         }
-    //         if let Some(section_id) = item.section_id.clone()
-    //             && let Some(section) = self.get_section(&section_id)
-    //         {
-    //             section.update_count();
-    //         }
-    //         if let Some(project_id) = item.project_id.clone()
-    //             && let Some(project) = self.get_project(&project_id)
-    //         {
-    //             project.update_count();
-    //         }
-    //     }
-    // }
-    //
+    pub async fn update_item(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
+        let item_model = self.get_item(item_id).await.ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+        ItemEntity::update(ItemActiveModel {
+            id: Set(new_id.to_string()),
+            ..item_model.into()
+        }).exec(&self.db).await?;
+        Ok(())
+    }
+    pub async fn update_item_pin(&self, item_id: &str) -> Result<(), TodoError> {
+        let item_model = self.get_item(item_id).await.ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+        ItemEntity::update(ItemActiveModel {
+            pinned: Set(true),
+            ..item_model.into()
+        }).exec(&self.db).await?;
+        Ok(())
+    }
+    pub async fn move_item(&self, item_id: &str, project_id: &str, section_id: &str) -> Result<(), TodoError> {
+        let item_model = self.get_item(item_id).await.ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+        ItemEntity::update(ItemActiveModel {
+            id: Set(item_id.to_string()),
+            project_id: Set(Some(project_id.to_string())),
+            section_id: Set(Some(section_id.to_string())),
+            ..item_model.into()
+        }).exec(&self.db).await?;
+        let subitems = self.get_subitems(item_id).await;
+        ItemEntity::update_many().col_expr(items::Column::ProjectId, Expr::value(project_id.to_string())).col_expr(
+            items::Column::SectionId, Expr::value(section_id.to_string()),
+        ).filter(
+            items::Column::ParentId.eq(item_id.to_string())
+        ).exec(&self.db).await?;
+        Ok(())
+    }
+
     pub async fn delete_item(&self, item_id: &str) -> Result<(), TodoError> {
         Box::pin(async move {
             let result = ItemEntity::delete_by_id(item_id).exec(&self.db).await?;
@@ -371,14 +355,6 @@ impl Store {
                 self.delete_item(&item.id).await?
             };
             Ok(())
-            // if let Some(p) = item.project() {
-            //     p.item_deleted(item)
-            // }
-            // if item.has_section()
-            //     && let Some(s) = item.section()
-            // {
-            //     s.item_deleted(item)
-            // }
         }).await
     }
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
@@ -401,9 +377,9 @@ impl Store {
     pub async fn complete_item(&self, item_id: &str, checked: bool, complete_subitems: bool) -> Result<(), TodoError> {
         Box::pin(async move {
             let active_model = ItemActiveModel {
-                id: sea_orm::Set(item_id.to_string()),
-                checked: sea_orm::Set(checked),
-                completed_at: sea_orm::Set(Some(Utc::now().naive_utc())),
+                id: Set(item_id.to_string()),
+                checked: Set(checked),
+                completed_at: Set(Some(Utc::now().naive_utc())),
                 ..ItemEntity::find_by_id(item_id)
                     .one(&self.db)
                     .await?
@@ -425,15 +401,13 @@ impl Store {
     }
     pub async fn update_item_id(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
         let item_model = ItemActiveModel {
-            id: sea_orm::Set(new_id.to_string()),
+            id: Set(new_id.to_string()),
             ..ItemEntity::find_by_id(item_id).one(&self.db).await?.ok_or(TodoError::NotFound("item not found".to_string()))?.into()
         };
         item_model.update(&self.db).await?;
 
-        ItemEntity::update_many().set(ItemActiveModel {
-            parent_id: sea_orm::Set(Some(new_id.to_string())),
-            ..Default::default()
-        }).filter(items::Column::ParentId.eq(item_id)).exec(&self.db).await?;
+        ItemEntity::update_many().col_expr(items::Column::ParentId, Expr::value(new_id.to_string()),
+        ).filter(items::Column::ParentId.eq(item_id)).exec(&self.db).await?;
         Ok(())
     }
     pub async fn next_item_child_order(&self, project_id: &str, section_id: &str) -> i32 {
@@ -441,8 +415,8 @@ impl Store {
             items::Column::SectionId.eq(section_id)
         )).count(&self.db).await.unwrap_or(0) as i32
     }
-    pub async fn get_item(&self, id: &str) -> Result<Option<ItemModel>, TodoError> {
-        Ok(ItemEntity::find_by_id(id).one(&self.db).await?)
+    pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
+        ItemEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
 
     pub async fn get_items_by_section(&self, section_id: &str) -> Result<Vec<ItemModel>, TodoError> {
@@ -455,10 +429,21 @@ impl Store {
         ItemEntity::find().filter(items::Column::ParentId.eq(item_id)).all(&self.db).await.unwrap_or_default()
     }
     pub async fn get_items_completed(&self) -> Vec<ItemModel> {
-        ItemEntity::find().filter(
+        let items_model = match ItemEntity::find().filter(
             items::Column::Checked.eq(1).and(items::Column::SectionId.eq(""))
-        ).all(&self.db).await.unwrap_or_default()
-        // .filter(|s| s.checked == Some(1) && !s.was_archived())
+        ).all(&self.db).await {
+            Ok(items) => items,
+            Err(_) => return vec![],
+        };
+        stream::iter(items_model).filter_map(|model| async move {
+            let item = Item::from_db(self.db.clone(), &model.id).await;
+            if let Ok(item) = item {
+                if !item.was_archived() {
+                    return Some(model);
+                }
+            }
+            None
+        }).collect().await
     }
     pub async fn get_item_by_ics(&self, ics: &str) -> Option<ItemModel> {
         ItemEntity::find()
@@ -469,20 +454,41 @@ impl Store {
     }
 
     pub async fn get_items_has_labels(&self) -> Vec<ItemModel> {
-        ItemEntity::find()
+        let items_model = match ItemEntity::find()
             .filter(items::Column::Labels.is_not_null())
             .all(&self.db)
-            .await
-            .unwrap_or_default()
-        // .filter(|s| s.has_labels() && s.completed() && !s.was_archived())
+            .await {
+            Ok(items) => items,
+            Err(_) => return vec![],
+        };
+        stream::iter(items_model).filter_map(|model| async move {
+            let item = Item::from_db(self.db.clone(), &model.id).await;
+            if let Ok(item) = item {
+                if item.has_labels() && item.completed() && !item.was_archived() {
+                    return Some(model);
+                }
+            }
+            None
+        }).collect().await
     }
 
     pub async fn get_items_by_label(&self, label_id: &str, checked: bool) -> Vec<ItemModel> {
-        ItemEntity::find().filter(
+        let items_model = match ItemEntity::find().filter(
             items::Column::Labels.is_not_null().and(
                 items::Column::Checked.eq(1)
-            )).all(&self.db).await.unwrap_or_default()
-        // .filter(|i| i.has_label(label_id) && i.checked() == checked && !i.was_archived())
+            )).all(&self.db).await {
+            Ok(items) => items,
+            Err(_) => return vec![],
+        };
+        stream::iter(items_model).filter_map(|model| async move {
+            let item = Item::from_db(self.db.clone(), &model.id).await;
+            if let Ok(item) = item {
+                if item.has_label(label_id) && item.checked() == checked && !item.was_archived() {
+                    return Some(model);
+                }
+            }
+            None
+        }).collect().await
     }
 
     pub async fn get_items_checked(&self) -> Result<Vec<ItemModel>, TodoError> {
@@ -501,8 +507,8 @@ impl Store {
             items::Column::Checked.eq(0)
         )).all(&self.db).await.unwrap_or_default()
     }
-    pub async fn get_items_by_project(&self, project_id: &str) -> Result<Vec<ItemModel>, TodoError> {
-        Ok(ItemEntity::find().filter(items::Column::ProjectId.eq(project_id)).all(&self.db).await?)
+    pub async fn get_items_by_project(&self, project_id: &str) -> Vec<ItemModel> {
+        ItemEntity::find().filter(items::Column::ProjectId.eq(project_id)).all(&self.db).await.unwrap_or_default()
     }
     pub async fn get_items_by_project_pinned(&self, project_id: &str) -> Result<Vec<ItemModel>, TodoError> {
         Ok(ItemEntity::find().filter(items::Column::ProjectId.eq(project_id).and(
@@ -653,7 +659,7 @@ impl Store {
         date: &NaiveDateTime,
         checked: bool,
     ) -> bool {
-        let Ok(Some(item_model)) = self.get_item(item_id).await else { return false };
+        let Some(item_model) = self.get_item(item_id).await else { return false };
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
@@ -675,7 +681,7 @@ impl Store {
         end_date: NaiveDateTime,
         checked: bool,
     ) -> bool {
-        let Ok(Some(item_model)) = self.get_item(item_id).await else { return false };
+        let Some(item_model) = self.get_item(item_id).await else { return false };
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
@@ -694,7 +700,7 @@ impl Store {
         date: &NaiveDateTime,
         checked: bool,
     ) -> bool {
-        let Ok(Some(item_model)) = self.get_item(item_id).await else { return false };
+        let Some(item_model) = self.get_item(item_id).await else { return false };
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
@@ -746,7 +752,7 @@ impl Store {
     // 判断一个项目是否过期了，基于逾期状态和是否被选中
     pub async fn valid_item_by_overdue(&self, item_id: &str, checked: bool) -> bool {
         // 获取项目，失败直接返回false
-        let Ok(Some(item_model)) = self.get_item(item_id).await else { return false };
+        let Some(item_model) = self.get_item(item_id).await else { return false };
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
