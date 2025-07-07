@@ -1,4 +1,3 @@
-use crate::entity::labels::ActiveModel as LabelActiveModel;
 use crate::entity::labels::Model as LabelModel;
 use crate::entity::prelude::LabelEntity;
 use crate::entity::sources::Model as SourceModel;
@@ -9,7 +8,6 @@ use crate::BaseObject;
 use crate::Store;
 use crate::Util;
 use sea_orm::prelude::*;
-use sea_orm::Set;
 use tokio::sync::OnceCell;
 
 #[derive(Clone, Debug)]
@@ -99,15 +97,14 @@ impl Label {
     }
 
 
-    pub async fn source_type(&self) -> SourceType {
+    pub async fn source_type(&self) -> Option<SourceType> {
         self.source()
             .await
-            .ok()
-            .and_then(|opt| opt.and_then(|s| serde_json::from_str(&s.source_type).ok()))
-            .unwrap_or(SourceType::NONE)
+            .and_then(|source| serde_json::from_str(&source.source_type).ok())
+            .unwrap_or(Some(SourceType::NONE))
     }
-    pub async fn source(&self) -> Result<Option<SourceModel>, TodoError> {
-        Ok(self.store().await.get_source(&self.source_id()).await)
+    pub async fn source(&self) -> Option<SourceModel> {
+        self.store().await.get_source(&self.model.source_id.as_ref()?).await
     }
     async fn label_count(&mut self) -> usize {
         let count = self.store().await.get_items_by_label(self.id(), false).await.len();
@@ -120,7 +117,7 @@ impl Label {
     }
 
     pub fn short_name(&self) -> String {
-        Util::get_default().get_short_name(self.name().clone(), 0)
+        Util::get_default().get_short_name(&self.model.name, 0)
     }
     pub async fn delete_label(&self) -> Result<u64, TodoError> {
         let items_model = self.store().await.get_items_by_label(self.id(), false).await;
@@ -139,33 +136,5 @@ impl BaseTrait for Label {
 
     fn set_id(&mut self, id: &str) {
         self.model.id = id.into();
-    }
-}
-
-
-// impl From<LabelModel> for Label {
-//     fn from(model: LabelModel) -> Self {
-//         Label {
-//             model,
-//             base: BaseObject::default(),
-//             store: Store::default(),
-//             label_count: None,
-//         }
-//     }
-// }
-
-impl Label {
-    pub fn to_active_model(&self) -> LabelActiveModel {
-        LabelActiveModel {
-            id: Set(self.id().to_string()),
-            name: Set(self.name().to_string()),
-            color: Set(self.color().to_string()),
-            item_order: Set(self.item_order()),
-            is_deleted: Set(self.is_deleted()),
-            is_favorite: Set(self.is_favorite()),
-            backend_type: Set(Some(self.backend_type().to_string())),
-            source_id: Set(Some(self.source_id())),
-            ..Default::default()
-        }
     }
 }

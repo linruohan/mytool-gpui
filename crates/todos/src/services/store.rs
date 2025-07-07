@@ -221,7 +221,7 @@ impl Store {
         };
         stream::iter(sections_model).filter_map(|model| async move {
             if let Ok(section) = Section::from_db(self.db.clone(), &model.id).await {
-                if section.was_archived() {
+                if section.was_archived().await {
                     return Some(model);
                 }
             };
@@ -272,7 +272,7 @@ impl Store {
             ..section.into()
         };
         active_model.update(&self.db).await?;
-        for item in self.get_items_by_section(section_id).await? {
+        for item in self.get_items_by_section(section_id).await {
             self.archive_item(&item.id, true).await?;
         }
         Ok(())
@@ -419,10 +419,10 @@ impl Store {
         ItemEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
 
-    pub async fn get_items_by_section(&self, section_id: &str) -> Result<Vec<ItemModel>, TodoError> {
-        Ok(ItemEntity::find().filter(
+    pub async fn get_items_by_section(&self, section_id: &str) -> Vec<ItemModel> {
+        ItemEntity::find().filter(
             items::Column::SectionId.eq(section_id)
-        ).all(&self.db).await?)
+        ).all(&self.db).await.unwrap_or_default()
     }
 
     pub async fn get_subitems(&self, item_id: &str) -> Vec<ItemModel> {
@@ -483,7 +483,7 @@ impl Store {
         stream::iter(items_model).filter_map(|model| async move {
             let item = Item::from_db(self.db.clone(), &model.id).await;
             if let Ok(item) = item {
-                if item.has_label(label_id) && item.checked() == checked && !item.was_archived() {
+                if item.has_label(label_id) && model.checked == checked && !item.was_archived() {
                     return Some(model);
                 }
             }
@@ -663,7 +663,7 @@ impl Store {
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
-        if item.checked() != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived() || !item.has_due() {
             return false;
         }
         let date_util = DateTime::default();
@@ -685,7 +685,7 @@ impl Store {
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
-        if item.checked() != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived() || !item.has_due() {
             return false;
         }
         // 检查截止日期
@@ -704,7 +704,7 @@ impl Store {
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
-        if item.checked() != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived() || !item.has_due() {
             return false;
         }
         // 检查截止日期
@@ -756,7 +756,7 @@ impl Store {
         let Ok(item) = Item::from_db(self.db.clone(), &item_model.id).await else { return false };
 
         // 检查基本条件
-        if item.checked() != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived() || !item.has_due() {
             return false;
         }
         let now = Utc::now().naive_utc();

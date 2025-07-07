@@ -1,13 +1,12 @@
 use super::{Attachment, BaseObject, Label};
 use crate::entity::items::Model as ItemModel;
-use crate::entity::labels::Model as LabelModel;
 use crate::entity::prelude::ItemEntity;
-use crate::entity::{projects, sections};
+use crate::entity::{projects, sections, LabelModel};
 use crate::enums::{ItemType, ReminderType, SourceType};
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate};
 use crate::{constants, utils, Store, Util};
-use crate::{Project, Reminder, Section, Source};
+use crate::{Project, Reminder, Source};
 use chrono::NaiveDateTime;
 use sea_orm::prelude::*;
 use std::collections::HashMap;
@@ -24,20 +23,6 @@ pub struct Item {
     show_item: bool,
 }
 impl Item {
-    pub fn content(&self) -> &str {
-        &self.model.content
-    }
-    pub fn set_content(&mut self, content: impl Into<String>) -> &mut Self {
-        self.model.content = content.into();
-        self
-    }
-    pub fn description(&self) -> Option<&str> {
-        self.model.description.as_deref()
-    }
-    pub fn set_description(&mut self, description: Option<String>) -> &mut Self {
-        self.model.description = description;
-        self
-    }
     pub fn due(&self) -> Option<DueDate> {
         self.model.due.as_ref().map(|json_str| serde_json::from_value::<DueDate>(json_str.clone()).ok()).unwrap_or_default()
     }
@@ -45,74 +30,11 @@ impl Item {
         self.model.due = Some(serde_json::value::to_value(due).unwrap());
         self
     }
-    pub fn section_id(&self) -> Option<&str> {
-        self.model.section_id.as_deref()
-    }
-    pub fn set_section_id(&mut self, section_id: Option<String>) -> &mut Self {
-        self.model.section_id = section_id;
-        self
-    }
-    pub fn project_id(&self) -> Option<&str> {
-        self.model.project_id.as_deref()
-    }
-    pub fn set_project_id(&mut self, project_id: Option<String>) -> &mut Self {
-        self.model.project_id = project_id;
-        self
-    }
-    pub fn parent_id(&self) -> Option<&str> {
-        self.model.parent_id.as_deref()
-    }
-    pub fn set_parent_id(&mut self, parent_id: Option<String>) -> &mut Self {
-        self.model.parent_id = parent_id;
-        self
-    }
     pub fn priority(&self) -> i32 {
         self.model.priority.unwrap_or_else(|| constants::PRIORITY_4)
     }
     pub fn set_priority(&mut self, priority: i32) -> &mut Self {
         self.model.priority = Some(priority.into());
-        self
-    }
-    pub fn child_order(&self) -> Option<i32> {
-        self.model.child_order
-    }
-    pub fn set_child_order(&mut self, child_order: Option<i32>) -> &mut Self {
-        self.model.child_order = child_order;
-        self
-    }
-    pub fn checked(&self) -> bool {
-        self.model.checked
-    }
-    pub fn set_checked(&mut self, checked: bool) -> &mut Self {
-        self.model.checked = checked;
-        self
-    }
-    pub fn is_deleted(&self) -> bool {
-        self.model.is_deleted
-    }
-    pub fn set_is_deleted(&mut self, is_deleted: bool) -> &mut Self {
-        self.model.is_deleted = is_deleted;
-        self
-    }
-    pub fn day_order(&self) -> Option<i32> {
-        self.model.day_order
-    }
-    pub fn set_day_order(&mut self, day_order: Option<i32>) -> &mut Self {
-        self.model.day_order = day_order;
-        self
-    }
-    pub fn collapsed(&self) -> bool {
-        self.model.collapsed
-    }
-    pub fn set_collapsed(&mut self, collapsed: bool) -> &mut Self {
-        self.model.collapsed = collapsed;
-        self
-    }
-    pub fn pinned(&self) -> bool {
-        self.model.pinned
-    }
-    pub fn set_pinned(&mut self, pinned: bool) -> &mut Self {
-        self.model.pinned = pinned;
         self
     }
     pub fn labels(&self) -> Option<Vec<LabelModel>> {
@@ -172,31 +94,31 @@ impl Item {
         todo!();
     }
     pub fn short_content(&self) -> String {
-        Util::get_default().get_short_name(self.content(), 0)
+        Util::get_default().get_short_name(&*self.model.content, 0)
     }
 
     pub fn priority_icon(&self) -> &str {
-        match self.priority() {
-            constants::PRIORITY_1 => "priority-icon-1",
-            constants::PRIORITY_2 => "priority-icon-2",
-            constants::PRIORITY_3 => "priority-icon-3",
+        match self.model.priority.as_ref() {
+            Some(&constants::PRIORITY_1) => "priority-icon-1",
+            Some(&constants::PRIORITY_2) => "priority-icon-2",
+            Some(&constants::PRIORITY_3) => "priority-icon-3",
             _ => "planner-flag",
         }
     }
     pub fn priority_color(&self) -> &str {
-        match self.priority() {
-            constants::PRIORITY_1 => "#ff7066",
-            constants::PRIORITY_2 => "#ff9914",
-            constants::PRIORITY_3 => "#5297ff",
+        match self.model.priority.as_ref() {
+            Some(&constants::PRIORITY_1) => "#ff7066",
+            Some(&constants::PRIORITY_2) => "#ff9914",
+            Some(&constants::PRIORITY_3) => "#5297ff",
             _ => "@text_color",
         }
     }
 
     pub fn priority_text(&self) -> &str {
-        match self.priority() {
-            constants::PRIORITY_1 => "Priority 1: high",
-            constants::PRIORITY_2 => "Priority 2: medium",
-            constants::PRIORITY_3 => "Priority 3: low",
+        match self.model.priority.as_ref() {
+            Some(&constants::PRIORITY_1) => "Priority 1: high",
+            Some(&constants::PRIORITY_2) => "Priority 2: medium",
+            Some(&constants::PRIORITY_3) => "Priority 3: low",
             _ => "Priority 4: none",
         }
     }
@@ -206,11 +128,11 @@ impl Item {
         self
     }
     pub fn pinned_icon(&self) -> &str {
-        if self.pinned() { "planner-pin-tack" } else { "planner-pinned" }
+        if self.model.pinned { "planner-pin-tack" } else { "planner-pinned" }
     }
 
     pub fn completed(&self) -> bool {
-        self.checked()
+        self.model.checked
     }
     pub fn has_due(&self) -> bool {
         self.due().and_then(|d| Some(d.datetime().is_some())).unwrap_or(false)
@@ -327,8 +249,8 @@ impl Item {
             }
         }
     }
-    pub fn set_section(&mut self, section: Section) {
-        self.section_id = section.id.clone();
+    pub fn set_section(&mut self, section_id: &str) {
+        self.model.section_id = Some(section_id.to_string());
     }
     pub fn set_project(&mut self, project: Project) {
         self.project_id = project.id.clone();

@@ -514,7 +514,7 @@ impl DateTime {
     // }
 
     pub fn get_markdown_format_date(&self, item: &Item) -> String {
-        item.due()
+        item.due().expect("REASON")
             .datetime()
             .map(|dt| format!(" ({}) ", self.get_relative_date_from_date(&dt)))
             .unwrap_or_else(|| " ".to_string())

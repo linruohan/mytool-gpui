@@ -36,10 +36,10 @@ impl Source {
         Ok(Self::new(db, item))
     }
     pub fn source_type(&self) -> SourceType {
-        SourceType::parse(Some(&self.source_type))
+        SourceType::parse(Some(&self.model.source_type))
     }
     pub fn header_text(&self) -> String {
-        self.display_name.clone().unwrap_or_default()
+        self.model.display_name.clone().unwrap_or_default()
     }
 }
 

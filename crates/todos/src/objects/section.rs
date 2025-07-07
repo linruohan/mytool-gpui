@@ -1,11 +1,10 @@
-use crate::objects::{BaseTrait, Item};
-use crate::{BaseObject, Source, Store};
-
-use crate::Project;
+use crate::objects::{BaseTrait, Item, Project};
+use crate::{BaseObject, Store};
 
 use crate::entity::prelude::SectionEntity;
-use crate::entity::SectionModel;
+use crate::entity::{ItemModel, ProjectModel, SectionModel, SourceModel};
 use crate::error::TodoError;
+use crate::utils::Util;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
@@ -15,11 +14,12 @@ pub struct Section {
     base: BaseObject,
     db: DatabaseConnection,
     store: OnceCell<Store>,
+    activate_name_editable: bool,
 }
 impl Section {
     pub fn new(db: DatabaseConnection, model: SectionModel) -> Self {
         let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new() }
+        Self { model, base, db, store: OnceCell::new(), activate_name_editable: false }
     }
 
     pub async fn store(&self) -> &Store {
@@ -35,29 +35,94 @@ impl Section {
 
         Ok(Self::new(db, item))
     }
-    pub fn project(&self) -> Option<Project> {
-        Store::instance().get_project(self.project_id.as_ref()?) // Assuming Store has a method to get project by ID
+    pub fn short_name(&self) -> String {
+        Util::default().get_short_name(&self.model.name, 0)
     }
-    pub fn items(&self) -> Vec<Item> {
-        let mut items = Store::instance().get_item_by_baseobject(Box::new(self.clone()));
+    pub async fn project(&self) -> Option<ProjectModel> {
+        self.store().await.get_project(self.model.project_id.as_ref()?).await // Assuming Store has a method to get project by ID
+    }
+    pub async fn items(&self) -> Vec<ItemModel> {
+        let mut items = self.store().await.items().await;
         items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
         items
     }
-    pub fn is_archived(&self) -> bool {
-        self.is_archived.unwrap_or(0) > 0
+    pub async fn section_count(&self) -> usize {
+        let mut result = 0;
+        let items = self.store().await.get_items_by_section(&self.model.id).await;
+        result += items.len();
+        for item in &items {
+            let subitems = self.store().await.get_subitems(&item.id).await;
+            result += subitems.len();
+        }
+        result
     }
-    pub(crate) fn update_count(&self) {
-        todo!()
+    pub async fn add_item_if_not_exist(&self, item_model: ItemModel) -> Result<(), TodoError> {
+        if self.get_item(&item_model.id).await.is_none() {
+            let mut item = Item::from_db(self.db.clone(), &item_model.id).await?;
+            item.set_section(&self.model.id);
+            self.store().await.insert_item(item.model, true).await?
+        }
+        Ok(())
     }
-    pub fn was_archived(&self) -> bool {
-        self.project()
-            .as_ref()
-            .map_or(self.is_archived(), |p| p.is_archived())
+
+    pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
+        self.store().await.get_item(item_id).await
     }
-    pub fn source(&self) -> Option<Source> {
-        self.project()
-            .as_ref()
-            .map_or(Some(Source::default()), |p| p.source())
+    pub async fn get_subitem_size(&self, item_id: &str) -> usize {
+        let mut count = 0;
+        Box::pin(async move {
+            let subitems = self.store().await.get_subitems(item_id).await;
+            count += subitems.len();
+            for subitem in subitems {
+                count += self.get_subitem_size(&subitem.id).await;
+            }
+
+            let subitems_uncomplete = self.store().await.get_subitems_uncomplete(item_id).await;
+            count += subitems_uncomplete.len();
+            for subitem in subitems_uncomplete {
+                count += self.get_subitem_size(&subitem.id).await;
+            }
+        }).await;
+        count
+    }
+    pub fn duplicate(&self) -> SectionModel {
+        SectionModel {
+            name: self.model.name.clone(),
+            color: self.model.color.clone(),
+            description: self.model.description.clone(),
+            ..Default::default()
+        }
+    }
+    pub async fn delete_section(&self) -> Result<(), TodoError> {
+        self.store().await.delete_section(self.id()).await
+    }
+
+    pub async fn archive_section(&self) -> Result<(), TodoError> {
+        self.store().await.archive_section(self.id(), true).await
+    }
+    pub async fn unarchive_section(&self) -> Result<(), TodoError> {
+        self.store().await.archive_section(self.id(), true).await
+    }
+
+    pub async fn was_archived(&self) -> bool {
+        let Some(project_model) = self.project().await else {
+            return self.model.is_archived;
+        };
+        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await
+        {
+            return project.is_archived();
+        }
+        false
+    }
+    pub async fn source(&self) -> Option<SourceModel> {
+        let Some(project_model) = self.project().await else {
+            return None;
+        };
+        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await
+        {
+            return project.source().await;
+        }
+        None
     }
 }
 

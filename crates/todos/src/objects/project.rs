@@ -1,9 +1,10 @@
 use crate::entity::prelude::ProjectEntity;
-use crate::entity::ProjectModel;
+use crate::entity::sources::Column::SourceType;
+use crate::entity::{ProjectModel, SourceModel};
 use crate::enums::SourceType;
 use crate::error::TodoError;
-use crate::objects::BaseTrait;
-use crate::{BaseObject, Source, Store};
+use crate::objects::{BaseTrait, Source};
+use crate::{BaseObject, Store};
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
@@ -94,8 +95,8 @@ impl Project {
 
         Ok(Self::new(db, item))
     }
-    pub fn project_count(&self) -> usize {
-        let items = Store::instance().get_items_by_project(self);
+    pub async fn project_count(&self) -> usize {
+        let items = self.store().await.get_items_by_project(self).await;
         items
             .iter()
             .filter(|i| !i.checked() || !i.was_archived())
@@ -104,27 +105,28 @@ impl Project {
     pub(crate) fn is_inbox_project(&self) -> bool {
         todo!()
     }
-    pub(crate) fn is_archived(&self) -> bool {
-        self.is_archived.unwrap_or(0) > 0
-    }
-    pub fn source_type(&self) -> SourceType {
-        self.source().map_or(SourceType::NONE, |s| s.source_type())
+
+    pub async fn source_type(&self) -> SourceType {
+        if let Some(source_model) = self.source().await {
+            if let Ok(source) = Source::from_db(self.db.clone(), &source_model.id).await {
+                return source.source_type();
+            }
+        }
+        SourceType::NONE
     }
     pub(crate) fn update_count(&self) {
         todo!()
     }
-    pub fn parent(&self) -> Option<Project> {
-        self.parent_id
-            .as_deref()
-            .and_then(|id| Store::instance().get_project(id))
+    pub async fn parent(&self) -> Option<ProjectModel> {
+        let id = self.model.parent_id.as_ref()?;
+        self.store().await.get_project(id).await
     }
-    pub fn add_subproject(&self, subproject: &Project) {
-        Store::instance().insert_project(subproject);
+    pub async fn add_subproject(&self, subproject: ProjectModel) -> Result<ProjectModel, TodoError> {
+        self.store().await.insert_project(subproject).await
     }
-    pub fn source(&self) -> Option<Source> {
-        self.source_id
-            .as_deref()
-            .and_then(|id| Store::instance().get_source(id))
+    pub async fn source(&self) -> Option<SourceModel> {
+        let id = self.model.source_id.as_ref()?; // Early return if None
+        self.store().await.get_source(id).await
     }
 }
 

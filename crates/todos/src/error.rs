@@ -7,4 +7,6 @@ pub enum TodoError {
     NotFound(String),
     #[error("id not found")]
     IDNotFound,
+    #[error("{0} already exists")]
+    AlreadyExists(String),
 }
