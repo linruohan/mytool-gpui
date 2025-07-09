@@ -1,4 +1,3 @@
-use crate::section;
 use chrono::{Datelike, Days, Duration, Utc};
 use gpui::{
     px, App, AppContext, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
@@ -8,11 +7,15 @@ use gpui_component::{v_flex, Sizable as _};
 use my_components::calendar;
 use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset};
 
+use crate::section;
+
 pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,
+    date_picker_small: Entity<DatePickerState>,
+    date_picker_large: Entity<DatePickerState>,
+    data_picker_custom: Entity<DatePickerState>,
     date_picker_value: Option<String>,
     date_range_picker: Entity<DatePickerState>,
-    date_picker_large: Entity<DatePickerState>,
     default_range_mode_picker: Entity<DatePickerState>,
     _subscriptions: Vec<Subscription>,
 }
@@ -44,15 +47,6 @@ impl DatePickerStory {
             picker.set_disabled(vec![0, 6], window, cx);
             picker
         });
-        let date_range_picker = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx);
-            picker.set_date(
-                (now, now.checked_add_days(Days::new(4)).unwrap()),
-                window,
-                cx,
-            );
-            picker
-        });
         let date_picker_large = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).date_format("%Y-%m-%d");
             picker.set_disabled(
@@ -67,6 +61,36 @@ impl DatePickerStory {
             );
             picker
         });
+        let date_picker_small = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx);
+            picker.set_disabled(
+                calendar::Matcher::interval(Some(now), now.checked_add_days(Days::new(5))),
+                window,
+                cx,
+            );
+            picker.set_date(now, window, cx);
+            picker
+        });
+        let data_picker_custom = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx);
+            picker.set_disabled(
+                calendar::Matcher::custom(|date| date.day0() < 5),
+                window,
+                cx,
+            );
+            picker.set_date(now, window, cx);
+            picker
+        });
+        let date_range_picker = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx);
+            picker.set_date(
+                (now, now.checked_add_days(Days::new(4)).unwrap()),
+                window,
+                cx,
+            );
+            picker
+        });
+
         let default_range_mode_picker = cx.new(|cx| DatePickerState::range(window, cx));
 
         let _subscriptions = vec![
@@ -89,10 +113,12 @@ impl DatePickerStory {
 
         Self {
             date_picker,
+            date_picker_large,
+            date_picker_small,
+            data_picker_custom,
             date_range_picker,
             default_range_mode_picker,
             date_picker_value: None,
-            date_picker_large,
             _subscriptions,
         }
     }
@@ -146,9 +172,26 @@ impl Render for DatePickerStory {
         v_flex()
             .gap_3()
             .child(
+                section("Normal").max_w_128().child(
+                    DatePicker::new(&self.date_picker)
+                        .cleanable()
+                        .presets(presets),
+                ),
+            )
+            .child(
+                section("Small with 180px width")
+                    .max_w_128()
+                    .child(DatePicker::new(&self.date_picker_small).small().w(px(180.))),
+            )
+            .child(
                 section("Large")
                     .max_w_128()
                     .child(DatePicker::new(&self.date_picker_large).large().w(px(300.))),
+            )
+            .child(
+                section("Custom (First 5 days of each month disabled)")
+                    .max_w_128()
+                    .child(DatePicker::new(&self.data_picker_custom)),
             )
             .child(
                 section("Date Range").max_w_128().child(

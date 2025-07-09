@@ -6,6 +6,7 @@ mod gallery;
 mod layouts;
 mod sidebar_story;
 mod table_story;
+mod themes;
 mod title_bar;
 mod utils;
 mod views;
@@ -65,6 +66,8 @@ pub struct SelectRadius(usize);
 actions!(mytool, [Quit, Open, CloseWindow, ToggleSearch]);
 
 const PANEL_NAME: &str = "StoryContainer";
+
+actions!(mytool, [TestAction, Tab, TabPrev]);
 
 pub struct AppState {
     pub invisible_panels: Entity<Vec<SharedString>>,
@@ -201,7 +204,7 @@ pub fn init(cx: &mut App) {
     // otp_input_story::init(cx);
 
     // let http_client = std::sync::Arc::new(
-    //     reqwest_client::ReqwestClient::user_agent("gpui-component/mytool").unwrap(),
+    //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),
     // );
     // cx.set_http_client(http_client);
 
@@ -601,6 +604,10 @@ impl Panel for StoryContainer {
             .contains(&self.name)
     }
 
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
+    }
+
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -608,10 +615,6 @@ impl Panel for StoryContainer {
                 on_active(mytool, active, _window, cx);
             }
         }
-    }
-
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     fn popup_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {

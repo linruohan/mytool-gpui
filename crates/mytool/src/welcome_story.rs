@@ -1,11 +1,13 @@
-use gpui::{App, AppContext, Context, Entity, Focusable, ParentElement, Render, Styled, Window};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, ParentElement, Render, Styled, Window,
+};
 
 use gpui_component::{dock::PanelControl, text::TextView, v_flex};
 
 use crate::Mytool;
 
 pub struct WelcomeStory {
-    focus_handle: gpui::FocusHandle,
+    focus_handle: FocusHandle,
 }
 
 impl WelcomeStory {
@@ -29,12 +31,12 @@ impl Mytool for WelcomeStory {
         "UI components for building fantastic desktop application by using GPUI."
     }
 
-    fn zoomable() -> Option<PanelControl> {
-        None
-    }
-
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         Self::view(window, cx)
+    }
+
+    fn zoomable() -> Option<PanelControl> {
+        None
     }
 }
 

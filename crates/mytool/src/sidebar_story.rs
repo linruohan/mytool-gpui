@@ -1,21 +1,20 @@
 use std::collections::HashMap;
 
 use gpui::{
-    prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity, Focusable,
-    Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    div, prelude::FluentBuilder, px, relative, Action, App, AppContext, ClickEvent, Context,
+    Entity, Focusable, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
 use crate::{play_ogg_file, TodayView};
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::dropdown::{Dropdown, DropdownState};
-use gpui_component::input::TextInput;
 use gpui_component::{
+    badge::Badge,
+    blue_500,
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     divider::Divider,
     h_flex,
-    input::InputState,
+    popup_menu::PopupMenuExt,
     switch::Switch,
-    v_flex, ActiveTheme, ContextModal, IconName, Side,
+    v_flex, white, ActiveTheme, Icon, IconName, Side, Sizable,
 };
 use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use my_components::sidebar::{
@@ -25,7 +24,7 @@ use serde::Deserialize;
 use todos::objects::project::project::Project;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
-#[action(namespace = story, no_json)]
+#[action(namespace = sidebar_story, no_json)]
 pub struct SelectCompany(SharedString);
 
 pub struct SidebarStory {
@@ -283,7 +282,6 @@ impl Render for SidebarStory {
                         //项目分类：
                         v_flex()
                             .w_full()
-                            .gap_4()
                             .child(
                                 SidebarBoard::new().children(
                                     item_groups
