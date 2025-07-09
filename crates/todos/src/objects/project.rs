@@ -68,7 +68,10 @@ impl Project {
         self
     }
     pub fn display_name(&self) -> String {
-        self.model.display_name.clone().unwrap_or_else(|| self.name().to_string())
+        self.model
+            .display_name
+            .clone()
+            .unwrap_or_else(|| self.name().to_string())
     }
     pub fn set_display_name(&mut self, display_name: Option<String>) -> &mut Self {
         self.model.display_name = display_name;
@@ -79,13 +82,19 @@ impl Project {
 impl Project {
     pub fn new(db: DatabaseConnection, model: ProjectModel) -> Self {
         let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new(), project_count: None }
+        Self {
+            model,
+            base,
+            db,
+            store: OnceCell::new(),
+            project_count: None,
+        }
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async {
-            Store::new(self.db.clone()).await
-        }).await
+        self.store
+            .get_or_init(|| async { Store::new(self.db.clone()).await })
+            .await
     }
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = ProjectEntity::find_by_id(item_id)
@@ -121,7 +130,10 @@ impl Project {
         let id = self.model.parent_id.as_ref()?;
         self.store().await.get_project(id).await
     }
-    pub async fn add_subproject(&self, subproject: ProjectModel) -> Result<ProjectModel, TodoError> {
+    pub async fn add_subproject(
+        &self,
+        subproject: ProjectModel,
+    ) -> Result<ProjectModel, TodoError> {
         self.store().await.insert_project(subproject).await
     }
     pub async fn source(&self) -> Option<SourceModel> {

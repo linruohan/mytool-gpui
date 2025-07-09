@@ -18,7 +18,6 @@ pub struct DueDate {
     pub recurrency_supported: bool,
 }
 
-
 impl Default for DueDate {
     fn default() -> Self {
         Self {

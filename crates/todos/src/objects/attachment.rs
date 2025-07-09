@@ -1,8 +1,8 @@
 use super::BaseObject;
+use crate::Store;
 use crate::entity::prelude::AttachmentEntity;
 use crate::entity::{AttachmentModel, ItemModel};
 use crate::error::TodoError;
-use crate::Store;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::fmt;
 use tokio::sync::OnceCell;
@@ -59,15 +59,19 @@ impl Attachment {
 }
 
 impl Attachment {
-    pub fn new(db: DatabaseConnection, model: AttachmentModel,
-    ) -> Attachment {
+    pub fn new(db: DatabaseConnection, model: AttachmentModel) -> Attachment {
         let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new() }
+        Self {
+            model,
+            base,
+            db,
+            store: OnceCell::new(),
+        }
     }
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async {
-            Store::new(self.db.clone()).await
-        }).await
+        self.store
+            .get_or_init(|| async { Store::new(self.db.clone()).await })
+            .await
     }
     pub async fn from_db(db: DatabaseConnection, attachment_id: &str) -> Result<Self, TodoError> {
         let attachment = AttachmentEntity::find_by_id(attachment_id)

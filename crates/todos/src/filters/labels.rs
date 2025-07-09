@@ -1,5 +1,5 @@
 use crate::BaseObject;
-use crate::{enums::FilterType, Store};
+use crate::{Store, enums::FilterType};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Labels {
     pub base: BaseObject,

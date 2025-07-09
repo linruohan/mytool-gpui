@@ -1,7 +1,7 @@
 use super::{Attachment, BaseObject, Label};
 use crate::entity::items::Model as ItemModel;
 use crate::entity::prelude::ItemEntity;
-use crate::entity::{projects, sections, LabelModel};
+use crate::entity::{LabelModel, ProjectModel, SectionModel};
 use crate::enums::{ItemType, ReminderType, SourceType};
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate};
@@ -24,7 +24,11 @@ pub struct Item {
 }
 impl Item {
     pub fn due(&self) -> Option<DueDate> {
-        self.model.due.as_ref().map(|json_str| serde_json::from_value::<DueDate>(json_str.clone()).ok()).unwrap_or_default()
+        self.model
+            .due
+            .as_ref()
+            .map(|json_str| serde_json::from_value::<DueDate>(json_str.clone()).ok())
+            .unwrap_or_default()
     }
     pub fn set_due(&mut self, due: DueDate) -> &mut Self {
         self.model.due = Some(serde_json::value::to_value(due).unwrap());
@@ -38,7 +42,11 @@ impl Item {
         self
     }
     pub fn labels(&self) -> Option<Vec<LabelModel>> {
-        self.model.labels.as_ref().map(|json_str| serde_json::from_value::<Vec<LabelModel>>(json_str.clone()).ok()).unwrap_or_default()
+        self.model
+            .labels
+            .as_ref()
+            .map(|json_str| serde_json::from_value::<Vec<LabelModel>>(json_str.clone()).ok())
+            .unwrap_or_default()
     }
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
         self.model.labels = Some(serde_json::value::to_value(labels).unwrap());
@@ -52,7 +60,11 @@ impl Item {
         self
     }
     pub fn item_type(&self) -> Option<ItemType> {
-        self.model.item_type.as_deref().map(|item_type| serde_json::from_str::<ItemType>(item_type).ok()).unwrap_or_default()
+        self.model
+            .item_type
+            .as_deref()
+            .map(|item_type| serde_json::from_str::<ItemType>(item_type).ok())
+            .unwrap_or_default()
     }
     pub fn set_item_type(&mut self, item_type: ItemType) -> &mut Self {
         self.model.item_type = Some(serde_json::to_string(&item_type).unwrap());
@@ -74,9 +86,9 @@ impl Item {
         }
     }
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async {
-            Store::new(self.db.clone()).await
-        }).await
+        self.store
+            .get_or_init(|| async { Store::new(self.db.clone()).await })
+            .await
     }
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = ItemEntity::find_by_id(item_id)
@@ -128,18 +140,25 @@ impl Item {
         self
     }
     pub fn pinned_icon(&self) -> &str {
-        if self.model.pinned { "planner-pin-tack" } else { "planner-pinned" }
+        if self.model.pinned {
+            "planner-pin-tack"
+        } else {
+            "planner-pinned"
+        }
     }
 
     pub fn completed(&self) -> bool {
         self.model.checked
     }
     pub fn has_due(&self) -> bool {
-        self.due().and_then(|d| Some(d.datetime().is_some())).unwrap_or(false)
+        self.due()
+            .and_then(|d| Some(d.datetime().is_some()))
+            .unwrap_or(false)
     }
     pub fn has_time(&self) -> bool {
-        self.due().and_then(|d|
-            d.datetime()).map_or(false, |dt| utils::DateTime::default().has_time(&dt))
+        self.due()
+            .and_then(|d| d.datetime())
+            .map_or(false, |dt| utils::DateTime::default().has_time(&dt))
     }
 
     pub fn completed_date(&self) -> Option<NaiveDateTime> {
@@ -151,14 +170,18 @@ impl Item {
 
     pub async fn has_parent(&self) -> bool {
         match self.parent_id().as_deref() {
-            Some(parent_id) => {
-                self.store.get_item(parent_id).await.map_or(false, |item| item.is_some())
-            }
-            None => false
+            Some(parent_id) => self
+                .store
+                .get_item(parent_id)
+                .await
+                .map_or(false, |item| item.is_some()),
+            None => false,
         }
     }
     pub fn has_section(&self) -> bool {
-        self.section_id().as_deref().map_or(false, async move |id| self.store.get_section(id).await.is_some())
+        self.section_id().as_deref().map_or(false, async move |id| {
+            self.store.get_section(id).await.is_some()
+        })
     }
 
     pub fn show_item(&self) -> bool {
@@ -183,15 +206,14 @@ impl Item {
         utils::DateTime::default().get_date_from_string(&local_date)
     }
 
-
-    pub fn parent(&self) -> Option<ItemModel> {
-        self.parent_id().as_deref().and_then(|id| self.store.get_item(id)).unwrap_or_default()
+    pub async fn parent(&self) -> Option<ItemModel> {
+        self.store().await.get_item(&self.model.parent_id.as_ref()?).await
     }
-    pub fn project(&self) -> Option<projects::Model> {
-        self.project_id().as_deref().and_then(|id| self.store.get_project(id)).unwrap_or_default()
+    pub async fn project(&self) -> Option<ProjectModel> {
+        self.store().await.get_project(&self.model.project_id.as_ref()?).await
     }
-    pub fn section(&self) -> Option<sections::Model> {
-        self.section_id().as_deref().and_then(|id| self.store.get_section(id)).unwrap_or_default()
+    pub async fn section(&self) -> Option<SectionModel> {
+        self.store().await.get_section(&self.model.section_id.as_ref()?).await
     }
     // subitems
     pub fn items(&self) -> Vec<ItemModel> {
@@ -219,7 +241,8 @@ impl Item {
         if project.id == self.project_id {
             return true;
         }
-        self.parent().is_some_and(|parent| parent.exists_project(project))
+        self.parent()
+            .is_some_and(|parent| parent.exists_project(project))
     }
     pub fn get_label(&self, id: &str) -> Option<Label> {
         self.labels().iter().find(|l| l.id == id).cloned()
@@ -228,11 +251,9 @@ impl Item {
         labels_list.iter().find(|s| s.name == name).cloned()
     }
 
-
     pub fn has_reminders(&self) -> bool {
         !self.reminders().is_empty()
     }
-
 
     pub fn get_caldav_categories(&self) {}
     pub fn check_labels(&self, new_labels: HashMap<String, Label>) {

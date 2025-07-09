@@ -1,12 +1,12 @@
+use crate::BaseObject;
+use crate::Store;
+use crate::Util;
 use crate::entity::labels::Model as LabelModel;
 use crate::entity::prelude::LabelEntity;
 use crate::entity::sources::Model as SourceModel;
 use crate::enums::SourceType;
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, Item};
-use crate::BaseObject;
-use crate::Store;
-use crate::Util;
 use sea_orm::prelude::*;
 use tokio::sync::OnceCell;
 
@@ -56,7 +56,8 @@ impl Label {
         self
     }
     pub fn backend_type(&self) -> SourceType {
-        self.model.backend_type
+        self.model
+            .backend_type
             .as_deref()
             .and_then(|b| serde_json::from_str(b).ok())
             .unwrap_or(SourceType::NONE)
@@ -68,7 +69,9 @@ impl Label {
     pub fn source_id(&self) -> String {
         self.model
             .source_id
-            .as_deref().map(|id| id.to_string()).unwrap_or_default()
+            .as_deref()
+            .map(|id| id.to_string())
+            .unwrap_or_default()
     }
     pub fn set_source_id(&mut self, source_id: Option<String>) -> &mut Self {
         self.model.source_id = source_id;
@@ -79,13 +82,19 @@ impl Label {
 impl Label {
     pub fn new(db: DatabaseConnection, model: LabelModel) -> Self {
         let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new(), label_count: None }
+        Self {
+            model,
+            base,
+            db,
+            store: OnceCell::new(),
+            label_count: None,
+        }
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async {
-            Store::new(self.db.clone()).await
-        }).await
+        self.store
+            .get_or_init(|| async { Store::new(self.db.clone()).await })
+            .await
     }
     pub async fn from_db(db: DatabaseConnection, label_id: &str) -> Result<Self, TodoError> {
         let label = LabelEntity::find_by_id(label_id)
@@ -96,7 +105,6 @@ impl Label {
         Ok(Self::new(db, label))
     }
 
-
     pub async fn source_type(&self) -> Option<SourceType> {
         self.source()
             .await
@@ -104,10 +112,18 @@ impl Label {
             .unwrap_or(Some(SourceType::NONE))
     }
     pub async fn source(&self) -> Option<SourceModel> {
-        self.store().await.get_source(&self.model.source_id.as_ref()?).await
+        self.store()
+            .await
+            .get_source(&self.model.source_id.as_ref()?)
+            .await
     }
     async fn label_count(&mut self) -> usize {
-        let count = self.store().await.get_items_by_label(self.id(), false).await.len();
+        let count = self
+            .store()
+            .await
+            .get_items_by_label(self.id(), false)
+            .await
+            .len();
         self.label_count = Some(count);
         count
     }
@@ -120,7 +136,11 @@ impl Label {
         Util::get_default().get_short_name(&self.model.name, 0)
     }
     pub async fn delete_label(&self) -> Result<u64, TodoError> {
-        let items_model = self.store().await.get_items_by_label(self.id(), false).await;
+        let items_model = self
+            .store()
+            .await
+            .get_items_by_label(self.id(), false)
+            .await;
         for item_model in items_model {
             let item = Item::from_db(self.db.clone(), &item_model.id).await?;
             item.delete_item_label(self.id()).await;

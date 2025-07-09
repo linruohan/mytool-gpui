@@ -1,4 +1,4 @@
-use crate::{enums::FilterType, BaseObject, Store};
+use crate::{BaseObject, Store, enums::FilterType};
 #[derive(Clone, PartialEq, Eq)]
 pub struct Today {
     pub base: BaseObject,

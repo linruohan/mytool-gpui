@@ -1,4 +1,4 @@
-use crate::{enums::FilterType, BaseObject, Store};
+use crate::{BaseObject, Store, enums::FilterType};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pinboard {
     pub base: BaseObject,

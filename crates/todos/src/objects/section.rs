@@ -19,13 +19,19 @@ pub struct Section {
 impl Section {
     pub fn new(db: DatabaseConnection, model: SectionModel) -> Self {
         let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new(), activate_name_editable: false }
+        Self {
+            model,
+            base,
+            db,
+            store: OnceCell::new(),
+            activate_name_editable: false,
+        }
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async {
-            Store::new(self.db.clone()).await
-        }).await
+        self.store
+            .get_or_init(|| async { Store::new(self.db.clone()).await })
+            .await
     }
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = SectionEntity::find_by_id(item_id)
@@ -39,7 +45,10 @@ impl Section {
         Util::default().get_short_name(&self.model.name, 0)
     }
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store().await.get_project(self.model.project_id.as_ref()?).await // Assuming Store has a method to get project by ID
+        self.store()
+            .await
+            .get_project(self.model.project_id.as_ref()?)
+            .await // Assuming Store has a method to get project by ID
     }
     pub async fn items(&self) -> Vec<ItemModel> {
         let mut items = self.store().await.items().await;
@@ -48,7 +57,11 @@ impl Section {
     }
     pub async fn section_count(&self) -> usize {
         let mut result = 0;
-        let items = self.store().await.get_items_by_section(&self.model.id).await;
+        let items = self
+            .store()
+            .await
+            .get_items_by_section(&self.model.id)
+            .await;
         result += items.len();
         for item in &items {
             let subitems = self.store().await.get_subitems(&item.id).await;
@@ -82,7 +95,8 @@ impl Section {
             for subitem in subitems_uncomplete {
                 count += self.get_subitem_size(&subitem.id).await;
             }
-        }).await;
+        })
+        .await;
         count
     }
     pub fn duplicate(&self) -> SectionModel {
@@ -108,8 +122,7 @@ impl Section {
         let Some(project_model) = self.project().await else {
             return self.model.is_archived;
         };
-        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await
-        {
+        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
             return project.is_archived();
         }
         false
@@ -118,14 +131,12 @@ impl Section {
         let Some(project_model) = self.project().await else {
             return None;
         };
-        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await
-        {
+        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
             return project.source().await;
         }
         None
     }
 }
-
 
 impl BaseTrait for Section {
     fn id(&self) -> &str {

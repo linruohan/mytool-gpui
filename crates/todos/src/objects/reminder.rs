@@ -1,13 +1,10 @@
 use crate::entity::prelude::ReminderEntity;
-use crate::entity::ReminderModel;
+use crate::entity::{ItemModel, ReminderModel, SourceModel};
 use crate::enums::ReminderType;
 use crate::error::TodoError;
-use crate::generate_accessors;
-use crate::objects::{BaseTrait, DueDate, ToBool};
+use crate::objects::{BaseTrait, DueDate, Item, Project};
 use crate::utils;
 use crate::BaseObject;
-use crate::Item;
-use crate::Source;
 use crate::Store;
 use chrono::Duration;
 use chrono::NaiveDateTime;
@@ -20,19 +17,47 @@ pub struct Reminder {
     base: BaseObject,
     db: DatabaseConnection,
     store: OnceCell<Store>,
+}
 
+impl Reminder {
+    pub fn due(&self) -> Option<DueDate> {
+        self.model
+            .due
+            .as_ref()
+            .map(|json_str| serde_json::from_str::<DueDate>(json_str).ok())
+            .unwrap_or_default()
+    }
+    pub fn set_due(&mut self, due: DueDate) -> &mut Self {
+        self.model.due = Some(serde_json::value::to_value(due).unwrap().to_string());
+        self
+    }
+    pub fn reminder_type(&self) -> ReminderType {
+        self.model.reminder_type
+            .as_ref()
+            .and_then(|s| serde_json::from_str::<ReminderType>(s).ok())
+            .unwrap_or(ReminderType::ABSOLUTE)
+    }
+    pub fn set_reminder_type(&mut self, reminder_type: &ReminderType) -> &mut Self {
+        self.model.reminder_type = Some(reminder_type.to_string());
+        self
+    }
 }
 
 impl Reminder {
     pub fn new(db: DatabaseConnection, model: ReminderModel) -> Self {
         let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new() }
+        Self {
+            model,
+            base,
+            db,
+            store: OnceCell::new(),
+        }
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async {
-            Store::new(self.db.clone()).await
-        }).await
+        self.store
+            .get_or_init(|| async { Store::new(self.db.clone()).await })
+            .await
     }
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = ReminderEntity::find_by_id(item_id)
@@ -42,57 +67,42 @@ impl Reminder {
 
         Ok(Self::new(db, item))
     }
-    generate_accessors!(item_id:Option<String>);
-    generate_accessors!(notify_uid:Option<i32>);
-    generate_accessors!(service:Option<String>);
     // generate_accessors!(reminder_type:Option<String>);
-    pub fn reminder_type(&self) -> ReminderType {
-        self.reminder_type
-            .as_ref()
-            .and_then(|s| serde_json::from_str::<ReminderType>(s).ok())
-            .unwrap_or(ReminderType::ABSOLUTE)
-    }
-    pub fn set_reminder_type(&mut self, reminder_type: &ReminderType) {
-        self.reminder_type = Some(reminder_type.to_string());
-    }
-    generate_accessors!(@due due:Option<String>);
-    generate_accessors!(mm_offset:Option<i32>);
-    generate_accessors!(@bool is_deleted:Option<i32>);
 
-    pub fn item(&self) -> Option<Item> {
-        self.item_id
-            .as_ref()
-            .and_then(|id| Store::instance().get_item(id))
+    pub async fn item(&self) -> Option<ItemModel> {
+        self.store()
+            .await
+            .get_item(&self.model.item_id.as_ref()?)
+            .await
     }
-    pub fn relative_text(&self) -> String {
+    pub async fn datetime(&self) -> Option<NaiveDateTime> {
         match self.reminder_type() {
-            ReminderType::ABSOLUTE => self
-                .due()
-                .datetime()
-                .map(|dt| utils::DateTime::default().get_relative_date_from_date(&dt))
-                .unwrap_or_default(),
+            ReminderType::ABSOLUTE => self.due().as_ref()?.datetime(),
+            _ => {
+                let item_id = self.item().await?.id;
+                let item = Item::from_db(self.db.clone(), &item_id).await.ok()?;
+                item.due().as_ref()?.datetime().map(|dt| {
+                    dt - Duration::minutes(self.model.mm_offset.unwrap_or_default() as i64)
+                })
+            }
+        }
+    }
+    pub async fn relative_text(&self) -> String {
+        match self.reminder_type() {
+            ReminderType::ABSOLUTE => {
+                let date_time = self.due().as_ref().and_then(|due| due.datetime()).unwrap_or_default();
+                utils::DateTime::default()
+                    .get_relative_date_from_date(&date_time)
+                    .to_string()
+            }
             ReminderType::RELATIVE => utils::Util::get_default()
-                .get_reminders_mm_offset_text(self.mm_offset.unwrap_or(0))
+                .get_reminders_mm_offset_text(self.model.mm_offset.unwrap_or_default())
                 .to_string(),
 
             _ => String::new(),
         }
     }
-    pub fn datetime(&self) -> Option<NaiveDateTime> {
-        match self.reminder_type() {
-            ReminderType::ABSOLUTE => self.due().datetime(),
-            _ => self.item()?.due().datetime().map(|dt| {
-                let offset = -self.mm_offset.unwrap_or(0);
-                let duration = Duration::minutes(offset as i64);
-                dt + duration
-            }),
-        }
-    }
-    fn source(&self) -> Option<Source> {
-        self.item()
-            .and_then(|i| i.project().and_then(|p| p.source()))
-    }
-    pub fn delete(&self) {
+    pub async fn delete(&self) -> Result<u64, TodoError> {
         // if (item.project.source_type == SourceType.TODOIST) {
         //     loading = true;
         //     Services.Todoist.get_default ().delete.begin (this, (obj, res) => {
@@ -102,15 +112,23 @@ impl Reminder {
         //         }
         //     });
         // } else {
-        Store::instance().delete_reminder(self);
+        self.store().await.delete_reminder(&self.model.id).await
     }
-    pub fn duplicate(&self) -> Reminder {
-        Self {
-            notify_uid: self.notify_uid,
-            service: self.service.clone(),
-            due: self.due.clone(),
-            mm_offset: self.mm_offset,
-            ..self.clone()
+    pub async fn source(&self) -> Option<SourceModel> {
+        let item_id = self.item().await?.id;
+        let item = Item::from_db(self.db.clone(), &item_id).await.ok()?;
+        let project_id = item.project().await?.id;
+        let project = Project::from_db(self.db.clone(), &project_id).await.ok()?;
+        project.source().await
+    }
+
+    pub fn duplicate(&self) -> ReminderModel {
+        ReminderModel {
+            notify_uid: self.model.notify_uid,
+            service: self.model.service.clone(),
+            due: self.model.due.clone(),
+            mm_offset: self.model.mm_offset,
+            ..Default::default()
         }
     }
 }
@@ -124,4 +142,3 @@ impl BaseTrait for Reminder {
         self.model.id = id.into();
     }
 }
-

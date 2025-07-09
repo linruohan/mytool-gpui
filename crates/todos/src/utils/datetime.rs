@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, str::FromStr};
 
-use crate::{enums::RecurrencyType, objects::DueDate, Item};
+use crate::{Item, enums::RecurrencyType, objects::DueDate};
 use anyhow::Result;
 use chrono::{
     Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,
@@ -514,7 +514,8 @@ impl DateTime {
     // }
 
     pub fn get_markdown_format_date(&self, item: &Item) -> String {
-        item.due().expect("REASON")
+        item.due()
+            .expect("REASON")
             .datetime()
             .map(|dt| format!(" ({}) ", self.get_relative_date_from_date(&dt)))
             .unwrap_or_else(|| " ".to_string())

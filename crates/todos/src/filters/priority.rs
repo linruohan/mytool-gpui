@@ -21,7 +21,8 @@ impl Priority {
     }
     pub async fn count(&self, store: Store) -> usize {
         store
-            .get_items_by_priority(self.priority, false).await
+            .get_items_by_priority(self.priority, false)
+            .await
             .len()
     }
     pub fn count_updated(&self) {
