@@ -653,18 +653,16 @@ impl Store {
             .all(&self.db)
             .await?)
     }
-    pub async fn get_items_checked_by_project(
-        &self,
-        project_id: &str,
-    ) -> Result<Vec<ItemModel>, TodoError> {
-        Ok(ItemEntity::find()
+    pub async fn get_items_checked_by_project(&self, project_id: &str) -> Vec<ItemModel> {
+        ItemEntity::find()
             .filter(
                 items::Column::ProjectId
                     .eq(project_id)
                     .and(items::Column::Checked.eq(1)),
             )
             .all(&self.db)
-            .await?)
+            .await
+            .unwrap_or_default()
     }
     pub async fn get_subitems_uncomplete(&self, item_id: &str) -> Vec<ItemModel> {
         ItemEntity::find()
@@ -684,18 +682,16 @@ impl Store {
             .await
             .unwrap_or_default()
     }
-    pub async fn get_items_by_project_pinned(
-        &self,
-        project_id: &str,
-    ) -> Result<Vec<ItemModel>, TodoError> {
-        Ok(ItemEntity::find()
+    pub async fn get_items_by_project_pinned(&self, project_id: &str) -> Vec<ItemModel> {
+        ItemEntity::find()
             .filter(
                 items::Column::ProjectId
                     .eq(project_id)
                     .and(items::Column::Pinned.eq(1)),
             )
             .all(&self.db)
-            .await?)
+            .await
+            .unwrap_or_default()
     }
     pub async fn get_items_by_date(&self, date: &NaiveDateTime, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()

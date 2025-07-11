@@ -5,8 +5,8 @@ use crate::entity::{LabelModel, ProjectModel, SectionModel};
 use crate::enums::{ItemType, ReminderType, SourceType};
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate};
-use crate::{constants, utils, Store, Util};
 use crate::{Project, Reminder, Source};
+use crate::{Store, Util, constants, utils};
 use chrono::NaiveDateTime;
 use sea_orm::prelude::*;
 use std::collections::HashMap;
@@ -207,13 +207,22 @@ impl Item {
     }
 
     pub async fn parent(&self) -> Option<ItemModel> {
-        self.store().await.get_item(&self.model.parent_id.as_ref()?).await
+        self.store()
+            .await
+            .get_item(&self.model.parent_id.as_ref()?)
+            .await
     }
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store().await.get_project(&self.model.project_id.as_ref()?).await
+        self.store()
+            .await
+            .get_project(&self.model.project_id.as_ref()?)
+            .await
     }
     pub async fn section(&self) -> Option<SectionModel> {
-        self.store().await.get_section(&self.model.section_id.as_ref()?).await
+        self.store()
+            .await
+            .get_section(&self.model.section_id.as_ref()?)
+            .await
     }
     // subitems
     pub fn items(&self) -> Vec<ItemModel> {

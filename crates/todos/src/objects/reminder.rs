@@ -1,11 +1,11 @@
+use crate::BaseObject;
+use crate::Store;
 use crate::entity::prelude::ReminderEntity;
 use crate::entity::{ItemModel, ReminderModel, SourceModel};
 use crate::enums::ReminderType;
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate, Item, Project};
 use crate::utils;
-use crate::BaseObject;
-use crate::Store;
 use chrono::Duration;
 use chrono::NaiveDateTime;
 use sea_orm::{DatabaseConnection, EntityTrait};
@@ -32,7 +32,8 @@ impl Reminder {
         self
     }
     pub fn reminder_type(&self) -> ReminderType {
-        self.model.reminder_type
+        self.model
+            .reminder_type
             .as_ref()
             .and_then(|s| serde_json::from_str::<ReminderType>(s).ok())
             .unwrap_or(ReminderType::ABSOLUTE)
@@ -90,7 +91,11 @@ impl Reminder {
     pub async fn relative_text(&self) -> String {
         match self.reminder_type() {
             ReminderType::ABSOLUTE => {
-                let date_time = self.due().as_ref().and_then(|due| due.datetime()).unwrap_or_default();
+                let date_time = self
+                    .due()
+                    .as_ref()
+                    .and_then(|due| due.datetime())
+                    .unwrap_or_default();
                 utils::DateTime::default()
                     .get_relative_date_from_date(&date_time)
                     .to_string()

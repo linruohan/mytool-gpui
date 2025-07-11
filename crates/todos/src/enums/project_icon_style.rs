@@ -1,24 +1,25 @@
 use std::fmt;
 
-use strum::{Display, EnumString};
+use strum::EnumString;
 #[derive(Debug, Clone, PartialEq, EnumString)]
 #[strum(serialize_all = "camelCase")]
 pub enum ProjectIconStyle {
-    LIST,
-    BOARD,
+    PROGRESS,
+    EMOJI,
 }
 impl ProjectIconStyle {
-    pub fn parse(value: Option<&str>) -> ProjectIconStyle {
+    pub fn parse(value: &str) -> ProjectIconStyle {
         match value {
-            Some("list") => ProjectIconStyle::LIST,
-            Some("board") => ProjectIconStyle::BOARD,
-            _ => ProjectIconStyle::LIST,
+            "process" => ProjectIconStyle::PROGRESS,
+            "emoji" => ProjectIconStyle::EMOJI,
+            _ => ProjectIconStyle::PROGRESS,
         }
     }
-    pub fn to_lowercase(&self) -> String {
+    pub fn to_lowercase(&self) -> &str {
         match self {
-            ProjectIconStyle::LIST => "list".to_string(),
-            ProjectIconStyle::BOARD => "board".to_string(),
+            ProjectIconStyle::PROGRESS => "process",
+            ProjectIconStyle::EMOJI => "emoji",
+            _ => "process",
         }
     }
 }

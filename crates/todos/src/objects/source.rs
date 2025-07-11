@@ -1,10 +1,10 @@
-use crate::entity::prelude::SourceEntity;
+use crate::BaseObject;
 use crate::entity::SourceModel;
+use crate::entity::prelude::SourceEntity;
 use crate::enums::SourceType;
 use crate::error::TodoError;
 use crate::objects::BaseTrait;
 use crate::services::Store;
-use crate::BaseObject;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
@@ -41,18 +41,18 @@ impl Source {
         Ok(Self::new(db, item))
     }
     pub fn source_type(&self) -> SourceType {
-        SourceType::parse(Some(&self.model.source_type))
+        SourceType::parse(&self.model.source_type)
     }
     pub fn header_text(&self) -> String {
         self.model.display_name.clone().unwrap_or_default()
     }
     pub fn sub_header_text(&self) -> &str {
         match self.source_type() {
-            SourceType::LOCAL => { "Tasks" }
-            SourceType::TODOIST => { "Todoist" }
-            SourceType::GoogleTasks => { "GoogleTasks" }
-            SourceType::CALDAV => { "CalDAV" }
-            _ => ""
+            SourceType::LOCAL => "Tasks",
+            SourceType::TODOIST => "Todoist",
+            SourceType::GoogleTasks => "GoogleTasks",
+            SourceType::CALDAV => "CalDAV",
+            _ => "",
         }
     }
     pub fn avatar_path(&self) -> &str {
@@ -68,14 +68,14 @@ impl Source {
         match self.source_type() {
             SourceType::TODOIST => "Todoist",
             SourceType::CALDAV => "CALDAV",
-            _ => ""
+            _ => "",
         }
     }
     pub fn user_email(&self) -> &str {
         match self.source_type() {
             SourceType::TODOIST => "todoist@126.com",
             SourceType::CALDAV => "CalDAV@126.com",
-            _ => ""
+            _ => "",
         }
     }
     pub fn run_server(&self) -> Result<(), TodoError> {
@@ -88,7 +88,7 @@ impl Source {
                 // Services.Todoist.get_default ().sync.begin (this);
                 Ok(())
             }
-            _ => Ok(())
+            _ => Ok(()),
         }
     }
     pub fn save(&self) -> Result<(), TodoError> {
