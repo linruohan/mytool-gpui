@@ -313,17 +313,17 @@ impl fmt::Display for Project {
             self.model.color.clone().unwrap_or_default(),
             self.model.backend_type.clone().unwrap_or_default(),
             self.model.inbox_project.clone().unwrap_or_default(),
-            self.model.team_inbox.into(),
-            self.model.child_order.into(),
+            self.model.team_inbox.clone().unwrap_or_default(),
+            self.model.child_order.clone().unwrap_or_default(),
             self.model.is_deleted.to_string(),
             self.model.is_archived.to_string(),
             self.model.is_favorite.to_string(),
-            self.model.shared.into(),
+            self.model.shared.clone().unwrap_or_default(),
             self.model.view_style.clone().unwrap_or_default(),
-            self.model.show_completed.into(),
+            self.model.show_completed.clone().unwrap_or_default(),
             self.model.sort_order.unwrap_or_default(),
             self.model.collapsed.to_string(),
-            self.model.parent_id.clone().into(),
+            self.model.parent_id.clone().unwrap_or_default(),
             self.model.source_id.clone().unwrap_or_default()
         )
     }
