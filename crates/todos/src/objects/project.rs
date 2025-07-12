@@ -6,6 +6,7 @@ use crate::objects::{BaseTrait, Source};
 use crate::utils::Util;
 use crate::{BaseObject, Store};
 use sea_orm::{DatabaseConnection, EntityTrait};
+use std::fmt;
 use tokio::sync::OnceCell;
 
 #[derive(Clone, Debug)]
@@ -40,7 +41,7 @@ impl Project {
     pub fn view_style(&self) -> ProjectViewStyle {
         self.model
             .view_style
-            .as_ref()
+            .as_deref()
             .map_or(ProjectViewStyle::LIST, ProjectViewStyle::parse)
     }
     pub fn set_view_style(&mut self, view_style: ProjectViewStyle) -> &mut Self {
@@ -227,12 +228,12 @@ impl Project {
         &self,
         pro: &mut ProjectModel,
     ) -> Result<ProjectModel, TodoError> {
-        let subproject = self.get_subproject(&pro.id).await;
-        if subproject.is_none() {
-            pro.parent_id = Some(self.model.id.clone());
-            self.store().await.insert_project(pro.clone()).await
-        } else {
-            Ok(subproject.unwrap())
+        match self.get_subproject(&pro.id).await {
+            Some(subproject) => { Ok(subproject) }
+            None => {
+                pro.parent_id = Some(self.model.id.clone());
+                self.store().await.insert_project(pro.clone()).await
+            }
         }
     }
     pub fn set_parent(&mut self, parent: ProjectModel) {
@@ -248,6 +249,83 @@ impl Project {
         subproject: ProjectModel,
     ) -> Result<ProjectModel, TodoError> {
         self.store().await.insert_project(subproject).await
+    }
+
+    pub async fn get_section(&self, section_id: &str) -> Option<SectionModel> {
+        self.store().await.get_section(section_id).await
+    }
+    pub async fn add_section_if_not_exists(&self, section_model: &mut SectionModel) -> Result<SectionModel, TodoError> {
+        match self.get_section(&section_model.id).await {
+            Some(section) => Ok(section),
+            None => {
+                section_model.project_id = Some(section_model.id.clone());
+                let section_order = self.sections().await.len() + 1;
+                section_model.section_order = Some(section_order as i32);
+                self.store().await.insert_section(section_model.clone()).await
+            }
+        }
+    }
+    pub async fn add_section(&self, section_model: SectionModel) -> Result<SectionModel, TodoError> {
+        self.store().await.insert_section(section_model).await
+    }
+    pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
+        self.store().await.get_item(item_id).await
+    }
+    pub async fn add_item_if_not_exists(&self, item_model: &mut ItemModel) -> Result<ItemModel, TodoError> {
+        match self.get_item(&item_model.id).await {
+            Some(item) => Ok(item),
+            None => {
+                item_model.project_id = Some(item_model.id.clone());
+                self.store().await.insert_item(item_model.clone(), true).await
+            }
+        }
+    }
+    pub async fn add_item(&self, item: ItemModel) -> Result<ItemModel, TodoError> {
+        self.store().await.insert_item(item.clone(), true).await
+    }
+}
+impl fmt::Display for Project {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\n        _________________________________
+            ID: {}
+            NAME: {}
+            DESCRIPTION: {}
+            COLOR: {}
+            BACKEND TYPE: {}
+            INBOX: {}
+            TEAM INBOX: {}
+            CHILD ORDER: {}
+            DELETED: {}
+            ARCHIVED: {}
+            FAVORITE: {}
+            SHARED: {}
+            VIEW: {}
+            SHOW COMPLETED: {}
+            SORT ORDER: {}
+            COLLAPSED: {}
+            PARENT ID: {}
+            SOURCE ID: {}\n        ---------------------------------        ",
+            self.model.id.clone(),
+            self.model.name.clone(),
+            self.model.description.clone().unwrap_or_default(),
+            self.model.color.clone().unwrap_or_default(),
+            self.model.backend_type.clone().unwrap_or_default(),
+            self.model.inbox_project.clone().unwrap_or_default(),
+            self.model.team_inbox.into(),
+            self.model.child_order.into(),
+            self.model.is_deleted.to_string(),
+            self.model.is_archived.to_string(),
+            self.model.is_favorite.to_string(),
+            self.model.shared.into(),
+            self.model.view_style.clone().unwrap_or_default(),
+            self.model.show_completed.into(),
+            self.model.sort_order.unwrap_or_default(),
+            self.model.collapsed.to_string(),
+            self.model.parent_id.clone().into(),
+            self.model.source_id.clone().unwrap_or_default()
+        )
     }
 }
 

@@ -1,10 +1,10 @@
 use crate::constants;
 use crate::entity::prelude::*;
 use crate::entity::{
-    AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
-    LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
-    SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items, labels,
-    projects, reminders, sections,
+    attachments, items, labels, projects, reminders,
+    sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel,
+    LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel, SectionActiveModel,
+    SectionModel, SourceActiveModel, SourceModel,
 };
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, Item, Section};
@@ -119,7 +119,7 @@ impl Store {
             self.delete_project(&id).await?;
             Ok(())
         })
-        .await
+            .await
     }
     async fn _delete_project(&self, project_id: &str) -> Result<(), TodoError> {
         for section in self.get_sections_by_project(project_id).await {
@@ -143,8 +143,8 @@ impl Store {
             is_archived: Set(true),
             ..project.into()
         })
-        .exec(&self.db)
-        .await?;
+            .exec(&self.db)
+            .await?;
         SectionEntity::update_many()
             .col_expr(sections::Column::ProjectId, Expr::value(new_id.to_string()))
             .filter(sections::Column::ProjectId.eq(project_id))
@@ -181,8 +181,8 @@ impl Store {
             is_archived: Set(true),
             ..project.into()
         })
-        .exec(&self.db)
-        .await?;
+            .exec(&self.db)
+            .await?;
 
         let items = self.get_items_by_project(project_id).await;
         for item in items {
@@ -290,8 +290,8 @@ impl Store {
             project_id: Set(Some(project_id.to_string())),
             ..section.into()
         }
-        .update(&self.db)
-        .await?;
+            .update(&self.db)
+            .await?;
         ItemEntity::update_many()
             .col_expr(
                 items::Column::ProjectId,
@@ -311,8 +311,8 @@ impl Store {
             id: Set(new_id.to_string()),
             ..section.into()
         }
-        .update(&self.db)
-        .await?;
+            .update(&self.db)
+            .await?;
         ItemEntity::update_many()
             .col_expr(items::Column::SectionId, Expr::value(new_id.to_string()))
             .filter(items::Column::SectionId.eq(section_id))
@@ -366,11 +366,11 @@ impl Store {
         ItemEntity::find().all(&self.db).await.unwrap_or_default()
     }
 
-    pub async fn insert_item(&self, item: ItemModel, insert: bool) -> Result<(), TodoError> {
+    pub async fn insert_item(&self, item: ItemModel, insert: bool) -> Result<ItemModel, TodoError> {
         let mut active_model: ItemActiveModel = item.into();
         let item_model = active_model.insert(&self.db).await?;
         self.add_item(item_model.clone(), insert);
-        Ok(())
+        Ok(item_model)
     }
 
     pub async fn add_item(&self, item: ItemModel, insert: bool) {
@@ -386,8 +386,8 @@ impl Store {
             id: Set(new_id.to_string()),
             ..item_model.into()
         })
-        .exec(&self.db)
-        .await?;
+            .exec(&self.db)
+            .await?;
         Ok(())
     }
     pub async fn update_item_pin(&self, item_id: &str) -> Result<(), TodoError> {
@@ -399,8 +399,8 @@ impl Store {
             pinned: Set(true),
             ..item_model.into()
         })
-        .exec(&self.db)
-        .await?;
+            .exec(&self.db)
+            .await?;
         Ok(())
     }
     pub async fn move_item(
@@ -419,8 +419,8 @@ impl Store {
             section_id: Set(Some(section_id.to_string())),
             ..item_model.into()
         })
-        .exec(&self.db)
-        .await?;
+            .exec(&self.db)
+            .await?;
         let subitems = self.get_subitems(item_id).await;
         ItemEntity::update_many()
             .col_expr(
@@ -449,7 +449,7 @@ impl Store {
             }
             Ok(())
         })
-        .await
+            .await
     }
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
         Box::pin(async move {
@@ -468,7 +468,7 @@ impl Store {
             }
             Ok(())
         })
-        .await
+            .await
     }
 
     pub async fn complete_item(
@@ -509,7 +509,7 @@ impl Store {
             };
             Ok(())
         })
-        .await
+            .await
     }
     pub async fn update_item_id(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
         let item_model = ItemActiveModel {
