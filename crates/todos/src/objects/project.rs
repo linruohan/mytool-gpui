@@ -2,9 +2,10 @@ use crate::entity::prelude::ProjectEntity;
 use crate::entity::{ItemModel, ProjectModel, SectionModel, SourceModel};
 use crate::enums::{ProjectIconStyle, ProjectViewStyle, SourceType};
 use crate::error::TodoError;
-use crate::objects::{BaseTrait, Source};
+use crate::objects::{BaseTrait, Item, Source};
 use crate::utils::Util;
 use crate::{BaseObject, Store};
+use futures::stream::{self, StreamExt};
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::fmt;
 use tokio::sync::OnceCell;
@@ -170,7 +171,23 @@ impl Project {
         self.model.id.contains("deck--board")
     }
     pub async fn project_count(&self) -> usize {
-        self.items().await.len()
+        let items_model = self.items().await;
+        stream::iter(items_model)
+            .filter_map(|model| async move {
+                let item = Item::from_db(self.db.clone(), &model.id).await;
+                if let Ok(item) = item {
+                    if !item.model.checked && !item.was_archived() {
+                        return Some(model);
+                    }
+                }
+                None
+            })
+            .count().await
+    }
+    pub async fn project_percentage(&self) -> f32 {
+        let count = self.project_count().await;
+        let total = self.items().await.len();
+        count as f32 / total as f32
     }
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
         self.store().await.update_project(project).await
@@ -282,6 +299,28 @@ impl Project {
     }
     pub async fn add_item(&self, item: ItemModel) -> Result<ItemModel, TodoError> {
         self.store().await.insert_item(item.clone(), true).await
+    }
+    pub async fn delete_project(&self) -> Result<(), TodoError> {
+        self.store().await.delete_project(&self.model.id).await
+    }
+    pub async fn archive_project(&self) -> Result<(), TodoError> {
+        self.store().await.archive_project(&self.model.id).await
+    }
+    pub async fn unarchive_project(&self) -> Result<(), TodoError> {
+        self.store().await.archive_project(&self.model.id).await
+    }
+    pub fn duplicate(&self) -> ProjectModel {
+        ProjectModel {
+            name: self.model.name.clone(),
+            due_date: self.model.due_date.clone(),
+            color: self.model.color.clone(),
+            emoji: self.model.emoji.clone(),
+            description: self.model.description.clone(),
+            icon_style: self.model.icon_style.clone(),
+            backend_type: self.model.backend_type.clone(),
+            source_id: self.model.source_id.clone(),
+            ..Default::default()
+        }
     }
 }
 impl fmt::Display for Project {

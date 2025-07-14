@@ -172,13 +172,13 @@ impl Store {
     }
 
     pub async fn archive_project(&self, project_id: &str) -> Result<(), TodoError> {
-        let project = ProjectEntity::find_by_id(project_id)
+        let mut project = ProjectEntity::find_by_id(project_id)
             .one(&self.db)
             .await?
             .ok_or(TodoError::NotFound("project not found".to_string()))?;
+        project.is_archived = !project.is_archived;
         ProjectEntity::update(ProjectActiveModel {
             id: Set(project_id.to_string()),
-            is_archived: Set(true),
             ..project.into()
         })
             .exec(&self.db)
@@ -609,7 +609,7 @@ impl Store {
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
                 if let Ok(item) = item {
-                    if item.has_labels() && item.completed() && !item.was_archived() {
+                    if item.has_labels() && item.model.checked && !item.was_archived() {
                         return Some(model);
                     }
                 }

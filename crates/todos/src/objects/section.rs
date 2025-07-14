@@ -1,4 +1,4 @@
-use crate::objects::{BaseTrait, Item, Project};
+use crate::objects::{BaseTrait, Project};
 use crate::{BaseObject, Store};
 
 use crate::entity::prelude::SectionEntity;
@@ -69,13 +69,14 @@ impl Section {
         }
         result
     }
-    pub async fn add_item_if_not_exist(&self, item_model: ItemModel) -> Result<(), TodoError> {
-        if self.get_item(&item_model.id).await.is_none() {
-            let mut item = Item::from_db(self.db.clone(), &item_model.id).await?;
-            item.set_section(&self.model.id);
-            self.store().await.insert_item(item.model, true).await?
+    pub async fn add_item_if_not_exist(&self, item_model: &mut ItemModel) -> Result<ItemModel, TodoError> {
+        match self.get_item(&item_model.id).await {
+            Some(item) => Ok(item),
+            None => {
+                item_model.section_id = Some(self.model.id.clone());
+                self.store().await.insert_item(item_model.clone(), true).await
+            }
         }
-        Ok(())
     }
 
     pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
@@ -96,7 +97,7 @@ impl Section {
                 count += self.get_subitem_size(&subitem.id).await;
             }
         })
-        .await;
+            .await;
         count
     }
     pub fn duplicate(&self) -> SectionModel {
@@ -122,9 +123,6 @@ impl Section {
         let Some(project_model) = self.project().await else {
             return self.model.is_archived;
         };
-        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
-            return project.is_archived();
-        }
         false
     }
     pub async fn source(&self) -> Option<SourceModel> {
