@@ -7,6 +7,7 @@ use crate::objects::{BaseTrait, DueDate};
 use crate::{constants, utils, Store, Util};
 use crate::{Reminder, Source};
 use chrono::{Datelike, Local, NaiveDateTime};
+use futures::{TryFutureExt, TryStreamExt};
 use sea_orm::prelude::*;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
@@ -370,25 +371,32 @@ impl Item {
         due.recurrency_count = due_date.recurrency_count;
         due.recurrency_end = due_date.recurrency_end.clone();
     }
-    pub async fn update_next_recurrency(&self) -> Result<(), TodoError> {
+    pub async fn update_next_recurrency(&mut self) -> Result<(), TodoError> {
         let Some(mut due) = self.due() else { return Ok(()) };
         let datetime_utils = utils::DateTime::default();
 
         // Calculate next recurrence date
         let current_datetime = due.datetime().ok_or(TodoError::IDNotFound)?;
-        let next_recurrency = datetime_utils.next_recurrency(current_datetime, &due);
+        let next_recurrency = datetime_utils.next_recurrency(current_datetime, due.clone());
         due.date = datetime_utils.get_todoist_datetime_format(&next_recurrency);
 
         // Update count for AFTER end type
         if due.end_type() == &RecurrencyEndType::AFTER {
             due.recurrency_count = due.recurrency_count.saturating_sub(1);
         }
-
-        // Persist changes
+        self.model.due = serde_json::to_value(&due).ok();
         self.store()
             .await
-            .update_item(&self.model.id, "")
-            .await
+            .update_item(self.model.clone(), "")
+            .await?;
+        Ok(())
+    }
+    pub async fn add_item_label(&mut self, label_model: LabelModel) -> Result<LabelModel, TodoError> {
+        let mut labels = self.labels();
+        labels.insert(0, label_model.clone());
+        self.model.labels = serde_json::to_value(&labels).ok();
+        self.store().await.update_item(self.model.clone(), "").await?;
+        self.store().await.insert_label(label_model.clone()).await
     }
     pub async fn delete_item(&self) -> Result<(), TodoError> {
         self.store().await.delete_item(&self.model.id).await
@@ -400,12 +408,13 @@ impl Item {
         };
         let labels: Vec<_> = labels_model.into_iter().filter(|l| l.id != id).collect();
         self.model.labels = serde_json::to_value(&labels).ok();
+        self.store().await.update_item(self.model.clone(), "").await?;
         self.store().await.delete_label(id).await
     }
     pub async fn update_local(&self) {
-        self.store().await.update_item(&self.model.id, "").await;
+        self.store().await.update_item(self.model.clone(), "").await;
     }
-    pub async fn update(&self, update_id: &str) {
+    pub async fn update(&self, update_id: &str) -> Result<(), TodoError> {
         // if (project.source_type == SourceType.LOCAL) {
         //     Services.Store.instance ().update_item (this, update_id);
         // } else if (project.source_type == SourceType.TODOIST) {
@@ -423,16 +432,23 @@ impl Item {
         //     });
         // }
 
-        self.store().await.update_item(&self.model.id, &update_id).await;
+        self.store().await.update_item(self.model.clone(), &update_id).await?;
+        Ok(())
+    }
+    pub async fn move_item(&self, project_id: &str, section_id: &str) -> Result<(), TodoError> {
+        self.store().await.move_item(&self.model.id, project_id, section_id).await
     }
     pub async fn update_pin(&self) -> Result<(), TodoError> {
         self.store().await.update_item_pin(&self.model.id).await
     }
-    pub fn was_archived(&self) -> bool {
-        self.parent()
-            .map(|p| p.was_archived())
-            .or_else(|| self.section().map(|s| s.was_archived()))
-            .unwrap_or_else(|| self.project().is_some_and(|p| p.is_archived()))
+    pub async fn was_archived(&self) -> bool {
+        let parent = self.parent().await;
+        if parent.is_some() {
+            parent.as_ref().map(async |p| {
+                return Item::from_db(self.db.clone(), &self.model.id).await.ok().as_ref().and_then(|i| i.was_archived()).unwrap_or_default();
+            })
+        }
+        let section = self.section().await;
     }
     fn source(&self) -> Option<Source> {
         self.project()

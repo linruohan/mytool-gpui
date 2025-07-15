@@ -377,18 +377,9 @@ impl Store {
         // Services.EventBus.get_default ().update_items_position (item.project_id, item.section_id);
     }
 
-    pub async fn update_item(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
-        let item_model = self
-            .get_item(item_id)
-            .await
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
-        ItemEntity::update(ItemActiveModel {
-            id: Set(new_id.to_string()),
-            ..item_model.into()
-        })
-            .exec(&self.db)
-            .await?;
-        Ok(())
+    pub async fn update_item(&self, item: ItemModel, update_id: &str) -> Result<ItemModel, TodoError> {
+        let mut active_model: ItemActiveModel = item.into();
+        Ok(active_model.update(&self.db).await?)
     }
     pub async fn update_item_pin(&self, item_id: &str) -> Result<(), TodoError> {
         let item_model = self
@@ -512,6 +503,7 @@ impl Store {
             .await
     }
     pub async fn update_item_id(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
+        // 更新item的id为新的id
         let item_model = ItemActiveModel {
             id: Set(new_id.to_string()),
             ..ItemEntity::find_by_id(item_id)
@@ -521,7 +513,7 @@ impl Store {
                 .into()
         };
         item_model.update(&self.db).await?;
-
+        // 更新item的subitems的parent_id
         ItemEntity::update_many()
             .col_expr(items::Column::ParentId, Expr::value(new_id.to_string()))
             .filter(items::Column::ParentId.eq(item_id))
