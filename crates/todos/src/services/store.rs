@@ -1,10 +1,10 @@
 use crate::constants;
 use crate::entity::prelude::*;
 use crate::entity::{
-    attachments, items, labels, projects, reminders,
-    sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel,
-    LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel, SectionActiveModel,
-    SectionModel, SourceActiveModel, SourceModel,
+    AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
+    LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
+    SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items, labels,
+    projects, reminders, sections,
 };
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, Item, Section};
@@ -119,7 +119,7 @@ impl Store {
             self.delete_project(&id).await?;
             Ok(())
         })
-            .await
+        .await
     }
     async fn _delete_project(&self, project_id: &str) -> Result<(), TodoError> {
         for section in self.get_sections_by_project(project_id).await {
@@ -143,8 +143,8 @@ impl Store {
             is_archived: Set(true),
             ..project.into()
         })
-            .exec(&self.db)
-            .await?;
+        .exec(&self.db)
+        .await?;
         SectionEntity::update_many()
             .col_expr(sections::Column::ProjectId, Expr::value(new_id.to_string()))
             .filter(sections::Column::ProjectId.eq(project_id))
@@ -181,8 +181,8 @@ impl Store {
             id: Set(project_id.to_string()),
             ..project.into()
         })
-            .exec(&self.db)
-            .await?;
+        .exec(&self.db)
+        .await?;
 
         let items = self.get_items_by_project(project_id).await;
         for item in items {
@@ -290,8 +290,8 @@ impl Store {
             project_id: Set(Some(project_id.to_string())),
             ..section.into()
         }
-            .update(&self.db)
-            .await?;
+        .update(&self.db)
+        .await?;
         ItemEntity::update_many()
             .col_expr(
                 items::Column::ProjectId,
@@ -311,8 +311,8 @@ impl Store {
             id: Set(new_id.to_string()),
             ..section.into()
         }
-            .update(&self.db)
-            .await?;
+        .update(&self.db)
+        .await?;
         ItemEntity::update_many()
             .col_expr(items::Column::SectionId, Expr::value(new_id.to_string()))
             .filter(items::Column::SectionId.eq(section_id))
@@ -377,7 +377,11 @@ impl Store {
         // Services.EventBus.get_default ().update_items_position (item.project_id, item.section_id);
     }
 
-    pub async fn update_item(&self, item: ItemModel, update_id: &str) -> Result<ItemModel, TodoError> {
+    pub async fn update_item(
+        &self,
+        item: ItemModel,
+        update_id: &str,
+    ) -> Result<ItemModel, TodoError> {
         let mut active_model: ItemActiveModel = item.into();
         Ok(active_model.update(&self.db).await?)
     }
@@ -390,8 +394,8 @@ impl Store {
             pinned: Set(true),
             ..item_model.into()
         })
-            .exec(&self.db)
-            .await?;
+        .exec(&self.db)
+        .await?;
         Ok(())
     }
     pub async fn move_item(
@@ -410,8 +414,8 @@ impl Store {
             section_id: Set(Some(section_id.to_string())),
             ..item_model.into()
         })
-            .exec(&self.db)
-            .await?;
+        .exec(&self.db)
+        .await?;
         let subitems = self.get_subitems(item_id).await;
         ItemEntity::update_many()
             .col_expr(
@@ -440,7 +444,7 @@ impl Store {
             }
             Ok(())
         })
-            .await
+        .await
     }
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
         Box::pin(async move {
@@ -459,7 +463,7 @@ impl Store {
             }
             Ok(())
         })
-            .await
+        .await
     }
 
     pub async fn complete_item(
@@ -500,7 +504,7 @@ impl Store {
             };
             Ok(())
         })
-            .await
+        .await
     }
     pub async fn update_item_id(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
         // 更新item的id为新的id
@@ -571,7 +575,7 @@ impl Store {
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
                 if let Ok(item) = item {
-                    if !item.was_archived() {
+                    if !item.was_archived().await {
                         return Some(model);
                     }
                 }
@@ -601,7 +605,7 @@ impl Store {
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
                 if let Ok(item) = item {
-                    if item.has_labels() && item.model.checked && !item.was_archived() {
+                    if item.has_labels() && item.model.checked && !item.was_archived().await {
                         return Some(model);
                     }
                 }
@@ -628,7 +632,9 @@ impl Store {
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
                 if let Ok(item) = item {
-                    if item.has_label(label_id) && model.checked == checked && !item.was_archived()
+                    if item.has_label(label_id)
+                        && model.checked == checked
+                        && !item.was_archived().await
                     {
                         return Some(model);
                     }
@@ -797,7 +803,7 @@ impl Store {
                 let Ok(item) = Item::from_db(self.db.clone(), &model.id).await else {
                     return None;
                 };
-                if item.was_archived() {
+                if item.was_archived().await {
                     return None;
                 }
                 Some(model)
@@ -823,7 +829,7 @@ impl Store {
                 let Ok(item) = Item::from_db(self.db.clone(), &model.id).await else {
                     return None;
                 };
-                if item.was_archived() {
+                if item.was_archived().await {
                     return None;
                 }
                 Some(model)
@@ -850,7 +856,7 @@ impl Store {
                 let Ok(item) = Item::from_db(self.db.clone(), &model.id).await else {
                     return None;
                 };
-                if item.was_archived() {
+                if item.was_archived().await {
                     return None;
                 }
                 let now = Utc::now().naive_utc();
@@ -884,7 +890,7 @@ impl Store {
                 let Ok(item) = Item::from_db(self.db.clone(), &model.id).await else {
                     return None;
                 };
-                if item.was_archived() {
+                if item.was_archived().await {
                     return None;
                 }
                 Some(model)
@@ -911,7 +917,7 @@ impl Store {
                 let Ok(item) = Item::from_db(self.db.clone(), &model.id).await else {
                     return None;
                 };
-                if item.was_archived() {
+                if item.was_archived().await {
                     return None;
                 }
                 Some(model)
@@ -933,7 +939,7 @@ impl Store {
         };
 
         // 检查基本条件
-        if item_model.checked != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived().await || !item.has_due() {
             return false;
         }
         let date_util = DateTime::default();
@@ -959,7 +965,7 @@ impl Store {
         };
 
         // 检查基本条件
-        if item_model.checked != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived().await || !item.has_due() {
             return false;
         }
         // 检查截止日期
@@ -982,7 +988,7 @@ impl Store {
         };
 
         // 检查基本条件
-        if item_model.checked != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived().await || !item.has_due() {
             return false;
         }
         // 检查截止日期
@@ -1010,7 +1016,7 @@ impl Store {
                 let Ok(item) = Item::from_db(self.db.clone(), &model.id).await else {
                     return None;
                 };
-                if item.was_archived() {
+                if item.was_archived().await {
                     return None;
                 };
                 let now = Utc::now().naive_utc();
@@ -1048,7 +1054,7 @@ impl Store {
         };
 
         // 检查基本条件
-        if item_model.checked != checked || item.was_archived() || !item.has_due() {
+        if item_model.checked != checked || item.was_archived().await || !item.has_due() {
             return false;
         }
         let now = Utc::now().naive_utc();

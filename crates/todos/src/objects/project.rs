@@ -173,16 +173,16 @@ impl Project {
     pub async fn project_count(&self) -> usize {
         let items_model = self.items().await;
         stream::iter(items_model)
-            .filter_map(|model| async move {
-                let item = Item::from_db(self.db.clone(), &model.id).await;
-                if let Ok(item) = item {
-                    if !item.model.checked && !item.was_archived() {
+            .filter_map(async move |model| {
+                if let Ok(item) = Item::from_db(self.db.clone(), &model.id).await {
+                    if !item.model.checked && !item.was_archived().await {
                         return Some(model);
                     }
                 }
                 None
             })
-            .count().await
+            .count()
+            .await
     }
     pub async fn project_percentage(&self) -> f32 {
         let count = self.project_count().await;
@@ -197,45 +197,7 @@ impl Project {
         use_timeout: bool,
         show_loading: bool,
     ) -> Result<ProjectModel, TodoError> {
-        // if (update_timeout_id != 0) {
-        //     GLib.Source.remove (update_timeout_id);
-        // }
-        //
-        // uint timeout = Constants.UPDATE_TIMEOUT;
-        // if (use_timeout) {
-        //     timeout = 0;
-        // }
-        //
-        // update_timeout_id = Timeout.add (timeout, () => {
-        //     update_timeout_id = 0;
-        //
-        //     if (backend_type == SourceType.LOCAL) {
-        //         Services.Store.instance ().update_project (this);
-        //     } else if (backend_type == SourceType.TODOIST) {
-        //         if (show_loading) {
-        //             loading = true;
-        //         }
-        //
-        //         Services.Todoist.get_default ().update.begin (this, (obj, res) => {
-        //             Services.Todoist.get_default ().update.end (res);
-        //             Services.Store.instance ().update_project (this);
-        //             loading = false;
-        //         });
-        //     } else if (backend_type == SourceType.CALDAV) {
-        //         if (show_loading) {
-        //             loading = true;
-        //         }
-        //
-        //         Services.CalDAV.Core.get_default ().update_tasklist.begin (this, (obj, res) => {
-        //             Services.CalDAV.Core.get_default ().update_tasklist.end (res);
-        //             Services.Store.instance ().update_project (this);
-        //             loading = false;
-        //         });
-        //     }
-        //
-        //     return GLib.Source.REMOVE;
-        // });
-        todo!()
+        self.store().await.update_project(self.model.clone()).await
     }
     pub async fn get_subproject(&self, subproject_id: &str) -> Option<ProjectModel> {
         let subprojects = self.subprojects().await;
@@ -246,7 +208,7 @@ impl Project {
         pro: &mut ProjectModel,
     ) -> Result<ProjectModel, TodoError> {
         match self.get_subproject(&pro.id).await {
-            Some(subproject) => { Ok(subproject) }
+            Some(subproject) => Ok(subproject),
             None => {
                 pro.parent_id = Some(self.model.id.clone());
                 self.store().await.insert_project(pro.clone()).await
@@ -255,10 +217,6 @@ impl Project {
     }
     pub fn set_parent(&mut self, parent: ProjectModel) {
         self.model.parent_id = Some(parent.id.clone());
-    }
-
-    pub(crate) fn update_count(&self) {
-        todo!()
     }
 
     pub async fn add_subproject(
@@ -271,29 +229,44 @@ impl Project {
     pub async fn get_section(&self, section_id: &str) -> Option<SectionModel> {
         self.store().await.get_section(section_id).await
     }
-    pub async fn add_section_if_not_exists(&self, section_model: &mut SectionModel) -> Result<SectionModel, TodoError> {
+    pub async fn add_section_if_not_exists(
+        &self,
+        section_model: &mut SectionModel,
+    ) -> Result<SectionModel, TodoError> {
         match self.get_section(&section_model.id).await {
             Some(section) => Ok(section),
             None => {
                 section_model.project_id = Some(section_model.id.clone());
                 let section_order = self.sections().await.len() + 1;
                 section_model.section_order = Some(section_order as i32);
-                self.store().await.insert_section(section_model.clone()).await
+                self.store()
+                    .await
+                    .insert_section(section_model.clone())
+                    .await
             }
         }
     }
-    pub async fn add_section(&self, section_model: SectionModel) -> Result<SectionModel, TodoError> {
+    pub async fn add_section(
+        &self,
+        section_model: SectionModel,
+    ) -> Result<SectionModel, TodoError> {
         self.store().await.insert_section(section_model).await
     }
     pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
         self.store().await.get_item(item_id).await
     }
-    pub async fn add_item_if_not_exists(&self, item_model: &mut ItemModel) -> Result<ItemModel, TodoError> {
+    pub async fn add_item_if_not_exists(
+        &self,
+        item_model: &mut ItemModel,
+    ) -> Result<ItemModel, TodoError> {
         match self.get_item(&item_model.id).await {
             Some(item) => Ok(item),
             None => {
                 item_model.project_id = Some(item_model.id.clone());
-                self.store().await.insert_item(item_model.clone(), true).await
+                self.store()
+                    .await
+                    .insert_item(item_model.clone(), true)
+                    .await
             }
         }
     }

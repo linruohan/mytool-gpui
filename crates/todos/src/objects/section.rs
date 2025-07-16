@@ -69,12 +69,18 @@ impl Section {
         }
         result
     }
-    pub async fn add_item_if_not_exist(&self, item_model: &mut ItemModel) -> Result<ItemModel, TodoError> {
+    pub async fn add_item_if_not_exist(
+        &self,
+        item_model: &mut ItemModel,
+    ) -> Result<ItemModel, TodoError> {
         match self.get_item(&item_model.id).await {
             Some(item) => Ok(item),
             None => {
                 item_model.section_id = Some(self.model.id.clone());
-                self.store().await.insert_item(item_model.clone(), true).await
+                self.store()
+                    .await
+                    .insert_item(item_model.clone(), true)
+                    .await
             }
         }
     }
@@ -97,7 +103,7 @@ impl Section {
                 count += self.get_subitem_size(&subitem.id).await;
             }
         })
-            .await;
+        .await;
         count
     }
     pub fn duplicate(&self) -> SectionModel {

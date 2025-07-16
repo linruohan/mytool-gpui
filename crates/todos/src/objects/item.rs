@@ -1,15 +1,16 @@
-use super::BaseObject;
+use super::{BaseObject, Project, Section};
+use crate::Reminder;
 use crate::entity::prelude::ItemEntity;
-use crate::entity::{AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel, SectionModel};
-use crate::enums::{ItemType, RecurrencyEndType, RecurrencyType, ReminderType, SourceType};
+use crate::entity::{
+    AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel, SectionModel, SourceModel,
+};
+use crate::enums::{ItemType, RecurrencyEndType, RecurrencyType, ReminderType};
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, DueDate};
-use crate::{constants, utils, Store, Util};
-use crate::{Reminder, Source};
+use crate::{Store, Util, constants, utils};
 use chrono::{Datelike, Local, NaiveDateTime};
 use futures::{TryFutureExt, TryStreamExt};
 use sea_orm::prelude::*;
-use std::cmp::PartialEq;
 use std::collections::HashMap;
 use tokio::sync::OnceCell;
 
@@ -73,12 +74,6 @@ impl Item {
     }
 }
 
-impl PartialEq<&RecurrencyEndType> for RecurrencyEndType {
-    fn eq(&self, other: &&RecurrencyEndType) -> bool {
-        todo!()
-    }
-}
-
 impl Item {
     pub fn new(db: DatabaseConnection, model: ItemModel) -> Self {
         let base = BaseObject::default();
@@ -109,11 +104,11 @@ impl Item {
     pub fn activate_name_editable(&self) -> bool {
         false
     }
-    pub fn set_activate_name_editable(&self, v: bool) {
-        todo!();
+    pub fn set_activate_name_editable(&mut self, activate_name_editable: bool) -> bool {
+        activate_name_editable
     }
     pub fn short_content(&self) -> String {
-        Util::get_default().get_short_name(&*self.model.content, 0)
+        Util::get_default().get_short_name(&self.model.content, 0)
     }
 
     pub fn priority_icon(&self) -> &str {
@@ -161,9 +156,11 @@ impl Item {
     }
 
     pub fn completed_date(&self) -> Option<NaiveDateTime> {
-        self.model.completed_at.as_ref().and_then(|date|
-            date.and_local_timezone(Local).single().map(|datetime|
-                utils::DateTime::default().get_date_from_string(&datetime.naive_local().to_string())))
+        self.model.completed_at.as_ref().and_then(|date| {
+            date.and_local_timezone(Local).single().map(|datetime| {
+                utils::DateTime::default().get_date_from_string(&datetime.naive_local().to_string())
+            })
+        })
     }
 
     pub async fn has_parent(&self) -> bool {
@@ -193,12 +190,24 @@ impl Item {
     }
 
     pub fn added_datetime(&self) -> NaiveDateTime {
-        self.model.added_at.and_local_timezone(Local).single().map(|dt|
-            utils::DateTime::default().get_date_from_string(&dt.naive_local().to_string())).unwrap_or_default()
+        self.model
+            .added_at
+            .and_local_timezone(Local)
+            .single()
+            .map(|dt| {
+                utils::DateTime::default().get_date_from_string(&dt.naive_local().to_string())
+            })
+            .unwrap_or_default()
     }
     pub fn updated_datetime(&self) -> NaiveDateTime {
-        self.model.updated_at.and_local_timezone(Local).single().map(|dt|
-            utils::DateTime::default().get_date_from_string(&dt.naive_local().to_string())).unwrap_or_default()
+        self.model
+            .updated_at
+            .and_local_timezone(Local)
+            .single()
+            .map(|dt| {
+                utils::DateTime::default().get_date_from_string(&dt.naive_local().to_string())
+            })
+            .unwrap_or_default()
     }
 
     pub async fn parent(&self) -> Option<ItemModel> {
@@ -226,13 +235,22 @@ impl Item {
         items
     }
     pub async fn items_uncomplete(&self) -> Vec<ItemModel> {
-        self.store().await.get_subitems_uncomplete(&self.model.id).await
+        self.store()
+            .await
+            .get_subitems_uncomplete(&self.model.id)
+            .await
     }
     pub async fn reminders(&self) -> Vec<ReminderModel> {
-        self.store().await.get_reminders_by_item(&self.model.id).await
+        self.store()
+            .await
+            .get_reminders_by_item(&self.model.id)
+            .await
     }
     pub async fn attachments(&self) -> Vec<AttachmentModel> {
-        self.store().await.get_attachments_by_itemid(&self.model.id).await
+        self.store()
+            .await
+            .get_attachments_by_itemid(&self.model.id)
+            .await
     }
     pub(crate) fn has_labels(&self) -> bool {
         !self.labels().is_empty()
@@ -241,15 +259,25 @@ impl Item {
         self.get_label(id).is_some()
     }
 
-    pub fn exists_project(&self, project: &ProjectModel) -> bool {
-        self.model.project_id.as_deref().and_then(|id| id == project.id).unwrap_or(false);
-        self.parent()
-            .is_some_and(|parent| parent.exists_project(project))
+    pub async fn exists_project(&self, project: ProjectModel) -> bool {
+        Box::pin(async move {
+            if let Some(p) = self.parent().await.as_ref() {
+                if let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await {
+                    return item.exists_project(project).await;
+                }
+            }
+            self.model.project_id == Some(project.id)
+        })
+        .await
     }
     pub fn get_label(&self, id: &str) -> Option<LabelModel> {
         self.labels().iter().find(|l| l.id == id).cloned()
     }
-    pub fn get_label_by_name(&self, name: &str, labels_list: Vec<LabelModel>) -> Option<LabelModel> {
+    pub fn get_label_by_name(
+        &self,
+        name: &str,
+        labels_list: Vec<LabelModel>,
+    ) -> Option<LabelModel> {
         labels_list.iter().find(|s| s.name == name).cloned()
     }
 
@@ -261,7 +289,7 @@ impl Item {
     pub fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
         for (key, label) in &new_labels {
             if self.get_label(&label.id).is_none() {
-                self.add_label_if_not_exist(label.clone());
+                self.add_label_if_not_exists(&label);
             }
         }
         for label in self.labels() {
@@ -273,7 +301,10 @@ impl Item {
     pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
         self.items().await.iter().find(|i| i.id == id).cloned()
     }
-    pub async fn add_item_if_not_exists(&self, item: &mut ItemModel) -> Result<ItemModel, TodoError> {
+    pub async fn add_item_if_not_exists(
+        &self,
+        item: &mut ItemModel,
+    ) -> Result<ItemModel, TodoError> {
         match self.get_item(&item.id).await {
             Some(item) => Ok(item),
             None => {
@@ -311,24 +342,26 @@ impl Item {
                 .as_ref()
                 .and_then(|dt| dt.datetime())
                 .map(|datetime| {
-                    format!("({})", utils::DateTime::default()
-                        .get_relative_date_from_date(&datetime))
+                    format!(
+                        "({})",
+                        utils::DateTime::default().get_relative_date_from_date(&datetime)
+                    )
                 })
                 .unwrap_or_else(|| " ".to_string())
         }
     }
-    fn add_label_if_not_exist(&self, label: LabelModel) {
-        todo!()
-    }
     pub fn get_labels_names(&self, labels: Vec<LabelModel>) -> String {
-        labels.iter()
-              .map(|l| l.name.as_str())
-              .collect::<Vec<_>>()
-              .join(",")
+        labels
+            .iter()
+            .map(|l| l.name.as_str())
+            .collect::<Vec<_>>()
+            .join(",")
     }
     pub fn set_recurrency(&self, due_date: &DueDate) {
         let Some(mut due) = self.due() else { return };
-        if due.is_recurrency_equal(due_date.clone()) { return; };
+        if due.is_recurrency_equal(due_date.clone()) {
+            return;
+        };
 
         let datetime_utils = utils::DateTime::default();
 
@@ -336,19 +369,26 @@ impl Item {
             RecurrencyType::MINUTELY | RecurrencyType::HOURLY if !self.has_due() => {
                 due.date = datetime_utils.get_todoist_datetime_format(&Local::now().naive_local());
             }
-            RecurrencyType::EveryDay | RecurrencyType::EveryMonth | RecurrencyType::EveryYear if !self.has_due() => {
-                due.date = datetime_utils.get_todoist_datetime_format(&datetime_utils.get_today_format_date());
+            RecurrencyType::EveryDay | RecurrencyType::EveryMonth | RecurrencyType::EveryYear
+                if !self.has_due() =>
+            {
+                due.date = datetime_utils
+                    .get_todoist_datetime_format(&datetime_utils.get_today_format_date());
             }
             RecurrencyType::EveryWeek => {
                 if due_date.has_weeks() {
-                    let due_selected = self.has_due()
-                                           .then(|| due.datetime())
-                                           .flatten()
-                                           .unwrap_or_else(|| datetime_utils.get_today_format_date());
+                    let due_selected = self
+                        .has_due()
+                        .then(|| due.datetime())
+                        .flatten()
+                        .unwrap_or_else(|| datetime_utils.get_today_format_date());
 
                     let day_of_week = due_selected.weekday() as i32;
-                    let next_day = utils::DateTime::get_next_day_of_week_from_recurrency_week(due_selected, due_date.clone())
-                        .unwrap_or_default();
+                    let next_day = utils::DateTime::get_next_day_of_week_from_recurrency_week(
+                        due_selected,
+                        due_date.clone(),
+                    )
+                    .unwrap_or_default();
 
                     let new_date = if day_of_week == next_day {
                         due_selected
@@ -358,7 +398,8 @@ impl Item {
 
                     due.date = datetime_utils.get_todoist_datetime_format(&new_date);
                 } else if !self.has_due() {
-                    due.date = datetime_utils.get_todoist_datetime_format(&datetime_utils.get_today_format_date());
+                    due.date = datetime_utils
+                        .get_todoist_datetime_format(&datetime_utils.get_today_format_date());
                 }
             }
             _ => {}
@@ -372,7 +413,9 @@ impl Item {
         due.recurrency_end = due_date.recurrency_end.clone();
     }
     pub async fn update_next_recurrency(&mut self) -> Result<(), TodoError> {
-        let Some(mut due) = self.due() else { return Ok(()) };
+        let Some(mut due) = self.due() else {
+            return Ok(());
+        };
         let datetime_utils = utils::DateTime::default();
 
         // Calculate next recurrence date
@@ -381,7 +424,7 @@ impl Item {
         due.date = datetime_utils.get_todoist_datetime_format(&next_recurrency);
 
         // Update count for AFTER end type
-        if due.end_type() == &RecurrencyEndType::AFTER {
+        if due.end_type() == RecurrencyEndType::AFTER {
             due.recurrency_count = due.recurrency_count.saturating_sub(1);
         }
         self.model.due = serde_json::to_value(&due).ok();
@@ -391,11 +434,17 @@ impl Item {
             .await?;
         Ok(())
     }
-    pub async fn add_item_label(&mut self, label_model: LabelModel) -> Result<LabelModel, TodoError> {
+    pub async fn add_item_label(
+        &mut self,
+        label_model: LabelModel,
+    ) -> Result<LabelModel, TodoError> {
         let mut labels = self.labels();
         labels.insert(0, label_model.clone());
         self.model.labels = serde_json::to_value(&labels).ok();
-        self.store().await.update_item(self.model.clone(), "").await?;
+        self.store()
+            .await
+            .update_item(self.model.clone(), "")
+            .await?;
         self.store().await.insert_label(label_model.clone()).await
     }
     pub async fn delete_item(&self) -> Result<(), TodoError> {
@@ -408,52 +457,54 @@ impl Item {
         };
         let labels: Vec<_> = labels_model.into_iter().filter(|l| l.id != id).collect();
         self.model.labels = serde_json::to_value(&labels).ok();
-        self.store().await.update_item(self.model.clone(), "").await?;
+        self.store()
+            .await
+            .update_item(self.model.clone(), "")
+            .await?;
         self.store().await.delete_label(id).await
     }
     pub async fn update_local(&self) {
         self.store().await.update_item(self.model.clone(), "").await;
     }
-    pub async fn update(&self, update_id: &str) -> Result<(), TodoError> {
-        // if (project.source_type == SourceType.LOCAL) {
-        //     Services.Store.instance ().update_item (this, update_id);
-        // } else if (project.source_type == SourceType.TODOIST) {
-        //     Services.Todoist.get_default ().update.begin (this, (obj, res) => {
-        //         Services.Todoist.get_default ().update.end (res);
-        //         Services.Store.instance ().update_item (this, update_id);
-        //     });
-        // } else if (project.source_type == SourceType.CALDAV) {
-        //     Services.CalDAV.Core.get_default ().add_task.begin (this, true, (obj, res) => {
-        //         HttpResponse response = Services.CalDAV.Core.get_default ().add_task.end (res);
-        //
-        //         if (response.status) {
-        //             Services.Store.instance ().update_item (this, update_id);
-        //         }
-        //     });
-        // }
-
-        self.store().await.update_item(self.model.clone(), &update_id).await?;
-        Ok(())
+    pub async fn update(&self, update_id: &str) -> Result<ItemModel, TodoError> {
+        self.store()
+            .await
+            .update_item(self.model.clone(), &update_id)
+            .await
     }
     pub async fn move_item(&self, project_id: &str, section_id: &str) -> Result<(), TodoError> {
-        self.store().await.move_item(&self.model.id, project_id, section_id).await
+        self.store()
+            .await
+            .move_item(&self.model.id, project_id, section_id)
+            .await
     }
     pub async fn update_pin(&self) -> Result<(), TodoError> {
         self.store().await.update_item_pin(&self.model.id).await
     }
     pub async fn was_archived(&self) -> bool {
-        let parent = self.parent().await;
-        if parent.is_some() {
-            parent.as_ref().map(async |p| {
-                return Item::from_db(self.db.clone(), &self.model.id).await.ok().as_ref().and_then(|i| i.was_archived()).unwrap_or_default();
-            })
-        }
-        let section = self.section().await;
+        Box::pin(async move {
+            if let Some(p) = self.parent().await.as_ref() {
+                if let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await {
+                    return item.was_archived().await;
+                }
+            }
+
+            if let Some(s) = self.section().await.as_ref() {
+                if let Ok(sec) = Section::from_db(self.db.clone(), &s.id).await {
+                    return sec.was_archived().await;
+                }
+            }
+            false
+        })
+        .await
     }
-    fn source(&self) -> Option<Source> {
-        self.project()
-            .as_ref()
-            .map_or(Some(Source::default()), |p| p.source())
+    pub async fn source(&self) -> Option<SourceModel> {
+        if let Some(project_model) = self.project().await.as_ref() {
+            if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
+                return project.source().await;
+            }
+        }
+        None
     }
     pub fn add_reminder_events(&self, reminder: &Reminder) {
         // self.store.reminder_added(reminder);
@@ -461,52 +512,46 @@ impl Item {
         // reminder.item().reminder_added(reminder);
         // _add_reminder(reminder);
     }
-    pub fn remove_all_relative_reminders(&self) {
-        self.reminders()
+    pub async fn remove_all_relative_reminders(&self) -> Result<(), TodoError> {
+        let reminders = self.reminders().await;
+        let store = self.store().await;
+
+        for r in reminders
             .iter()
-            .filter(|r| r.reminder_type() == ReminderType::RELATIVE)
-            .for_each(|r| {
-                r.delete();
-            });
+            .filter(|r| r.reminder_type == Some(ReminderType::RELATIVE.to_string()))
+        {
+            store.delete_reminder(&r.id).await?;
+        }
+        Ok(())
     }
     pub fn update_date(&mut self, date: &NaiveDateTime) {
-        let mut my_due = self.due().clone();
-        my_due.date = if *date == EMPTY_DATETIME {
-            "".to_string()
-        } else {
-            DateTime::default().get_todoist_datetime_format(date)
-        };
-        self.update_due(&mut my_due);
-    }
-    pub fn update_sync(&self, update_id: &str) {
-        if let Some(project) = self.project() {
-            match project.source_type() {
-                SourceType::LOCAL => {
-                    self.store.update_item(self, update_id);
-                }
-                SourceType::TODOIST => {
-                    // Services.Todoist.get_default ().update_item (this, update_id);
-                }
-                SourceType::CALDAV => {
-                    // Services.CalDAV.Core.get_default ().update_item (this, update_id);
-                }
-                _ => {}
-            }
+        if let Some(mut due) = self.due() {
+            due.date = utils::DateTime::default().get_todoist_datetime_format(date);
+            self.update_due(due); // Move due into update_due
         }
     }
-    pub fn update_due(&mut self, due: &mut DueDate) {
-        let mut my_due = self.due().clone();
-        my_due.date = due.date.clone();
+    pub async fn update_sync(&self, update_id: &str) {
+        self.store()
+            .await
+            .update_item(self.model.clone(), update_id);
+    }
+    pub fn update_due(&mut self, due_date: DueDate) {
         if self.has_time() {
             self.remove_all_relative_reminders();
-            let mut reminder = Reminder::new();
-            reminder.set_mm_offset(Util::get_default().get_reminders_mm_offset());
-            reminder.set_reminder_type(&ReminderType::RELATIVE);
+            let mut reminder = ReminderModel {
+                reminder_type: Some(ReminderType::RELATIVE.to_string()),
+                mm_offset: Some(Util::get_default().get_reminders_mm_offset()),
+                ..Default::default()
+            };
             self.add_reminder(&mut reminder);
         }
-        if due.date.is_empty() {
-            due.reset();
-            self.remove_all_relative_reminders();
+        if let Some(mut due) = self.due() {
+            due.date = due_date.date.to_string();
+
+            if due.date.is_empty() {
+                due.reset();
+                self.remove_all_relative_reminders();
+            }
         }
         if !self.has_time() {
             self.remove_all_relative_reminders();
@@ -514,32 +559,50 @@ impl Item {
         self.update_sync("");
     }
     pub async fn get_reminder(&self, reminder: &ReminderModel) -> Option<ReminderModel> {
-        self.reminders().await.iter().find(|r| r.due == reminder.due).cloned()
+        self.reminders()
+            .await
+            .iter()
+            .find(|r| r.due == reminder.due)
+            .cloned()
     }
-    pub async fn add_reminder_if_not_exists(&self, reminder: &ReminderModel) -> Result<ReminderModel, TodoError> {
+    pub async fn add_reminder_if_not_exists(
+        &self,
+        reminder: &ReminderModel,
+    ) -> Result<ReminderModel, TodoError> {
         match self.get_reminder(reminder).await {
-            Some(reminder) => { return Ok(reminder) }
-            None => {
-                self.store().await.insert_reminder(reminder.clone()).await
-            }
+            Some(reminder) => return Ok(reminder),
+            None => self.store().await.insert_reminder(reminder.clone()).await,
         }
     }
     pub async fn get_attachment(&self, attachment: &AttachmentModel) -> Option<AttachmentModel> {
-        self.attachments().await.iter().find(|a| a.file_path == attachment.file_path).cloned()
+        self.attachments()
+            .await
+            .iter()
+            .find(|a| a.file_path == attachment.file_path)
+            .cloned()
     }
-    pub async fn add_attachment_if_not_exists(&self, attachment: &AttachmentModel) -> Result<AttachmentModel, TodoError> {
+    pub async fn add_attachment_if_not_exists(
+        &self,
+        attachment: &AttachmentModel,
+    ) -> Result<AttachmentModel, TodoError> {
         match self.get_attachment(attachment).await {
-            Some(attachment) => { Ok(attachment) }
-            None => { self.store().await.insert_attachment(attachment.clone()).await }
+            Some(attachment) => Ok(attachment),
+            None => {
+                self.store()
+                    .await
+                    .insert_attachment(attachment.clone())
+                    .await
+            }
         }
     }
 
-    pub async fn add_label_if_not_exists(&self, label: &LabelModel) -> Result<LabelModel, TodoError> {
+    pub async fn add_label_if_not_exists(
+        &self,
+        label: &LabelModel,
+    ) -> Result<LabelModel, TodoError> {
         match self.get_label(&label.id) {
-            Some(label) => { Ok(label) }
-            None => {
-                self.store().await.insert_label(label.clone()).await
-            }
+            Some(label) => Ok(label),
+            None => self.store().await.insert_label(label.clone()).await,
         }
     }
     pub fn add_reminder(&self, reminder: &mut ReminderModel) {
@@ -547,26 +610,11 @@ impl Item {
         self.add_reminder_if_not_exists(reminder);
     }
 
-    pub fn complete_item(&self) {
-        if let Some(project) = self.project() {
-            match project.source_type() {
-                SourceType::LOCAL => {
-                    self.store.complete_item(self);
-                }
-                SourceType::TODOIST => {
-                    // Services.Todoist.get_default ().complete_item (this)
-                }
-                SourceType::CALDAV => {
-                    // Services.CalDAV.Core.get_default ().complete_item (this);
-                    // foreach (Objects.Item subitem in Services.Store.instance ().get_subitems (this)) {
-                    //     subitem.checked = checked;
-                    //     subitem.completed_at = completed_at;
-                    //     subitem.complete_item.begin (old_checked);
-                    // }
-                }
-                _ => {}
-            }
-        }
+    pub async fn complete_item(&self) {
+        self.store()
+            .await
+            .complete_item(&self.model.id, true, true)
+            .await;
     }
 }
 

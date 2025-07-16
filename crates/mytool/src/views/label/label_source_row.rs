@@ -8,6 +8,8 @@ use gpui_component::{
     v_flex, ActiveTheme,
 };
 use std::time::Duration;
+use todos::entity::LabelModel;
+use todos::entity::labels::Model;
 use todos::objects;
 
 actions!(story, [SelectedLabel]);
@@ -70,12 +72,12 @@ impl RenderOnce for Label {
                             .overflow_x_hidden()
                             .flex_nowrap()
                             .child(
-                                gpui_component::label::Label::new(self.label.name.clone())
+                                gpui_component::label::Label::new(self.label.model.name.clone())
                                     .whitespace_nowrap(),
                             )
                             .child(
                                 div().text_sm().overflow_x_hidden().child(
-                                    gpui_component::label::Label::new(self.label.industry.clone())
+                                    gpui_component::label::Label::new(self.label.model.color.clone())
                                         .whitespace_nowrap()
                                         .text_color(text_color.opacity(0.5)),
                                 ),
@@ -90,7 +92,7 @@ impl RenderOnce for Label {
                                 div()
                                     .w(px(65.))
                                     .text_color(text_color)
-                                    .child(self.label.last_done_str.clone()),
+                                    .child(self.label.model.color.clone()),
                             )
                             .child(
                                 h_flex().w(px(65.)).justify_end().child(
@@ -107,8 +109,8 @@ impl RenderOnce for Label {
 }
 
 pub struct LabelListDelegate {
-    pub labels: Vec<Label>,
-    pub matched_labels: Vec<Label>,
+    pub labels: Vec<LabelModel>,
+    pub matched_labels: Vec<LabelModel>,
     pub selected_index: Option<usize>,
     pub confirmed_index: Option<usize>,
     pub query: String,
@@ -147,7 +149,7 @@ impl ListDelegate for LabelListDelegate {
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(company) = self.matched_labels.get(ix) {
-            return Some(Label::new(ix, company.clone(), ix, selected));
+            return Some(Label::new(company, /* todos::objects::Label */, /* usize */ /* bool */));
         }
 
         None
@@ -199,7 +201,7 @@ impl ListDelegate for LabelListDelegate {
 }
 
 impl LabelListDelegate {
-    pub fn selected_label(&self) -> Option<Label> {
+    pub fn selected_label(&self) -> Option<Model> {
         let Some(ix) = self.selected_index else {
             return None;
         };

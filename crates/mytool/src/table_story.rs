@@ -493,7 +493,7 @@ impl TableStory {
                             |(i, stock)| {
                                 let n = (3..10).fake::<usize>();
                                 // update 30% of the stocks
-                                if i % n == 0 {
+                                if i.is_multiple_of(n) {
                                     stock.random_update();
                                 }
                             },

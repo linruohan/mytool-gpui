@@ -11,7 +11,9 @@ pub struct Util {
 
 impl Util {
     pub(crate) fn default() -> Util {
-        todo!()
+        Util {
+            colors: HashMap::new(),
+        }
     }
 }
 

@@ -9,7 +9,6 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
     v_flex, ActiveTheme as _, Icon, IconName,
 };
-use story::*;
 
 pub struct Gallery {
     stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
@@ -33,54 +32,23 @@ impl Gallery {
             _ => {}
         })];
         let stories = vec![
-            (
-                "Getting Started",
-                vec![StoryContainer::panel::<WelcomeStory>(window, cx)],
-            ),
+            // (
+            //     "Getting Started",
+            //     vec![StoryContainer::panel::<WelcomeStory>(window, cx)],
+            // ),
             (
                 "Components",
                 vec![
-                    StoryContainer::panel::<AccordionStory>(window, cx),
-                    StoryContainer::panel::<AlertStory>(window, cx),
-                    StoryContainer::panel::<AvatarStory>(window, cx),
-                    StoryContainer::panel::<BadgeStory>(window, cx),
-                    StoryContainer::panel::<ButtonStory>(window, cx),
+                    // StoryContainer::panel::<AccordionStory>(window, cx),
+                    // StoryContainer::panel::<AlertStory>(window, cx),
+                    // StoryContainer::panel::<AvatarStory>(window, cx),
+                    // StoryContainer::panel::<BadgeStory>(window, cx),
+                    // StoryContainer::panel::<ButtonStory>(window, cx),
                     StoryContainer::panel::<CalendarStory>(window, cx),
-                    StoryContainer::panel::<ChartStory>(window, cx),
-                    StoryContainer::panel::<CheckboxStory>(window, cx),
-                    StoryContainer::panel::<ClipboardStory>(window, cx),
                     StoryContainer::panel::<ColorPickerStory>(window, cx),
                     StoryContainer::panel::<DatePickerStory>(window, cx),
-                    StoryContainer::panel::<DescriptionListStory>(window, cx),
-                    StoryContainer::panel::<DrawerStory>(window, cx),
-                    StoryContainer::panel::<DropdownStory>(window, cx),
-                    StoryContainer::panel::<FormStory>(window, cx),
-                    StoryContainer::panel::<IconStory>(window, cx),
-                    StoryContainer::panel::<IndicatorStory>(window, cx),
-                    StoryContainer::panel::<ImageStory>(window, cx),
-                    StoryContainer::panel::<InputStory>(window, cx),
-                    StoryContainer::panel::<KbdStory>(window, cx),
-                    StoryContainer::panel::<LabelStory>(window, cx),
-                    StoryContainer::panel::<ListStory>(window, cx),
-                    StoryContainer::panel::<MenuStory>(window, cx),
-                    StoryContainer::panel::<ModalStory>(window, cx),
-                    StoryContainer::panel::<NotificationStory>(window, cx),
-                    StoryContainer::panel::<NumberInputStory>(window, cx),
-                    StoryContainer::panel::<OtpInputStory>(window, cx),
-                    StoryContainer::panel::<PopoverStory>(window, cx),
-                    StoryContainer::panel::<ProgressStory>(window, cx),
-                    StoryContainer::panel::<RadioStory>(window, cx),
-                    StoryContainer::panel::<ResizableStory>(window, cx),
-                    StoryContainer::panel::<ScrollableStory>(window, cx),
                     StoryContainer::panel::<SidebarStory>(window, cx),
-                    StoryContainer::panel::<SkeletonStory>(window, cx),
-                    StoryContainer::panel::<SliderStory>(window, cx),
-                    StoryContainer::panel::<SwitchStory>(window, cx),
                     StoryContainer::panel::<TableStory>(window, cx),
-                    StoryContainer::panel::<TabsStory>(window, cx),
-                    StoryContainer::panel::<TagStory>(window, cx),
-                    StoryContainer::panel::<TextareaStory>(window, cx),
-                    StoryContainer::panel::<TooltipStory>(window, cx),
                 ],
             ),
         ];
