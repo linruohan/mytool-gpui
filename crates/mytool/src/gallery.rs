@@ -3,11 +3,10 @@ use crate::{
 };
 use gpui::{prelude::*, *};
 use gpui_component::{
-    h_flex,
     input::{InputEvent, InputState, TextInput},
     resizable::{h_resizable, resizable_panel, ResizableState},
-    sidebar::{Sidebar, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
-    v_flex, ActiveTheme as _, Icon, IconName,
+    sidebar::{Sidebar, SidebarGroup, SidebarMenu, SidebarMenuItem},
+    v_flex, ActiveTheme as _,
 };
 
 pub struct Gallery {
@@ -127,71 +126,19 @@ impl Render for Gallery {
                             .border_width(px(0.))
                             .collapsed(self.collapsed)
                             .header(
-                                v_flex()
-                                    .w_full()
-                                    .gap_4()
-                                    .child(
-                                        SidebarHeader::new()
-                                            .w_full()
-                                            .child(
-                                                div()
-                                                    .flex()
-                                                    .items_center()
-                                                    .justify_center()
-                                                    .rounded(cx.theme().radius)
-                                                    .bg(cx.theme().primary)
-                                                    .text_color(cx.theme().primary_foreground)
-                                                    .size_8()
-                                                    .flex_shrink_0()
-                                                    .when(!self.collapsed, |this| {
-                                                        this.child(Icon::new(
-                                                            IconName::GalleryVerticalEnd,
-                                                        ))
-                                                    })
-                                                    .when(self.collapsed, |this| {
-                                                        this.size_4()
-                                                            .bg(cx.theme().transparent)
-                                                            .text_color(cx.theme().foreground)
-                                                            .child(Icon::new(
-                                                                IconName::GalleryVerticalEnd,
-                                                            ))
-                                                    })
-                                                    .rounded_lg(),
-                                            )
-                                            .when(!self.collapsed, |this| {
-                                                this.child(
-                                                    v_flex()
-                                                        .gap_0()
-                                                        .text_sm()
-                                                        .flex_1()
-                                                        .line_height(relative(1.25))
-                                                        .overflow_hidden()
-                                                        .text_ellipsis()
-                                                        .child("GPUI Component")
-                                                        .child(
-                                                            div()
-                                                                .text_color(
-                                                                    cx.theme().muted_foreground,
-                                                                )
-                                                                .child("Gallery")
-                                                                .text_xs(),
-                                                        ),
-                                                )
-                                            }),
-                                    )
-                                    .child(
-                                        div()
-                                            .bg(cx.theme().secondary)
-                                            .px_1()
-                                            .rounded_full()
-                                            .flex_1()
-                                            .mx_1()
-                                            .child(
-                                                TextInput::new(&self.search_input)
-                                                    .appearance(false)
-                                                    .cleanable(),
-                                            ),
-                                    ),
+                                v_flex().w_full().gap_4().child(
+                                    div()
+                                        .bg(cx.theme().secondary)
+                                        .px_1()
+                                        .rounded_full()
+                                        .flex_1()
+                                        .mx_1()
+                                        .child(
+                                            TextInput::new(&self.search_input)
+                                                .appearance(false)
+                                                .cleanable(),
+                                        ),
+                                ),
                             )
                             .children(stories.clone().into_iter().enumerate().map(
                                 |(group_ix, (group_name, sub_stories))| {
@@ -223,25 +170,6 @@ impl Render for Gallery {
                     .flex_1()
                     .h_full()
                     .overflow_x_hidden()
-                    .child(
-                        h_flex()
-                            .id("header")
-                            .p_4()
-                            .border_b_1()
-                            .border_color(cx.theme().border)
-                            .justify_between()
-                            .items_start()
-                            .child(
-                                v_flex()
-                                    .gap_1()
-                                    .child(div().text_xl().child(story_name))
-                                    .child(
-                                        div()
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child(description),
-                                    ),
-                            ),
-                    )
                     .child(
                         div()
                             .id("story")

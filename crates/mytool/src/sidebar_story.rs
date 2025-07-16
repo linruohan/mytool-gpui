@@ -1,27 +1,27 @@
 use std::collections::HashMap;
 
 use gpui::{
-    div, prelude::FluentBuilder, px, relative, Action, App, AppContext, ClickEvent, Context,
-    Entity, Focusable, IntoElement, ParentElement, Render, SharedString, Styled, Window,
+    prelude::FluentBuilder, px, Action, App, AppContext, ClickEvent, Context, Entity, Focusable,
+    Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
 use crate::{play_ogg_file, TodayView};
 use gpui_component::{
-    badge::Badge,
-    blue_500,
     breadcrumb::{Breadcrumb, BreadcrumbItem},
+    button::{Button, ButtonVariants},
     divider::Divider,
+    dropdown::{Dropdown, DropdownState},
     h_flex,
-    popup_menu::PopupMenuExt,
+    input::{InputState, TextInput},
     switch::Switch,
-    v_flex, white, ActiveTheme, Icon, IconName, Side, Sizable,
+    v_flex, ActiveTheme, ContextModal, IconName, Side,
 };
 use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use my_components::sidebar::{
     Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem, SidebarToggleButton,
 };
 use serde::Deserialize;
-use todos::objects::project::project::Project;
+use todos::entity::ProjectModel;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = sidebar_story, no_json)]
@@ -30,12 +30,12 @@ pub struct SelectCompany(SharedString);
 pub struct SidebarStory {
     active_items: HashMap<Item, bool>,
     last_active_item: Item,
-    active_subitem: Option<Project>,
+    active_subitem: Option<ProjectModel>,
     collapsed: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
     checked: bool,
-    projects: Vec<Project>,
+    projects: Vec<ProjectModel>,
     _search_input: Entity<InputState>,
     project_date: Option<String>,
 }
@@ -118,7 +118,7 @@ impl SidebarStory {
                                 move |_, window, cx| {
                                     window.close_modal(cx);
                                     view.update(cx, |view, cx| {
-                                        let mut project = Project::default();
+                                        let mut project = ProjectModel::default();
                                         project.name = input1.read(cx).value().to_string();
                                         project.due_date = view.project_date.clone();
                                         view.projects.push(project);
@@ -282,6 +282,7 @@ impl Render for SidebarStory {
                         //项目分类：
                         v_flex()
                             .w_full()
+                            .gap_4()
                             .child(
                                 SidebarBoard::new().children(
                                     item_groups
