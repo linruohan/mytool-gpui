@@ -21,7 +21,7 @@ impl ProjectStory {
     }
 }
 impl Render for ProjectStory {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
     }
 }

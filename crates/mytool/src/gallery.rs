@@ -142,8 +142,8 @@ impl Render for Gallery {
                             )
                             .children(stories.clone().into_iter().enumerate().map(
                                 |(group_ix, (_group_name, sub_stories))| {
-                                    SidebarMenu::new().children(
-                                        sub_stories.iter().enumerate().map(|(ix, story)| {
+                                    SidebarMenu::new().children(sub_stories.iter().enumerate().map(
+                                        |(ix, story)| {
                                             SidebarMenuItem::new(story.read(cx).name.clone())
                                                 .active(
                                                     self.active_group_index == Some(group_ix)
@@ -151,14 +151,13 @@ impl Render for Gallery {
                                                 )
                                                 .on_click(cx.listener(
                                                     move |this, _: &ClickEvent, _, cx| {
-                                                        this.active_group_index =
-                                                            Some(group_ix);
+                                                        this.active_group_index = Some(group_ix);
                                                         this.active_index = Some(ix);
                                                         cx.notify();
                                                     },
                                                 ))
-                                        }),
-                                    )
+                                        },
+                                    ))
                                 },
                             )),
                     ),

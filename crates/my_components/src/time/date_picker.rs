@@ -1,10 +1,9 @@
 use chrono::NaiveDate;
 use gpui::{
-    actions, anchored, deferred, div, prelude::FluentBuilder as _, px, Action, App, AppContext,
-    Context, ElementId, Empty, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _, Render,
-    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
-    Subscription, Window,
+    actions, anchored, deferred, div, prelude::FluentBuilder as _, px, App, AppContext, Context,
+    ElementId, Empty, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement as _,
+    IntoElement, KeyBinding, MouseButton, ParentElement as _, Render, RenderOnce, SharedString,
+    StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
 };
 use rust_i18n::t;
 actions!(my_components, [Cancel]);
@@ -243,6 +242,7 @@ pub struct DatePicker {
     size: Size,
     number_of_months: usize,
     presets: Option<Vec<DateRangePreset>>,
+    appearance: bool,
 }
 
 impl Sizable for DatePicker {
@@ -280,6 +280,7 @@ impl DatePicker {
             style: StyleRefinement::default(),
             number_of_months: 2,
             presets: None,
+            appearance: true,
         }
     }
 
@@ -304,6 +305,12 @@ impl DatePicker {
     /// Set number of months to display in the calendar, default is 2.
     pub fn number_of_months(mut self, number_of_months: usize) -> Self {
         self.number_of_months = number_of_months;
+        self
+    }
+
+    /// Set appearance of the date picker, if false, the date picker will be in a minimal style.
+    pub fn appearance(mut self, appearance: bool) -> Self {
+        self.appearance = appearance;
         self
     }
 }
@@ -342,14 +349,16 @@ impl RenderOnce for DatePicker {
                     .flex()
                     .items_center()
                     .justify_between()
-                    .bg(cx.theme().background)
-                    .border_1()
-                    .border_color(cx.theme().input)
-                    .rounded(cx.theme().radius)
-                    .when(cx.theme().shadow, |this| this.shadow_xs())
+                    .when(self.appearance, |this| {
+                        this.bg(cx.theme().background)
+                            .border_1()
+                            .border_color(cx.theme().input)
+                            .rounded(cx.theme().radius)
+                            .when(cx.theme().shadow, |this| this.shadow_xs())
+                            .when(is_focused, |this| this.focused_border(cx))
+                    })
                     .overflow_hidden()
                     .input_text_size(self.size)
-                    .when(is_focused, |this| this.focused_border(cx))
                     .input_size(self.size)
                     .when(!state.open, |this| {
                         this.on_click(

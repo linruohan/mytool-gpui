@@ -250,7 +250,6 @@ impl Matcher {
 pub struct Calendar {
     size: Size,
     state: Entity<CalendarState>,
-    bordered: bool,
     style: StyleRefinement,
     /// Number of the months view to show.
     number_of_months: usize,
@@ -501,7 +500,6 @@ impl Calendar {
             size: Size::default(),
             state: state.clone(),
             style: StyleRefinement::default(),
-            bordered: true,
             number_of_months: 1,
         }
     }
@@ -509,12 +507,6 @@ impl Calendar {
     /// Set number of months to show, default is 1.
     pub fn number_of_months(mut self, number_of_months: usize) -> Self {
         self.number_of_months = number_of_months;
-        self
-    }
-
-    /// Set bordered, default: `true`.
-    pub fn bordered(mut self, bordered: bool) -> Self {
-        self.bordered = bordered;
         self
     }
 
@@ -966,9 +958,6 @@ impl RenderOnce for Calendar {
             .border_color(cx.theme().border)
             .rounded(cx.theme().radius_lg)
             .p_3()
-            .when(self.bordered, |this| {
-                this.border_1().border_color(cx.theme().border).p_3()
-            })
             .gap_0p5()
             .refine_style(&self.style)
             .child(self.render_header(window, cx))

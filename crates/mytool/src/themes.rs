@@ -17,7 +17,7 @@ const STATE_FILE: &str = "target/state.json";
 struct State {
     theme: SharedString,
 }
-
+#[allow(unused)]
 pub fn init(cx: &mut App) {
     // Load last theme state
     let json = std::fs::read_to_string(STATE_FILE).unwrap_or(String::default());
