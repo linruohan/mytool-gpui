@@ -5,7 +5,7 @@ use gpui::{prelude::*, *};
 use gpui_component::{
     input::{InputEvent, InputState, TextInput},
     resizable::{h_resizable, resizable_panel, ResizableState},
-    sidebar::{Sidebar, SidebarGroup, SidebarMenu, SidebarMenuItem},
+    sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex, ActiveTheme as _,
 };
 
@@ -108,7 +108,7 @@ impl Render for Gallery {
             .active_index
             .and(active_group)
             .and_then(|group| group.1.get(self.active_index.unwrap()));
-        let (story_name, description) =
+        let (_story_name, _description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())
             } else {
@@ -141,25 +141,23 @@ impl Render for Gallery {
                                 ),
                             )
                             .children(stories.clone().into_iter().enumerate().map(
-                                |(group_ix, (group_name, sub_stories))| {
-                                    SidebarGroup::new(*group_name).child(
-                                        SidebarMenu::new().children(
-                                            sub_stories.iter().enumerate().map(|(ix, story)| {
-                                                SidebarMenuItem::new(story.read(cx).name.clone())
-                                                    .active(
-                                                        self.active_group_index == Some(group_ix)
-                                                            && self.active_index == Some(ix),
-                                                    )
-                                                    .on_click(cx.listener(
-                                                        move |this, _: &ClickEvent, _, cx| {
-                                                            this.active_group_index =
-                                                                Some(group_ix);
-                                                            this.active_index = Some(ix);
-                                                            cx.notify();
-                                                        },
-                                                    ))
-                                            }),
-                                        ),
+                                |(group_ix, (_group_name, sub_stories))| {
+                                    SidebarMenu::new().children(
+                                        sub_stories.iter().enumerate().map(|(ix, story)| {
+                                            SidebarMenuItem::new(story.read(cx).name.clone())
+                                                .active(
+                                                    self.active_group_index == Some(group_ix)
+                                                        && self.active_index == Some(ix),
+                                                )
+                                                .on_click(cx.listener(
+                                                    move |this, _: &ClickEvent, _, cx| {
+                                                        this.active_group_index =
+                                                            Some(group_ix);
+                                                        this.active_index = Some(ix);
+                                                        cx.notify();
+                                                    },
+                                                ))
+                                        }),
                                     )
                                 },
                             )),
