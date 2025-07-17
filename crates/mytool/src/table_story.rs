@@ -1,131 +1,312 @@
 use std::{
     ops::Range,
+    sync::LazyLock,
     time::{self, Duration},
 };
 
-use fake::{Fake, Faker};
+use fake::Fake;
 use gpui::{
     div, prelude::FluentBuilder as _, px, Action, AnyElement, App, AppContext, ClickEvent, Context,
     Edges, Entity, Focusable, InteractiveElement, IntoElement, ParentElement, Pixels, Render,
-    SharedString, StatefulInteractiveElement, Styled, Timer, Window,
+    SharedString, StatefulInteractiveElement, Styled, TextAlign, Timer, Window,
 };
 use gpui_component::{
     button::Button,
-    green, h_flex,
+    checkbox::Checkbox,
+    h_flex,
     indicator::Indicator,
     input::{InputEvent, InputState, TextInput},
     label::Label,
     popup_menu::{PopupMenu, PopupMenuExt},
-    red,
     table::{self, ColFixed, ColSort, Table, TableDelegate, TableEvent},
-    v_flex, ActiveTheme as _, Sizable as _, Size, StyleSized as _,
+    v_flex, ActiveTheme as _, Selectable, Sizable as _, Size, StyleSized as _, StyledExt,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
-#[action(namespace = story, no_json)]
+#[action(namespace = table_story, no_json)]
 struct ChangeSize(Size);
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
-#[action(namespace = story, no_json)]
+#[action(namespace = table_story, no_json)]
 struct OpenDetail(usize);
 
-#[derive(Clone, Debug, Default)]
-struct Project {
-    id: usize,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct Counter {
     symbol: SharedString,
+    market: SharedString,
     name: SharedString,
+}
+
+static ALL_COUNTERS: LazyLock<Vec<Counter>> =
+    LazyLock::new(|| serde_json::from_str(include_str!("./fixtures/counters.json")).unwrap());
+
+impl Counter {
+    fn random() -> Self {
+        let len = ALL_COUNTERS.len();
+        let ix = rand::random::<usize>() % len;
+        ALL_COUNTERS[ix].clone()
+    }
+
+    fn symbol_code(&self) -> SharedString {
+        format!("{}.{}", self.symbol, self.market).into()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct Stock {
+    id: usize,
+    counter: Counter,
     price: f64,
     change: f64,
     change_percent: f64,
+    volume: f64,
+    turnover: f64,
+    market_cap: f64,
+    ttm: f64,
+    five_mins_ranking: f64,
+    th60_days_ranking: f64,
     year_change_percent: f64,
+    bid: f64,
+    bid_volume: f64,
+    ask: f64,
+    ask_volume: f64,
+    open: f64,
+    prev_close: f64,
+    high: f64,
+    low: f64,
+    turnover_rate: f64,
+    rise_rate: f64,
+    amplitude: f64,
+    pe_status: f64,
+    pb_status: f64,
+    volume_ratio: f64,
+    bid_ask_ratio: f64,
+    latest_pre_close: f64,
+    latest_post_close: f64,
+    pre_market_cap: f64,
+    pre_market_percent: f64,
+    pre_market_change: f64,
+    post_market_cap: f64,
+    post_market_percent: f64,
+    post_market_change: f64,
+    float_cap: f64,
     shares: i64,
+    shares_float: i64,
+    day_5_ranking: f64,
+    day_10_ranking: f64,
+    day_30_ranking: f64,
+    day_120_ranking: f64,
     day_250_ranking: f64,
 }
 
-// 数据方法
-impl Project {
+impl Stock {
     fn random_update(&mut self) {
         self.price = (-300.0..999.999).fake::<f64>();
         self.change = (-0.1..5.0).fake::<f64>();
         self.change_percent = (-0.1..0.1).fake::<f64>();
+        self.volume = (-300.0..999.999).fake::<f64>();
+        self.turnover = (-300.0..999.999).fake::<f64>();
+        self.market_cap = (-1000.0..9999.999).fake::<f64>();
+        self.ttm = (-1000.0..9999.999).fake::<f64>();
+        self.five_mins_ranking = self.five_mins_ranking * (1.0 + (-0.2..0.2).fake::<f64>());
+        self.bid = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
+        self.bid_volume = (100.0..1000.0).fake::<f64>();
+        self.ask = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
+        self.ask_volume = (100.0..1000.0).fake::<f64>();
+        self.bid_ask_ratio = self.bid / self.ask;
+        self.volume_ratio = self.volume / self.turnover;
+        self.high = self.price * (1.0 + (0.0..1.5).fake::<f64>());
+        self.low = self.price * (1.0 + (-1.5..0.0).fake::<f64>());
     }
 }
 
-// 随机生成数据
-fn random_stocks(size: usize) -> Vec<Project> {
+fn random_stocks(size: usize) -> Vec<Stock> {
     (0..size)
-        .map(|id| Project {
+        .map(|id| Stock {
             id,
-            symbol: Faker.fake::<String>().into(),
-            name: Faker.fake::<String>().into(),
+            counter: Counter::random(),
             change: (-100.0..100.0).fake(),
             change_percent: (-1.0..1.0).fake(),
+            volume: (0.0..1000.0).fake(),
+            turnover: (0.0..1000.0).fake(),
+            market_cap: (0.0..1000.0).fake(),
+            ttm: (0.0..1000.0).fake(),
+            five_mins_ranking: (0.0..1000.0).fake(),
+            th60_days_ranking: (0.0..1000.0).fake(),
             year_change_percent: (-1.0..1.0).fake(),
+            bid: (0.0..1000.0).fake(),
+            bid_volume: (0.0..1000.0).fake(),
+            ask: (0.0..1000.0).fake(),
+            ask_volume: (0.0..1000.0).fake(),
+            open: (0.0..1000.0).fake(),
+            prev_close: (0.0..1000.0).fake(),
+            high: (0.0..1000.0).fake(),
+            low: (0.0..1000.0).fake(),
+            turnover_rate: (0.0..1.0).fake(),
+            rise_rate: (0.0..1.0).fake(),
+            amplitude: (0.0..1000.0).fake(),
+            pe_status: (0.0..1000.0).fake(),
+            pb_status: (0.0..1000.0).fake(),
+            volume_ratio: (0.0..1.0).fake(),
+            bid_ask_ratio: (0.0..1.0).fake(),
+            latest_pre_close: (0.0..1000.0).fake(),
+            latest_post_close: (0.0..1000.0).fake(),
+            pre_market_cap: (0.0..1000.0).fake(),
+            pre_market_percent: (-1.0..1.0).fake(),
+            pre_market_change: (-100.0..100.0).fake(),
+            post_market_cap: (0.0..1000.0).fake(),
+            post_market_percent: (-1.0..1.0).fake(),
+            post_market_change: (-100.0..100.0).fake(),
+            float_cap: (0.0..1000.0).fake(),
             shares: (100000..9999999).fake(),
+            shares_float: (100000..9999999).fake(),
+            day_5_ranking: (0.0..1000.0).fake(),
+            day_10_ranking: (0.0..1000.0).fake(),
+            day_30_ranking: (0.0..1000.0).fake(),
+            day_120_ranking: (0.0..1000.0).fake(),
             day_250_ranking: (0.0..1000.0).fake(),
             ..Default::default()
         })
         .collect()
 }
 
-// 数据列定义
 struct Column {
     id: SharedString,
     name: SharedString,
+    align: TextAlign,
     sort: Option<ColSort>,
+    paddings: Option<Edges<Pixels>>,
+    width: Pixels,
+    fixed: bool,
+    resizable: bool,
 }
 
-// 数据列方法
 impl Column {
-    fn new(
-        id: impl Into<SharedString>,
-        name: impl Into<SharedString>,
-        sort: Option<ColSort>,
-    ) -> Self {
+    fn new(id: impl Into<SharedString>, name: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
-            sort,
+            align: TextAlign::Left,
+            sort: None,
+            paddings: None,
+            width: px(100.),
+            fixed: false,
+            resizable: true,
         }
     }
+
+    fn sortable(mut self) -> Self {
+        self.sort = Some(ColSort::Default);
+        self
+    }
+
+    fn text_right(mut self) -> Self {
+        self.align = TextAlign::Right;
+        self
+    }
+
+    fn p_0(mut self) -> Self {
+        self.paddings = Some(Edges::all(px(0.)));
+        self
+    }
+
+    fn w(mut self, width: impl Into<Pixels>) -> Self {
+        self.width = width.into();
+        self
+    }
+
+    fn fixed(mut self) -> Self {
+        self.fixed = true;
+        self
+    }
+
+    fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
 }
-// 数据表格代理
-struct ProjectTableDelegate {
-    stocks: Vec<Project>,       //数据list
-    columns: Vec<Column>,       // 数据列
-    size: Size,                 //数据size
-    loop_selection: bool,       //可循环选择
-    col_resize: bool,           // 列宽调整
-    col_order: bool,            //列按顺序
-    col_sort: bool,             //列排序
-    col_selection: bool,        //列可选
-    loading: bool,              //加载状态
-    full_loading: bool,         // 加载完成
-    fixed_cols: bool,           //是否固定列
-    eof: bool,                  //结尾
-    visible_rows: Range<usize>, //可见行
-    visible_cols: Range<usize>, //可见列
+
+struct StockTableDelegate {
+    stocks: Vec<Stock>,
+    columns: Vec<Column>,
+    size: Size,
+    col_resize: bool,
+    col_order: bool,
+    col_sort: bool,
+    col_selection: bool,
+    loading: bool,
+    full_loading: bool,
+    fixed_cols: bool,
+    eof: bool,
+    visible_rows: Range<usize>,
+    visible_cols: Range<usize>,
 }
-// 数据表格代理方法
-impl ProjectTableDelegate {
+
+impl StockTableDelegate {
     fn new(size: usize) -> Self {
         Self {
             size: Size::default(),
             stocks: random_stocks(size),
             columns: vec![
-                //列名绑定数据列的key
-                Column::new("id", "ID", None),
-                Column::new("symbol", "Symbol", Some(ColSort::Default)), // 默认排序
-                Column::new("name", "Name", None),
-                Column::new("price", "Price", Some(ColSort::Default)), // 默认排序
-                Column::new("change", "Chg", Some(ColSort::Default)),  // 默认排序
-                Column::new("change_percent", "Chg%", Some(ColSort::Default)), // 默认排序
-                Column::new("year_change_percent", "Year Chg%", None),
-                Column::new("pe_status", "P/E", None),
-                Column::new("day_250_ranking", "250d Ranking", None),
+                Column::new("id", "ID").w(60.).fixed().resizable(false),
+                Column::new("market", "Market")
+                    .w(60.)
+                    .fixed()
+                    .resizable(false),
+                Column::new("symbol", "Symbol").w(100.).fixed().sortable(),
+                Column::new("name", "Name").w(180.).fixed(),
+                Column::new("price", "Price").sortable().text_right().p_0(),
+                Column::new("change", "Chg").sortable().text_right().p_0(),
+                Column::new("change_percent", "Chg%")
+                    .sortable()
+                    .text_right()
+                    .p_0(),
+                Column::new("volume", "Volume").p_0(),
+                Column::new("turnover", "Turnover").p_0(),
+                Column::new("market_cap", "Market Cap").p_0(),
+                Column::new("ttm", "TTM").p_0(),
+                Column::new("five_mins_ranking", "5m Ranking")
+                    .text_right()
+                    .p_0(),
+                Column::new("th60_days_ranking", "60d Ranking"),
+                Column::new("year_change_percent", "Year Chg%"),
+                Column::new("bid", "Bid").text_right().p_0(),
+                Column::new("bid_volume", "Bid Vol").text_right().p_0(),
+                Column::new("ask", "Ask").text_right().p_0(),
+                Column::new("ask_volume", "Ask Vol").text_right().p_0(),
+                Column::new("open", "Open").text_right().p_0(),
+                Column::new("prev_close", "Prev Close").text_right().p_0(),
+                Column::new("high", "High").text_right().p_0(),
+                Column::new("low", "Low").text_right().p_0(),
+                Column::new("turnover_rate", "Turnover Rate"),
+                Column::new("rise_rate", "Rise Rate"),
+                Column::new("amplitude", "Amplitude"),
+                Column::new("pe_status", "P/E"),
+                Column::new("pb_status", "P/B"),
+                Column::new("volume_ratio", "Volume Ratio")
+                    .text_right()
+                    .p_0(),
+                Column::new("bid_ask_ratio", "Bid Ask Ratio")
+                    .text_right()
+                    .p_0(),
+                Column::new("latest_pre_close", "Latest Pre Close"),
+                Column::new("latest_post_close", "Latest Post Close"),
+                Column::new("pre_market_cap", "Pre Mkt Cap"),
+                Column::new("pre_market_percent", "Pre Mkt%"),
+                Column::new("pre_market_change", "Pre Mkt Chg"),
+                Column::new("post_market_cap", "Post Mkt Cap"),
+                Column::new("post_market_percent", "Post Mkt%"),
+                Column::new("post_market_change", "Post Mkt Chg"),
+                Column::new("float_cap", "Float Cap"),
+                Column::new("shares", "Shares"),
+                Column::new("shares_float", "Float Shares"),
+                Column::new("day_5_ranking", "5d Ranking"),
+                Column::new("day_10_ranking", "10d Ranking"),
+                Column::new("day_30_ranking", "30d Ranking"),
+                Column::new("day_120_ranking", "120d Ranking"),
+                Column::new("day_250_ranking", "250d Ranking"),
             ],
-            loop_selection: true,
             col_resize: true,
             col_order: true,
             col_sort: true,
@@ -138,44 +319,46 @@ impl ProjectTableDelegate {
             visible_rows: Range::default(),
         }
     }
-    // 更新数据
+
     fn update_stocks(&mut self, size: usize) {
         self.stocks = random_stocks(size);
         self.eof = size <= 50;
         self.loading = false;
         self.full_loading = false;
     }
-    // 渲染数据单元格
-    fn render_value_cell(&self, val: f64, cx: &mut Context<Table<Self>>) -> AnyElement {
-        let (fg_scale, bg_scale, opacity) = match cx.theme().mode.is_dark() {
-            true => (200, 950, 0.3),
-            false => (600, 50, 0.6),
-        };
 
+    fn render_value_cell(
+        &self,
+        col: &Column,
+        val: f64,
+        cx: &mut Context<Table<Self>>,
+    ) -> AnyElement {
         let this = div()
             .h_full()
             .table_cell_size(self.size)
-            .child(format!("{:.3}", val)); // 3位小数
-                                           // Val is a 0.0 .. n.0
-                                           // 30% to red, 30% to green, others to default
+            .child(format!("{:.3}", val));
+        // Val is a 0.0 .. n.0
+        // 30% to red, 30% to green, others to default
         let right_num = ((val - val.floor()) * 1000.).floor() as i32;
 
         let this = if right_num % 3 == 0 {
-            this.text_color(red(fg_scale))
-                .bg(red(bg_scale).opacity(opacity))
+            this.text_color(cx.theme().red)
+                .bg(cx.theme().red_light.alpha(0.05))
         } else if right_num % 3 == 1 {
-            this.text_color(green(fg_scale))
-                .bg(green(bg_scale).opacity(opacity))
+            this.text_color(cx.theme().green)
+                .bg(cx.theme().green_light.alpha(0.05))
         } else {
             this
         };
 
-        this.into_any_element()
+        this.when(col.align == TextAlign::Right, |this| {
+            this.h_flex().justify_end()
+        })
+        .into_any_element()
     }
 }
 
-// 数据表格trait 实现
-impl TableDelegate for ProjectTableDelegate {
+impl TableDelegate for StockTableDelegate {
     fn cols_count(&self, _: &App) -> usize {
         self.columns.len()
     }
@@ -185,29 +368,25 @@ impl TableDelegate for ProjectTableDelegate {
     }
 
     fn col_name(&self, col_ix: usize, _: &App) -> SharedString {
-        if let Some(col) = self.columns.get(col_ix) {
-            col.name.clone()
-        } else {
-            "--".into()
-        }
+        self.columns
+            .get(col_ix)
+            .map(|col| col.name.clone())
+            .unwrap_or("--".into())
     }
 
     fn col_width(&self, col_ix: usize, _: &App) -> Pixels {
-        if col_ix < 10 {
-            130.0.into()
-        } else if col_ix < 20 {
-            80.0.into()
-        } else {
-            120.0.into()
-        }
+        self.columns
+            .get(col_ix)
+            .map(|col| col.width)
+            .unwrap_or(px(100.))
     }
 
-    fn col_padding(&self, col_ix: usize, _: &App) -> Option<Edges<Pixels>> {
-        if col_ix >= 3 && col_ix <= 10 {
-            Some(Edges::all(px(0.)))
-        } else {
-            None
-        }
+    fn col_paddings(&self, col_ix: usize, _: &App) -> Option<Edges<Pixels>> {
+        let Some(col) = self.columns.get(col_ix) else {
+            return None;
+        };
+
+        col.paddings
     }
 
     fn col_fixed(&self, col_ix: usize, _: &App) -> Option<table::ColFixed> {
@@ -215,34 +394,45 @@ impl TableDelegate for ProjectTableDelegate {
             return None;
         }
 
-        if col_ix < 4 {
+        let Some(col) = self.columns.get(col_ix) else {
+            return None;
+        };
+
+        if col.fixed {
             Some(ColFixed::Left)
         } else {
             None
         }
     }
 
-    fn can_resize_col(&self, col_ix: usize, _: &App) -> bool {
-        return self.col_resize && col_ix > 1;
+    fn col_resizable(&self, col_ix: usize, _: &App) -> bool {
+        let Some(col) = self.columns.get(col_ix) else {
+            return false;
+        };
+
+        col.resizable
     }
 
-    fn can_select_col(&self, _: usize, _: &App) -> bool {
+    fn col_selectable(&self, _: usize, _: &App) -> bool {
         return self.col_selection;
     }
-    // 渲染表头
+
     fn render_th(
         &self,
         col_ix: usize,
         _: &mut Window,
-        cx: &mut Context<Table<Self>>,
+        _: &mut Context<Table<Self>>,
     ) -> impl IntoElement {
-        let th = div().child(self.col_name(col_ix, cx));
+        let col = self.columns.get(col_ix).unwrap();
 
-        if col_ix >= 3 && col_ix <= 10 {
-            th.table_cell_size(self.size)
-        } else {
-            th
-        }
+        div()
+            .child(col.name.clone())
+            .when(col_ix >= 3 && col_ix <= 10, |this| {
+                this.table_cell_size(self.size)
+            })
+            .when(col.align == TextAlign::Right, |this| {
+                this.h_flex().w_full().justify_end()
+            })
     }
 
     fn context_menu(
@@ -262,7 +452,7 @@ impl TableDelegate for ProjectTableDelegate {
         .menu("Size Small", Box::new(ChangeSize(Size::Small)))
         .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
     }
-    // 渲染表格行
+
     fn render_tr(
         &self,
         row_ix: usize,
@@ -299,25 +489,102 @@ impl TableDelegate for ProjectTableDelegate {
 
         match col.id.as_ref() {
             "id" => stock.id.to_string().into_any_element(),
-            "name" => stock.name.clone().into_any_element(),
-            "symbol" => stock.symbol.clone().into_any_element(),
-            "price" => self.render_value_cell(stock.price, cx),
-            "change" => self.render_value_cell(stock.change, cx),
-            "change_percent" => self.render_value_cell(stock.change_percent, cx),
-            "year_change_percent" => (stock.year_change_percent * 100.0)
+            "market" => div()
+                .map(|this| {
+                    if stock.counter.market == "US" {
+                        this.text_color(cx.theme().blue)
+                    } else {
+                        this.text_color(cx.theme().magenta)
+                    }
+                })
+                .child(stock.counter.market.clone())
+                .into_any_element(),
+            "symbol" => stock.counter.symbol_code().into_any_element(),
+            "name" => stock.counter.name.clone().into_any_element(),
+            "price" => self.render_value_cell(&col, stock.price, cx),
+            "change" => self.render_value_cell(&col, stock.change, cx),
+            "change_percent" => self.render_value_cell(&col, stock.change_percent, cx),
+            "volume" => self.render_value_cell(&col, stock.volume, cx),
+            "turnover" => self.render_value_cell(&col, stock.turnover, cx),
+            "market_cap" => self.render_value_cell(&col, stock.market_cap, cx),
+            "ttm" => self.render_value_cell(&col, stock.ttm, cx),
+            "five_mins_ranking" => self.render_value_cell(&col, stock.five_mins_ranking, cx),
+            "th60_days_ranking" => stock
+                .th60_days_ranking
+                .floor()
                 .to_string()
                 .into_any_element(),
+            "year_change_percent" => (stock.year_change_percent * 100.0)
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "bid" => self.render_value_cell(&col, stock.bid, cx),
+            "bid_volume" => self.render_value_cell(&col, stock.bid_volume, cx),
+            "ask" => self.render_value_cell(&col, stock.ask, cx),
+            "ask_volume" => self.render_value_cell(&col, stock.ask_volume, cx),
+            "open" => self.render_value_cell(&col, stock.open, cx),
+            "prev_close" => self.render_value_cell(&col, stock.prev_close, cx),
+            "high" => self.render_value_cell(&col, stock.high, cx),
+            "low" => self.render_value_cell(&col, stock.low, cx),
+            "turnover_rate" => (stock.turnover_rate * 100.0)
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "rise_rate" => (stock.rise_rate * 100.0)
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "amplitude" => (stock.amplitude * 100.0)
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "pe_status" => stock.pe_status.floor().to_string().into_any_element(),
+            "pb_status" => stock.pb_status.floor().to_string().into_any_element(),
+            "volume_ratio" => self.render_value_cell(&col, stock.volume_ratio, cx),
+            "bid_ask_ratio" => self.render_value_cell(&col, stock.bid_ask_ratio, cx),
+            "latest_pre_close" => stock
+                .latest_pre_close
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "latest_post_close" => stock
+                .latest_post_close
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "pre_market_cap" => stock.pre_market_cap.floor().to_string().into_any_element(),
+            "pre_market_percent" => (stock.pre_market_percent * 100.0)
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "pre_market_change" => stock
+                .pre_market_change
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "post_market_cap" => stock.post_market_cap.floor().to_string().into_any_element(),
+            "post_market_percent" => (stock.post_market_percent * 100.0)
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "post_market_change" => stock
+                .post_market_change
+                .floor()
+                .to_string()
+                .into_any_element(),
+            "float_cap" => stock.float_cap.floor().to_string().into_any_element(),
             "shares" => stock.shares.to_string().into_any_element(),
-            "day_250_ranking" => stock.day_250_ranking.to_string().into_any_element(),
+            "shares_float" => stock.shares_float.to_string().into_any_element(),
+            "day_5_ranking" => stock.day_5_ranking.floor().to_string().into_any_element(),
+            "day_10_ranking" => stock.day_10_ranking.floor().to_string().into_any_element(),
+            "day_30_ranking" => stock.day_30_ranking.floor().to_string().into_any_element(),
+            "day_120_ranking" => stock.day_120_ranking.floor().to_string().into_any_element(),
+            "day_250_ranking" => stock.day_250_ranking.floor().to_string().into_any_element(),
             _ => "--".to_string().into_any_element(),
         }
     }
 
-    fn can_loop_select(&self, _: &App) -> bool {
-        self.loop_selection
-    }
-
-    fn can_move_col(&self, _: usize, _: &App) -> bool {
+    fn col_movable(&self, _: usize, _: &App) -> bool {
         self.col_order
     }
 
@@ -358,7 +625,7 @@ impl TableDelegate for ProjectTableDelegate {
                     _ => a.id.cmp(&b.id),
                 }),
                 "symbol" => self.stocks.sort_by(|a, b| match sort {
-                    ColSort::Descending => b.symbol.cmp(&a.symbol),
+                    ColSort::Descending => b.counter.symbol.cmp(&a.counter.symbol),
                     _ => a.id.cmp(&b.id),
                 }),
                 "change" | "change_percent" => self.stocks.sort_by(|a, b| match sort {
@@ -394,9 +661,9 @@ impl TableDelegate for ProjectTableDelegate {
 
             cx.update(|cx| {
                 let _ = view.update(cx, |view, _| {
-                    view.delegate_mut().stocks.extend(random_stocks(10));
+                    view.delegate_mut().stocks.extend(random_stocks(200));
                     view.delegate_mut().loading = false;
-                    view.delegate_mut().eof = view.delegate().stocks.len() >= 30;
+                    view.delegate_mut().eof = view.delegate().stocks.len() >= 6000;
                 });
             })
         })
@@ -423,9 +690,9 @@ impl TableDelegate for ProjectTableDelegate {
 }
 
 pub struct TableStory {
-    table: Entity<Table<ProjectTableDelegate>>,
+    table: Entity<Table<StockTableDelegate>>,
     num_stocks_input: Entity<InputState>,
-    _stripe: bool,
+    stripe: bool,
     refresh_data: bool,
     size: Size,
 }
@@ -439,12 +706,12 @@ impl super::Mytool for TableStory {
         "A complex data table with selection, sorting, column moving, and loading more."
     }
 
-    fn closable() -> bool {
-        false
-    }
-
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         Self::view(window, cx)
+    }
+
+    fn closable() -> bool {
+        false
     }
 }
 
@@ -463,22 +730,21 @@ impl TableStory {
         // Create the number input field with validation for positive integers
         let num_stocks_input = cx.new(|cx| {
             let mut input = InputState::new(window, cx)
-                .placeholder("输入要显示的数据数量")
+                .placeholder("Enter number of Stocks to display")
                 .validate(|s| s.parse::<usize>().is_ok());
-            input.set_value("", window, cx);
+            input.set_value("5000", window, cx);
             input
         });
-        // 初始化20条数据
-        let delegate = ProjectTableDelegate::new(20);
+
+        let delegate = StockTableDelegate::new(5000);
         let table = cx.new(|cx| Table::new(delegate, window, cx));
 
-        // 订阅由另一个实体发出的事件
         cx.subscribe_in(&table, window, Self::on_table_event)
             .detach();
         cx.subscribe_in(&num_stocks_input, window, Self::on_num_stocks_input_change)
             .detach();
 
-        // 生成后台线程，随机更新数据
+        // Spawn a background to random refresh the list
         cx.spawn(async move |this, cx| {
             loop {
                 Timer::after(time::Duration::from_millis(33)).await;
@@ -509,7 +775,7 @@ impl TableStory {
         Self {
             table,
             num_stocks_input,
-            _stripe: false,
+            stripe: false,
             refresh_data: false,
             size: Size::default(),
         }
@@ -527,9 +793,13 @@ impl TableStory {
             // Update when the user presses Enter or the input loses focus
             InputEvent::PressEnter { .. } | InputEvent::Blur => {
                 let text = self.num_stocks_input.read(cx).value().to_string();
-                if let Ok(num) = text.parse::<usize>() {
+                if let Ok(total_count) = text.parse::<usize>() {
+                    if total_count == self.table.read(cx).delegate().stocks.len() {
+                        return;
+                    }
+
                     self.table.update(cx, |table, _| {
-                        table.delegate_mut().update_stocks(num);
+                        table.delegate_mut().update_stocks(total_count);
                     });
                     cx.notify();
                 }
@@ -537,14 +807,14 @@ impl TableStory {
             _ => {}
         }
     }
-    #[allow(dead_code)]
+
     fn toggle_loop_selection(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
-            table.delegate_mut().loop_selection = *checked;
+            table.loop_selection = *checked;
             cx.notify();
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_col_resize(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_resize = *checked;
@@ -552,7 +822,7 @@ impl TableStory {
             cx.notify();
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_col_order(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_order = *checked;
@@ -560,7 +830,7 @@ impl TableStory {
             cx.notify();
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_col_sort(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_sort = *checked;
@@ -568,7 +838,7 @@ impl TableStory {
             cx.notify();
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_col_selection(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().col_selection = *checked;
@@ -576,16 +846,16 @@ impl TableStory {
             cx.notify();
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_stripe(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self._stripe = *checked;
-        let stripe = self._stripe;
+        self.stripe = *checked;
+        let stripe = self.stripe;
         self.table.update(cx, |table, cx| {
             table.set_stripe(stripe, cx);
             cx.notify();
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_fixed_cols(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.table.update(cx, |table, cx| {
             table.delegate_mut().fixed_cols = *checked;
@@ -601,7 +871,7 @@ impl TableStory {
             table.delegate_mut().size = a.0;
         });
     }
-    #[allow(dead_code)]
+
     fn toggle_refresh_data(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.refresh_data = *checked;
         cx.notify();
@@ -609,7 +879,7 @@ impl TableStory {
 
     fn on_table_event(
         &mut self,
-        _: &Entity<Table<ProjectTableDelegate>>,
+        _: &Entity<Table<StockTableDelegate>>,
         event: &TableEvent,
         _window: &mut Window,
         _cx: &mut Context<Self>,
@@ -631,6 +901,7 @@ impl TableStory {
 impl Render for TableStory {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let delegate = self.table.read(cx).delegate();
+        let loop_selection = self.table.read(cx).loop_selection;
         let rows_count = delegate.rows_count(cx);
         let size = self.size;
 
@@ -641,9 +912,75 @@ impl Render for TableStory {
             .gap_4()
             .child(
                 h_flex()
+                    .items_center()
+                    .gap_3()
+                    .flex_wrap()
+                    .child(
+                        Checkbox::new("loop-selection")
+                            .label("Loop Selection")
+                            .selected(loop_selection)
+                            .on_click(cx.listener(Self::toggle_loop_selection)),
+                    )
+                    .child(
+                        Checkbox::new("col-resize")
+                            .label("Column Resize")
+                            .selected(delegate.col_resize)
+                            .on_click(cx.listener(Self::toggle_col_resize)),
+                    )
+                    .child(
+                        Checkbox::new("col-order")
+                            .label("Column Order")
+                            .selected(delegate.col_order)
+                            .on_click(cx.listener(Self::toggle_col_order)),
+                    )
+                    .child(
+                        Checkbox::new("col-sort")
+                            .label("Column Sort")
+                            .selected(delegate.col_sort)
+                            .on_click(cx.listener(Self::toggle_col_sort)),
+                    )
+                    .child(
+                        Checkbox::new("col-selection")
+                            .label("Column Selection")
+                            .selected(delegate.col_selection)
+                            .on_click(cx.listener(Self::toggle_col_selection)),
+                    )
+                    .child(
+                        Checkbox::new("stripe")
+                            .label("Stripe")
+                            .selected(self.stripe)
+                            .on_click(cx.listener(Self::toggle_stripe)),
+                    )
+                    .child(
+                        Checkbox::new("fixed-cols")
+                            .label("Fixed Columns")
+                            .selected(delegate.fixed_cols)
+                            .on_click(cx.listener(Self::toggle_fixed_cols)),
+                    )
+                    .child(
+                        Checkbox::new("loading")
+                            .label("Loading")
+                            .checked(self.table.read(cx).delegate().full_loading)
+                            .on_click(cx.listener(|this, check: &bool, _, cx| {
+                                this.table.update(cx, |this, cx| {
+                                    this.delegate_mut().full_loading = *check;
+                                    cx.notify();
+                                })
+                            })),
+                    )
+                    .child(
+                        Checkbox::new("refresh-data")
+                            .label("Refresh Data")
+                            .selected(self.refresh_data)
+                            .on_click(cx.listener(Self::toggle_refresh_data)),
+                    ),
+            )
+            .child(
+                h_flex()
                     .gap_2()
                     .child(
                         Button::new("size")
+                            .outline()
                             .small()
                             .label(format!("size: {:?}", self.size))
                             .popup_menu(move |menu, _, _| {
@@ -671,8 +1008,9 @@ impl Render for TableStory {
                     )
                     .child(
                         Button::new("scroll-top")
-                            .child("Scroll to Top")
+                            .outline()
                             .small()
+                            .child("Scroll to Top")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.table.update(cx, |table, cx| {
                                     table.scroll_to_row(0, cx);
@@ -681,35 +1019,70 @@ impl Render for TableStory {
                     )
                     .child(
                         Button::new("scroll-bottom")
-                            .child("Scroll to Bottom")
+                            .outline()
                             .small()
+                            .child("Scroll to Bottom")
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.table.update(cx, |table, cx| {
                                     table.scroll_to_row(table.delegate().rows_count(cx) - 1, cx);
                                 })
                             })),
-                    ),
+                    ), // .child(
+                       //     Button::new("scroll-first-col")
+                       //         .child("Scroll to First Column")
+                       //         .small()
+                       //         .on_click(cx.listener(|this, _, window, cx| {
+                       //             this.table.update(cx, |table, cx| {
+                       //                 table.scroll_to_col(0, cx);
+                       //             })
+                       //         })),
+                       // )
+                       // .child(
+                       //     Button::new("scroll-last-col")
+                       //         .child("Scroll to Last Column")
+                       //         .small()
+                       //         .on_click(cx.listener(|this, _, window, cx| {
+                       //             this.table.update(cx, |table, cx| {
+                       //                 table.scroll_to_col(table.delegate().cols_count(cx), cx);
+                       //             })
+                       //         })),
+                       // ),
             )
             .child(
                 h_flex().items_center().gap_2().child(
                     h_flex()
+                        .w_full()
                         .items_center()
                         .justify_between()
-                        .gap_1()
-                        .child(Label::new("Number of Projects:"))
+                        .gap_2()
                         .child(
                             h_flex()
-                                .min_w_32()
-                                .child(TextInput::new(&self.num_stocks_input))
-                                .into_any_element(),
+                                .gap_2()
+                                .flex_1()
+                                .child(Label::new("Number of Stocks:"))
+                                .child(
+                                    h_flex()
+                                        .min_w_32()
+                                        .child(TextInput::new(&self.num_stocks_input).small())
+                                        .into_any_element(),
+                                )
+                                .when(delegate.loading, |this| {
+                                    this.child(
+                                        h_flex()
+                                            .gap_1()
+                                            .child(Indicator::new())
+                                            .child("Loading..."),
+                                    )
+                                }),
                         )
-                        .when(delegate.loading, |this| {
-                            this.child(h_flex().gap_1().child(Indicator::new()).child("Loading..."))
-                        })
-                        .child(format!("Total Rows: {}", rows_count))
-                        .child(format!("Visible Rows: {:?}", delegate.visible_rows))
-                        .child(format!("Visible Cols: {:?}", delegate.visible_cols))
-                        .when(delegate.eof, |this| this.child("All data loaded.")),
+                        .child(
+                            h_flex()
+                                .gap_2()
+                                .child(format!("Total Rows: {}", rows_count))
+                                .child(format!("Visible Rows: {:?}", delegate.visible_rows))
+                                .child(format!("Visible Cols: {:?}", delegate.visible_cols))
+                                .when(delegate.eof, |this| this.child("All data loaded.")),
+                        ),
                 ),
             )
             .child(self.table.clone())

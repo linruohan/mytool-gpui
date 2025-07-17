@@ -324,7 +324,7 @@ impl Render for SidebarStory {
                                 .on_click(cx.listener(move |this, _, window: &mut Window, cx| {
                                     // let projects = projects.read(cx);
                                     println!("{}", "add projects");
-                                    play_ogg_file("assets/sounds/success.ogg").ok();
+                                    play_ogg_file("assets/sounds/success.ogg");
                                     this.add_project(window, cx);
                                     cx.notify();
                                 })),

@@ -92,8 +92,9 @@ impl Util {
     }
 
     pub fn get_random_color(&self) -> String {
+        use rand::Rng;
         let mut returned = "berry_red".to_string();
-        let random_int = rand::rng().random_range(30..51);
+        let random_int = rand::thread_rng().gen_range(30..51);
         for (k, v) in self.get_colors() {
             if v.id == random_int {
                 returned = k;
