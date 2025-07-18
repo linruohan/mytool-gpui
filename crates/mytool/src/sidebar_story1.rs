@@ -5,7 +5,7 @@ use gpui::{
     Hsla, IntoElement, ParentElement, Render, SharedString, Styled, Window,
 };
 
-use crate::{play_ogg_file, TodayView};
+use crate::play_ogg_file;
 use gpui_component::{
     breadcrumb::{Breadcrumb, BreadcrumbItem},
     button::{Button, ButtonVariants},
@@ -27,10 +27,10 @@ use todos::entity::ProjectModel;
 #[action(namespace = sidebar_story, no_json)]
 pub struct SelectCompany(SharedString);
 
-pub struct SidebarStory {
-    active_items: HashMap<Item, bool>,
-    last_active_item: Item,
-    active_subitem: Option<ProjectModel>,
+pub struct TodoSidebarStory {
+    active_boards: HashMap<Board, bool>, // 所有的todo board list : today inbox schedued labels completed pinned
+    last_active_board: Board,            // active board
+    active_project: Option<ProjectModel>, // active project
     collapsed: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
@@ -40,19 +40,19 @@ pub struct SidebarStory {
     project_date: Option<String>,
 }
 
-impl SidebarStory {
+impl TodoSidebarStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let mut active_items = HashMap::new();
-        active_items.insert(Item::Inbox, true);
+        let mut active_boards = HashMap::new();
+        active_boards.insert(Board::Inbox, true);
         let input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         Self {
-            active_items,
-            last_active_item: Item::Inbox,
-            active_subitem: None,
+            active_boards,
+            last_active_board: Board::Inbox,
+            active_project: None,
             collapsed: false,
             side: Side::Left,
             focus_handle: cx.focus_handle(),
@@ -139,34 +139,31 @@ impl SidebarStory {
 
     fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex().child(
-            h_flex()
-                .gap_2()
-                .child(
-                    Switch::new("side")
-                        .label("Placement Right")
-                        .checked(self.side.is_right())
-                        .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                            this.side = if *checked { Side::Right } else { Side::Left };
-                            cx.notify();
-                        })),
-                )
-                .child(TodayView::view(window, cx)),
+            h_flex().gap_2().child(
+                Switch::new("side")
+                    .label("Placement Right")
+                    .checked(self.side.is_right())
+                    .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                        this.side = if *checked { Side::Right } else { Side::Left };
+                        cx.notify();
+                    })),
+            ), // .child(TodayView::new(window, cx)),
         )
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum Item {
-    Inbox,
-    Today,
-    Scheduled,
-    Pinboard,
-    Labels,
-    Completed,
-    Projects,
+enum Board {
+    Inbox,     // 未完成任务
+    Today,     // 今日任务
+    Scheduled, // 计划任务
+    Pinboard,  // 挂起任务
+    Labels,    // 标签list
+    Completed, // 已完成任务
+    Projects,  // project list
 }
 
-impl Item {
+impl Board {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Inbox => "Inbox",
@@ -215,24 +212,24 @@ impl Item {
 
     pub fn handler(
         &self,
-    ) -> impl Fn(&mut SidebarStory, &ClickEvent, &mut Window, &mut Context<SidebarStory>) + 'static
+    ) -> impl Fn(&mut TodoSidebarStory, &ClickEvent, &mut Window, &mut Context<TodoSidebarStory>) + 'static
     {
         let item = *self;
         move |this, _, _, cx| {
-            if this.active_items.contains_key(&item) {
-                this.active_items.remove(&item);
+            if this.active_boards.contains_key(&item) {
+                this.active_boards.remove(&item);
             } else {
-                this.active_items.insert(item, true);
-                this.active_items.remove(&this.last_active_item); // 我自己写的不一定正确
+                this.active_boards.insert(item, true);
+                this.active_boards.remove(&this.last_active_board); // 我自己写的不一定正确
             }
 
-            this.last_active_item = item;
+            this.last_active_board = item;
             cx.notify();
         }
     }
 }
 
-impl super::Mytool for SidebarStory {
+impl super::Mytool for TodoSidebarStory {
     fn title() -> &'static str {
         "Todoist"
     }
@@ -246,25 +243,25 @@ impl super::Mytool for SidebarStory {
     }
 }
 
-impl Focusable for SidebarStory {
+impl Focusable for TodoSidebarStory {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl Render for SidebarStory {
+impl Render for TodoSidebarStory {
     fn render(
         &mut self,
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let item_groups = [
-            Item::Inbox,
-            Item::Today,
-            Item::Scheduled,
-            Item::Pinboard,
-            Item::Labels,
-            Item::Completed,
+            Board::Inbox,
+            Board::Today,
+            Board::Scheduled,
+            Board::Pinboard,
+            Board::Labels,
+            Board::Completed,
         ];
         let projects = self.projects.clone();
         // let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
@@ -298,7 +295,7 @@ impl Render for SidebarStory {
                                                 gpui::DefiniteLength::Fraction(0.5),
                                             ))
                                             .icon(item.icon())
-                                            .active(self.active_items.contains_key(item))
+                                            .active(self.active_boards.contains_key(item))
                                             .on_click(cx.listener(item.handler()))
                                         })
                                         .collect::<Vec<_>>(),
@@ -335,10 +332,10 @@ impl Render for SidebarStory {
                         SidebarMenu::new().children(projects.into_iter().enumerate().map(
                             |(_, project)| {
                                 SidebarMenuItem::new(project.name.clone())
-                                    .active(self.active_subitem == Some(project.clone()))
+                                    .active(self.active_project == Some(project.clone()))
                                     .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.active_subitem = Some(project.clone());
-                                        this.last_active_item = Item::Projects;
+                                        this.active_project = Some(project.clone());
+                                        this.last_active_board = Board::Projects;
                                         cx.notify();
                                     }))
                             },
@@ -371,18 +368,18 @@ impl Render for SidebarStory {
                                 Breadcrumb::new()
                                     .item(BreadcrumbItem::new("0", "Home").on_click(cx.listener(
                                         |this, _, _, cx| {
-                                            this.last_active_item = Item::Inbox;
+                                            this.last_active_board = Board::Inbox;
                                             cx.notify();
                                         },
                                     )))
                                     .item(
-                                        BreadcrumbItem::new("1", self.last_active_item.label())
+                                        BreadcrumbItem::new("1", self.last_active_board.label())
                                             .on_click(cx.listener(|this, _, _, cx| {
-                                                this.active_subitem = None;
+                                                this.active_project = None;
                                                 cx.notify();
                                             })),
                                     )
-                                    .when_some(self.active_subitem.clone(), |this, subitem| {
+                                    .when_some(self.active_project.clone(), |this, subitem| {
                                         this.item(BreadcrumbItem::new("2", subitem.name))
                                     }),
                             ),

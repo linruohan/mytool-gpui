@@ -1,6 +1,6 @@
 use gpui::{
     div, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    ParentElement, Render, RenderOnce, Styled, Subscription, Window,
 };
 
 use gpui_component::{
@@ -12,6 +12,7 @@ use gpui_component::{
 };
 
 use super::project::{random_project, Project, ProjectListDelegate, SelectedProject};
+#[derive(IntoElement)]
 pub struct TodayView {
     focus_handle: FocusHandle,
     project_list: Entity<List<ProjectListDelegate>>,
@@ -19,26 +20,12 @@ pub struct TodayView {
     _subscriptions: Vec<Subscription>,
 }
 
-impl crate::Mytool for TodayView {
-    fn title() -> &'static str {
-        "List"
-    }
-
-    fn description() -> &'static str {
-        "A list displays a series of items."
-    }
-
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx)
-    }
-}
-
 impl TodayView {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut App) -> Self {
         let projects = (0..3).map(|_| random_project()).collect::<Vec<Project>>();
 
         let delegate = ProjectListDelegate {
@@ -110,8 +97,8 @@ impl Focusable for TodayView {
     }
 }
 
-impl Render for TodayView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl RenderOnce for TodayView {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_project))

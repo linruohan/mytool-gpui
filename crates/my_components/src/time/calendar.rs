@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use chrono::{Datelike, Local, NaiveDate};
 use gpui::{
     blue, div, green, prelude::FluentBuilder as _, px, relative, App, ClickEvent, Context,
@@ -6,7 +8,6 @@ use gpui::{
     Styled, Window,
 };
 use rust_i18n::t;
-use std::borrow::Cow;
 
 use gpui_component::{
     button::{Button, ButtonVariants as _},

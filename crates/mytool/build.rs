@@ -12,8 +12,8 @@ fn main() {
     match target.as_deref() {
         #[cfg(target_os = "windows")]
         Ok("windows") => {
-            let manifest = std::path::Path::new("resources/windows/gpui.manifest.xml");
-            let rc_file = std::path::Path::new("resources/windows/gpui.rc");
+            let manifest = std::path::Path::new("resources/windows/mytool.manifest.xml");
+            let rc_file = std::path::Path::new("resources/windows/mytool.rc");
             println!("cargo:rerun-if-changed={}", manifest.display());
             println!("cargo:rerun-if-changed={}", rc_file.display());
             embed_resource::compile(rc_file, embed_resource::NONE)
@@ -36,8 +36,8 @@ fn main() {
                 res.set_toolkit_path(explicit_rc_toolkit_path.as_str());
             }
             res.set_icon(icon.to_str().unwrap());
-            res.set("FileDescription", "Zed");
-            res.set("ProductName", "Zed");
+            res.set("FileDescription", "MyTool");
+            res.set("ProductName", "MyTool");
 
             if let Err(e) = res.compile() {
                 eprintln!("{}", e);

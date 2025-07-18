@@ -223,9 +223,6 @@ impl RenderOnce for SidebarBoardItem {
                                 div().flex().justify_between().children([
                                     div().child(
                                         Label::new(self.label.clone())
-                                            .size(Length::Definite(gpui::DefiniteLength::Fraction(
-                                                0.5,
-                                            )))
                                             .text_left()
                                             .text_color(board_text_color),
                                     ), // 左下角

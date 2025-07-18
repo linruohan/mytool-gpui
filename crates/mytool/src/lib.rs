@@ -4,12 +4,12 @@ mod color_picker_story;
 mod date_picker_story;
 mod gallery;
 mod layouts;
-mod sidebar_story;
 mod table_story;
 mod themes;
 mod title_bar;
+mod todo_story;
+mod todos_view; // 任务管理
 mod utils;
-mod views;
 mod welcome_story;
 
 pub use assets::Assets;
@@ -21,17 +21,17 @@ use gpui::{
     SharedString, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowKind,
     WindowOptions,
 };
+// pub use todos_view::TodayView;
 pub use utils::play_ogg_file;
-pub use views::TodayView;
 
 pub use calendar_story::CalendarStory;
 
 pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
 use serde::{Deserialize, Serialize};
-pub use sidebar_story::SidebarStory;
 pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
+pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use welcome_story::WelcomeStory;
 
@@ -563,7 +563,7 @@ impl StoryState {
         match self.story_klass.to_string().as_str() {
             "CalendarStory" => mytool!(CalendarStory),
             "TableStory" => mytool!(TableStory),
-            "SidebarStory" => mytool!(SidebarStory),
+            "TodoGalery" => mytool!(TodoStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }
