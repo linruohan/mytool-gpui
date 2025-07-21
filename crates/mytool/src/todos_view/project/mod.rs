@@ -3,7 +3,6 @@ use gpui_component::v_flex;
 
 mod board;
 mod list;
-pub use list::*;
 
 pub struct ProjectStory {
     pub name: String,

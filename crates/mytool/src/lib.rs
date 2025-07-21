@@ -21,7 +21,9 @@ use gpui::{
     SharedString, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowKind,
     WindowOptions,
 };
-// pub use todos_view::TodayView;
+pub use todos_view::{
+    CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ProjectItem, ScheduledBoard, TodayBoard,
+};
 pub use utils::play_ogg_file;
 
 pub use calendar_story::CalendarStory;

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use crate::{play_ogg_file, StoryContainer};
 use crate::{
-    play_ogg_file, CalendarStory, ColorPickerStory, DatePickerStory, StoryContainer, TableStory,
+    CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ProjectItem, ScheduledBoard, TodayBoard,
 };
 use gpui::{prelude::*, *};
+use gpui_component::dock::PanelView;
 use gpui_component::{
     button::{Button, ButtonVariants},
     dropdown::{Dropdown, DropdownState},
@@ -16,7 +18,6 @@ use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use my_components::sidebar::{
     Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem,
 };
-use todos::entity::ProjectModel;
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Board {
     Inbox,     // 未完成任务
@@ -74,45 +75,31 @@ impl Board {
             Self::Projects => gpui::rgb(0x33D17A).into(),
         }
     }
-
-    pub fn handler(
-        &self,
-    ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
-        let item = *self;
-        move |this, _, _, cx| {
-            if this.active_boards.contains_key(&item) {
-                this.active_boards.remove(&item);
-            } else {
-                this.active_boards.insert(item, true);
-                this.active_boards.remove(&this.last_active_board); // 我自己写的不一定正确
-            }
-
-            this.last_active_board = item;
-            cx.notify();
-        }
-    }
 }
 
 pub struct TodoStory {
-    stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
-    active_group_index: Option<usize>,
+    // stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
     active_index: Option<usize>,
     collapsed: bool,
     focus_handle: gpui::FocusHandle,
     search_input: Entity<InputState>,
     sidebar_state: Entity<ResizableState>,
     _subscriptions: Vec<Subscription>,
+    //  看板是0, project是1
+    is_board_active: bool,
 
-    active_boards: HashMap<Board, bool>, // 所有的todo board list : today inbox schedued labels completed pinned
-    last_active_board: Board,            // active board
-    active_project: Option<ProjectModel>, // active project
-    projects: Vec<ProjectModel>,
+    // 所有看板
+    boards: Vec<Entity<StoryContainer>>,
+    // active_board_index: Option<usize>, // 所有的todo board list : today inbox schedued labels completed pinned
+    // 所有projects
+    projects: Vec<Entity<StoryContainer>>,
+    // active_project_index: Option<usize>, // active project
     project_date: Option<String>,
 }
 
 impl super::Mytool for TodoStory {
     fn title() -> &'static str {
-        "Todoist1"
+        "Todoist"
     }
 
     fn description() -> &'static str {
@@ -136,39 +123,34 @@ impl TodoStory {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
             InputEvent::Change(_) => {
-                this.active_group_index = Some(0);
+                this.is_board_active = true;
                 this.active_index = Some(0);
                 cx.notify()
             }
             _ => {}
         })];
-        let stories = vec![
-            // (
-            //     "Getting Started",
-            //     vec![StoryContainer::panel::<WelcomeStory>(window, cx)],
-            // ),
-            (
-                "TodoComponents",
-                vec![
-                    StoryContainer::panel::<ColorPickerStory>(window, cx),
-                    StoryContainer::panel::<DatePickerStory>(window, cx),
-                ],
-            ),
+        let boards = vec![
+            StoryContainer::panel::<InboxBoard>(window, cx),
+            StoryContainer::panel::<TodayBoard>(window, cx),
+            StoryContainer::panel::<ScheduledBoard>(window, cx),
+            StoryContainer::panel::<PinBoard>(window, cx),
+            StoryContainer::panel::<LabelsBoard>(window, cx),
+            StoryContainer::panel::<CompletedBoard>(window, cx),
         ];
 
         let mut this = Self {
             search_input,
-            stories,
-            active_group_index: Some(0),
+            // stories,
             active_index: Some(0),
             collapsed: false,
             focus_handle: cx.focus_handle(),
             sidebar_state: ResizableState::new(cx),
             _subscriptions,
-            active_boards,
-            last_active_board: Board::Inbox,
-            active_project: None,
+            is_board_active: true,
+            boards,
+            // active_board_index: Some(0),
             projects: vec![],
+            // active_project_index: Some(0),
             project_date: None,
         };
 
@@ -241,10 +223,11 @@ impl TodoStory {
                                 move |_, window, cx| {
                                     window.close_modal(cx);
                                     view.update(cx, |view, cx| {
-                                        let mut project = ProjectModel::default();
-                                        project.name = input1.read(cx).value().to_string();
-                                        project.due_date = view.project_date.clone();
-                                        view.projects.push(project);
+                                        // let mut project = ProjectModel::default();
+                                        // project.name = input1.read(cx).value().to_string();
+                                        // project.due_date = view.project_date.clone();
+                                        view.projects
+                                            .push(StoryContainer::panel::<ProjectItem>(window, cx));
                                         cx.notify();
                                     });
                                 }
@@ -263,44 +246,45 @@ impl TodoStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
+    pub fn handler(
+        &self,
+    ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
+        // let item = *self;
+        move |this, _, _, cx| {
+            // if this.active_boards.contains_key(&item) {
+            //     this.active_boards.remove(&item);
+            // } else {
+            //     this.active_boards.insert(item, true);
+            //     this.active_boards.remove(&this.last_active_board); // 我自己写的不一定正确
+            // }
+
+            // this.last_active_board = item;
+            cx.notify();
+        }
+    }
 }
 
 impl Render for TodoStory {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let item_groups = [
-            Board::Inbox,
-            Board::Today,
-            Board::Scheduled,
-            Board::Pinboard,
-            Board::Labels,
-            Board::Completed,
-        ];
-        let projects = self.projects.clone();
         let query = self.search_input.read(cx).value().trim().to_lowercase();
-
-        let stories: Vec<_> = self
-            .stories
+        let boards: Vec<_> = self
+            .boards
             .iter()
-            .filter_map(|(name, items)| {
-                let filtered_items: Vec<_> = items
-                    .iter()
-                    .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
-                    .cloned()
-                    .collect();
-
-                if !filtered_items.is_empty() {
-                    Some((name, filtered_items))
-                } else {
-                    None
-                }
-            })
+            .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
+            .cloned()
             .collect();
-
-        let active_group = self.active_group_index.and_then(|index| stories.get(index));
-        let active_story = self
-            .active_index
-            .and(active_group)
-            .and_then(|group| group.1.get(self.active_index.unwrap()));
+        let projects: Vec<_> = self
+            .projects
+            .iter()
+            .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
+            .cloned()
+            .collect();
+        let active_group = if self.is_board_active {
+            boards
+        } else {
+            projects
+        };
+        let active_story = active_group.get(self.active_index.unwrap());
         let (_story_name, _description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())
@@ -308,7 +292,7 @@ impl Render for TodoStory {
                 ("".into(), "".into())
             };
 
-        h_resizable("gallery-container", self.sidebar_state.clone())
+        h_resizable("todos-container", self.sidebar_state.clone())
             .child(
                 resizable_panel()
                     .size(px(255.))
@@ -325,21 +309,34 @@ impl Render for TodoStory {
                                     .gap_4()
                                     .child(
                                         SidebarBoard::new().children(
-                                            item_groups
+                                            self.boards
                                                 .iter()
-                                                .map(|item| {
+                                                .enumerate()
+                                                .map(|(ix, item)| {
                                                     SidebarBoardItem::new(
-                                                        item.label(),
-                                                        item.color(),
-                                                        item.color(),
-                                                        item.count(),
+                                                        item.read(cx).name.clone(),
+                                                        red(),
+                                                        red(),
+                                                        10,
                                                     )
+                                                    // SidebarBoardItem::new(
+                                                    //     item.label(),
+                                                    //     item.color(),
+                                                    //     item.color(),
+                                                    //     item.count(),
+                                                    // )
                                                     .size(gpui::Length::Definite(
                                                         gpui::DefiniteLength::Fraction(0.5),
                                                     ))
-                                                    .icon(item.icon())
-                                                    .active(self.active_boards.contains_key(item))
-                                                    .on_click(cx.listener(item.handler()))
+                                                    // .icon(item.icon())
+                                                    // .active(self.active_boards.contains_key(item))
+                                                    .on_click(cx.listener(
+                                                        move |this, _: &ClickEvent, _, cx| {
+                                                            this.is_board_active = true;
+                                                            this.active_index = Some(ix);
+                                                            cx.notify();
+                                                        },
+                                                    ))
                                                 })
                                                 .collect::<Vec<_>>(),
                                         ),
@@ -357,7 +354,6 @@ impl Render for TodoStory {
                                     ),
                             )
                             .child(
-                                // SidebarGroup::new("Projects").child()
                                 // 添加项目按钮：
                                 SidebarMenu::new().child(
                                     SidebarMenuItem::new("On This Computer                     ➕")
@@ -372,39 +368,21 @@ impl Render for TodoStory {
                                         )),
                                 ),
                             )
-                            .child(
-                                // 项目列表：
-                                SidebarMenu::new().children(projects.into_iter().enumerate().map(
-                                    |(_, project)| {
-                                        SidebarMenuItem::new(project.name.clone())
-                                            .active(self.active_project == Some(project.clone()))
-                                            .on_click(cx.listener(move |this, _, _, cx| {
-                                                this.active_project = Some(project.clone());
-                                                this.last_active_board = Board::Projects;
+                            .child(SidebarMenu::new().children(
+                                self.projects.iter().enumerate().map(|(ix, story)| {
+                                    SidebarMenuItem::new(story.read(cx).name.clone())
+                                        .active(
+                                            !self.is_board_active
+                                                && self.active_index == Some(ix),
+                                        )
+                                        .on_click(cx.listener(
+                                            move |this, _: &ClickEvent, _, cx| {
+                                                this.is_board_active = false;
+                                                this.active_index = Some(ix);
                                                 cx.notify();
-                                            }))
-                                    },
-                                )),
-                            )
-                            .children(stories.clone().into_iter().enumerate().map(
-                                |(group_ix, (_group_name, sub_stories))| {
-                                    SidebarMenu::new().children(sub_stories.iter().enumerate().map(
-                                        |(ix, story)| {
-                                            SidebarMenuItem::new(story.read(cx).name.clone())
-                                                .active(
-                                                    self.active_group_index == Some(group_ix)
-                                                        && self.active_index == Some(ix),
-                                                )
-                                                .on_click(cx.listener(
-                                                    move |this, _: &ClickEvent, _, cx| {
-                                                        this.active_group_index = Some(group_ix);
-                                                        this.active_index = Some(ix);
-                                                        cx.notify();
-                                                    },
-                                                ))
-                                        },
-                                    ))
-                                },
+                                            },
+                                        ))
+                                }),
                             )),
                     ),
             )
