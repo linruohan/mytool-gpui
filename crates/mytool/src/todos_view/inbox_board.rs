@@ -1,9 +1,11 @@
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
+    Window,
 };
 
-use gpui_component::{dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
 
+use super::Board;
 use crate::Mytool;
 
 pub struct InboxBoard {
@@ -20,11 +22,20 @@ impl InboxBoard {
             focus_handle: cx.focus_handle(),
         }
     }
+}
+impl Board for InboxBoard {
+    fn icon() -> IconName {
+        IconName::MailboxSymbolic
+    }
+
+    fn color() -> Hsla {
+        gpui::rgb(0x99c1f1).into()
+    }
+
     fn count() -> usize {
-        10
+        2
     }
 }
-
 impl Mytool for InboxBoard {
     fn title() -> &'static str {
         "Inbox"

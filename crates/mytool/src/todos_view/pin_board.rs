@@ -1,9 +1,11 @@
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
+    Window,
 };
 
-use gpui_component::{dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
 
+use super::Board;
 use crate::Mytool;
 
 pub struct PinBoard {
@@ -20,11 +22,23 @@ impl PinBoard {
             focus_handle: cx.focus_handle(),
         }
     }
-    fn count() -> usize {
-        10
+    fn count(&self) -> usize {
+        2
     }
 }
+impl Board for PinBoard {
+    fn icon() -> IconName {
+        IconName::PinSymbolic
+    }
 
+    fn color() -> Hsla {
+        gpui::rgb(0xf66151).into()
+    }
+
+    fn count() -> usize {
+        2
+    }
+}
 impl Mytool for PinBoard {
     fn title() -> &'static str {
         "Pinboard"

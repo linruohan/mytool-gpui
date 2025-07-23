@@ -1,3 +1,5 @@
+#![feature(str_as_str)]
+
 mod assets;
 mod calendar_story;
 mod color_picker_story;
@@ -22,7 +24,8 @@ use gpui::{
     WindowOptions,
 };
 pub use todos_view::{
-    CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ProjectItem, ScheduledBoard, TodayBoard,
+    Board, BoardType, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
+    ScheduledBoard, TodayBoard,
 };
 pub use utils::play_ogg_file;
 

@@ -1,11 +1,11 @@
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, ParentElement, Render,
-    Styled, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
+    Window,
 };
 
-use gpui_component::{dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
 
-use crate::Mytool;
+use crate::{Board, Mytool};
 
 pub struct ProjectItem {
     focus_handle: FocusHandle,
@@ -21,8 +21,18 @@ impl ProjectItem {
             focus_handle: cx.focus_handle(),
         }
     }
+}
+impl Board for ProjectItem {
+    fn icon() -> IconName {
+        IconName::ProcessErrorSymbolic
+    }
+
+    fn color() -> Hsla {
+        gpui::rgb(0x33D17A).into()
+    }
+
     fn count() -> usize {
-        10
+        2
     }
 }
 

@@ -1,9 +1,11 @@
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
+    Window,
 };
 
-use gpui_component::{dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
 
+use super::Board;
 use crate::Mytool;
 
 pub struct TodayBoard {
@@ -20,11 +22,20 @@ impl TodayBoard {
             focus_handle: cx.focus_handle(),
         }
     }
+}
+impl Board for TodayBoard {
+    fn icon() -> IconName {
+        IconName::StarOutlineThickSymbolic
+    }
+
+    fn color() -> Hsla {
+        gpui::rgb(0x33d17a).into()
+    }
+
     fn count() -> usize {
-        10
+        2
     }
 }
-
 impl Mytool for TodayBoard {
     fn title() -> &'static str {
         "Today"

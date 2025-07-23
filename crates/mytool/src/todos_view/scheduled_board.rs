@@ -1,9 +1,11 @@
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
+    Window,
 };
 
-use gpui_component::{dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
 
+use super::Board;
 use crate::Mytool;
 
 pub struct ScheduledBoard {
@@ -20,11 +22,20 @@ impl ScheduledBoard {
             focus_handle: cx.focus_handle(),
         }
     }
+}
+impl Board for ScheduledBoard {
+    fn icon() -> IconName {
+        IconName::MonthSymbolic
+    }
+
+    fn color() -> Hsla {
+        gpui::rgb(0xdc8add).into()
+    }
+
     fn count() -> usize {
-        10
+        2
     }
 }
-
 impl Mytool for ScheduledBoard {
     fn title() -> &'static str {
         "Scheduled"
