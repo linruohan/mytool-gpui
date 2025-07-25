@@ -68,11 +68,11 @@ impl Project {
             .get_or_init(|| async { Store::new(self.db.clone()).await })
             .await
     }
-    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
-        let item = ProjectEntity::find_by_id(item_id)
+    pub async fn from_db(db: DatabaseConnection, project_id: &str) -> Result<Self, TodoError> {
+        let item = ProjectEntity::find_by_id(project_id)
             .one(&db)
             .await?
-            .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
+            .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", project_id)))?;
 
         Ok(Self::new(db, item))
     }
@@ -324,17 +324,17 @@ impl fmt::Display for Project {
             self.model.description.clone().unwrap_or_default(),
             self.model.color.clone().unwrap_or_default(),
             self.model.backend_type.clone().unwrap_or_default(),
-            self.model.inbox_project.clone().unwrap_or_default(),
-            self.model.team_inbox.clone().unwrap_or_default(),
-            self.model.child_order.clone().unwrap_or_default(),
-            self.model.is_deleted.to_string(),
-            self.model.is_archived.to_string(),
-            self.model.is_favorite.to_string(),
-            self.model.shared.clone().unwrap_or_default(),
+            self.model.inbox_project.unwrap_or_default(),
+            self.model.team_inbox.unwrap_or_default(),
+            self.model.child_order.unwrap_or_default(),
+            self.model.is_deleted,
+            self.model.is_archived,
+            self.model.is_favorite,
+            self.model.shared.unwrap_or_default(),
             self.model.view_style.clone().unwrap_or_default(),
-            self.model.show_completed.clone().unwrap_or_default(),
+            self.model.show_completed.unwrap_or_default(),
             self.model.sort_order.unwrap_or_default(),
-            self.model.collapsed.to_string(),
+            self.model.collapsed,
             self.model.parent_id.clone().unwrap_or_default(),
             self.model.source_id.clone().unwrap_or_default()
         )

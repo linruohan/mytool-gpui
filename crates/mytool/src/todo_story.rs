@@ -17,6 +17,8 @@ use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use my_components::sidebar::{
     Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem,
 };
+use std::option::Option;
+use todos::entity::ProjectModel;
 
 pub struct TodoStory {
     active_index: Option<usize>,
@@ -161,11 +163,14 @@ impl TodoStory {
                                 move |_, window, cx| {
                                     window.close_modal(cx);
                                     view.update(cx, |view, cx| {
-                                        // let mut project = ProjectModel::default();
-                                        // project.name = input1.read(cx).value().to_string();
-                                        // project.due_date = view.project_date.clone();
-                                        view.projects
-                                            .push(TodoContainer::panel::<ProjectItem>(window, cx));
+                                        let mut project = ProjectModel::default();
+                                        project.name = input1.read(cx).value().to_string();
+                                        project.due_date = view.project_date.clone();
+                                        let panel = TodoContainer::panel::<ProjectItem>(window, cx);
+                                        panel.update(cx, |view, _| {
+                                            view.name = project.name.into();
+                                        });
+                                        view.projects.push(panel);
                                         cx.notify();
                                     });
                                 }
@@ -253,15 +258,10 @@ impl Render for TodoStory {
                                                         item.board_count,
                                                         item.board_icon.clone(),
                                                     )
-                                                    // SidebarBoardItem::new(
-                                                    //     item.label(),
-                                                    //     item.color(),
-                                                    //     item.color(),
-                                                    //     item.count(),
-                                                    // )
                                                     .size(gpui::Length::Definite(
                                                         gpui::DefiniteLength::Fraction(0.5),
                                                     ))
+                                                    // .active(self.boards.contains(item))
                                                     .on_click(cx.listener(
                                                         move |this, _: &ClickEvent, _, cx| {
                                                             this.is_board_active = true;
@@ -279,10 +279,7 @@ impl Render for TodoStory {
                                             .px_1()
                                             .flex_1()
                                             .justify_between()
-                                            .mt(px(35.0)), // .child(div().child("On This Computer").text_left())
-                                                           // .child(div().child(
-                                                           //     Icon::new(IconName::PlusLargeSymbolic).text_right(),
-                                                           // )),
+                                            .mt(px(35.0)),
                                     ),
                             )
                             .child(

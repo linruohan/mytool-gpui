@@ -66,6 +66,6 @@ impl Render for ProjectItem {
         _: &mut gpui::Window,
         _cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        v_flex().p_4().gap_5().child(Label::new("today"))
+        v_flex().p_4().gap_5().child(Label::new("project"))
     }
 }

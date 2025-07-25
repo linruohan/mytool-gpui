@@ -50,6 +50,7 @@ use gpui_component::{
     scroll::ScrollbarShow,
     v_flex, ActiveTheme, ContextModal, IconName, Root, TitleBar,
 };
+
 rust_i18n::i18n!("locales", fallback = "en");
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]

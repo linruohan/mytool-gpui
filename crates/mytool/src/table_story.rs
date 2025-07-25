@@ -60,44 +60,6 @@ struct Stock {
     price: f64,
     change: f64,
     change_percent: f64,
-    volume: f64,
-    turnover: f64,
-    market_cap: f64,
-    ttm: f64,
-    five_mins_ranking: f64,
-    th60_days_ranking: f64,
-    year_change_percent: f64,
-    bid: f64,
-    bid_volume: f64,
-    ask: f64,
-    ask_volume: f64,
-    open: f64,
-    prev_close: f64,
-    high: f64,
-    low: f64,
-    turnover_rate: f64,
-    rise_rate: f64,
-    amplitude: f64,
-    pe_status: f64,
-    pb_status: f64,
-    volume_ratio: f64,
-    bid_ask_ratio: f64,
-    latest_pre_close: f64,
-    latest_post_close: f64,
-    pre_market_cap: f64,
-    pre_market_percent: f64,
-    pre_market_change: f64,
-    post_market_cap: f64,
-    post_market_percent: f64,
-    post_market_change: f64,
-    float_cap: f64,
-    shares: i64,
-    shares_float: i64,
-    day_5_ranking: f64,
-    day_10_ranking: f64,
-    day_30_ranking: f64,
-    day_120_ranking: f64,
-    day_250_ranking: f64,
 }
 
 impl Stock {
@@ -105,19 +67,6 @@ impl Stock {
         self.price = (-300.0..999.999).fake::<f64>();
         self.change = (-0.1..5.0).fake::<f64>();
         self.change_percent = (-0.1..0.1).fake::<f64>();
-        self.volume = (-300.0..999.999).fake::<f64>();
-        self.turnover = (-300.0..999.999).fake::<f64>();
-        self.market_cap = (-1000.0..9999.999).fake::<f64>();
-        self.ttm = (-1000.0..9999.999).fake::<f64>();
-        self.five_mins_ranking = self.five_mins_ranking * (1.0 + (-0.2..0.2).fake::<f64>());
-        self.bid = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
-        self.bid_volume = (100.0..1000.0).fake::<f64>();
-        self.ask = self.price * (1.0 + (-0.2..0.2).fake::<f64>());
-        self.ask_volume = (100.0..1000.0).fake::<f64>();
-        self.bid_ask_ratio = self.bid / self.ask;
-        self.volume_ratio = self.volume / self.turnover;
-        self.high = self.price * (1.0 + (0.0..1.5).fake::<f64>());
-        self.low = self.price * (1.0 + (-1.5..0.0).fake::<f64>());
     }
 }
 
@@ -128,44 +77,6 @@ fn random_stocks(size: usize) -> Vec<Stock> {
             counter: Counter::random(),
             change: (-100.0..100.0).fake(),
             change_percent: (-0.1..0.1).fake(),
-            volume: (0.0..1000.0).fake(),
-            turnover: (0.0..1000.0).fake(),
-            market_cap: (0.0..1000.0).fake(),
-            ttm: (0.0..1000.0).fake(),
-            five_mins_ranking: (0.0..1000.0).fake(),
-            th60_days_ranking: (0.0..1000.0).fake(),
-            year_change_percent: (-1.0..1.0).fake(),
-            bid: (0.0..1000.0).fake(),
-            bid_volume: (0.0..1000.0).fake(),
-            ask: (0.0..1000.0).fake(),
-            ask_volume: (0.0..1000.0).fake(),
-            open: (0.0..1000.0).fake(),
-            prev_close: (0.0..1000.0).fake(),
-            high: (0.0..1000.0).fake(),
-            low: (0.0..1000.0).fake(),
-            turnover_rate: (0.0..1.0).fake(),
-            rise_rate: (0.0..1.0).fake(),
-            amplitude: (0.0..1000.0).fake(),
-            pe_status: (0.0..1000.0).fake(),
-            pb_status: (0.0..1000.0).fake(),
-            volume_ratio: (0.0..1.0).fake(),
-            bid_ask_ratio: (0.0..1.0).fake(),
-            latest_pre_close: (0.0..1000.0).fake(),
-            latest_post_close: (0.0..1000.0).fake(),
-            pre_market_cap: (0.0..1000.0).fake(),
-            pre_market_percent: (-1.0..1.0).fake(),
-            pre_market_change: (-100.0..100.0).fake(),
-            post_market_cap: (0.0..1000.0).fake(),
-            post_market_percent: (-1.0..1.0).fake(),
-            post_market_change: (-100.0..100.0).fake(),
-            float_cap: (0.0..1000.0).fake(),
-            shares: (100000..9999999).fake(),
-            shares_float: (100000..9999999).fake(),
-            day_5_ranking: (0.0..1000.0).fake(),
-            day_10_ranking: (0.0..1000.0).fake(),
-            day_30_ranking: (0.0..1000.0).fake(),
-            day_120_ranking: (0.0..1000.0).fake(),
-            day_250_ranking: (0.0..1000.0).fake(),
             ..Default::default()
         })
         .collect()
@@ -209,50 +120,6 @@ impl StockTableDelegate {
                     .sortable()
                     .text_right()
                     .p_0(),
-                Column::new("volume", "Volume").p_0(),
-                Column::new("turnover", "Turnover").p_0(),
-                Column::new("market_cap", "Market Cap").p_0(),
-                Column::new("ttm", "TTM").p_0(),
-                Column::new("five_mins_ranking", "5m Ranking")
-                    .text_right()
-                    .p_0(),
-                Column::new("th60_days_ranking", "60d Ranking"),
-                Column::new("year_change_percent", "Year Chg%"),
-                Column::new("bid", "Bid").text_right().p_0(),
-                Column::new("bid_volume", "Bid Vol").text_right().p_0(),
-                Column::new("ask", "Ask").text_right().p_0(),
-                Column::new("ask_volume", "Ask Vol").text_right().p_0(),
-                Column::new("open", "Open").text_right().p_0(),
-                Column::new("prev_close", "Prev Close").text_right().p_0(),
-                Column::new("high", "High").text_right().p_0(),
-                Column::new("low", "Low").text_right().p_0(),
-                Column::new("turnover_rate", "Turnover Rate"),
-                Column::new("rise_rate", "Rise Rate"),
-                Column::new("amplitude", "Amplitude"),
-                Column::new("pe_status", "P/E"),
-                Column::new("pb_status", "P/B"),
-                Column::new("volume_ratio", "Volume Ratio")
-                    .text_right()
-                    .p_0(),
-                Column::new("bid_ask_ratio", "Bid Ask Ratio")
-                    .text_right()
-                    .p_0(),
-                Column::new("latest_pre_close", "Latest Pre Close"),
-                Column::new("latest_post_close", "Latest Post Close"),
-                Column::new("pre_market_cap", "Pre Mkt Cap"),
-                Column::new("pre_market_percent", "Pre Mkt%"),
-                Column::new("pre_market_change", "Pre Mkt Chg"),
-                Column::new("post_market_cap", "Post Mkt Cap"),
-                Column::new("post_market_percent", "Post Mkt%"),
-                Column::new("post_market_change", "Post Mkt Chg"),
-                Column::new("float_cap", "Float Cap"),
-                Column::new("shares", "Shares"),
-                Column::new("shares_float", "Float Shares"),
-                Column::new("day_5_ranking", "5d Ranking"),
-                Column::new("day_10_ranking", "10d Ranking"),
-                Column::new("day_30_ranking", "30d Ranking"),
-                Column::new("day_120_ranking", "120d Ranking"),
-                Column::new("day_250_ranking", "250d Ranking"),
             ],
             loading: false,
             full_loading: false,
@@ -424,73 +291,6 @@ impl TableDelegate for StockTableDelegate {
             "price" => self.render_value_cell(&col, stock.price, cx),
             "change" => self.render_value_cell(&col, stock.change, cx),
             "change_percent" => self.render_percent(&col, stock.change_percent, cx),
-            "volume" => self.render_value_cell(&col, stock.volume, cx),
-            "turnover" => self.render_value_cell(&col, stock.turnover, cx),
-            "market_cap" => self.render_value_cell(&col, stock.market_cap, cx),
-            "ttm" => self.render_value_cell(&col, stock.ttm, cx),
-            "five_mins_ranking" => self.render_value_cell(&col, stock.five_mins_ranking, cx),
-            "th60_days_ranking" => stock
-                .th60_days_ranking
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "year_change_percent" => self.render_percent(&col, stock.year_change_percent, cx),
-            "bid" => self.render_value_cell(&col, stock.bid, cx),
-            "bid_volume" => self.render_value_cell(&col, stock.bid_volume, cx),
-            "ask" => self.render_value_cell(&col, stock.ask, cx),
-            "ask_volume" => self.render_value_cell(&col, stock.ask_volume, cx),
-            "open" => self.render_value_cell(&col, stock.open, cx),
-            "prev_close" => self.render_value_cell(&col, stock.prev_close, cx),
-            "high" => self.render_value_cell(&col, stock.high, cx),
-            "low" => self.render_value_cell(&col, stock.low, cx),
-            "turnover_rate" => (stock.turnover_rate * 100.0)
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "rise_rate" => (stock.rise_rate * 100.0)
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "amplitude" => (stock.amplitude * 100.0)
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "pe_status" => stock.pe_status.floor().to_string().into_any_element(),
-            "pb_status" => stock.pb_status.floor().to_string().into_any_element(),
-            "volume_ratio" => self.render_value_cell(&col, stock.volume_ratio, cx),
-            "bid_ask_ratio" => self.render_value_cell(&col, stock.bid_ask_ratio, cx),
-            "latest_pre_close" => stock
-                .latest_pre_close
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "latest_post_close" => stock
-                .latest_post_close
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "pre_market_cap" => stock.pre_market_cap.floor().to_string().into_any_element(),
-            "pre_market_percent" => self.render_percent(&col, stock.pre_market_percent, cx),
-            "pre_market_change" => stock
-                .pre_market_change
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "post_market_cap" => stock.post_market_cap.floor().to_string().into_any_element(),
-            "post_market_percent" => self.render_percent(&col, stock.post_market_percent, cx),
-            "post_market_change" => stock
-                .post_market_change
-                .floor()
-                .to_string()
-                .into_any_element(),
-            "float_cap" => stock.float_cap.floor().to_string().into_any_element(),
-            "shares" => stock.shares.to_string().into_any_element(),
-            "shares_float" => stock.shares_float.to_string().into_any_element(),
-            "day_5_ranking" => stock.day_5_ranking.floor().to_string().into_any_element(),
-            "day_10_ranking" => stock.day_10_ranking.floor().to_string().into_any_element(),
-            "day_30_ranking" => stock.day_30_ranking.floor().to_string().into_any_element(),
-            "day_120_ranking" => stock.day_120_ranking.floor().to_string().into_any_element(),
-            "day_250_ranking" => stock.day_250_ranking.floor().to_string().into_any_element(),
             _ => "--".to_string().into_any_element(),
         }
     }
@@ -917,26 +717,7 @@ impl Render for TableStory {
                                     table.scroll_to_row(table.delegate().rows_count(cx) - 1, cx);
                                 })
                             })),
-                    ), // .child(
-                       //     Button::new("scroll-first-col")
-                       //         .child("Scroll to First Column")
-                       //         .small()
-                       //         .on_click(cx.listener(|this, _, window, cx| {
-                       //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(0, cx);
-                       //             })
-                       //         })),
-                       // )
-                       // .child(
-                       //     Button::new("scroll-last-col")
-                       //         .child("Scroll to Last Column")
-                       //         .small()
-                       //         .on_click(cx.listener(|this, _, window, cx| {
-                       //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(table.delegate().columns_count(cx), cx);
-                       //             })
-                       //         })),
-                       // ),
+                    ),
             )
             .child(
                 h_flex().items_center().gap_2().child(
