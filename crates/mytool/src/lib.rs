@@ -9,10 +9,11 @@ mod layouts;
 mod table_story;
 mod themes;
 mod title_bar;
-mod todo_story;
+// mod todo_story;
 mod todos_view; // 任务管理
 mod utils;
 mod welcome_story;
+mod sidebar_story;
 
 pub use assets::Assets;
 pub use gallery::Gallery;
@@ -30,13 +31,14 @@ pub use todos_view::{
 pub use utils::play_ogg_file;
 
 pub use calendar_story::CalendarStory;
+pub use sidebar_story::SidebarStory;
 
 pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
 use serde::{Deserialize, Serialize};
 pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
-pub use todo_story::TodoStory;
+// pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use welcome_story::WelcomeStory;
 
@@ -98,9 +100,9 @@ impl AppState {
 }
 
 pub fn create_new_window<F, E>(title: &str, crate_view_fn: F, cx: &mut App)
-where
-    E: Into<AnyView>,
-    F: FnOnce(&mut Window, &mut App) -> E + Send + 'static,
+                               where
+                                   E: Into<AnyView>,
+                                   F: FnOnce(&mut Window, &mut App) -> E + Send + 'static,
 {
     let mut window_size = size(px(1600.0), px(1200.0));
     if let Some(display) = cx.primary_display() {
@@ -145,7 +147,7 @@ where
 
         Ok::<_, anyhow::Error>(())
     })
-    .detach();
+      .detach();
 }
 
 struct StoryRoot {
@@ -247,7 +249,7 @@ pub fn init(cx: &mut App) {
                     println!("StoryContainer focus in: {}", this.name);
                 },
             )
-            .detach();
+              .detach();
 
             container.name = title.into();
             container.description = description.into();
@@ -319,7 +321,7 @@ impl StorySection {
 }
 
 impl ParentElement for StorySection {
-    fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
+    fn extend(&mut self, elements: impl IntoIterator<Item=AnyElement>) {
         self.children.extend(elements);
     }
 }
@@ -417,8 +419,8 @@ pub trait Mytool: Focusable + Render + Sized {
         let _ = cx;
     }
     fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
-    where
-        Self: 'static,
+                     where
+                         Self: 'static,
     {
         if let Some(mytool) = view.downcast::<Self>().ok() {
             cx.update_entity(&mytool, |mytool, cx| {
@@ -569,7 +571,9 @@ impl StoryState {
         match self.story_klass.to_string().as_str() {
             "CalendarStory" => mytool!(CalendarStory),
             "TableStory" => mytool!(TableStory),
-            "TodoGalery" => mytool!(TodoStory),
+            // "TodoStory" => mytool!(TodoStory),
+            "ColorPickerStory" => mytool!(ColorPickerStory),
+            "DatePickerStory" => mytool!(DatePickerStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }

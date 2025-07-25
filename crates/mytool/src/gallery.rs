@@ -1,6 +1,4 @@
-use crate::{
-    CalendarStory, ColorPickerStory, DatePickerStory, StoryContainer, TableStory, TodoStory,
-};
+use crate::{CalendarStory, ColorPickerStory, DatePickerStory, SidebarStory, StoryContainer, TableStory};
 use gpui::{prelude::*, *};
 use gpui_component::{
     input::{InputEvent, InputState, TextInput},
@@ -42,12 +40,12 @@ impl Gallery {
                     // StoryContainer::panel::<AlertStory>(window, cx),
                     // StoryContainer::panel::<AvatarStory>(window, cx),
                     // StoryContainer::panel::<BadgeStory>(window, cx),
-                    // StoryContainer::panel::<ButtonStory>(window, cx),
+                    StoryContainer::panel::<SidebarStory>(window, cx),
                     StoryContainer::panel::<CalendarStory>(window, cx),
                     StoryContainer::panel::<ColorPickerStory>(window, cx),
                     StoryContainer::panel::<DatePickerStory>(window, cx),
                     StoryContainer::panel::<TableStory>(window, cx),
-                    StoryContainer::panel::<TodoStory>(window, cx),
+                    // StoryContainer::panel::<TodoStory>(window, cx),
                 ],
             ),
         ];
