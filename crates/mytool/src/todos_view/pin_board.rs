@@ -22,9 +22,6 @@ impl PinBoard {
             focus_handle: cx.focus_handle(),
         }
     }
-    fn count(&self) -> usize {
-        2
-    }
 }
 impl Board for PinBoard {
     fn icon() -> IconName {

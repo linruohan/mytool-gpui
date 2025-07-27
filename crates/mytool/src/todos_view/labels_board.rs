@@ -22,9 +22,6 @@ impl LabelsBoard {
             focus_handle: cx.focus_handle(),
         }
     }
-    fn count(&self) -> usize {
-        2
-    }
 }
 impl Board for LabelsBoard {
     fn icon() -> IconName {

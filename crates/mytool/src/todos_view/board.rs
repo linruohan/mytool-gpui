@@ -1,8 +1,8 @@
 use super::{
     CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard, TodoContainer,
 };
-use crate::Mytool;
-use gpui::{AnyView, App, Entity, Focusable, Hsla, Render, Window};
+use crate::{Mytool, TodoStory};
+use gpui::{AnyView, App, ClickEvent, Context, Entity, Focusable, Hsla, Render, Window};
 use gpui_component::IconName;
 
 pub trait Board: Mytool + Render + Focusable + Sized {
@@ -10,7 +10,7 @@ pub trait Board: Mytool + Render + Focusable + Sized {
     fn color() -> Hsla;
     fn count() -> usize;
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoardType {
     Inbox,     // 未完成任务
     Today,     // 今日任务
@@ -42,46 +42,65 @@ impl BoardType {
             Self::Completed => TodoContainer::panel::<CompletedBoard>(window, cx),
         }
     }
+    pub fn handler(
+        &self,
+    ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
+        let item = *self;
+        move |this, _, _, cx| {
+            println!("laste_board:{:?}", this.active_board);
+            println!("Clicked on item: {}", item.label(),);
+            this.is_board_active = true;
+            if this.active_boards.contains_key(&item) {
+                this.active_boards.remove(&item);
+            } else {
+                this.active_boards.insert(item, true);
+                this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
+            }
 
-    // pub fn name(&self) -> &'static str {
-    //     match self {
-    //         Self::Inbox => "Inbox",
-    //         Self::Today => "Today",
-    //         Self::Scheduled => "Scheduled",
-    //         Self::Pinboard => "Pinboard",
-    //         Self::Labels => "Labels",
-    //         Self::Completed => "Completed",
-    //     }
-    // }
-    //
-    // pub fn icon(&self) -> IconName {
-    //     match self {
-    //         Self::Inbox => IconName::MailboxSymbolic,
-    //         Self::Today => IconName::StarOutlineThickSymbolic,
-    //         Self::Scheduled => IconName::MonthSymbolic,
-    //         Self::Pinboard => IconName::PinSymbolic,
-    //         Self::Labels => IconName::TagOutlineSymbolic,
-    //         Self::Completed => IconName::CheckRoundOutlineSymbolic,
-    //     }
-    // }
-    // pub fn count(&self) -> usize {
-    //     match self {
-    //         Self::Inbox => 10,
-    //         Self::Today => 2,
-    //         Self::Scheduled => 3,
-    //         Self::Pinboard => 5,
-    //         Self::Labels => 6,
-    //         Self::Completed => 2,
-    //     }
-    // }
-    // pub fn color(&self) -> Hsla {
-    //     match self {
-    //         Self::Inbox => gpui::rgb(0x99c1f1).into(),
-    //         Self::Today => gpui::rgb(0x33d17a).into(),
-    //         Self::Scheduled => gpui::rgb(0xdc8add).into(),
-    //         Self::Pinboard => gpui::rgb(0xf66151).into(),
-    //         Self::Labels => gpui::rgb(0xcdab8f).into(),
-    //         Self::Completed => gpui::rgb(0xffbe6f).into(),
-    //     }
-    // }
+            this.active_board = Some(item);
+            cx.notify();
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Inbox => "Inbox",
+            Self::Today => "Today",
+            Self::Scheduled => "Scheduled",
+            Self::Pinboard => "Pinboard",
+            Self::Labels => "Labels",
+            Self::Completed => "Completed",
+        }
+    }
+
+    pub fn icon(&self) -> IconName {
+        match self {
+            Self::Inbox => InboxBoard::icon(),
+            Self::Today => TodayBoard::icon(),
+            Self::Scheduled => ScheduledBoard::icon(),
+            Self::Pinboard => PinBoard::icon(),
+            Self::Labels => LabelsBoard::icon(),
+            Self::Completed => CompletedBoard::icon(),
+        }
+    }
+    pub fn count(&self) -> usize {
+        match self {
+            Self::Inbox => InboxBoard::count(),
+            Self::Today => TodayBoard::count(),
+            Self::Scheduled => ScheduledBoard::count(),
+            Self::Pinboard => PinBoard::count(),
+            Self::Labels => LabelsBoard::count(),
+            Self::Completed => CompletedBoard::count(),
+        }
+    }
+    pub fn color(&self) -> Hsla {
+        match self {
+            Self::Inbox => InboxBoard::color(),
+            Self::Today => TodayBoard::color(),
+            Self::Scheduled => ScheduledBoard::color(),
+            Self::Pinboard => PinBoard::color(),
+            Self::Labels => LabelsBoard::color(),
+            Self::Completed => CompletedBoard::color(),
+        }
+    }
 }

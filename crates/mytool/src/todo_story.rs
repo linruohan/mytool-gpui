@@ -1,8 +1,5 @@
-use crate::todos_view::TodoContainer;
-use crate::ProjectItem;
-use crate::{
-    play_ogg_file, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard,
-};
+use crate::play_ogg_file;
+use crate::{BoardType, ProjectItem};
 use gpui::{prelude::*, *};
 use gpui_component::dock::{Panel, PanelView};
 use gpui_component::{
@@ -17,6 +14,7 @@ use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
 use my_components::sidebar::{
     Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem,
 };
+use std::collections::HashMap;
 use std::option::Option;
 use todos::entity::ProjectModel;
 
@@ -27,15 +25,15 @@ pub struct TodoStory {
     search_input: Entity<InputState>,
     sidebar_state: Entity<ResizableState>,
     _subscriptions: Vec<Subscription>,
-    //  看板是0, project是1
-    is_board_active: bool,
+    //  看板是0, projects是1
+    pub is_board_active: bool,
 
     // 所有看板
-    boards: Vec<Entity<TodoContainer>>,
-    // active_board_index: Option<usize>, // 所有的todo board list : today inbox schedued labels completed pinned
+    boards: Vec<BoardType>,
+    pub active_boards: HashMap<BoardType, bool>,
+    pub active_board: Option<BoardType>,
     // 所有projects
-    projects: Vec<Entity<TodoContainer>>,
-    // active_project_index: Option<usize>, // active project
+    projects: Vec<ProjectItem>,
     project_date: Option<String>,
 }
 
@@ -69,18 +67,20 @@ impl TodoStory {
             }
             _ => {}
         })];
+        let mut active_boards = HashMap::new();
+        active_boards.insert(BoardType::Inbox, true);
+
         let boards = vec![
-            TodoContainer::panel::<InboxBoard>(window, cx),
-            TodoContainer::panel::<TodayBoard>(window, cx),
-            TodoContainer::panel::<ScheduledBoard>(window, cx),
-            TodoContainer::panel::<PinBoard>(window, cx),
-            TodoContainer::panel::<LabelsBoard>(window, cx),
-            TodoContainer::panel::<CompletedBoard>(window, cx),
+            BoardType::Inbox,
+            BoardType::Today,
+            BoardType::Scheduled,
+            BoardType::Pinboard,
+            BoardType::Labels,
+            BoardType::Completed,
         ];
 
         let mut this = Self {
             search_input,
-            // stories,
             active_index: Some(0),
             collapsed: false,
             focus_handle: cx.focus_handle(),
@@ -88,9 +88,9 @@ impl TodoStory {
             _subscriptions,
             is_board_active: true,
             boards,
-            // active_board_index: Some(0),
+            active_boards,
+            active_board: Some(BoardType::Inbox),
             projects: vec![],
-            // active_project_index: Some(0),
             project_date: None,
         };
 
@@ -100,7 +100,15 @@ impl TodoStory {
 
         this
     }
-
+    fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.is_board_active {
+            let board = self.active_board.unwrap();
+            v_flex().child(board.container(window, cx))
+        } else {
+            let project = self.projects.get(self.active_index.unwrap()).unwrap();
+            v_flex().child(cx.new(|_| ProjectItem::new(project.name.clone())))
+        }
+    }
     fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
         let name = name.to_string();
         self.search_input.update(cx, |this, cx| {
@@ -166,11 +174,11 @@ impl TodoStory {
                                         let mut project = ProjectModel::default();
                                         project.name = input1.read(cx).value().to_string();
                                         project.due_date = view.project_date.clone();
-                                        let panel = TodoContainer::panel::<ProjectItem>(window, cx);
-                                        panel.update(cx, |view, _| {
-                                            view.name = project.name.into();
-                                        });
-                                        view.projects.push(panel);
+                                        // let panel = TodoContainer::panel::<ProjectItem>(window, cx);
+                                        // panel.update(cx, |view, _| {
+                                        //     view.name = project.name.into();
+                                        // });
+                                        view.projects.push(ProjectItem::new(project.name.into()));
                                         cx.notify();
                                     });
                                 }
@@ -189,22 +197,6 @@ impl TodoStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
-    pub fn handler(
-        &self,
-    ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
-        // let item = *self;
-        move |this, _, _, cx| {
-            // if this.active_boards.contains_key(&item) {
-            //     this.active_boards.remove(&item);
-            // } else {
-            //     this.active_boards.insert(item, true);
-            //     this.active_boards.remove(&this.last_active_board); // 我自己写的不一定正确
-            // }
-
-            // this.last_active_board = item;
-            cx.notify();
-        }
-    }
 }
 
 impl Render for TodoStory {
@@ -213,22 +205,15 @@ impl Render for TodoStory {
         let boards: Vec<_> = self
             .boards
             .iter()
-            .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
+            .filter(|story| story.label().to_lowercase().contains(&query))
             .cloned()
             .collect();
         let projects: Vec<_> = self
             .projects
             .iter()
-            .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
+            .filter(|story| story.name.to_lowercase().contains(&query))
             .cloned()
             .collect();
-        let active_group = if self.is_board_active {
-            boards
-        } else {
-            projects
-        };
-        let active_story = active_group.get(self.active_index.unwrap());
-
         h_resizable("todos-container", self.sidebar_state.clone())
             .child(
                 resizable_panel()
@@ -246,29 +231,22 @@ impl Render for TodoStory {
                                     .gap_4()
                                     .child(
                                         SidebarBoard::new().children(
-                                            self.boards
+                                            boards
                                                 .iter()
                                                 .enumerate()
                                                 .map(|(ix, item)| {
-                                                    let item = item.read(cx);
                                                     SidebarBoardItem::new(
-                                                        item.name.clone(),
-                                                        item.board_color,
-                                                        item.board_color,
-                                                        item.board_count,
-                                                        item.board_icon.clone(),
+                                                        item.label(),
+                                                        item.color(),
+                                                        item.color(),
+                                                        item.count(),
+                                                        item.icon(),
                                                     )
-                                                    .size(gpui::Length::Definite(
-                                                        gpui::DefiniteLength::Fraction(0.5),
-                                                    ))
-                                                    // .active(self.boards.contains(item))
-                                                    .on_click(cx.listener(
-                                                        move |this, _: &ClickEvent, _, cx| {
-                                                            this.is_board_active = true;
-                                                            this.active_index = Some(ix);
-                                                            cx.notify();
-                                                        },
-                                                    ))
+                                                        .size(gpui::Length::Definite(
+                                                            gpui::DefiniteLength::Fraction(0.5),
+                                                        ))
+                                                        .active(self.active_board == Some(*item))
+                                                        .on_click(cx.listener(item.handler()))
                                                 })
                                                 .collect::<Vec<_>>(),
                                         ),
@@ -297,21 +275,22 @@ impl Render for TodoStory {
                                         )),
                                 ),
                             )
-                            .child(SidebarMenu::new().children(
-                                self.projects.iter().enumerate().map(|(ix, story)| {
-                                    SidebarMenuItem::new(story.read(cx).name.clone())
+                            .child(SidebarMenu::new().children(projects.iter().enumerate().map(
+                                |(ix, story)| {
+                                    SidebarMenuItem::new(story.name.clone())
                                         .active(
                                             !self.is_board_active && self.active_index == Some(ix),
                                         )
                                         .on_click(cx.listener(
                                             move |this, _: &ClickEvent, _, cx| {
                                                 this.is_board_active = false;
+                                                this.active_board = None;
                                                 this.active_index = Some(ix);
                                                 cx.notify();
                                             },
                                         ))
-                                }),
-                            )),
+                                },
+                            ))),
                     ),
             )
             .child(
@@ -324,9 +303,7 @@ impl Render for TodoStory {
                             .id("todos")
                             .flex_1()
                             .overflow_y_scroll()
-                            .when_some(active_story, |this, active_story| {
-                                this.child(active_story.clone())
-                            }),
+                            .child(self.render_content(window, cx)),
                     )
                     .into_any_element(),
             )

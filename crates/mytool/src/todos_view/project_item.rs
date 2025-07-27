@@ -1,24 +1,21 @@
-use gpui::{App, AppContext, Entity, ParentElement, Render, Styled, Window};
+use gpui::{App, AppContext, Entity, ParentElement, Render, SharedString, Styled, Window};
 
 use gpui_component::{label::Label, v_flex};
 
 #[derive(Debug, Clone)]
 pub struct ProjectItem {
-    pub(crate) name: String,
+    pub name: SharedString,
 }
 
 impl ProjectItem {
-    pub fn view(name: String, window: &mut Window, cx: &mut App) -> Entity<Self> {
+    pub fn view(name: SharedString, window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(name))
     }
 
-    pub(crate) fn new(name: String) -> Self {
-        Self {
-            name,
-        }
+    pub(crate) fn new(name: SharedString) -> Self {
+        Self { name }
     }
 }
-
 
 impl Render for ProjectItem {
     fn render(
@@ -26,6 +23,6 @@ impl Render for ProjectItem {
         _: &mut gpui::Window,
         _cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        v_flex().p_4().gap_5().child(Label::new("project"))
+        v_flex().p_4().gap_5().child(Label::new(self.name.clone()))
     }
 }
