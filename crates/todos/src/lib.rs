@@ -15,6 +15,6 @@ pub mod utils;
 
 pub use app::init_db;
 use chrono::Datelike;
-pub(crate) use objects::{BaseObject, BaseTrait, Item, Project, Reminder, Section, Source, ToBool};
-pub(crate) use services::Store;
+pub(crate) use objects::{BaseObject, BaseTrait, Item, Reminder, ToBool};
+pub use services::Store;
 pub(crate) use utils::Util;
