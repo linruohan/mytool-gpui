@@ -1,8 +1,4 @@
-use std::{
-    ops::Range,
-    sync::LazyLock,
-    time::{self, Duration},
-};
+use std::{ops::Range, sync::LazyLock, time::Duration};
 
 use fake::Fake;
 use gpui::{
@@ -187,7 +183,7 @@ impl StockTableDelegate {
         this.when(col.align == TextAlign::Right, |this| {
             this.h_flex().justify_end()
         })
-        .into_any_element()
+            .into_any_element()
     }
 }
 
@@ -202,6 +198,35 @@ impl TableDelegate for StockTableDelegate {
 
     fn column(&self, col_ix: usize, _cx: &App) -> &Column {
         &self.columns[col_ix]
+    }
+
+    fn perform_sort(
+        &mut self,
+        col_ix: usize,
+        sort: ColumnSort,
+        _: &mut Window,
+        _: &mut Context<Table<Self>>,
+    ) {
+        if let Some(col) = self.columns.get_mut(col_ix) {
+            match col.key.as_ref() {
+                "id" => self.stocks.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b.id.cmp(&a.id),
+                    _ => a.id.cmp(&b.id),
+                }),
+                "symbol" => self.stocks.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b.counter.symbol.cmp(&a.counter.symbol),
+                    _ => a.id.cmp(&b.id),
+                }),
+                "change" | "change_percent" => self.stocks.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b
+                        .change
+                        .partial_cmp(&a.change)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                    _ => a.id.cmp(&b.id),
+                }),
+                _ => {}
+            }
+        }
     }
 
     fn render_th(
@@ -222,24 +247,6 @@ impl TableDelegate for StockTableDelegate {
             })
     }
 
-    fn context_menu(
-        &self,
-        row_ix: usize,
-        menu: PopupMenu,
-        _window: &Window,
-        _cx: &App,
-    ) -> PopupMenu {
-        menu.menu(
-            format!("Selected Row: {}", row_ix),
-            Box::new(OpenDetail(row_ix)),
-        )
-        .separator()
-        .menu("Size Large", Box::new(ChangeSize(Size::Large)))
-        .menu("Size Medium", Box::new(ChangeSize(Size::Medium)))
-        .menu("Size Small", Box::new(ChangeSize(Size::Small)))
-        .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
-    }
-
     fn render_tr(
         &self,
         row_ix: usize,
@@ -254,6 +261,24 @@ impl TableDelegate for StockTableDelegate {
                     ev.modifiers().secondary()
                 )
             }))
+    }
+
+    fn context_menu(
+        &self,
+        row_ix: usize,
+        menu: PopupMenu,
+        _window: &Window,
+        _cx: &App,
+    ) -> PopupMenu {
+        menu.menu(
+            format!("Selected Row: {}", row_ix),
+            Box::new(OpenDetail(row_ix)),
+        )
+            .separator()
+            .menu("Size Large", Box::new(ChangeSize(Size::Large)))
+            .menu("Size Medium", Box::new(ChangeSize(Size::Medium)))
+            .menu("Size Small", Box::new(ChangeSize(Size::Small)))
+            .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
     }
 
     /// NOTE: Performance metrics
@@ -306,45 +331,17 @@ impl TableDelegate for StockTableDelegate {
         self.columns.insert(to_ix, col);
     }
 
-    fn perform_sort(
-        &mut self,
-        col_ix: usize,
-        sort: ColumnSort,
-        _: &mut Window,
-        _: &mut Context<Table<Self>>,
-    ) {
-        if let Some(col) = self.columns.get_mut(col_ix) {
-            match col.key.as_ref() {
-                "id" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b.id.cmp(&a.id),
-                    _ => a.id.cmp(&b.id),
-                }),
-                "symbol" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b.counter.symbol.cmp(&a.counter.symbol),
-                    _ => a.id.cmp(&b.id),
-                }),
-                "change" | "change_percent" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b
-                        .change
-                        .partial_cmp(&a.change)
-                        .unwrap_or(std::cmp::Ordering::Equal),
-                    _ => a.id.cmp(&b.id),
-                }),
-                _ => {}
-            }
-        }
-    }
-
     fn loading(&self, _: &App) -> bool {
         self.full_loading
     }
 
     fn can_load_more(&self, _: &App) -> bool {
-        return !self.loading && !self.eof;
+        // return !self.loading && !self.eof;
+        false
     }
 
     fn load_more_threshold(&self) -> usize {
-        150
+        10
     }
 
     fn load_more(&mut self, _: &mut Window, cx: &mut Context<Table<Self>>) {
@@ -356,13 +353,13 @@ impl TableDelegate for StockTableDelegate {
 
             cx.update(|cx| {
                 let _ = view.update(cx, |view, _| {
-                    view.delegate_mut().stocks.extend(random_stocks(200));
+                    view.delegate_mut().stocks.extend(random_stocks(2));
                     view.delegate_mut().loading = false;
-                    view.delegate_mut().eof = view.delegate().stocks.len() >= 6000;
+                    view.delegate_mut().eof = view.delegate().stocks.len() >= 16;
                 });
             })
         })
-        .detach();
+          .detach();
     }
 
     fn visible_rows_changed(
@@ -401,17 +398,17 @@ impl super::Mytool for TableStory {
         "A complex data table with selection, sorting, column moving, and loading more."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
-        Self::view(window, cx)
-    }
-
     fn closable() -> bool {
         false
+    }
+
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+        Self::view(window, cx)
     }
 }
 
 impl Focusable for TableStory {
-    fn focus_handle(&self, cx: &gpui::App) -> gpui::FocusHandle {
+    fn focus_handle(&self, cx: &App) -> gpui::FocusHandle {
         self.table.focus_handle(cx)
     }
 }
@@ -427,22 +424,22 @@ impl TableStory {
             let mut input = InputState::new(window, cx)
                 .placeholder("Enter number of Stocks to display")
                 .validate(|s, _| s.parse::<usize>().is_ok());
-            input.set_value("5000", window, cx);
+            input.set_value("15", window, cx);
             input
         });
 
-        let delegate = StockTableDelegate::new(5000);
+        let delegate = StockTableDelegate::new(15);
         let table = cx.new(|cx| Table::new(delegate, window, cx));
 
         cx.subscribe_in(&table, window, Self::on_table_event)
-            .detach();
+          .detach();
         cx.subscribe_in(&num_stocks_input, window, Self::on_num_stocks_input_change)
-            .detach();
+          .detach();
 
         // Spawn a background to random refresh the list
         cx.spawn(async move |this, cx| {
             loop {
-                Timer::after(time::Duration::from_millis(33)).await;
+                Timer::after(Duration::from_millis(33)).await;
 
                 this.update(cx, |this, cx| {
                     if !this.refresh_data {
@@ -462,10 +459,10 @@ impl TableStory {
                     });
                     cx.notify();
                 })
-                .ok();
+                    .ok();
             }
         })
-        .detach();
+          .detach();
 
         Self {
             table,
@@ -679,21 +676,21 @@ impl Render for TableStory {
                                     size == Size::Large,
                                     Box::new(ChangeSize(Size::Large)),
                                 )
-                                .menu_with_check(
-                                    "Medium",
-                                    size == Size::Medium,
-                                    Box::new(ChangeSize(Size::Medium)),
-                                )
-                                .menu_with_check(
-                                    "Small",
-                                    size == Size::Small,
-                                    Box::new(ChangeSize(Size::Small)),
-                                )
-                                .menu_with_check(
-                                    "XSmall",
-                                    size == Size::XSmall,
-                                    Box::new(ChangeSize(Size::XSmall)),
-                                )
+                                    .menu_with_check(
+                                        "Medium",
+                                        size == Size::Medium,
+                                        Box::new(ChangeSize(Size::Medium)),
+                                    )
+                                    .menu_with_check(
+                                        "Small",
+                                        size == Size::Small,
+                                        Box::new(ChangeSize(Size::Small)),
+                                    )
+                                    .menu_with_check(
+                                        "XSmall",
+                                        size == Size::XSmall,
+                                        Box::new(ChangeSize(Size::XSmall)),
+                                    )
                             }),
                     )
                     .child(

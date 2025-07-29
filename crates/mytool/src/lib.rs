@@ -6,6 +6,7 @@ mod color_picker_story;
 mod date_picker_story;
 mod gallery;
 mod layouts;
+mod list_story;
 mod table_story;
 mod themes;
 mod title_bar;
@@ -30,9 +31,9 @@ pub use todos_view::{
 pub use utils::play_ogg_file;
 
 pub use calendar_story::CalendarStory;
-
 pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
+pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
 pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
@@ -572,6 +573,7 @@ impl StoryState {
             "TodoStory" => mytool!(TodoStory),
             "ColorPickerStory" => mytool!(ColorPickerStory),
             "DatePickerStory" => mytool!(DatePickerStory),
+            "ListStory" => mytool!(ListStory),
             _ => {
                 unreachable!("Invalid mytool klass: {}", self.story_klass)
             }

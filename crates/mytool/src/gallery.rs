@@ -1,5 +1,6 @@
 use crate::{
-    CalendarStory, ColorPickerStory, DatePickerStory, StoryContainer, TableStory, TodoStory,
+    CalendarStory, ColorPickerStory, DatePickerStory, ListStory, StoryContainer, TableStory,
+    TodoStory,
 };
 use gpui::{prelude::*, *};
 use gpui_component::{
@@ -43,6 +44,7 @@ impl Gallery {
                     StoryContainer::panel::<DatePickerStory>(window, cx),
                     StoryContainer::panel::<TableStory>(window, cx),
                     StoryContainer::panel::<TodoStory>(window, cx),
+                    StoryContainer::panel::<ListStory>(window, cx),
                 ],
             ),
         ];
