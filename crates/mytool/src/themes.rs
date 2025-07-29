@@ -1,7 +1,9 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use anyhow::Context;
-use gpui::{div, Action, App, InteractiveElement as _, ParentElement as _, Render, SharedString};
+use gpui::{
+    div, px, Action, App, InteractiveElement as _, ParentElement as _, Render, SharedString,
+};
 use gpui_component::{
     button::{Button, ButtonVariants},
     popup_menu::PopupMenuExt,
@@ -17,7 +19,7 @@ const STATE_FILE: &str = "target/state.json";
 struct State {
     theme: SharedString,
 }
-#[allow(unused)]
+
 pub fn init(cx: &mut App) {
     // Load last theme state
     let json = std::fs::read_to_string(STATE_FILE).unwrap_or(String::default());
@@ -44,6 +46,7 @@ static THEMES: LazyLock<HashMap<SharedString, ThemeConfig>> = LazyLock::new(|| {
         include_str!("../../../themes/ayu.json"),
         include_str!("../../../themes/catppuccin.json"),
         include_str!("../../../themes/everforest.json"),
+        include_str!("../../../themes/fahrenheit.json"),
         include_str!("../../../themes/gruvbox.json"),
         include_str!("../../../themes/harper.json"),
         include_str!("../../../themes/hybrid.json"),
@@ -128,6 +131,8 @@ impl Render for ThemeSwitcher {
                         let current_theme_id = self.current_theme_name.clone();
                         move |menu, _, _| {
                             let mut menu = menu
+                                .scrollable()
+                                .max_h(px(600.))
                                 .menu_with_check(
                                     "Default Light",
                                     current_theme_id == "default-light",

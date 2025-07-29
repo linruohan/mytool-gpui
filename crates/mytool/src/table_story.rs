@@ -183,7 +183,7 @@ impl StockTableDelegate {
         this.when(col.align == TextAlign::Right, |this| {
             this.h_flex().justify_end()
         })
-            .into_any_element()
+        .into_any_element()
     }
 }
 
@@ -274,11 +274,11 @@ impl TableDelegate for StockTableDelegate {
             format!("Selected Row: {}", row_ix),
             Box::new(OpenDetail(row_ix)),
         )
-            .separator()
-            .menu("Size Large", Box::new(ChangeSize(Size::Large)))
-            .menu("Size Medium", Box::new(ChangeSize(Size::Medium)))
-            .menu("Size Small", Box::new(ChangeSize(Size::Small)))
-            .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
+        .separator()
+        .menu("Size Large", Box::new(ChangeSize(Size::Large)))
+        .menu("Size Medium", Box::new(ChangeSize(Size::Medium)))
+        .menu("Size Small", Box::new(ChangeSize(Size::Small)))
+        .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
     }
 
     /// NOTE: Performance metrics
@@ -359,7 +359,7 @@ impl TableDelegate for StockTableDelegate {
                 });
             })
         })
-          .detach();
+        .detach();
     }
 
     fn visible_rows_changed(
@@ -432,9 +432,9 @@ impl TableStory {
         let table = cx.new(|cx| Table::new(delegate, window, cx));
 
         cx.subscribe_in(&table, window, Self::on_table_event)
-          .detach();
+            .detach();
         cx.subscribe_in(&num_stocks_input, window, Self::on_num_stocks_input_change)
-          .detach();
+            .detach();
 
         // Spawn a background to random refresh the list
         cx.spawn(async move |this, cx| {
@@ -459,10 +459,10 @@ impl TableStory {
                     });
                     cx.notify();
                 })
-                    .ok();
+                .ok();
             }
         })
-          .detach();
+        .detach();
 
         Self {
             table,
@@ -676,21 +676,21 @@ impl Render for TableStory {
                                     size == Size::Large,
                                     Box::new(ChangeSize(Size::Large)),
                                 )
-                                    .menu_with_check(
-                                        "Medium",
-                                        size == Size::Medium,
-                                        Box::new(ChangeSize(Size::Medium)),
-                                    )
-                                    .menu_with_check(
-                                        "Small",
-                                        size == Size::Small,
-                                        Box::new(ChangeSize(Size::Small)),
-                                    )
-                                    .menu_with_check(
-                                        "XSmall",
-                                        size == Size::XSmall,
-                                        Box::new(ChangeSize(Size::XSmall)),
-                                    )
+                                .menu_with_check(
+                                    "Medium",
+                                    size == Size::Medium,
+                                    Box::new(ChangeSize(Size::Medium)),
+                                )
+                                .menu_with_check(
+                                    "Small",
+                                    size == Size::Small,
+                                    Box::new(ChangeSize(Size::Small)),
+                                )
+                                .menu_with_check(
+                                    "XSmall",
+                                    size == Size::XSmall,
+                                    Box::new(ChangeSize(Size::XSmall)),
+                                )
                             }),
                     )
                     .child(
