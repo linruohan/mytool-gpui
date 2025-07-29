@@ -2,7 +2,7 @@
 publish = false
 edition = "2024"
 [workspace]
-members = ["crates/my_components", "crates/mytool", "crates/todos"]
+members = ["crates/mytool", "crates/todos"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
@@ -11,7 +11,6 @@ resolver = "2"
 # inner crates
 todos = { path = "crates/todos" }
 mytool = { path = "crates/mytool" }
-my_components = { path = "crates/my_components" }
 # gpui
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 # gpui-component = { git = "https://github.com/longbridge/gpui-component.git" }

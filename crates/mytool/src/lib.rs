@@ -24,9 +24,8 @@ use gpui::{
     WindowOptions,
 };
 pub use todos_view::{
-    todo_database_init, Board,
-    BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
-    ScheduledBoard, TodayBoard,
+    todo_database_init, Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard,
+    PinBoard, ProjectItem, ScheduledBoard, TodayBoard,
 };
 pub use utils::play_ogg_file;
 
@@ -99,9 +98,9 @@ impl AppState {
 }
 
 pub fn create_new_window<F, E>(title: &str, crate_view_fn: F, cx: &mut App)
-                               where
-                                   E: Into<AnyView>,
-                                   F: FnOnce(&mut Window, &mut App) -> E + Send + 'static,
+where
+    E: Into<AnyView>,
+    F: FnOnce(&mut Window, &mut App) -> E + Send + 'static,
 {
     let mut window_size = size(px(1600.0), px(1200.0));
     if let Some(display) = cx.primary_display() {
@@ -146,7 +145,7 @@ pub fn create_new_window<F, E>(title: &str, crate_view_fn: F, cx: &mut App)
 
         Ok::<_, anyhow::Error>(())
     })
-      .detach();
+    .detach();
 }
 
 struct StoryRoot {
@@ -248,7 +247,7 @@ pub fn init(cx: &mut App) {
                     println!("StoryContainer focus in: {}", this.name);
                 },
             )
-              .detach();
+            .detach();
 
             container.name = title.into();
             container.description = description.into();
@@ -320,7 +319,7 @@ impl StorySection {
 }
 
 impl ParentElement for StorySection {
-    fn extend(&mut self, elements: impl IntoIterator<Item=AnyElement>) {
+    fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
         self.children.extend(elements);
     }
 }
@@ -418,8 +417,8 @@ pub trait Mytool: Focusable + Render + Sized {
         let _ = cx;
     }
     fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
-                     where
-                         Self: 'static,
+    where
+        Self: 'static,
     {
         if let Some(mytool) = view.downcast::<Self>().ok() {
             cx.update_entity(&mytool, |mytool, cx| {

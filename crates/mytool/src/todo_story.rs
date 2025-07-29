@@ -4,15 +4,13 @@ use gpui::{prelude::*, *};
 use gpui_component::dock::{Panel, PanelView};
 use gpui_component::{
     button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dropdown::{Dropdown, DropdownState},
     h_flex,
     input::{InputEvent, InputState, TextInput},
     resizable::{h_resizable, resizable_panel, ResizableState},
+    sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex, ActiveTheme as _, ContextModal,
-};
-use my_components::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
-use my_components::sidebar::{
-    Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem,
 };
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::collections::HashMap;
@@ -132,9 +130,8 @@ impl TodoStory {
         });
         let now = chrono::Local::now().naive_local().date();
         let date_picker = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx);
+            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
             picker.set_date(now, window, cx);
-            picker.set_disabled(vec![0, 6], window, cx);
             picker
         });
         let _ = cx.subscribe(&date_picker, |this, _, ev, _| match ev {
@@ -263,11 +260,11 @@ impl Render for TodoStory {
                                                         item.count(),
                                                         item.icon(),
                                                     )
-                                                        .size(gpui::Length::Definite(
-                                                            gpui::DefiniteLength::Fraction(0.5),
-                                                        ))
-                                                        .active(self.active_board == Some(*item))
-                                                        .on_click(cx.listener(item.handler()))
+                                                    .size(gpui::Length::Definite(
+                                                        gpui::DefiniteLength::Fraction(0.5),
+                                                    ))
+                                                    .active(self.active_board == Some(*item))
+                                                    .on_click(cx.listener(item.handler()))
                                                 })
                                                 .collect::<Vec<_>>(),
                                         ),

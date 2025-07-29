@@ -12,7 +12,6 @@ rust-i18n.workspace = true
 fake = { version = "4.3.0", features = ["dummy"] }
 gpui.workspace = true
 gpui-component = { workspace = true }
-my_components = { workspace = true }
 raw-window-handle.workspace = true
 rust-embed.workspace = true
 serde.workspace = true
