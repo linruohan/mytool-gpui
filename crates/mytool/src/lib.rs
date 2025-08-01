@@ -7,6 +7,7 @@ mod date_picker_story;
 mod gallery;
 mod layouts;
 mod list_story;
+mod service;
 mod table_story;
 mod themes;
 mod title_bar;
@@ -14,6 +15,8 @@ mod todo_story;
 mod todos_view; // 任务管理
 mod utils;
 mod welcome_story;
+
+pub use service::get_projects;
 
 pub use assets::Assets;
 pub use gallery::Gallery;
@@ -202,6 +205,7 @@ pub fn init(cx: &mut App) {
 
     gpui_component::init(cx);
     AppState::init(cx);
+    // TodoStory::init(cx);
     // input_story::init(cx);
     // number_input_story::init(cx);
     // textarea_story::init(cx);
@@ -616,10 +620,6 @@ impl Panel for StoryContainer {
             .contains(&self.name)
     }
 
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
-    }
-
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -627,6 +627,10 @@ impl Panel for StoryContainer {
                 on_active(mytool, active, _window, cx);
             }
         }
+    }
+
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     fn popup_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {

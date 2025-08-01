@@ -1,4 +1,4 @@
-use crate::{play_ogg_file, DBState};
+use crate::play_ogg_file;
 use crate::{BoardType, ProjectItem};
 use gpui::{prelude::*, *};
 use gpui_component::dock::{Panel, PanelView};
@@ -12,15 +12,21 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex, ActiveTheme as _, ContextModal,
 };
-use sea_orm::{DatabaseConnection, EntityTrait};
+use sea_orm::EntityTrait;
 use std::collections::HashMap;
 use std::option::Option;
-use std::sync::Arc;
 use todos::entity::ProjectModel;
-use tokio::sync::Mutex;
 
+pub fn init(cx: &mut App) {
+    println!("todos initialize");
+    // let database_future = cx
+    //     .spawn(|cx| async move { todo_database_init().await });
+    //
+    // cx.set_global(TodoState {
+    //     conn: database_future,
+    // });
+}
 pub struct TodoStory {
-    db: Arc<Mutex<DatabaseConnection>>,
     active_index: Option<usize>,
     collapsed: bool,
     focus_handle: gpui::FocusHandle,
@@ -71,7 +77,6 @@ impl TodoStory {
         })];
         let mut active_boards = HashMap::new();
         active_boards.insert(BoardType::Inbox, true);
-        let db = cx.global::<DBState>().conn.clone();
 
         let boards = vec![
             BoardType::Inbox,
@@ -83,7 +88,6 @@ impl TodoStory {
         ];
 
         let mut this = Self {
-            db,
             search_input,
             active_index: Some(0),
             collapsed: false,
@@ -103,10 +107,6 @@ impl TodoStory {
         }
 
         this
-    }
-    async fn load_projects(&mut self) -> Vec<ProjectModel> {
-        let conn = self.db.lock().await;
-        todos::Store::new(conn.clone()).await.projects().await
     }
     fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.is_board_active {
@@ -215,17 +215,7 @@ impl Render for TodoStory {
             .filter(|story| story.label().to_lowercase().contains(&query))
             .cloned()
             .collect();
-        // let db = Arc::clone(&self.db);
-        //
-        // cx.spawn(move |mut _view, mut cx| {
-        //     async move {
-        //         let projects = {
-        //             let conn = db.lock().await;
-        //             todos::Store::new(conn.clone()).await.projects().await
-        //         };
-        //         println!("Loaded projects: {}", projects.len());
-        //     }.boxed_local()
-        // }).detach();
+
         let projects: Vec<_> = self
             .projects
             .iter()

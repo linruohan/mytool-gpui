@@ -1,14 +1,10 @@
-use std::sync::Arc;
-use std::time::Duration;
-
-use fake::Fake;
 use gpui::{
     actions, div, prelude::FluentBuilder as _, px, App, AppContext, Context, Edges, ElementId,
     Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
-    RenderOnce, SharedString, Styled, Task, Timer, Window,
+    RenderOnce, Styled, Task, Window,
 };
 
-use crate::DBState;
+use crate::{get_projects, DBState};
 use gpui_component::{
     checkbox::Checkbox,
     h_flex,
@@ -16,30 +12,21 @@ use gpui_component::{
     list::{List, ListDelegate, ListEvent, ListItem},
     v_flex, ActiveTheme, Selectable,
 };
-use sea_orm::DatabaseConnection;
-use tokio::sync::Mutex;
+use todos::entity::ProjectModel;
 
 actions!(list_story, [SelectedProject]);
-
-#[derive(Clone, Default)]
-struct ProjectMenu {
-    name: SharedString,
-    color: SharedString,
-}
 
 #[derive(IntoElement)]
 struct ProjectListItem {
     base: ListItem,
-    ix: usize,
-    menu: ProjectMenu,
+    project: ProjectModel,
     selected: bool,
 }
 
 impl ProjectListItem {
-    pub fn new(id: impl Into<ElementId>, menu: ProjectMenu, ix: usize, selected: bool) -> Self {
+    pub fn new(id: impl Into<ElementId>, project: ProjectModel, selected: bool) -> Self {
         ProjectListItem {
-            menu,
-            ix,
+            project,
             base: ListItem::new(id),
             selected,
         }
@@ -65,21 +52,11 @@ impl RenderOnce for ProjectListItem {
             cx.theme().foreground
         };
 
-        let bg_color = if self.selected {
-            cx.theme().list_active
-        } else if self.ix.is_multiple_of(2) {
-            cx.theme().list
-        } else {
-            cx.theme().list_even
-        };
-
         self.base
             .px_2()
             .py_1()
             .overflow_x_hidden()
-            .bg(bg_color)
             .border_1()
-            .border_color(bg_color)
             .when(self.selected, |this| {
                 this.border_color(cx.theme().list_active_border)
             })
@@ -96,11 +73,11 @@ impl RenderOnce for ProjectListItem {
                             .max_w(px(500.))
                             .overflow_x_hidden()
                             .flex_nowrap()
-                            .child(Label::new(self.menu.name.clone()).whitespace_nowrap()),
+                            .child(Label::new(self.project.name.clone()).whitespace_nowrap()),
                     )
                     .child(
                         div().text_sm().overflow_x_hidden().child(
-                            Label::new(self.menu.color.clone())
+                            Label::new(self.project.color.unwrap_or_default())
                                 .whitespace_nowrap()
                                 .text_color(text_color.opacity(0.5)),
                         ),
@@ -110,13 +87,12 @@ impl RenderOnce for ProjectListItem {
 }
 
 struct ProjectMenuListDelegate {
-    menus: Vec<ProjectMenu>,
-    matched_menus: Vec<ProjectMenu>,
+    menus: Vec<ProjectModel>,
+    matched_menus: Vec<ProjectModel>,
     selected_index: Option<usize>,
     confirmed_index: Option<usize>,
-    query: String,
     loading: bool,
-    eof: bool,
+    query: String,
 }
 
 impl ListDelegate for ProjectMenuListDelegate {
@@ -150,14 +126,10 @@ impl ListDelegate for ProjectMenuListDelegate {
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(company) = self.matched_menus.get(ix) {
-            return Some(ProjectListItem::new(ix, company.clone(), ix, selected));
+            return Some(ProjectListItem::new(ix, company.clone(), selected));
         }
 
         None
-    }
-
-    fn loading(&self, _: &App) -> bool {
-        self.loading
     }
 
     fn set_selected_index(
@@ -171,38 +143,35 @@ impl ListDelegate for ProjectMenuListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
+        if let Some(selected) = self.selected_index {
+            if let Some(menu) = self.matched_menus.get(selected) {
+                println!("Selected menu: {}", menu.name);
+            }
+        }
         println!("Confirmed with secondary: {}", secondary);
         window.dispatch_action(Box::new(SelectedProject), cx);
-    }
-
-    fn can_load_more(&self, _: &App) -> bool {
-        false
-    }
-
-    fn load_more_threshold(&self) -> usize {
-        10
-    }
-
-    fn load_more(&mut self, window: &mut Window, cx: &mut Context<List<Self>>) {
-        cx.spawn_in(window, async move |view, window| {
-            // Simulate network request, delay 1s to load data.
-            Timer::after(Duration::from_secs(1)).await;
-
-            _ = view.update_in(window, move |view, window, cx| {
-                let query = view.delegate().query.clone();
-                view.delegate_mut()
-                    .menus
-                    .extend((0..2).map(|_| random_company()));
-                _ = view.delegate_mut().perform_search(&query, window, cx);
-                view.delegate_mut().eof = view.delegate().menus.len() >= 15;
-            });
-        })
-        .detach();
     }
 }
 
 impl ProjectMenuListDelegate {
-    fn selected_company(&self) -> Option<ProjectMenu> {
+    fn new() -> Self {
+        Self {
+            menus: vec![],
+            matched_menus: vec![],
+            selected_index: None,
+            confirmed_index: None,
+            query: "".to_string(),
+            loading: false,
+        }
+    }
+    fn update_menus(&mut self, menus: Vec<ProjectModel>) {
+        self.menus = menus;
+        self.matched_menus = self.menus.clone();
+        if !self.matched_menus.is_empty() && self.selected_index.is_none() {
+            self.selected_index = Some(0);
+        }
+    }
+    fn selected_company(&self) -> Option<ProjectModel> {
         let Some(ix) = self.selected_index else {
             return None;
         };
@@ -212,10 +181,9 @@ impl ProjectMenuListDelegate {
 }
 
 pub struct ListStory {
-    db: Arc<Mutex<DatabaseConnection>>,
     focus_handle: FocusHandle,
     menu_list: Entity<List<ProjectMenuListDelegate>>,
-    selected_menu: Option<ProjectMenu>,
+    selected_menu: Option<ProjectModel>,
 }
 
 impl super::Mytool for ListStory {
@@ -238,22 +206,9 @@ impl ListStory {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let companies = (0..10)
-            .map(|_| random_company())
-            .collect::<Vec<ProjectMenu>>();
-
-        let delegate = ProjectMenuListDelegate {
-            matched_menus: companies.clone(),
-            menus: companies,
-            selected_index: Some(0),
-            confirmed_index: None,
-            query: "".to_string(),
-            loading: false,
-            eof: false,
-        };
-
-        let company_list =
-            cx.new(|cx| List::new(delegate, window, cx).paddings(Edges::all(px(8.))));
+        let company_list = cx.new(|cx| {
+            List::new(ProjectMenuListDelegate::new(), window, cx).paddings(Edges::all(px(8.)))
+        });
 
         let _subscriptions = [
             cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
@@ -269,9 +224,18 @@ impl ListStory {
             }),
         ];
 
+        let company_list_clone = company_list.clone();
         let db = cx.global::<DBState>().conn.clone();
+        cx.spawn(async move |_view, cx| {
+            let db = db.lock().await;
+            let projects = get_projects(db.clone()).await;
+            let _ = cx.update_entity(&company_list_clone, |list, cx| {
+                list.delegate_mut().update_menus(projects);
+                cx.notify();
+            });
+        })
+        .detach();
         Self {
-            db,
             focus_handle: cx.focus_handle(),
             menu_list: company_list,
             selected_menu: None,
@@ -283,19 +247,6 @@ impl ListStory {
         if let Some(company) = picker.delegate().selected_company() {
             self.selected_menu = Some(company);
         }
-    }
-}
-
-fn random_company() -> ProjectMenu {
-    let last_done = (0.0..999.0).fake::<f64>();
-    let prev_close = last_done * (-0.1..0.1).fake::<f64>();
-
-    ProjectMenu {
-        name: fake::faker::company::en::CompanyName()
-            .fake::<String>()
-            .into(),
-        color: fake::faker::company::en::Industry().fake::<String>().into(),
-        ..Default::default()
     }
 }
 
