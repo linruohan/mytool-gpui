@@ -1,4 +1,8 @@
-use std::{ops::Range, sync::LazyLock, time::Duration};
+use std::{
+    ops::Range,
+    sync::LazyLock,
+    time::{self, Duration},
+};
 
 use fake::Fake;
 use gpui::{
@@ -200,35 +204,6 @@ impl TableDelegate for StockTableDelegate {
         &self.columns[col_ix]
     }
 
-    fn perform_sort(
-        &mut self,
-        col_ix: usize,
-        sort: ColumnSort,
-        _: &mut Window,
-        _: &mut Context<Table<Self>>,
-    ) {
-        if let Some(col) = self.columns.get_mut(col_ix) {
-            match col.key.as_ref() {
-                "id" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b.id.cmp(&a.id),
-                    _ => a.id.cmp(&b.id),
-                }),
-                "symbol" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b.counter.symbol.cmp(&a.counter.symbol),
-                    _ => a.id.cmp(&b.id),
-                }),
-                "change" | "change_percent" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b
-                        .change
-                        .partial_cmp(&a.change)
-                        .unwrap_or(std::cmp::Ordering::Equal),
-                    _ => a.id.cmp(&b.id),
-                }),
-                _ => {}
-            }
-        }
-    }
-
     fn render_th(
         &self,
         col_ix: usize,
@@ -247,22 +222,6 @@ impl TableDelegate for StockTableDelegate {
             })
     }
 
-    fn render_tr(
-        &self,
-        row_ix: usize,
-        _: &mut Window,
-        cx: &mut Context<Table<Self>>,
-    ) -> gpui::Stateful<gpui::Div> {
-        div()
-            .id(row_ix)
-            .on_click(cx.listener(|_, ev: &ClickEvent, _, _| {
-                println!(
-                    "You have clicked row with secondary: {}",
-                    ev.modifiers().secondary()
-                )
-            }))
-    }
-
     fn context_menu(
         &self,
         row_ix: usize,
@@ -279,6 +238,22 @@ impl TableDelegate for StockTableDelegate {
         .menu("Size Medium", Box::new(ChangeSize(Size::Medium)))
         .menu("Size Small", Box::new(ChangeSize(Size::Small)))
         .menu("Size XSmall", Box::new(ChangeSize(Size::XSmall)))
+    }
+
+    fn render_tr(
+        &self,
+        row_ix: usize,
+        _: &mut Window,
+        cx: &mut Context<Table<Self>>,
+    ) -> gpui::Stateful<gpui::Div> {
+        div()
+            .id(row_ix)
+            .on_click(cx.listener(|_, ev: &ClickEvent, _, _| {
+                println!(
+                    "You have clicked row with secondary: {}",
+                    ev.modifiers().secondary()
+                )
+            }))
     }
 
     /// NOTE: Performance metrics
@@ -331,13 +306,41 @@ impl TableDelegate for StockTableDelegate {
         self.columns.insert(to_ix, col);
     }
 
+    fn perform_sort(
+        &mut self,
+        col_ix: usize,
+        sort: ColumnSort,
+        _: &mut Window,
+        _: &mut Context<Table<Self>>,
+    ) {
+        if let Some(col) = self.columns.get_mut(col_ix) {
+            match col.key.as_ref() {
+                "id" => self.stocks.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b.id.cmp(&a.id),
+                    _ => a.id.cmp(&b.id),
+                }),
+                "symbol" => self.stocks.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b.counter.symbol.cmp(&a.counter.symbol),
+                    _ => a.id.cmp(&b.id),
+                }),
+                "change" | "change_percent" => self.stocks.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b
+                        .change
+                        .partial_cmp(&a.change)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                    _ => a.id.cmp(&b.id),
+                }),
+                _ => {}
+            }
+        }
+    }
+
     fn loading(&self, _: &App) -> bool {
         self.full_loading
     }
 
-    fn can_load_more(&self, _: &App) -> bool {
-        // return !self.loading && !self.eof;
-        false
+    fn is_eof(&self, _: &App) -> bool {
+        return !self.loading && !self.eof;
     }
 
     fn load_more_threshold(&self) -> usize {
@@ -398,17 +401,17 @@ impl super::Mytool for TableStory {
         "A complex data table with selection, sorting, column moving, and loading more."
     }
 
-    fn closable() -> bool {
-        false
-    }
-
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
         Self::view(window, cx)
+    }
+
+    fn closable() -> bool {
+        false
     }
 }
 
 impl Focusable for TableStory {
-    fn focus_handle(&self, cx: &App) -> gpui::FocusHandle {
+    fn focus_handle(&self, cx: &gpui::App) -> gpui::FocusHandle {
         self.table.focus_handle(cx)
     }
 }
@@ -439,7 +442,7 @@ impl TableStory {
         // Spawn a background to random refresh the list
         cx.spawn(async move |this, cx| {
             loop {
-                Timer::after(Duration::from_millis(33)).await;
+                Timer::after(time::Duration::from_millis(33)).await;
 
                 this.update(cx, |this, cx| {
                     if !this.refresh_data {
@@ -451,7 +454,7 @@ impl TableStory {
                             |(i, stock)| {
                                 let n = (3..10).fake::<usize>();
                                 // update 30% of the stocks
-                                if i.is_multiple_of(n) {
+                                if i % n == 0 {
                                     stock.random_update();
                                 }
                             },
@@ -714,7 +717,26 @@ impl Render for TableStory {
                                     table.scroll_to_row(table.delegate().rows_count(cx) - 1, cx);
                                 })
                             })),
-                    ),
+                    ), // .child(
+                       //     Button::new("scroll-first-col")
+                       //         .child("Scroll to First Column")
+                       //         .small()
+                       //         .on_click(cx.listener(|this, _, window, cx| {
+                       //             this.table.update(cx, |table, cx| {
+                       //                 table.scroll_to_col(0, cx);
+                       //             })
+                       //         })),
+                       // )
+                       // .child(
+                       //     Button::new("scroll-last-col")
+                       //         .child("Scroll to Last Column")
+                       //         .small()
+                       //         .on_click(cx.listener(|this, _, window, cx| {
+                       //             this.table.update(cx, |table, cx| {
+                       //                 table.scroll_to_col(table.delegate().columns_count(cx), cx);
+                       //             })
+                       //         })),
+                       // ),
             )
             .child(
                 h_flex().items_center().gap_2().child(
