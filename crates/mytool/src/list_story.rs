@@ -78,24 +78,8 @@ impl RenderOnce for ProjectListItem {
                     .justify_between()
                     .gap_2()
                     .text_color(text_color)
-                    .child(
-                        h_flex().gap_2().child(
-                            v_flex()
-                                .gap_1()
-                                .max_w(px(500.))
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(Label::new(self.project.name.clone()).whitespace_nowrap()),
-                        ),
-                    )
-                    .child(
-                        h_flex().gap_2().items_center().justify_end().child(
-                            div()
-                                .w(px(65.))
-                                .text_color(text_color)
-                                .child(self.project.color.clone().unwrap_or_default()),
-                        ),
-                    ),
+                    .child(Label::new(self.project.id.clone()).whitespace_nowrap())
+                    .child(Label::new(self.project.name.clone()).whitespace_nowrap()),
             )
     }
 }
@@ -125,9 +109,8 @@ impl ProjectListDelegate {
     fn update_menus(&mut self, menus: Vec<Rc<ProjectModel>>) {
         self._menus = menus;
         self.matched_menus = vec![self._menus.clone()];
-        println!("update:menus:{:?}", self._menus);
         if !self.matched_menus.is_empty() && self.selected_index.is_none() {
-            self.selected_index = Some(IndexPath::new(0));
+            self.selected_index = Some(IndexPath::new(1));
         }
     }
     fn prepare(&mut self, query: impl Into<SharedString>) {
@@ -144,7 +127,6 @@ impl ProjectListDelegate {
             .cloned()
             .collect();
         self.matched_menus = vec![companies];
-        println!("prepare: matched_menus:{:?}", self.matched_menus);
     }
 
     fn selected_company(&self) -> Option<Rc<ProjectModel>> {
@@ -166,10 +148,6 @@ impl ListDelegate for ProjectListDelegate {
         self.industries.len()
     }
 
-    fn items_count(&self, section: usize, _: &App) -> usize {
-        self.matched_menus[section].len()
-    }
-
     fn perform_search(
         &mut self,
         query: &str,
@@ -180,19 +158,8 @@ impl ListDelegate for ProjectListDelegate {
         Task::ready(())
     }
 
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
-        window.dispatch_action(Box::new(SelectedProject), cx);
-    }
-
-    fn set_selected_index(
-        &mut self,
-        ix: Option<IndexPath>,
-        _: &mut Window,
-        cx: &mut Context<List<Self>>,
-    ) {
-        self.selected_index = ix;
-        cx.notify();
+    fn items_count(&self, section: usize, _: &App) -> usize {
+        self.matched_menus[section].len()
     }
 
     fn render_item(
@@ -206,6 +173,21 @@ impl ListDelegate for ProjectListDelegate {
             return Some(ProjectListItem::new(ix, company.clone(), ix, selected));
         }
         None
+    }
+
+    fn set_selected_index(
+        &mut self,
+        ix: Option<IndexPath>,
+        _: &mut Window,
+        cx: &mut Context<List<Self>>,
+    ) {
+        self.selected_index = ix;
+        cx.notify();
+    }
+
+    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
+        println!("Confirmed with secondary: {}", secondary);
+        window.dispatch_action(Box::new(SelectedProject), cx);
     }
 }
 
@@ -259,8 +241,9 @@ impl ListStory {
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
             let projects = get_projects(db.clone()).await;
-            println!("get projects:{}", projects.len());
-            let rc_projects = projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+            let rc_projects: Vec<Rc<ProjectModel>> =
+                projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+            println!("get rc_projects:{}", rc_projects.len());
             let _ = cx.update_entity(&company_list_clone, |list, cx| {
                 list.delegate_mut().update_menus(rc_projects);
                 cx.notify();
