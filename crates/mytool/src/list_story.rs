@@ -125,6 +125,7 @@ impl ProjectListDelegate {
     fn update_menus(&mut self, menus: Vec<Rc<ProjectModel>>) {
         self._menus = menus;
         self.matched_menus = vec![self._menus.clone()];
+        println!("update:menus:{:?}", self._menus);
         if !self.matched_menus.is_empty() && self.selected_index.is_none() {
             self.selected_index = Some(IndexPath::new(0));
         }
@@ -142,9 +143,8 @@ impl ProjectListDelegate {
             })
             .cloned()
             .collect();
-        for company in companies.into_iter() {
-            self.matched_menus.push(vec![company]);
-        }
+        self.matched_menus = vec![companies];
+        println!("prepare: matched_menus:{:?}", self.matched_menus);
     }
 
     fn selected_company(&self) -> Option<Rc<ProjectModel>> {
@@ -205,7 +205,6 @@ impl ListDelegate for ProjectListDelegate {
         if let Some(company) = self.matched_menus[ix.section].get(ix.row) {
             return Some(ProjectListItem::new(ix, company.clone(), ix, selected));
         }
-
         None
     }
 }
@@ -260,6 +259,7 @@ impl ListStory {
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
             let projects = get_projects(db.clone()).await;
+            println!("get projects:{}", projects.len());
             let rc_projects = projects.iter().map(|pro| Rc::new(pro.clone())).collect();
             let _ = cx.update_entity(&company_list_clone, |list, cx| {
                 list.delegate_mut().update_menus(rc_projects);
