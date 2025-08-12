@@ -115,7 +115,6 @@ impl RenderOnce for MenuListItem {
 }
 
 struct MenuListDelegate {
-    industries: Vec<SharedString>,
     _menus: Vec<Rc<ProjectModel>>,
     matched_menus: Vec<Vec<Rc<ProjectModel>>>,
     selected_index: Option<IndexPath>,
@@ -126,7 +125,6 @@ struct MenuListDelegate {
 impl MenuListDelegate {
     fn new() -> Self {
         Self {
-            industries: vec![],
             _menus: vec![],
             matched_menus: vec![],
             selected_index: None,
@@ -171,11 +169,6 @@ impl MenuListDelegate {
 
 impl ListDelegate for MenuListDelegate {
     type Item = MenuListItem;
-
-    fn sections_count(&self, _: &App) -> usize {
-        self.industries.len()
-    }
-
     fn items_count(&self, section: usize, _: &App) -> usize {
         self.matched_menus[section].len()
     }
