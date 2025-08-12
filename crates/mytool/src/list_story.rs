@@ -1,19 +1,16 @@
-use std::{rc::Rc, time::Duration};
+use std::rc::Rc;
 
-use fake::Fake;
 use gpui::{
     actions, div, prelude::FluentBuilder as _, px, App, AppContext, Context, Edges, ElementId,
     Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
-    RenderOnce, ScrollStrategy, SharedString, Styled, Subscription, Task, Timer, Window,
+    RenderOnce, ScrollStrategy, SharedString, Styled, Subscription, Task, Window,
 };
 
 use gpui_component::{
     button::Button,
-    checkbox::Checkbox,
     h_flex,
-    label::Label,
     list::{List, ListDelegate, ListEvent, ListItem},
-    v_flex, ActiveTheme, Icon, IconName, IndexPath, Selectable, Sizable,
+    v_flex, ActiveTheme, IndexPath, Selectable, Sizable,
 };
 use todos::entity::ProjectModel;
 
@@ -65,7 +62,7 @@ impl RenderOnce for MenuListItem {
         };
         let bg_color = if self.selected {
             cx.theme().list_active
-        } else if self.ix.row % 2 == 0 {
+        } else if self.ix.row.is_multiple_of(2) {
             cx.theme().list
         } else {
             cx.theme().list_even
