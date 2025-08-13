@@ -363,14 +363,7 @@ impl Render for ListStory {
                             .small()
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.menu_list.update(cx, |list, cx| {
-                                    if let Some(selected) = list.selected_index() {
-                                        list.scroll_to_item(
-                                            selected,
-                                            ScrollStrategy::Top,
-                                            window,
-                                            cx,
-                                        );
-                                    }
+                                    list.scroll_to_selected_item(window, cx);
                                 })
                             })),
                     ),
