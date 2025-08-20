@@ -261,10 +261,12 @@ impl ListStory {
             let rc_projects: Vec<Rc<ProjectModel>> =
                 projects.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("get rc_projects:{}", rc_projects.len());
-            let _ = cx.update_entity(&company_list_clone, |list, cx| {
-                list.delegate_mut().update_menus(rc_projects);
-                cx.notify();
-            });
+            let _ = cx
+                .update_entity(&company_list_clone, |list, cx| {
+                    list.delegate_mut().update_menus(rc_projects);
+                    cx.notify();
+                })
+                .ok();
         })
         .detach();
         Self {
@@ -318,14 +320,25 @@ impl Render for ListStory {
                             })),
                     )
                     .child(
-                        Button::new("scroll-center")
+                        Button::new("scroll-selected")
                             .outline()
-                            .child("Scroll to section 2")
+                            .child("Scroll to selected")
+                            .small()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.menu_list.update(cx, |list, cx| {
+                                    list.scroll_to_selected_item(window, cx);
+                                })
+                            })),
+                    )
+                    .child(
+                        Button::new("scroll-to-item")
+                            .outline()
+                            .child("Scroll to (5, 1)")
                             .small()
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.menu_list.update(cx, |list, cx| {
                                     list.scroll_to_item(
-                                        IndexPath::default().section(1).row(0),
+                                        IndexPath::new(1).section(5),
                                         ScrollStrategy::Center,
                                         window,
                                         cx,
