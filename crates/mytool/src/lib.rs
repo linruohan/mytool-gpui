@@ -205,6 +205,7 @@ pub fn init(cx: &mut App) {
 
     gpui_component::init(cx);
     AppState::init(cx);
+    themes::init(cx);
     // TodoStory::init(cx);
     // input_story::init(cx);
     // number_input_story::init(cx);
