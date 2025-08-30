@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use gpui::{App, AssetSource, Result, SharedString};
+use gpui::{App, AssetSource, Result};
 use rust_embed::RustEmbed;
 use std::{borrow::Cow, path::PathBuf};
 
