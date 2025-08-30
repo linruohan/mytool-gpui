@@ -1,7 +1,7 @@
 use anyhow::anyhow;
-
 use gpui::{App, AssetSource, Result, SharedString};
 use rust_embed::RustEmbed;
+use std::{borrow::Cow, path::PathBuf};
 
 #[derive(RustEmbed)]
 #[folder = "../../assets"]
@@ -12,13 +12,25 @@ use rust_embed::RustEmbed;
 pub struct Assets;
 
 impl AssetSource for Assets {
-    fn load(&self, path: &str) -> Result<Option<std::borrow::Cow<'static, [u8]>>> {
+    fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
+        if path.is_empty() {
+            return Ok(None);
+        }
+
         Self::get(path)
             .map(|f| Some(f.data))
+            .or_else(|| {
+                let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+                let path = manifest_dir.join(path);
+
+                std::fs::read(path)
+                    .map(|data| Some(std::borrow::Cow::Owned(data)))
+                    .ok()
+            })
             .ok_or_else(|| anyhow!("could not find asset at path \"{}\"", path))
     }
 
-    fn list(&self, path: &str) -> Result<Vec<SharedString>> {
+    fn list(&self, path: &str) -> gpui::Result<Vec<gpui::SharedString>> {
         Ok(Self::iter()
             .filter_map(|p| {
                 if p.starts_with(path) {
