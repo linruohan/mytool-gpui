@@ -8,7 +8,7 @@ version = "0.1.0"
 anyhow.workspace = true
 chrono.workspace = true
 rust-i18n.workspace = true
-# fake 伪造数据生成器 
+# fake 伪造数据生成器
 fake = { version = "4.3.0", features = ["dummy"] }
 gpui.workspace = true
 gpui-component = { workspace = true }
@@ -22,10 +22,10 @@ whoami.workspace = true
 rodio.workspace = true
 todos.workspace = true
 rand.workspace = true
-wasm-bindgen = "0.2.100"
 base64 = "0.22.1"
-pbkdf2 = "0.12.2"
+pbkdf2 = { version = "0.12.2", features = ["simple"] }
 aes-gcm = "0.10.3"
+password-hash = "0.5.0"
 sea-orm = { version = "1.1.12", features = [
     "with-chrono",
     "with-time",

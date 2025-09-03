@@ -3,6 +3,7 @@
 mod assets;
 mod calendar_story;
 mod color_picker_story;
+mod crypto; //加解密
 mod date_picker_story;
 mod gallery;
 mod layouts;
@@ -81,13 +82,12 @@ actions!(mytool, [TestAction, Tab, TabPrev]);
 
 pub struct AppState {
     pub invisible_panels: Entity<Vec<SharedString>>,
-    pub theme_name: Option<SharedString>,
 }
 impl AppState {
     fn init(cx: &mut App) {
+        rust_i18n::set_locale("zh-CN");
         let state = Self {
             invisible_panels: cx.new(|_| Vec::new()),
-            theme_name: None,
         };
         cx.set_global::<AppState>(state);
     }
