@@ -1,7 +1,6 @@
 use crate::play_ogg_file;
 use crate::{BoardType, ProjectItem};
 use gpui::{prelude::*, *};
-use gpui_component::dock::{Panel, PanelView};
 use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
@@ -12,12 +11,11 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex, ActiveTheme as _, ContextModal,
 };
-use sea_orm::EntityTrait;
 use std::collections::HashMap;
 use std::option::Option;
 use todos::entity::ProjectModel;
 
-pub fn init(cx: &mut App) {
+pub fn init(_cx: &mut App) {
     println!("todos initialize");
     // let database_future = cx
     //     .spawn(|cx| async move { todo_database_init().await });
@@ -242,7 +240,7 @@ impl Render for TodoStory {
                                             boards
                                                 .iter()
                                                 .enumerate()
-                                                .map(|(ix, item)| {
+                                                .map(|(_ix, item)| {
                                                     SidebarBoardItem::new(
                                                         item.label(),
                                                         item.color(),

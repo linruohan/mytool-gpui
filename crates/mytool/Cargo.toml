@@ -8,8 +8,6 @@ version = "0.1.0"
 anyhow.workspace = true
 chrono.workspace = true
 rust-i18n.workspace = true
-# fake 伪造数据生成器
-fake = { version = "4.3.0", features = ["dummy"] }
 gpui.workspace = true
 gpui-component = { workspace = true }
 raw-window-handle.workspace = true
@@ -21,7 +19,6 @@ tracing-subscriber.workspace = true
 whoami.workspace = true
 rodio.workspace = true
 todos.workspace = true
-rand.workspace = true
 base64 = "0.22.1"
 pbkdf2 = { version = "0.12.2", features = ["simple"] }
 aes-gcm = "0.10.3"

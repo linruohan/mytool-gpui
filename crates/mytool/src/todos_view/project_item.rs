@@ -8,8 +8,8 @@ pub struct ProjectItem {
 }
 
 impl ProjectItem {
-    pub fn view(name: SharedString, window: &mut Window, cx: &mut App) -> Entity<Self> {
-        cx.new(|cx| Self::new(name))
+    pub fn view(name: SharedString, _window: &mut Window, cx: &mut App) -> Entity<Self> {
+        cx.new(|_cx| Self::new(name))
     }
 
     pub(crate) fn new(name: SharedString) -> Self {

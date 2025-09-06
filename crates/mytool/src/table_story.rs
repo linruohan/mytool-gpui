@@ -1,141 +1,96 @@
-use std::{
-    ops::Range,
-    sync::LazyLock,
-    time::{self, Duration},
-};
+use std::{ops::Range, rc::Rc};
 
-use fake::Fake;
+use crate::{get_projects, DBState};
 use gpui::{
     div, prelude::FluentBuilder as _, Action, AnyElement, App, AppContext, ClickEvent, Context,
     Entity, Focusable, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, TextAlign, Timer, Window,
+    StatefulInteractiveElement, Styled, TextAlign, Window,
 };
 use gpui_component::{
     button::Button,
-    checkbox::Checkbox,
     h_flex,
     indicator::Indicator,
     input::{InputEvent, InputState, TextInput},
     label::Label,
     popup_menu::{PopupMenu, PopupMenuExt},
     table::{Column, ColumnFixed, ColumnSort, Table, TableDelegate, TableEvent},
-    v_flex, ActiveTheme as _, Selectable, Sizable as _, Size, StyleSized as _, StyledExt,
+    v_flex, ActiveTheme as _, Sizable as _, Size, StyleSized as _, StyledExt,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use todos::entity::ProjectModel;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
-#[action(namespace = table_story, no_json)]
+#[action(namespace = table_project, no_json)]
 struct ChangeSize(Size);
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
-#[action(namespace = table_story, no_json)]
+#[action(namespace = table_project, no_json)]
 struct OpenDetail(usize);
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct Counter {
-    symbol: SharedString,
-    market: SharedString,
-    name: SharedString,
-}
-
-static ALL_COUNTERS: LazyLock<Vec<Counter>> =
-    LazyLock::new(|| serde_json::from_str(include_str!("./fixtures/counters.json")).unwrap());
-
-impl Counter {
-    fn random() -> Self {
-        let len = ALL_COUNTERS.len();
-        let ix = rand::random::<usize>() % len;
-        ALL_COUNTERS[ix].clone()
-    }
-
-    fn symbol_code(&self) -> SharedString {
-        format!("{}.{}", self.symbol, self.market).into()
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-struct Stock {
-    id: usize,
-    counter: Counter,
-    price: f64,
-    change: f64,
-    change_percent: f64,
-}
-
-impl Stock {
-    fn random_update(&mut self) {
-        self.price = (-300.0..999.999).fake::<f64>();
-        self.change = (-0.1..5.0).fake::<f64>();
-        self.change_percent = (-0.1..0.1).fake::<f64>();
-    }
-}
-
-fn random_stocks(size: usize) -> Vec<Stock> {
-    (0..size)
-        .map(|id| Stock {
-            id,
-            counter: Counter::random(),
-            change: (-100.0..100.0).fake(),
-            change_percent: (-0.1..0.1).fake(),
-            ..Default::default()
-        })
-        .collect()
-}
-
 struct StockTableDelegate {
-    stocks: Vec<Stock>,
+    _projects: Vec<Rc<ProjectModel>>,
+    matched_projects: Vec<Rc<ProjectModel>>,
+    query: SharedString, //搜索project
     columns: Vec<Column>,
     size: Size,
     loading: bool,
-    full_loading: bool,
     eof: bool,
     visible_rows: Range<usize>,
     visible_cols: Range<usize>,
 }
 
 impl StockTableDelegate {
-    fn new(size: usize) -> Self {
+    fn new() -> Self {
         Self {
             size: Size::default(),
-            stocks: random_stocks(size),
+            _projects: Vec::new(),
+            matched_projects: Vec::new(),
+            query: "".into(),
             columns: vec![
                 Column::new("id", "ID")
                     .width(60.)
                     .fixed(ColumnFixed::Left)
+                    .sortable()
                     .resizable(false),
-                Column::new("market", "Market")
+                Column::new("name", "名字")
                     .width(60.)
                     .fixed(ColumnFixed::Left)
-                    .resizable(false),
-                Column::new("name", "Name")
-                    .width(180.)
-                    .fixed(ColumnFixed::Left),
-                Column::new("symbol", "Symbol")
-                    .width(100.)
-                    .fixed(ColumnFixed::Left)
-                    .sortable(),
-                Column::new("price", "Price").sortable().text_right().p_0(),
-                Column::new("change", "Chg").sortable().text_right().p_0(),
-                Column::new("change_percent", "Chg%")
+                    .resizable(false)
                     .sortable()
                     .text_right()
                     .p_0(),
+                Column::new("color", "颜色")
+                    .width(60.)
+                    .sortable()
+                    .fixed(ColumnFixed::Left),
+                Column::new("emoji", "Chg").text_right().p_0(),
+                Column::new("description", "描述").text_right().p_0(),
             ],
             loading: false,
-            full_loading: false,
             eof: false,
             visible_cols: Range::default(),
             visible_rows: Range::default(),
         }
     }
-
-    fn update_stocks(&mut self, size: usize) {
-        self.stocks = random_stocks(size);
-        self.eof = size <= 50;
-        self.loading = false;
-        self.full_loading = false;
+    fn on_search(&mut self, query: impl Into<SharedString>) {
+        self.query = query.into();
+        let companies: Vec<Rc<ProjectModel>> = self
+            ._projects
+            .iter()
+            .filter(|menu| {
+                menu.name
+                    .to_lowercase()
+                    .contains(&self.query.to_lowercase())
+            })
+            .cloned()
+            .collect();
+        self.matched_projects = companies;
     }
-
+    fn update_projects(&mut self, menus: Vec<Rc<ProjectModel>>) {
+        self._projects = menus;
+        self.matched_projects = self._projects.clone();
+    }
+    #[allow(unused)]
     fn render_percent(&self, col: &Column, val: f64, cx: &mut Context<Table<Self>>) -> AnyElement {
         let right_num = ((val - val.floor()) * 1000.).floor() as i32;
 
@@ -159,7 +114,7 @@ impl StockTableDelegate {
             .child(format!("{:.2}%", val * 100.))
             .into_any_element()
     }
-
+    #[allow(unused)]
     fn render_value_cell(
         &self,
         col: &Column,
@@ -197,7 +152,7 @@ impl TableDelegate for StockTableDelegate {
     }
 
     fn rows_count(&self, _: &App) -> usize {
-        self.stocks.len()
+        self.matched_projects.len()
     }
 
     fn column(&self, col_ix: usize, _cx: &App) -> &Column {
@@ -256,14 +211,7 @@ impl TableDelegate for StockTableDelegate {
             }))
     }
 
-    /// NOTE: Performance metrics
-    ///
-    /// last render 561 cells total: 232.745µs, avg: 414ns
-    /// frame duration: 8.825083ms
-    ///
-    /// This is means render the full table cells takes 232.745µs. Then 232.745µs / 8.82ms = 2.6% of the frame duration.
-    ///
-    /// If we improve the td rendering, we can reduce the time to render the full table cells.
+    /// 渲染td，真实的字渲染
     fn render_td(
         &self,
         row_ix: usize,
@@ -271,26 +219,42 @@ impl TableDelegate for StockTableDelegate {
         _: &mut Window,
         cx: &mut Context<Table<Self>>,
     ) -> impl IntoElement {
-        let stock = self.stocks.get(row_ix).unwrap();
+        let project = self.matched_projects.get(row_ix).unwrap();
         let col = self.columns.get(col_ix).unwrap();
 
         match col.key.as_ref() {
-            "id" => stock.id.to_string().into_any_element(),
-            "market" => div()
+            "id" => project.id.clone().into_any_element(),
+            // 渲染带颜色
+            "name" => div()
                 .map(|this| {
-                    if stock.counter.market == "US" {
+                    if project.name.contains("UVP") {
                         this.text_color(cx.theme().blue)
                     } else {
                         this.text_color(cx.theme().magenta)
                     }
                 })
-                .child(stock.counter.market.clone())
+                .child(project.name.clone())
                 .into_any_element(),
-            "symbol" => stock.counter.symbol_code().into_any_element(),
-            "name" => stock.counter.name.clone().into_any_element(),
-            "price" => self.render_value_cell(&col, stock.price, cx),
-            "change" => self.render_value_cell(&col, stock.change, cx),
-            "change_percent" => self.render_percent(&col, stock.change_percent, cx),
+            "color" => project
+                .color
+                .clone()
+                .unwrap_or_default()
+                .clone()
+                .into_any_element(),
+            "emoji" => project
+                .emoji
+                .clone()
+                .unwrap_or_default()
+                .clone()
+                .into_any_element(),
+            "description" => project
+                .description
+                .clone()
+                .unwrap_or_default()
+                .clone()
+                .into_any_element(),
+            // "price" => self.render_value_cell(&col, project.price, cx),
+            // "change_percent" => self.render_percent(&col, project.change_percent, cx),
             _ => "--".to_string().into_any_element(),
         }
     }
@@ -315,54 +279,31 @@ impl TableDelegate for StockTableDelegate {
     ) {
         if let Some(col) = self.columns.get_mut(col_ix) {
             match col.key.as_ref() {
-                "id" => self.stocks.sort_by(|a, b| match sort {
+                "id" => self.matched_projects.sort_by(|a, b| match sort {
                     ColumnSort::Descending => b.id.cmp(&a.id),
                     _ => a.id.cmp(&b.id),
                 }),
-                "symbol" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b.counter.symbol.cmp(&a.counter.symbol),
+                "name" => self.matched_projects.sort_by(|a, b| match sort {
+                    ColumnSort::Descending => b.name.cmp(&a.name),
                     _ => a.id.cmp(&b.id),
                 }),
-                "change" | "change_percent" => self.stocks.sort_by(|a, b| match sort {
-                    ColumnSort::Descending => b
-                        .change
-                        .partial_cmp(&a.change)
-                        .unwrap_or(std::cmp::Ordering::Equal),
-                    _ => a.id.cmp(&b.id),
+                "color" => self.matched_projects.sort_by(|a, b| {
+                    let cmp = match (a.color.as_ref(), b.color.as_ref()) {
+                        (Some(a_color), Some(b_color)) => a_color.partial_cmp(b_color),
+                        (None, Some(_)) => Some(std::cmp::Ordering::Greater),
+                        (Some(_), None) => Some(std::cmp::Ordering::Less),
+                        (None, None) => Some(std::cmp::Ordering::Equal),
+                    };
+
+                    match (sort, cmp) {
+                        (ColumnSort::Descending, Some(ordering)) => ordering.reverse(),
+                        (_, Some(ordering)) => ordering,
+                        (_, None) => std::cmp::Ordering::Equal, // Handle partial_cmp returning None
+                    }
                 }),
                 _ => {}
             }
         }
-    }
-
-    fn loading(&self, _: &App) -> bool {
-        self.full_loading
-    }
-
-    fn is_eof(&self, _: &App) -> bool {
-        return !self.loading && !self.eof;
-    }
-
-    fn load_more_threshold(&self) -> usize {
-        10
-    }
-
-    fn load_more(&mut self, _: &mut Window, cx: &mut Context<Table<Self>>) {
-        self.loading = true;
-
-        cx.spawn(async move |view, cx| {
-            // Simulate network request, delay 1s to load data.
-            Timer::after(Duration::from_secs(1)).await;
-
-            cx.update(|cx| {
-                let _ = view.update(cx, |view, _| {
-                    view.delegate_mut().stocks.extend(random_stocks(2));
-                    view.delegate_mut().loading = false;
-                    view.delegate_mut().eof = view.delegate().stocks.len() >= 16;
-                });
-            })
-        })
-        .detach();
     }
 
     fn visible_rows_changed(
@@ -387,14 +328,12 @@ impl TableDelegate for StockTableDelegate {
 pub struct TableStory {
     table: Entity<Table<StockTableDelegate>>,
     num_stocks_input: Entity<InputState>,
-    stripe: bool,
-    refresh_data: bool,
     size: Size,
 }
 
 impl super::Mytool for TableStory {
     fn title() -> &'static str {
-        "Table"
+        "Project table"
     }
 
     fn description() -> &'static str {
@@ -425,59 +364,44 @@ impl TableStory {
         // Create the number input field with validation for positive integers
         let num_stocks_input = cx.new(|cx| {
             let mut input = InputState::new(window, cx)
-                .placeholder("Enter number of Stocks to display")
-                .validate(|s, _| s.parse::<usize>().is_ok());
-            input.set_value("15", window, cx);
+                .placeholder("search")
+                .validate(|s, _| s.parse::<String>().is_ok());
+            input.set_value("", window, cx);
             input
         });
 
-        let delegate = StockTableDelegate::new(15);
-        let table = cx.new(|cx| Table::new(delegate, window, cx));
+        let table = cx.new(|cx| Table::new(StockTableDelegate::new(), window, cx));
 
         cx.subscribe_in(&table, window, Self::on_table_event)
             .detach();
-        cx.subscribe_in(&num_stocks_input, window, Self::on_num_stocks_input_change)
+        cx.subscribe_in(&num_stocks_input, window, Self::on_search_input_change)
             .detach();
 
-        // Spawn a background to random refresh the list
-        cx.spawn(async move |this, cx| {
-            loop {
-                Timer::after(time::Duration::from_millis(33)).await;
-
-                this.update(cx, |this, cx| {
-                    if !this.refresh_data {
-                        return;
-                    }
-
-                    this.table.update(cx, |table, _| {
-                        table.delegate_mut().stocks.iter_mut().enumerate().for_each(
-                            |(i, stock)| {
-                                let n = (3..10).fake::<usize>();
-                                // update 30% of the stocks
-                                if i % n == 0 {
-                                    stock.random_update();
-                                }
-                            },
-                        );
-                    });
+        let table_clone = table.clone();
+        let db = cx.global::<DBState>().conn.clone();
+        cx.spawn(async move |_view, cx| {
+            let db = db.lock().await;
+            let projects = get_projects(db.clone()).await;
+            let rc_projects: Vec<Rc<ProjectModel>> =
+                projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+            println!("get rc_projects:{}", rc_projects.len());
+            let _ = cx
+                .update_entity(&table_clone, |list, cx| {
+                    list.delegate_mut().update_projects(rc_projects);
                     cx.notify();
                 })
                 .ok();
-            }
         })
         .detach();
-
         Self {
             table,
             num_stocks_input,
-            stripe: false,
-            refresh_data: false,
             size: Size::default(),
         }
     }
 
     // Event handler for changes in the number input field
-    fn on_num_stocks_input_change(
+    fn on_search_input_change(
         &mut self,
         _: &Entity<InputState>,
         event: &InputEvent,
@@ -487,71 +411,15 @@ impl TableStory {
         match event {
             // Update when the user presses Enter or the input loses focus
             InputEvent::PressEnter { .. } | InputEvent::Blur => {
-                let text = self.num_stocks_input.read(cx).value().to_string();
-                if let Ok(total_count) = text.parse::<usize>() {
-                    if total_count == self.table.read(cx).delegate().stocks.len() {
-                        return;
-                    }
-
-                    self.table.update(cx, |table, _| {
-                        table.delegate_mut().update_stocks(total_count);
-                    });
-                    cx.notify();
-                }
+                let text = self.num_stocks_input.read(cx).value().clone();
+                println!("search: {}", text);
+                self.table.update(cx, |table, _| {
+                    table.delegate_mut().on_search(text.clone());
+                });
+                cx.notify();
             }
             _ => {}
         }
-    }
-
-    fn toggle_loop_selection(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.table.update(cx, |table, cx| {
-            table.loop_selection = *checked;
-            cx.notify();
-        });
-    }
-
-    fn toggle_col_resize(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.table.update(cx, |table, cx| {
-            table.col_resizable = *checked;
-            cx.notify();
-        });
-    }
-
-    fn toggle_col_order(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.table.update(cx, |table, cx| {
-            table.col_movable = *checked;
-            cx.notify();
-        });
-    }
-
-    fn toggle_col_sort(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.table.update(cx, |table, cx| {
-            table.sortable = *checked;
-            cx.notify();
-        });
-    }
-
-    fn toggle_col_fixed(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.table.update(cx, |table, cx| {
-            table.col_fixed = *checked;
-            cx.notify();
-        });
-    }
-
-    fn toggle_col_selection(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.table.update(cx, |table, cx| {
-            table.col_selectable = *checked;
-            cx.notify();
-        });
-    }
-
-    fn toggle_stripe(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.stripe = *checked;
-        let stripe = self.stripe;
-        self.table.update(cx, |table, cx| {
-            table.set_stripe(stripe, cx);
-            cx.notify();
-        });
     }
 
     fn on_change_size(&mut self, a: &ChangeSize, _: &mut Window, cx: &mut Context<Self>) {
@@ -560,11 +428,6 @@ impl TableStory {
             table.set_size(a.0, cx);
             table.delegate_mut().size = a.0;
         });
-    }
-
-    fn toggle_refresh_data(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.refresh_data = *checked;
-        cx.notify();
     }
 
     fn on_table_event(
@@ -600,71 +463,6 @@ impl Render for TableStory {
             .size_full()
             .text_sm()
             .gap_4()
-            .child(
-                h_flex()
-                    .items_center()
-                    .gap_3()
-                    .flex_wrap()
-                    .child(
-                        Checkbox::new("loop-selection")
-                            .label("Loop Selection")
-                            .selected(table.loop_selection)
-                            .on_click(cx.listener(Self::toggle_loop_selection)),
-                    )
-                    .child(
-                        Checkbox::new("col-resize")
-                            .label("Column Resize")
-                            .selected(table.col_resizable)
-                            .on_click(cx.listener(Self::toggle_col_resize)),
-                    )
-                    .child(
-                        Checkbox::new("col-order")
-                            .label("Column Order")
-                            .selected(table.col_movable)
-                            .on_click(cx.listener(Self::toggle_col_order)),
-                    )
-                    .child(
-                        Checkbox::new("col-sort")
-                            .label("Sortable")
-                            .selected(table.sortable)
-                            .on_click(cx.listener(Self::toggle_col_sort)),
-                    )
-                    .child(
-                        Checkbox::new("col-selection")
-                            .label("Column Selectable")
-                            .selected(table.col_selectable)
-                            .on_click(cx.listener(Self::toggle_col_selection)),
-                    )
-                    .child(
-                        Checkbox::new("fixed")
-                            .label("Column Fixed")
-                            .selected(table.col_fixed)
-                            .on_click(cx.listener(Self::toggle_col_fixed)),
-                    )
-                    .child(
-                        Checkbox::new("stripe")
-                            .label("Stripe")
-                            .selected(self.stripe)
-                            .on_click(cx.listener(Self::toggle_stripe)),
-                    )
-                    .child(
-                        Checkbox::new("loading")
-                            .label("Loading")
-                            .checked(self.table.read(cx).delegate().full_loading)
-                            .on_click(cx.listener(|this, check: &bool, _, cx| {
-                                this.table.update(cx, |this, cx| {
-                                    this.delegate_mut().full_loading = *check;
-                                    cx.notify();
-                                })
-                            })),
-                    )
-                    .child(
-                        Checkbox::new("refresh-data")
-                            .label("Refresh Data")
-                            .selected(self.refresh_data)
-                            .on_click(cx.listener(Self::toggle_refresh_data)),
-                    ),
-            )
             .child(
                 h_flex()
                     .gap_2()
@@ -717,26 +515,7 @@ impl Render for TableStory {
                                     table.scroll_to_row(table.delegate().rows_count(cx) - 1, cx);
                                 })
                             })),
-                    ), // .child(
-                       //     Button::new("scroll-first-col")
-                       //         .child("Scroll to First Column")
-                       //         .small()
-                       //         .on_click(cx.listener(|this, _, window, cx| {
-                       //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(0, cx);
-                       //             })
-                       //         })),
-                       // )
-                       // .child(
-                       //     Button::new("scroll-last-col")
-                       //         .child("Scroll to Last Column")
-                       //         .small()
-                       //         .on_click(cx.listener(|this, _, window, cx| {
-                       //             this.table.update(cx, |table, cx| {
-                       //                 table.scroll_to_col(table.delegate().columns_count(cx), cx);
-                       //             })
-                       //         })),
-                       // ),
+                    ),
             )
             .child(
                 h_flex().items_center().gap_2().child(
