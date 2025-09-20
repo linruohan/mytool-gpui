@@ -24,7 +24,7 @@ impl Gallery {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
-            InputEvent::Change(_) => {
+            InputEvent::Change => {
                 this.active_group_index = Some(0);
                 this.active_index = Some(0);
                 cx.notify()
@@ -105,7 +105,7 @@ impl Render for Gallery {
             .active_index
             .and(active_group)
             .and_then(|group| group.1.get(self.active_index.unwrap()));
-        let (_story_name, _description) =
+        let (story_name, description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())
             } else {
@@ -125,7 +125,7 @@ impl Render for Gallery {
                             .header(
                                 v_flex().w_full().gap_4().child(
                                     div()
-                                        .bg(cx.theme().secondary)
+                                        .bg(cx.theme().sidebar_accent)
                                         .px_1()
                                         .rounded_full()
                                         .flex_1()
