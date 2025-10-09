@@ -4,10 +4,11 @@ use crate::{
 };
 use gpui::{prelude::*, *};
 use gpui_component::{
+    ActiveTheme as _, Icon, IconName, h_flex,
     input::{InputEvent, InputState, TextInput},
-    resizable::{h_resizable, resizable_panel, ResizableState},
+    resizable::{ResizableState, h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
-    v_flex, ActiveTheme as _,
+    v_flex,
 };
 
 pub struct Gallery {

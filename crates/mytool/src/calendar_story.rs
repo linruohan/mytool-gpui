@@ -25,7 +25,7 @@ impl super::Mytool for CalendarStory {
         "A calendar to select a date or date range."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
         Self::view(window, cx)
     }
 }

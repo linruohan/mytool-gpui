@@ -1,11 +1,11 @@
 use aes_gcm::{
-    aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
+    aead::{Aead, KeyInit},
 };
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use password_hash::{
-    rand_core::{OsRng, RngCore},
     Output, PasswordHasher, Salt, SaltString,
+    rand_core::{OsRng, RngCore},
 };
 use pbkdf2::{Params, Pbkdf2};
 use std::str;

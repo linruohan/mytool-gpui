@@ -1,11 +1,11 @@
 use gpui::{
-    prelude::FluentBuilder as _, App, AppContext, Context, Entity, Focusable, Hsla, IntoElement,
-    ParentElement as _, Render, Styled as _, Subscription, Window,
+    App, AppContext, Context, Entity, Focusable, Hsla, IntoElement, ParentElement as _, Render,
+    Styled as _, Subscription, Window, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    blue_500,
+    Colorize, Sizable, blue_500,
     color_picker::{ColorPicker, ColorPickerEvent, ColorPickerState},
-    green_500, red_500, v_flex, yellow_500, Colorize, Sizable,
+    green_500, red_500, v_flex, yellow_500,
 };
 
 use crate::section;

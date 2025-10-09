@@ -1,15 +1,15 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "mytool"
 publish = false
-version = "0.1.0"
+version = "0.2.0"
 
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
 rust-i18n.workspace = true
 gpui.workspace = true
-gpui-component = { workspace = true }
+gpui-component = { workspace = true, features = ["tree-sitter-languages"] }
 raw-window-handle.workspace = true
 rust-embed.workspace = true
 serde.workspace = true
