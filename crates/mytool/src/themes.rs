@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use gpui::{
-    div, px, Action, App, InteractiveElement as _, ParentElement as _, Render, SharedString,
+    Action, App, InteractiveElement as _, ParentElement as _, Render, SharedString, div, px,
 };
 use gpui_component::{
+    ActiveTheme, IconName, Sizable, Theme, ThemeRegistry,
     button::{Button, ButtonVariants},
     popup_menu::PopupMenuExt,
     scroll::ScrollbarShow,
-    ActiveTheme, IconName, Sizable, Theme, ThemeRegistry,
 };
 use serde::{Deserialize, Serialize};
 

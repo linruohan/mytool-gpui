@@ -1,21 +1,22 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, px, AnyElement, App, AppContext, ClickEvent, Context, Corner,
-    Entity, FocusHandle, InteractiveElement as _, IntoElement, MouseButton, ParentElement as _,
-    Render, SharedString, Styled as _, Subscription, Window,
+    AnyElement, App, AppContext, ClickEvent, Context, Corner, Entity, FocusHandle,
+    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Render, SharedString,
+    Styled as _, Subscription, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
+    ActiveTheme as _, ContextModal as _, IconName, PixelsExt, Sizable as _, Theme, ThemeMode,
+    TitleBar,
     badge::Badge,
     button::{Button, ButtonVariants as _},
     locale,
     popup_menu::PopupMenuExt as _,
     scroll::ScrollbarShow,
-    set_locale, ActiveTheme as _, ContextModal as _, IconName, PixelsExt, Sizable as _, Theme,
-    ThemeMode, TitleBar,
+    set_locale,
 };
 
-use crate::{themes::ThemeSwitcher, SelectFont, SelectLocale, SelectRadius, SelectScrollbarShow};
+use crate::{SelectFont, SelectLocale, SelectRadius, SelectScrollbarShow, themes::ThemeSwitcher};
 
 pub struct AppTitleBar {
     title: SharedString,
@@ -71,7 +72,7 @@ impl Render for AppTitleBar {
 
         TitleBar::new()
             // left side
-            .child(div().flex().items_center().child(self.title.clone()))
+            .children(div().flex().items_center().child(self.title.clone()))
             .child(
                 div()
                     .flex()

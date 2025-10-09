@@ -3,7 +3,7 @@ use gpui::{
     Window,
 };
 
-use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
+use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
 
 use super::Board;
 use crate::Mytool;

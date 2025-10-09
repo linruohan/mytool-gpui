@@ -1,15 +1,15 @@
 use crate::play_ogg_file;
 use crate::{BoardType, ProjectItem};
-use gpui::{prelude::*, *};
 use gpui_component::{
+    ActiveTheme as _, ContextModal,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dropdown::{Dropdown, DropdownState},
     h_flex,
     input::{InputEvent, InputState, TextInput},
-    resizable::{h_resizable, resizable_panel, ResizableState},
+    resizable::{ResizableState, h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
-    v_flex, ActiveTheme as _, ContextModal,
+    v_flex,
 };
 use std::collections::HashMap;
 use std::option::Option;
@@ -163,7 +163,7 @@ impl TodoStory {
                         .gap_3()
                         .child(TextInput::new(&input1))
                         .child(Dropdown::new(&dropdown))
-                        .child(DatePicker::new(&date_picker).placeholder("DueDate of Project")),
+                        .child(DatePicker::new(&date).placeholder("DueDate of Project")),
                 )
                 .footer({
                     let view = view.clone();

@@ -6,7 +6,7 @@ use gpui::{
 };
 use gpui_component::dock::{PanelControl, PanelEvent};
 use gpui_component::notification::Notification;
-use gpui_component::{v_flex, ContextModal, IconName};
+use gpui_component::{ContextModal, IconName, v_flex};
 const PANEL_NAME: &str = "TodoContainer";
 pub struct TodoContainer {
     focus_handle: gpui::FocusHandle,

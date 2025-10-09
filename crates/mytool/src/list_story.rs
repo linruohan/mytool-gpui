@@ -1,20 +1,21 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, div, prelude::FluentBuilder as _, px, App, AppContext, Context, Edges, ElementId,
-    Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
-    RenderOnce, ScrollStrategy, SharedString, Styled, Subscription, Task, Window,
+    App, AppContext, Context, Edges, ElementId, Entity, FocusHandle, Focusable, IntoElement,
+    ParentElement, Render, RenderOnce, ScrollStrategy, SharedString, Styled, Subscription, Task,
+    Window, actions, div, prelude::FluentBuilder as _, px,
 };
 
 use gpui_component::{
+    ActiveTheme, IndexPath, Selectable, Sizable,
     button::Button,
     h_flex,
     list::{List, ListDelegate, ListEvent, ListItem},
-    v_flex, ActiveTheme, IndexPath, Selectable, Sizable,
+    v_flex,
 };
 use todos::entity::ProjectModel;
 
-use crate::{get_projects, DBState};
+use crate::{DBState, get_projects};
 
 actions!(list_story, [SelectedMenu]);
 
@@ -60,9 +61,10 @@ impl RenderOnce for MenuListItem {
         } else {
             cx.theme().foreground
         };
+
         let bg_color = if self.selected {
             cx.theme().list_active
-        } else if self.ix.row.is_multiple_of(2) {
+        } else if self.ix.row % 2 == 0 {
             cx.theme().list
         } else {
             cx.theme().list_even
@@ -226,7 +228,7 @@ impl super::Mytool for ListStory {
         "A list displays a series of items."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
         Self::view(window, cx)
     }
 }

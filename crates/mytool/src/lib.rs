@@ -22,15 +22,15 @@ pub use service::get_projects;
 pub use assets::Assets;
 pub use gallery::Gallery;
 use gpui::{
-    actions, div, prelude::FluentBuilder as _, px, rems, size, Action, AnyElement, AnyView, App,
-    AppContext, Bounds, Context, Div, Entity, EventEmitter, Focusable, Global, Hsla,
-    InteractiveElement, IntoElement, KeyBinding, Menu, MenuItem, ParentElement, Render, RenderOnce,
-    SharedString, StatefulInteractiveElement, Styled, Window, WindowBounds, WindowKind,
-    WindowOptions,
+    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
+    Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, Menu, MenuItem,
+    ParentElement, Pixels, Render, RenderOnce, SharedString, Size, StatefulInteractiveElement,
+    StyleRefinement, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, div,
+    prelude::FluentBuilder as _, px, rems, size,
 };
 pub use todos_view::{
-    todo_database_init, Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard,
-    PinBoard, ProjectItem, ScheduledBoard, TodayBoard,
+    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
+    ScheduledBoard, TodayBoard, todo_database_init,
 };
 pub use utils::play_ogg_file;
 
@@ -46,17 +46,17 @@ use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{
+    ActiveTheme, ContextModal, IconName, Root, TitleBar,
     button::Button,
     context_menu::ContextMenuExt,
-    dock::{register_panel, Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
+    dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle, register_panel},
+    group_box::GroupBox,
     h_flex,
     notification::Notification,
     popup_menu::PopupMenu,
     scroll::ScrollbarShow,
-    v_flex, ActiveTheme, ContextModal, IconName, Root, TitleBar,
+    v_flex,
 };
-
-rust_i18n::i18n!("locales", fallback = "en");
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]
@@ -106,7 +106,19 @@ where
     E: Into<AnyView>,
     F: FnOnce(&mut Window, &mut App) -> E + Send + 'static,
 {
-    let mut window_size = size(px(1600.0), px(1200.0));
+    create_new_window_with_size(title, None, crate_view_fn, cx);
+}
+
+pub fn create_new_window_with_size<F, E>(
+    title: &str,
+    window_size: Option<Size<Pixels>>,
+    crate_view_fn: F,
+    cx: &mut App,
+) where
+    E: Into<AnyView>,
+    F: FnOnce(&mut Window, &mut App) -> E + Send + 'static,
+{
+    let mut window_size = window_size.unwrap_or(size(px(1600.0), px(1200.0)));
     if let Some(display) = cx.primary_display() {
         let display_size = display.bounds().size;
         window_size.width = window_size.width.min(display_size.width * 0.85);
@@ -120,8 +132,8 @@ where
             window_bounds: Some(WindowBounds::Windowed(window_bounds)),
             titlebar: Some(TitleBar::title_bar_options()),
             window_min_size: Some(gpui::Size {
-                width: px(640.),
-                height: px(480.),
+                width: px(480.),
+                height: px(320.),
             }),
             kind: WindowKind::Normal,
             #[cfg(target_os = "linux")]
@@ -188,7 +200,7 @@ impl Render for StoryRoot {
             )
             .children(drawer_layer)
             .children(modal_layer)
-            .child(div().absolute().top_8().children(notification_layer))
+            .children(notification_layer)
     }
 }
 
@@ -206,7 +218,6 @@ pub fn init(cx: &mut App) {
     gpui_component::init(cx);
     AppState::init(cx);
     themes::init(cx);
-    // TodoStory::init(cx);
     // input_story::init(cx);
     // number_input_story::init(cx);
     // textarea_story::init(cx);
@@ -289,16 +300,22 @@ pub fn init(cx: &mut App) {
     cx.activate(true);
 }
 
-actions!(mytool, [ShowPanelInfo]);
+actions!(story, [ShowPanelInfo]);
 
 #[derive(IntoElement)]
 struct StorySection {
     base: Div,
-    title: AnyElement,
+    title: SharedString,
+    sub_title: Vec<AnyElement>,
     children: Vec<AnyElement>,
 }
 
 impl StorySection {
+    pub fn sub_title(mut self, sub_title: impl IntoElement) -> Self {
+        self.sub_title.push(sub_title.into_any_element());
+        self
+    }
+
     #[allow(unused)]
     fn max_w_md(mut self) -> Self {
         self.base = self.base.max_w(rems(48.));
@@ -337,37 +354,34 @@ impl Styled for StorySection {
 }
 
 impl RenderOnce for StorySection {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        v_flex()
-            .gap_2()
-            .mb_5()
-            .w_full()
-            .child(
+    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+        GroupBox::new()
+            .outline()
+            .title(
                 h_flex()
                     .justify_between()
                     .w_full()
                     .gap_4()
-                    .child(self.title),
+                    .child(self.title)
+                    .children(self.sub_title),
             )
-            .child(
-                v_flex()
-                    .p_4()
-                    .overflow_x_hidden()
-                    .border_1()
-                    .border_color(cx.theme().border)
+            .content_style(
+                StyleRefinement::default()
                     .rounded_lg()
+                    .overflow_x_hidden()
                     .items_center()
-                    .justify_center()
-                    .child(self.base.children(self.children)),
+                    .justify_center(),
             )
+            .child(self.base.children(self.children))
     }
 }
 
 impl ContextMenuExt for StorySection {}
 
-pub(crate) fn section(title: impl IntoElement) -> StorySection {
+pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
     StorySection {
-        title: title.into_any_element(),
+        title: title.into(),
+        sub_title: vec![],
         base: h_flex()
             .flex_wrap()
             .justify_center()
@@ -397,7 +411,7 @@ pub enum ContainerEvent {
     Close,
 }
 
-pub trait Mytool: Focusable + Render + Sized {
+pub trait Mytool: Render + Sized {
     fn klass() -> &'static str {
         std::any::type_name::<Self>().split("::").last().unwrap()
     }
@@ -415,7 +429,7 @@ pub trait Mytool: Focusable + Render + Sized {
     fn title_bg() -> Option<Hsla> {
         None
     }
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable>;
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render>;
 
     fn on_active(&mut self, active: bool, window: &mut Window, cx: &mut App) {
         let _ = active;
@@ -460,13 +474,12 @@ impl StoryContainer {
         let description = S::description();
         let mytool = S::new_view(window, cx);
         let story_klass = S::klass();
-        let focus_handle = mytool.focus_handle(cx);
 
         let view = cx.new(|cx| {
             let mut mytool = Self::new(window, cx)
                 .mytool(mytool.into(), story_klass)
                 .on_active(S::on_active_any);
-            mytool.focus_handle = focus_handle;
+            mytool.focus_handle = cx.focus_handle();
             mytool.closable = S::closable();
             mytool.zoomable = S::zoomable();
             mytool.name = name.into();
@@ -559,7 +572,7 @@ impl StoryState {
         AnyView,
         fn(AnyView, bool, &mut Window, &mut App),
     ) {
-        macro_rules! mytool {
+        macro_rules! story {
             ($klass:tt) => {
                 (
                     $klass::title(),
@@ -580,7 +593,7 @@ impl StoryState {
             "DatePickerStory" => mytool!(DatePickerStory),
             "ListStory" => mytool!(ListStory),
             _ => {
-                unreachable!("Invalid mytool klass: {}", self.story_klass)
+                unreachable!("Invalid story klass: {}", self.story_klass)
             }
         }
     }
@@ -621,6 +634,10 @@ impl Panel for StoryContainer {
             .contains(&self.name)
     }
 
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
+    }
+
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -628,10 +645,6 @@ impl Panel for StoryContainer {
                 on_active(mytool, active, _window, cx);
             }
         }
-    }
-
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     fn popup_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {
@@ -681,7 +694,7 @@ impl Render for StoryContainer {
             .when_some(self.mytool.clone(), |this, mytool| {
                 this.child(
                     v_flex()
-                        .id("mytool-children")
+                        .id("story-children")
                         .w_full()
                         .flex_1()
                         .p_4()

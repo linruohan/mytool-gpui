@@ -1,12 +1,13 @@
 use std::{ops::Range, rc::Rc};
 
-use crate::{get_projects, DBState};
+use crate::{DBState, get_projects};
 use gpui::{
-    div, prelude::FluentBuilder as _, Action, AnyElement, App, AppContext, ClickEvent, Context,
-    Entity, Focusable, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, TextAlign, Window,
+    Action, AnyElement, App, AppContext, ClickEvent, Context, Entity, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, SharedString,
+    StatefulInteractiveElement, Styled, TextAlign, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
+    ActiveTheme as _, Sizable as _, Size, StyleSized as _, StyledExt,
     button::Button,
     h_flex,
     indicator::Indicator,
@@ -14,7 +15,7 @@ use gpui_component::{
     label::Label,
     popup_menu::{PopupMenu, PopupMenuExt},
     table::{Column, ColumnFixed, ColumnSort, Table, TableDelegate, TableEvent},
-    v_flex, ActiveTheme as _, Sizable as _, Size, StyleSized as _, StyledExt,
+    v_flex,
 };
 use serde::Deserialize;
 use todos::entity::ProjectModel;
