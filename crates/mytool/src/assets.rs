@@ -1,7 +1,7 @@
 use anyhow::anyhow;
-use gpui::{App, AssetSource, Result};
+use gpui::{App, AssetSource, Result, SharedString};
 use rust_embed::RustEmbed;
-use std::{borrow::Cow, path::PathBuf};
+use std::borrow::Cow;
 
 #[derive(RustEmbed)]
 #[folder = "../../assets"]

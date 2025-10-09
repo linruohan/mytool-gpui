@@ -58,7 +58,7 @@ impl TodoContainer {
         let description = S::description();
         let mytool = S::new_view(window, cx);
         let story_klass = S::klass();
-        let focus_handle = mytool.focus_handle(cx);
+        let focus_handle = cx.focus_handle();
 
         let view = cx.new(|cx| {
             let mut mytool = Self::new(window, cx)

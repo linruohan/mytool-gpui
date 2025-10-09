@@ -72,7 +72,7 @@ impl Render for AppTitleBar {
 
         TitleBar::new()
             // left side
-            .children(div().flex().items_center().child(self.title.clone()))
+            .child(div().flex().items_center().child(self.title.clone()))
             .child(
                 div()
                     .flex()

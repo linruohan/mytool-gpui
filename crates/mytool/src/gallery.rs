@@ -4,7 +4,7 @@ use crate::{
 };
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _, Icon, IconName, h_flex,
+    ActiveTheme as _,
     input::{InputEvent, InputState, TextInput},
     resizable::{ResizableState, h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},

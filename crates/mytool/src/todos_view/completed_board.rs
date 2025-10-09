@@ -46,7 +46,7 @@ impl Mytool for CompletedBoard {
         "UI components for building fantastic desktop application by using GPUI."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
         Self::view(window, cx)
     }
 

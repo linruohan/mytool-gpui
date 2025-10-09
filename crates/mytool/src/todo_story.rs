@@ -1,5 +1,6 @@
 use crate::play_ogg_file;
 use crate::{BoardType, ProjectItem};
+use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _, ContextModal,
     button::{Button, ButtonVariants},
@@ -52,7 +53,7 @@ impl super::Mytool for TodoStory {
         "my todoist sidebar story"
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
         Self::view(window, cx)
     }
 }
@@ -163,7 +164,7 @@ impl TodoStory {
                         .gap_3()
                         .child(TextInput::new(&input1))
                         .child(Dropdown::new(&dropdown))
-                        .child(DatePicker::new(&date).placeholder("DueDate of Project")),
+                        .child(DatePicker::new(&date_picker).placeholder("DueDate of Project")),
                 )
                 .footer({
                     let view = view.clone();

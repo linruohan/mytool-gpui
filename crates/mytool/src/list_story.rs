@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Edges, ElementId, Entity, FocusHandle, Focusable, IntoElement,
-    ParentElement, Render, RenderOnce, ScrollStrategy, SharedString, Styled, Subscription, Task,
-    Window, actions, div, prelude::FluentBuilder as _, px,
+    App, AppContext, Context, Edges, ElementId, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, RenderOnce, ScrollStrategy, SharedString, Styled,
+    Subscription, Task, Window, actions, div, prelude::FluentBuilder as _, px,
 };
 
 use gpui_component::{
@@ -64,7 +64,7 @@ impl RenderOnce for MenuListItem {
 
         let bg_color = if self.selected {
             cx.theme().list_active
-        } else if self.ix.row % 2 == 0 {
+        } else if self.ix.row.is_multiple_of(2) {
             cx.theme().list
         } else {
             cx.theme().list_even

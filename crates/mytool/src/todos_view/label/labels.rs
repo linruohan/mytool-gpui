@@ -1,14 +1,15 @@
 use super::label_source_row::{Label, LabelListDelegate, SelectedLabel};
 use gpui::{
-    div, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
+    ActiveTheme, Sizable,
     button::Button,
     checkbox::Checkbox,
     h_flex,
     list::{List, ListDelegate, ListEvent},
-    v_flex, ActiveTheme, Sizable,
+    v_flex,
 };
 pub struct LabelsView {
     focus_handle: FocusHandle,
@@ -26,7 +27,7 @@ impl crate::Mytool for LabelsView {
         "A label displays a series of items."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render + Focusable> {
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
         Self::view(window, cx)
     }
 }

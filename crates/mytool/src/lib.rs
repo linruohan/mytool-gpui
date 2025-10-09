@@ -21,6 +21,7 @@ pub use service::get_projects;
 
 pub use assets::Assets;
 pub use gallery::Gallery;
+
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
     Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, Menu, MenuItem,
@@ -28,6 +29,7 @@ use gpui::{
     StyleRefinement, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, div,
     prelude::FluentBuilder as _, px, rems, size,
 };
+
 pub use todos_view::{
     Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
     ScheduledBoard, TodayBoard, todo_database_init,
@@ -572,7 +574,7 @@ impl StoryState {
         AnyView,
         fn(AnyView, bool, &mut Window, &mut App),
     ) {
-        macro_rules! story {
+        macro_rules! mytool {
             ($klass:tt) => {
                 (
                     $klass::title(),
