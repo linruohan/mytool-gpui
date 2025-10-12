@@ -34,3 +34,10 @@ cargo install cargo-machete && cargo machete
 ### 格式化
 cargo fmt --all && cargo clippy --fix --allow-dirty --allow-staged
 ```
+
+## 示例
+
+中文日历
+![calendar](assets/screenshots/calendar.png)
+planify 类似界面 - 开发中...
+

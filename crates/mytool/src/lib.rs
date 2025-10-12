@@ -1,5 +1,4 @@
-#![feature(str_as_str)]
-
+mod app_menus;
 mod assets;
 mod calendar_story;
 mod color_picker_story;
@@ -22,29 +21,27 @@ pub use service::get_projects;
 pub use assets::Assets;
 pub use gallery::Gallery;
 
-use gpui::{
-    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
-    Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, Menu, MenuItem,
-    ParentElement, Pixels, Render, RenderOnce, SharedString, Size, StatefulInteractiveElement,
-    StyleRefinement, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, div,
-    prelude::FluentBuilder as _, px, rems, size,
-};
-
-pub use todos_view::{
-    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
-    ScheduledBoard, TodayBoard, todo_database_init,
-};
-pub use utils::play_ogg_file;
-
 pub use calendar_story::CalendarStory;
 pub use color_picker_story::ColorPickerStory;
 pub use date_picker_story::DatePickerStory;
+use gpui::{
+    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
+    Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, ParentElement, Pixels,
+    Render, RenderOnce, SharedString, Size, StatefulInteractiveElement, StyleRefinement, Styled,
+    Window, WindowBounds, WindowKind, WindowOptions, actions, div, prelude::FluentBuilder as _, px,
+    rems, size,
+};
 pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
 pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
+pub use todos_view::{
+    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
+    ScheduledBoard, TodayBoard, todo_database_init,
+};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
+pub use utils::play_ogg_file;
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{
@@ -76,11 +73,21 @@ pub struct SelectFont(usize);
 #[action(namespace = mytool, no_json)]
 pub struct SelectRadius(usize);
 
-actions!(mytool, [Quit, Open, CloseWindow, ToggleSearch]);
+actions!(
+    mytool,
+    [
+        Quit,
+        Open,
+        CloseWindow,
+        ToggleSearch,
+        TestAction,
+        Tab,
+        TabPrev,
+        ShowPanelInfo
+    ]
+);
 
 const PANEL_NAME: &str = "StoryContainer";
-
-actions!(mytool, [TestAction, Tab, TabPrev]);
 
 pub struct AppState {
     pub invisible_panels: Entity<Vec<SharedString>>,
@@ -277,32 +284,8 @@ pub fn init(cx: &mut App) {
         Box::new(view)
     });
 
-    use gpui_component::input::{Copy, Cut, Paste, Redo, Undo};
-    cx.set_menus(vec![
-        Menu {
-            name: "GPUI App".into(),
-            items: vec![MenuItem::action("Quit", Quit)],
-        },
-        Menu {
-            name: "Edit".into(),
-            items: vec![
-                MenuItem::os_action("Undo", Undo, gpui::OsAction::Undo),
-                MenuItem::os_action("Redo", Redo, gpui::OsAction::Redo),
-                MenuItem::separator(),
-                MenuItem::os_action("Cut", Cut, gpui::OsAction::Cut),
-                MenuItem::os_action("Copy", Copy, gpui::OsAction::Copy),
-                MenuItem::os_action("Paste", Paste, gpui::OsAction::Paste),
-            ],
-        },
-        Menu {
-            name: "Window".into(),
-            items: vec![],
-        },
-    ]);
     cx.activate(true);
 }
-
-actions!(story, [ShowPanelInfo]);
 
 #[derive(IntoElement)]
 struct StorySection {
