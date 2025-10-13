@@ -106,7 +106,7 @@ impl Render for Gallery {
             .active_index
             .and(active_group)
             .and_then(|group| group.1.get(self.active_index.unwrap()));
-        let (story_name, description) =
+        let (_story_name, _description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())
             } else {

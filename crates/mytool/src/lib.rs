@@ -77,6 +77,7 @@ actions!(
     mytool,
     [
         Quit,
+        About,
         Open,
         CloseWindow,
         ToggleSearch,
@@ -244,7 +245,14 @@ pub fn init(cx: &mut App) {
 
     cx.bind_keys([
         KeyBinding::new("/", ToggleSearch, None),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-o", Open, None),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-o", Open, None),
+        #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-q", Quit, None),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("alt-f4", Quit, None),
     ]);
 
     cx.on_action(|_: &Quit, cx: &mut App| {
@@ -296,6 +304,7 @@ struct StorySection {
 }
 
 impl StorySection {
+    #[allow(unused)]
     pub fn sub_title(mut self, sub_title: impl IntoElement) -> Self {
         self.sub_title.push(sub_title.into_any_element());
         self
