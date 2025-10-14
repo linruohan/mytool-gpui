@@ -9,7 +9,7 @@ anyhow.workspace = true
 chrono.workspace = true
 rust-i18n.workspace = true
 gpui.workspace = true
-gpui-component = { workspace = true, features = ["tree-sitter-languages"] }
+gpui-component.workspace = true
 raw-window-handle.workspace = true
 rust-embed.workspace = true
 serde.workspace = true

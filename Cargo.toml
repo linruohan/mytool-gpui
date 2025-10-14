@@ -13,8 +13,8 @@ todos = { path = "crates/todos" }
 mytool = { path = "crates/mytool" }
 # gpui
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
-gpui = "0.2.0"
-gpui-macros = "0.2.0"
+gpui = "0.2.1"
+gpui-macros = "0.2.1"
 #
 # External crates
 #

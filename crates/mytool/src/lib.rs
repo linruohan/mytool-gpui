@@ -397,6 +397,7 @@ pub struct StoryContainer {
     story_klass: Option<SharedString>,
     closable: bool,
     zoomable: Option<PanelControl>,
+    paddings: Pixels,
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
 }
 
@@ -411,18 +412,27 @@ pub trait Mytool: Render + Sized {
     }
 
     fn title() -> &'static str;
+
     fn description() -> &'static str {
         ""
     }
+
     fn closable() -> bool {
         true
     }
+
     fn zoomable() -> Option<PanelControl> {
         Some(PanelControl::default())
     }
+
     fn title_bg() -> Option<Hsla> {
         None
     }
+
+    fn paddings() -> Pixels {
+        px(16.)
+    }
+
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render>;
 
     fn on_active(&mut self, active: bool, window: &mut Window, cx: &mut App) {
@@ -430,6 +440,7 @@ pub trait Mytool: Render + Sized {
         let _ = window;
         let _ = cx;
     }
+
     fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
     where
         Self: 'static,
@@ -459,6 +470,7 @@ impl StoryContainer {
             story_klass: None,
             closable: true,
             zoomable: Some(PanelControl::default()),
+            paddings: px(16.),
             on_active: None,
         }
     }
@@ -479,6 +491,7 @@ impl StoryContainer {
             mytool.name = name.into();
             mytool.description = description.into();
             mytool.title_bg = S::title_bg();
+            mytool.paddings = S::paddings();
             mytool
         });
 
@@ -691,7 +704,7 @@ impl Render for StoryContainer {
                         .id("story-children")
                         .w_full()
                         .flex_1()
-                        .p_4()
+                        .p(self.paddings)
                         .child(mytool),
                 )
             })
