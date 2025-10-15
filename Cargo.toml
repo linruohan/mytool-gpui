@@ -12,13 +12,9 @@ resolver = "2"
 todos = { path = "crates/todos" }
 mytool = { path = "crates/mytool" }
 # gpui
+gpui = "0.2.0"
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
-gpui = "0.2.1"
-gpui-macros = "0.2.1"
-#
 # External crates
-#
-
 anyhow = "1.0.98"
 rand = "0.8.5"
 rust-embed = { version = "8.7.2", features = ["interpolate-folder-path"] }
