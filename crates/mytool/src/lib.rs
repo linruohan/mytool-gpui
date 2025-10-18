@@ -237,6 +237,7 @@ pub fn init(cx: &mut App) {
     // webview_story::init(cx);
     // tooltip_story::init(cx);
     // otp_input_story::init(cx);
+    todo_story::init(cx);
 
     // let http_client = std::sync::Arc::new(
     //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap(),

@@ -21,12 +21,12 @@ pub fn encrypt(content: &str, password: &str) -> String {
 
     let key: &Key<Aes256Gcm> = key.into();
     let cipher = Aes256Gcm::new(key);
-    let nonce = Nonce::from_slice(&iv);
-    let mut bytes = cipher.encrypt(nonce, content.as_bytes()).unwrap();
+    let nonce = Nonce::from(iv); // Use from() instead of from_slice()
+    let mut bytes = cipher.encrypt(&nonce, content.as_bytes()).unwrap();
 
     let mut combined = vec![];
-    combined.append(&mut salt.to_vec());
-    combined.append(&mut iv.to_vec());
+    combined.extend_from_slice(&salt);
+    combined.extend_from_slice(&iv);
     combined.append(&mut bytes);
     general_purpose::STANDARD.encode(combined.as_slice())
 }
@@ -40,11 +40,10 @@ pub fn decrypt(encrypted: &str, password: &str) -> String {
 
     let derive_key = derive_key(password, salt);
     let key = derive_key.as_bytes();
-
-    // let key = Key::<Aes256Gcm>::from_slice(key);
     let key: &Key<Aes256Gcm> = key.into();
     let cipher = Aes256Gcm::new(key);
-    let nonce = Nonce::from_slice(&iv);
+    #[allow(deprecated)]
+    let nonce = Nonce::from_slice(iv);
     let decrypted = cipher.decrypt(nonce, data).unwrap();
     String::from_utf8(decrypted).unwrap()
 }
