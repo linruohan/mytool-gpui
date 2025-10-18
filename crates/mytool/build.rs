@@ -1,13 +1,8 @@
-//TODO: consider generating shader code for WGSL
-//TODO: deprecate "runtime-shaders" and "macos-blade"
-
 use std::env;
 
 fn main() {
     let target = env::var("CARGO_CFG_TARGET_OS");
-    println!("cargo::rustc-check-cfg=cfg(gles)");
-
-    check_wgsl_shaders();
+    println!("cargo::rustc-check-cfg=cfg(glues)");
 
     match target.as_deref() {
         #[cfg(target_os = "windows")]
@@ -32,7 +27,7 @@ fn main() {
             // Depending on the security applied to the computer, winresource might fail
             // fetching the RC path. Therefore, we add a way to explicitly specify the
             // toolkit path, allowing winresource to use a valid RC path.
-            if let Some(explicit_rc_toolkit_path) = std::env::var("ZED_RC_TOOLKIT_PATH").ok() {
+            if let Some(explicit_rc_toolkit_path) = env::var("ZED_RC_TOOLKIT_PATH").ok() {
                 res.set_toolkit_path(explicit_rc_toolkit_path.as_str());
             }
             res.set_icon(icon.to_str().unwrap());
@@ -46,27 +41,4 @@ fn main() {
         }
         _ => (),
     };
-}
-
-#[allow(dead_code)]
-fn check_wgsl_shaders() {
-    use std::path::PathBuf;
-    use std::process;
-    use std::str::FromStr;
-
-    let shader_source_path = "./src/platform/blade/shaders.wgsl";
-    let shader_path = PathBuf::from_str(shader_source_path).unwrap();
-    println!("cargo:rerun-if-changed={}", &shader_path.display());
-
-    let shader_source = std::fs::read_to_string(&shader_path).unwrap();
-
-    match naga::front::wgsl::parse_str(&shader_source) {
-        Ok(_) => {
-            // All clear
-        }
-        Err(e) => {
-            eprintln!("WGSL shader compilation failed:\n{}", e);
-            process::exit(1);
-        }
-    }
 }
