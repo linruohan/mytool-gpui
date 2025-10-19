@@ -332,7 +332,7 @@ pub struct TableStory {
     size: Size,
 }
 
-impl super::Mytool for TableStory {
+impl crate::Mytool for TableStory {
     fn title() -> &'static str {
         "Project table"
     }

@@ -219,7 +219,7 @@ pub struct ListStory {
     _subscriptions: Vec<Subscription>,
 }
 
-impl super::Mytool for ListStory {
+impl crate::Mytool for ListStory {
     fn title() -> &'static str {
         "List"
     }

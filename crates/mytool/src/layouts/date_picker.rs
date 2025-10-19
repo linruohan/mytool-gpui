@@ -23,7 +23,7 @@ pub struct DatePickerStory {
     _subscriptions: Vec<Subscription>,
 }
 
-impl super::Mytool for DatePickerStory {
+impl crate::Mytool for DatePickerStory {
     fn title() -> &'static str {
         "DatePicker"
     }

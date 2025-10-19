@@ -16,7 +16,7 @@ pub struct ColorPickerStory {
     _subscriptions: Vec<Subscription>,
 }
 
-impl super::Mytool for ColorPickerStory {
+impl crate::Mytool for ColorPickerStory {
     fn title() -> &'static str {
         "ColorPicker"
     }

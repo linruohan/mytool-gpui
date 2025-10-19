@@ -1,14 +1,10 @@
 mod app_menus;
 mod assets;
 mod calendar_story;
-mod color_picker_story;
 mod crypto; //加解密
-mod date_picker_story;
 mod gallery;
 mod layouts;
-mod list_story;
 mod service;
-mod table_story;
 mod themes;
 mod title_bar;
 mod todo_story;
@@ -22,8 +18,6 @@ pub use assets::Assets;
 pub use gallery::Gallery;
 
 pub use calendar_story::CalendarStory;
-pub use color_picker_story::ColorPickerStory;
-pub use date_picker_story::DatePickerStory;
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
     Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, ParentElement, Pixels,
@@ -31,9 +25,7 @@ use gpui::{
     Window, WindowBounds, WindowKind, WindowOptions, actions, div, prelude::FluentBuilder as _, px,
     rems, size,
 };
-pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
-pub use table_story::TableStory;
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
 pub use todos_view::{
@@ -595,11 +587,7 @@ impl StoryState {
 
         match self.story_klass.to_string().as_str() {
             "CalendarStory" => mytool!(CalendarStory),
-            "TableStory" => mytool!(TableStory),
             "TodoStory" => mytool!(TodoStory),
-            "ColorPickerStory" => mytool!(ColorPickerStory),
-            "DatePickerStory" => mytool!(DatePickerStory),
-            "ListStory" => mytool!(ListStory),
             _ => {
                 unreachable!("Invalid story klass: {}", self.story_klass)
             }
