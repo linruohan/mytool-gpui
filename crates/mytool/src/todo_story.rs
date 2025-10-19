@@ -1,8 +1,9 @@
-use crate::{BoardType, ProjectListItem};
+use crate::{BoardType, ProjectListDelegate};
 use crate::{DBState, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
+use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme as _, ContextModal,
+    ActiveTheme as _, ContextModal, List, ListEvent,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dropdown::{Dropdown, DropdownState},
@@ -14,6 +15,7 @@ use gpui_component::{
 };
 use std::collections::HashMap;
 use std::option::Option;
+use std::rc::Rc;
 use todos::entity::ProjectModel;
 
 pub fn init(_cx: &mut App) {
@@ -40,7 +42,7 @@ pub struct TodoStory {
     pub active_boards: HashMap<BoardType, bool>,
     pub active_board: Option<BoardType>,
     // 所有projects
-    projects: Vec<ProjectModel>,
+    project_list: Entity<List<ProjectListDelegate>>,
     project_date: Option<String>,
 }
 
@@ -66,14 +68,28 @@ impl Focusable for TodoStory {
 impl TodoStory {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
-        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
-            InputEvent::Change => {
-                this.is_board_active = true;
-                this.active_index = Some(0);
-                cx.notify()
-            }
-            _ => {}
-        })];
+        let project_list = cx.new(|cx| List::new(ProjectListDelegate::new(), window, cx));
+        let _subscriptions = vec![
+            cx.subscribe(&search_input, |this, _, e, cx| match e {
+                InputEvent::Change => {
+                    this.is_board_active = true;
+                    this.active_index = Some(0);
+                    cx.notify()
+                }
+                _ => {}
+            }),
+            cx.subscribe(&project_list, |_, _, ev: &ListEvent, _| match ev {
+                ListEvent::Select(ix) => {
+                    println!("List Selected: {:?}", ix);
+                }
+                ListEvent::Confirm(ix) => {
+                    println!("List Confirmed: {:?}", ix);
+                }
+                ListEvent::Cancel => {
+                    println!("List Cancelled");
+                }
+            }),
+        ];
         let mut active_boards = HashMap::new();
         active_boards.insert(BoardType::Inbox, true);
 
@@ -85,11 +101,21 @@ impl TodoStory {
             BoardType::Labels,
             BoardType::Completed,
         ];
+
+        let project_list_clone = project_list.clone();
         let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, _cx| {
+        cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
             let projects = load_projects(db.clone()).await;
-            println!("get rc_projects:{}", projects.len());
+            let rc_projects: Vec<Rc<ProjectModel>> =
+                projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+            println!("get rc_projects:{}", rc_projects.len());
+            let _ = cx
+                .update_entity(&project_list_clone, |list, cx| {
+                    list.delegate_mut().update_projects(rc_projects);
+                    cx.notify();
+                })
+                .ok();
         })
         .detach();
         let mut this = Self {
@@ -103,7 +129,7 @@ impl TodoStory {
             boards,
             active_boards,
             active_board: Some(BoardType::Inbox),
-            projects: vec![],
+            project_list,
             project_date: None,
         };
 
@@ -118,9 +144,8 @@ impl TodoStory {
             let board = self.active_board.unwrap();
             v_flex().child(board.container(window, cx))
         } else {
-            let project = self.projects.get(self.active_index.unwrap()).unwrap();
-            v_flex()
-                .child(cx.new(|_| ProjectListItem::new(SharedString::from(project.name.clone()))))
+            let project = self.project_list.get(self.active_index.unwrap()).unwrap();
+            v_flex().child(Label::new(project.name.clone))
         }
     }
     fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
@@ -191,7 +216,12 @@ impl TodoStory {
                                         // panel.update(cx, |view, _| {
                                         //     view.name = project.name.into();
                                         // });
-                                        view.projects.push(project);
+                                        let _ = cx.update_entity(
+                                            &self.project_list.clone(),
+                                            |list, cx| {
+                                                list.delegate_mut().add(project.into());
+                                            },
+                                        );
                                         cx.notify();
                                     });
                                 }
@@ -223,8 +253,8 @@ impl Render for TodoStory {
             .collect();
 
         let projects: Vec<_> = self
-            .projects
-            .iter()
+            .project_list
+            .into()
             .filter(|story| story.name.to_lowercase().contains(&query))
             .cloned()
             .collect();

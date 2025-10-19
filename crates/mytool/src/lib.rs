@@ -1,9 +1,9 @@
 mod app_menus;
 mod assets;
 mod calendar_story;
-mod crypto; //加解密
+mod components; // 我的组件库
+mod crypto; // 加解密
 mod gallery;
-mod layouts;
 mod service;
 mod themes;
 mod title_bar;
@@ -31,8 +31,8 @@ pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use utils::play_ogg_file;
 pub use views::{
-    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectListItem,
-    ScheduledBoard, TodayBoard, todo_database_init,
+    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard,
+    ProjectListDelegate, ProjectListItem, ScheduledBoard, TodayBoard, todo_database_init,
 };
 pub use welcome_story::WelcomeStory;
 

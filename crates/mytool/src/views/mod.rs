@@ -22,7 +22,7 @@ pub use today_board::TodayBoard;
 use tokio::sync::Mutex;
 
 pub use board::{Board, BoardType};
-pub use project::ProjectListItem;
+pub use project::{ProjectListDelegate, ProjectListItem};
 pub use todo_container::TodoContainer;
 
 pub struct DBState {
