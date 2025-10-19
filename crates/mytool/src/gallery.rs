@@ -1,4 +1,4 @@
-use crate::{CalendarStory, StoryContainer, TodoStory};
+use crate::{CalendarStory, StoryContainer, TodoStory, WelcomeStory};
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _,
@@ -29,19 +29,14 @@ impl Gallery {
             }
             _ => {}
         })];
-        let stories = vec![
-            // (
-            //     "Getting Started",
-            //     vec![StoryContainer::panel::<WelcomeStory>(window, cx)],
-            // ),
-            (
-                "Components",
-                vec![
-                    StoryContainer::panel::<CalendarStory>(window, cx),
-                    StoryContainer::panel::<TodoStory>(window, cx),
-                ],
-            ),
-        ];
+        let stories = vec![(
+            "Components",
+            vec![
+                StoryContainer::panel::<WelcomeStory>(window, cx),
+                StoryContainer::panel::<CalendarStory>(window, cx),
+                StoryContainer::panel::<TodoStory>(window, cx),
+            ],
+        )];
 
         let mut this = Self {
             search_input,
