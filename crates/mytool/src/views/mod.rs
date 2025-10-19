@@ -1,9 +1,11 @@
 mod board;
 mod completed_board;
 mod inbox_board;
+mod item;
+mod label;
 mod labels_board;
 mod pin_board;
-mod project_item;
+mod project;
 mod scheduled_board;
 mod today_board;
 mod todo_container;
@@ -20,7 +22,7 @@ pub use today_board::TodayBoard;
 use tokio::sync::Mutex;
 
 pub use board::{Board, BoardType};
-pub use project_item::ProjectItem;
+pub use project::ProjectListItem;
 pub use todo_container::TodoContainer;
 
 pub struct DBState {

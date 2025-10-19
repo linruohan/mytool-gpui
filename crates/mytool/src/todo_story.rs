@@ -1,5 +1,5 @@
-use crate::play_ogg_file;
-use crate::{BoardType, ProjectItem};
+use crate::{BoardType, ProjectListItem};
+use crate::{DBState, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _, ContextModal,
@@ -40,7 +40,7 @@ pub struct TodoStory {
     pub active_boards: HashMap<BoardType, bool>,
     pub active_board: Option<BoardType>,
     // 所有projects
-    projects: Vec<ProjectItem>,
+    projects: Vec<ProjectModel>,
     project_date: Option<String>,
 }
 
@@ -85,7 +85,13 @@ impl TodoStory {
             BoardType::Labels,
             BoardType::Completed,
         ];
-
+        let db = cx.global::<DBState>().conn.clone();
+        cx.spawn(async move |_view, _cx| {
+            let db = db.lock().await;
+            let projects = load_projects(db.clone()).await;
+            println!("get rc_projects:{}", projects.len());
+        })
+        .detach();
         let mut this = Self {
             search_input,
             active_index: Some(0),
@@ -113,7 +119,8 @@ impl TodoStory {
             v_flex().child(board.container(window, cx))
         } else {
             let project = self.projects.get(self.active_index.unwrap()).unwrap();
-            v_flex().child(cx.new(|_| ProjectItem::new(project.name.clone())))
+            v_flex()
+                .child(cx.new(|_| ProjectListItem::new(SharedString::from(project.name.clone()))))
         }
     }
     fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
@@ -184,7 +191,7 @@ impl TodoStory {
                                         // panel.update(cx, |view, _| {
                                         //     view.name = project.name.into();
                                         // });
-                                        view.projects.push(ProjectItem::new(project.name.into()));
+                                        view.projects.push(project);
                                         cx.notify();
                                     });
                                 }

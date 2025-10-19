@@ -15,7 +15,7 @@ use gpui_component::{
 };
 use todos::entity::ProjectModel;
 
-use crate::{DBState, get_projects};
+use crate::{DBState, load_projects};
 
 actions!(list_story, [SelectedMenu]);
 
@@ -259,7 +259,7 @@ impl ListStory {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
-            let projects = get_projects(db.clone()).await;
+            let projects = load_projects(db.clone()).await;
             let rc_projects: Vec<Rc<ProjectModel>> =
                 projects.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("get rc_projects:{}", rc_projects.len());

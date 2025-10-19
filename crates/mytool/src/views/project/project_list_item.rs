@@ -3,11 +3,11 @@ use gpui::{App, AppContext, Entity, ParentElement, Render, SharedString, Styled,
 use gpui_component::{label::Label, v_flex};
 
 #[derive(Debug, Clone)]
-pub struct ProjectItem {
+pub struct ProjectListItem {
     pub name: SharedString,
 }
 
-impl ProjectItem {
+impl ProjectListItem {
     pub fn view(name: SharedString, _window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|_cx| Self::new(name))
     }
@@ -17,7 +17,7 @@ impl ProjectItem {
     }
 }
 
-impl Render for ProjectItem {
+impl Render for ProjectListItem {
     fn render(
         &mut self,
         _: &mut gpui::Window,

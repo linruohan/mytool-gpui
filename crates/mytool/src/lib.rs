@@ -8,11 +8,11 @@ mod service;
 mod themes;
 mod title_bar;
 mod todo_story;
-mod todos_view; // 任务管理
 mod utils;
+mod views; // 任务管理视图
 mod welcome_story;
 
-pub use service::get_projects;
+pub use service::load_projects;
 
 pub use assets::Assets;
 pub use gallery::Gallery;
@@ -28,12 +28,12 @@ use gpui::{
 use serde::{Deserialize, Serialize};
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
-pub use todos_view::{
-    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectItem,
-    ScheduledBoard, TodayBoard, todo_database_init,
-};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use utils::play_ogg_file;
+pub use views::{
+    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard, ProjectListItem,
+    ScheduledBoard, TodayBoard, todo_database_init,
+};
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{

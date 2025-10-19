@@ -1,3 +1,3 @@
 mod project;
 
-pub use project::get_projects;
+pub use project::load_projects;
