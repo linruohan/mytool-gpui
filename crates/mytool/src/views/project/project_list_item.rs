@@ -46,7 +46,7 @@ impl Selectable for ProjectListItem {
     }
 }
 impl RenderOnce for ProjectListItem {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, _cx: &mut App) -> impl IntoElement {
         v_flex()
             .p_4()
             .gap_5()
@@ -55,8 +55,8 @@ impl RenderOnce for ProjectListItem {
 }
 
 pub struct ProjectListDelegate {
-    _projects: Vec<Rc<ProjectModel>>,
-    matched_projects: Vec<Vec<Rc<ProjectModel>>>,
+    pub(crate) _projects: Vec<Rc<ProjectModel>>,
+    pub(crate) matched_projects: Vec<Vec<Rc<ProjectModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -104,7 +104,7 @@ impl ProjectListDelegate {
     }
 
     #[allow(dead_code)]
-    fn selected_project(&self) -> Option<Rc<ProjectModel>> {
+    pub fn selected_project(&self) -> Option<Rc<ProjectModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };
@@ -119,10 +119,6 @@ impl ProjectListDelegate {
 impl ListDelegate for ProjectListDelegate {
     type Item = ProjectListItem;
 
-    fn items_count(&self, _section: usize, _app: &App) -> usize {
-        self.matched_projects.len()
-    }
-
     fn perform_search(
         &mut self,
         query: &str,
@@ -133,20 +129,10 @@ impl ListDelegate for ProjectListDelegate {
         Task::ready(())
     }
 
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
-        window.dispatch_action(Box::new(SelectedProject), cx);
+    fn items_count(&self, _section: usize, _app: &App) -> usize {
+        self.matched_projects.len()
     }
 
-    fn set_selected_index(
-        &mut self,
-        ix: Option<IndexPath>,
-        _: &mut Window,
-        cx: &mut Context<List<Self>>,
-    ) {
-        self.selected_index = ix;
-        cx.notify();
-    }
     fn render_item(
         &self,
         ix: IndexPath,
@@ -159,5 +145,19 @@ impl ListDelegate for ProjectListDelegate {
         }
 
         None
+    }
+
+    fn set_selected_index(
+        &mut self,
+        ix: Option<IndexPath>,
+        _: &mut Window,
+        cx: &mut Context<List<Self>>,
+    ) {
+        self.selected_index = ix;
+        cx.notify();
+    }
+    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
+        println!("Confirmed with secondary: {}", secondary);
+        window.dispatch_action(Box::new(SelectedProject), cx);
     }
 }

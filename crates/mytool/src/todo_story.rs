@@ -13,20 +13,15 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::option::Option;
 use std::rc::Rc;
 use todos::entity::ProjectModel;
+#[derive(Action, Clone, PartialEq, Eq, Deserialize)]
+#[action(namespace = todo_story, no_json)]
+pub struct SelectTodo(SharedString);
 
-pub fn init(_cx: &mut App) {
-    println!("todos initialize");
-    // let database_future = cx
-    //     .spawn(|cx| async move { todo_database_init().await });
-    //
-    // cx.set_global(TodoState {
-    //     conn: database_future,
-    // });
-}
 pub struct TodoStory {
     active_index: Option<usize>,
     collapsed: bool,
@@ -144,8 +139,13 @@ impl TodoStory {
             let board = self.active_board.unwrap();
             v_flex().child(board.container(window, cx))
         } else {
-            let project = self.project_list.get(self.active_index.unwrap()).unwrap();
-            v_flex().child(Label::new(project.name.clone))
+            let project = self
+                .project_list
+                .read(cx)
+                .delegate()
+                .selected_project()
+                .unwrap();
+            v_flex().child(Label::new(project.name.clone()))
         }
     }
     fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
@@ -154,6 +154,7 @@ impl TodoStory {
             this.set_value(&name, window, cx);
         })
     }
+
     fn add_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
         let _input2 = cx.new(|cx| -> InputState {
@@ -212,16 +213,17 @@ impl TodoStory {
                                         let mut project = ProjectModel::default();
                                         project.name = input1.read(cx).value().to_string();
                                         project.due_date = view.project_date.clone();
+                                        println!("added project: {:?}", project);
                                         // let panel = TodoContainer::panel::<ProjectItem>(window, cx);
                                         // panel.update(cx, |view, _| {
                                         //     view.name = project.name.into();
                                         // });
-                                        let _ = cx.update_entity(
-                                            &self.project_list.clone(),
-                                            |list, cx| {
-                                                list.delegate_mut().add(project.into());
-                                            },
-                                        );
+                                        // let _ = cx.update_entity(
+                                        //     &self.project_list.clone(),
+                                        //     |list, cx| {
+                                        //         list.delegate_mut().add(project.into());
+                                        //     },
+                                        // );
                                         cx.notify();
                                     });
                                 }
@@ -254,7 +256,10 @@ impl Render for TodoStory {
 
         let projects: Vec<_> = self
             .project_list
-            .into()
+            .read(cx)
+            .delegate()
+            ._projects
+            .iter()
             .filter(|story| story.name.to_lowercase().contains(&query))
             .cloned()
             .collect();
