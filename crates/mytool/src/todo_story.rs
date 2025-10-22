@@ -1,7 +1,7 @@
 use crate::{BoardType, ProjectListDelegate};
 use crate::{DBState, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
-use gpui_component::label::Label;
+use gpui_component::switch::Switch;
 use gpui_component::{
     ActiveTheme as _, ContextModal, List, ListEvent,
     button::{Button, ButtonVariants},
@@ -9,10 +9,12 @@ use gpui_component::{
     dropdown::{Dropdown, DropdownState},
     h_flex,
     input::{InputEvent, InputState, TextInput},
+    label::Label,
     resizable::{ResizableState, h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
+use gpui_component::Sizable;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::option::Option;
@@ -139,12 +141,9 @@ impl TodoStory {
             let board = self.active_board.unwrap();
             v_flex().child(board.container(window, cx))
         } else {
-            let project = self
-                .project_list
-                .read(cx)
-                .delegate()
-                .selected_project()
-                .unwrap();
+            let projects = self.project_list.read(cx).delegate()._projects.clone();
+            let project = projects.get(self.active_index.unwrap()).unwrap();
+            println!("project: {}", project.name);
             v_flex().child(Label::new(project.name.clone()))
         }
     }
@@ -332,12 +331,14 @@ impl Render for TodoStory {
                                         )
                                         .on_click(cx.listener(
                                             move |this, _: &ClickEvent, _, cx| {
+                                                println!("project clicked: ix:{}", ix);
                                                 this.is_board_active = false;
                                                 this.active_board = None;
                                                 this.active_index = Some(ix);
                                                 cx.notify();
                                             },
                                         ))
+                                        .suffix(Switch::new("dark-mode").checked(true).xsmall())
                                 },
                             ))),
                     ),
