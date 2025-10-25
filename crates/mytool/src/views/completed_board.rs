@@ -44,7 +44,7 @@ impl Board for CompletedBoard {
     }
 
     fn count() -> usize {
-        0
+        1
     }
 
     fn title() -> &'static str {

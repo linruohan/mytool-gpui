@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Task, Window, actions,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions,
 };
 use gpui_component::{
     IndexPath, Selectable,

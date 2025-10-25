@@ -2619,7 +2619,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.3.0"
-source = "git+https://github.com/linruohan/gpui-component.git#8732987f0d1ae5938e39f52a15c919c069aa1426"
+source = "git+https://github.com/linruohan/gpui-component.git#cebd9ec0eb9653edd26f0728712b3539f9b1c714"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2659,7 +2659,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.3.0"
-source = "git+https://github.com/linruohan/gpui-component.git#8732987f0d1ae5938e39f52a15c919c069aa1426"
+source = "git+https://github.com/linruohan/gpui-component.git#cebd9ec0eb9653edd26f0728712b3539f9b1c714"
 dependencies = [
  "proc-macro2",
  "quote",

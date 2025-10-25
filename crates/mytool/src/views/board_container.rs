@@ -1,13 +1,13 @@
 use crate::{ContainerEvent, ShowPanelInfo, ToggleSearch};
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    px, AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla,
-    InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
-    Styled, Window,
+    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
+    Window, px,
 };
 use gpui_component::dock::{PanelControl, PanelEvent};
 use gpui_component::notification::Notification;
-use gpui_component::{v_flex, ContextModal, IconName};
+use gpui_component::{ContextModal, IconName, v_flex};
 // const PANEL_NAME: &str = "BoardContainer";
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
@@ -65,8 +65,8 @@ pub trait Board: Render + Sized {
     }
 
     fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
-                     where
-                         Self: 'static,
+    where
+        Self: 'static,
     {
         if let Some(board) = view.downcast::<Self>().ok() {
             cx.update_entity(&board, |board, cx| {

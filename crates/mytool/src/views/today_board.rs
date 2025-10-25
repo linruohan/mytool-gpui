@@ -4,7 +4,7 @@ use gpui::{
 };
 
 use super::Board;
-use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
+use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
 use todos::entity::ItemModel;
 
 pub struct TodayBoard {
@@ -44,7 +44,7 @@ impl Board for TodayBoard {
     }
 
     fn count() -> usize {
-        0
+        1
     }
     fn title() -> &'static str {
         "Today"

@@ -44,7 +44,7 @@ impl Board for ScheduledBoard {
     }
 
     fn count() -> usize {
-        0
+        1
     }
     fn title() -> &'static str {
         "Scheduled"

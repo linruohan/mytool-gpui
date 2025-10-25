@@ -44,7 +44,7 @@ impl Board for LabelsBoard {
     }
 
     fn count() -> usize {
-        0
+        1
     }
     fn title() -> &'static str {
         "Labels"
