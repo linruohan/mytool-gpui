@@ -1,10 +1,10 @@
-use crate::{BoardType, ProjectListDelegate};
-use crate::{DBState, load_projects, play_ogg_file};
+use crate::{BoardType, ProjectListDelegate, load_items, load_labels};
+use crate::{DBState, ItemListDelegate, LabelListDelegate, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
 use gpui_component::Sizable;
 use gpui_component::switch::Switch;
 use gpui_component::{
-    ActiveTheme as _, ContextModal, List, ListEvent,
+    ActiveTheme as _, ContextModal, List,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dropdown::{Dropdown, DropdownState},
@@ -19,7 +19,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::option::Option;
 use std::rc::Rc;
-use todos::entity::ProjectModel;
+use todos::entity::{ItemModel, LabelModel, ProjectModel};
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = todo_story, no_json)]
 pub struct SelectTodo(SharedString);
@@ -41,6 +41,9 @@ pub struct TodoStory {
     // 所有projects
     project_list: Entity<List<ProjectListDelegate>>,
     project_date: Option<String>,
+    // labels
+    label_list: Entity<List<LabelListDelegate>>,
+    item_list: Entity<List<ItemListDelegate>>,
 }
 
 impl super::Mytool for TodoStory {
@@ -66,27 +69,17 @@ impl TodoStory {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         let project_list = cx.new(|cx| List::new(ProjectListDelegate::new(), window, cx));
-        let _subscriptions = vec![
-            cx.subscribe(&search_input, |this, _, e, cx| match e {
-                InputEvent::Change => {
-                    this.is_board_active = true;
-                    this.active_index = Some(0);
-                    cx.notify()
-                }
-                _ => {}
-            }),
-            cx.subscribe(&project_list, |_, _, ev: &ListEvent, _| match ev {
-                ListEvent::Select(ix) => {
-                    println!("List Selected: {:?}", ix);
-                }
-                ListEvent::Confirm(ix) => {
-                    println!("List Confirmed: {:?}", ix);
-                }
-                ListEvent::Cancel => {
-                    println!("List Cancelled");
-                }
-            }),
-        ];
+        let label_list = cx.new(|cx| List::new(LabelListDelegate::new(), window, cx));
+        let item_list = cx.new(|cx| List::new(ItemListDelegate::new(), window, cx));
+
+        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
+            InputEvent::Change => {
+                this.is_board_active = true;
+                this.active_index = Some(0);
+                cx.notify()
+            }
+            _ => {}
+        })];
         let mut active_boards = HashMap::new();
         active_boards.insert(BoardType::Inbox, true);
 
@@ -100,16 +93,35 @@ impl TodoStory {
         ];
 
         let project_list_clone = project_list.clone();
+        let label_list_clone = label_list.clone();
+        let item_list_clone = item_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
             let projects = load_projects(db.clone()).await;
+            let labels = load_labels(db.clone()).await;
+            let items = load_items(db.clone()).await;
             let rc_projects: Vec<Rc<ProjectModel>> =
                 projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+            let rc_labels: Vec<Rc<LabelModel>> =
+                labels.iter().map(|i| Rc::new(i.clone())).collect();
+            let rc_items: Vec<Rc<ItemModel>> = items.iter().map(|i| Rc::new(i.clone())).collect();
             println!("get rc_projects:{}", rc_projects.len());
             let _ = cx
                 .update_entity(&project_list_clone, |list, cx| {
                     list.delegate_mut().update_projects(rc_projects);
+                    cx.notify();
+                })
+                .ok();
+            let _ = cx
+                .update_entity(&label_list_clone, |list, cx| {
+                    list.delegate_mut().update_labels(rc_labels);
+                    cx.notify();
+                })
+                .ok();
+            let _ = cx
+                .update_entity(&item_list_clone, |list, cx| {
+                    list.delegate_mut().update_items(rc_items);
                     cx.notify();
                 })
                 .ok();
@@ -128,12 +140,13 @@ impl TodoStory {
             active_board: Some(BoardType::Inbox),
             project_list,
             project_date: None,
+            label_list,
+            item_list,
         };
 
         if let Some(init_story) = init_story {
-            this.set_active_story(init_story, window, cx);
+            this.set_active_todo(init_story, window, cx);
         }
-
         this
     }
     fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -146,7 +159,7 @@ impl TodoStory {
             v_flex().child(Label::new(project.name.clone()))
         }
     }
-    fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
+    fn set_active_todo(&mut self, name: &str, window: &mut Window, cx: &mut App) {
         let name = name.to_string();
         self.search_input.update(cx, |this, cx| {
             this.set_value(&name, window, cx);
@@ -159,12 +172,12 @@ impl TodoStory {
             InputState::new(window, cx).placeholder("For test focus back on modal close.")
         });
         let now = chrono::Local::now().naive_local().date();
-        let date_picker = cx.new(|cx| {
+        let project_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
             picker.set_date(now, window, cx);
             picker
         });
-        let _ = cx.subscribe(&date_picker, |this, _, ev, _| match ev {
+        let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.project_date = date.format("%Y-%m-%d").map(|s| s.to_string());
             }
@@ -195,7 +208,7 @@ impl TodoStory {
                         .gap_3()
                         .child(TextInput::new(&input1))
                         .child(Dropdown::new(&dropdown))
-                        .child(DatePicker::new(&date_picker).placeholder("DueDate of Project")),
+                        .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
                 )
                 .footer({
                     let view = view.clone();
@@ -216,12 +229,9 @@ impl TodoStory {
                                         // panel.update(cx, |view, _| {
                                         //     view.name = project.name.into();
                                         // });
-                                        // let _ = cx.update_entity(
-                                        //     &self.project_list.clone(),
-                                        //     |list, cx| {
-                                        //         list.delegate_mut().add(project.into());
-                                        //     },
-                                        // );
+                                        // let _ = cx.update_entity(&self.project_list, |list, cx| {
+                                        //     list.delegate_mut().add(project.into());
+                                        // });
                                         cx.notify();
                                     });
                                 }
@@ -329,7 +339,6 @@ impl Render for TodoStory {
                                         )
                                         .on_click(cx.listener(
                                             move |this, _: &ClickEvent, _, cx| {
-                                                println!("project clicked: ix:{}", ix);
                                                 this.is_board_active = false;
                                                 this.active_board = None;
                                                 this.active_index = Some(ix);

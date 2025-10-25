@@ -1,24 +1,23 @@
 use std::{ops::Range, rc::Rc};
 
-use crate::{DBState, get_projects};
+use crate::{get_projects, DBState};
 use gpui::{
-    Action, AnyElement, App, AppContext, ClickEvent, Context, Entity, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, TextAlign, Window, div, prelude::FluentBuilder as _,
+    div, prelude::FluentBuilder as _, Action, AnyElement, App, AppContext, ClickEvent, Context,
+    Entity, Focusable, InteractiveElement, IntoElement, ParentElement,
+    Render, SharedString, StatefulInteractiveElement, Styled, TextAlign, Window,
 };
 use gpui_component::{
-    ActiveTheme as _, Sizable as _, Size, StyleSized as _, StyledExt,
-    button::Button,
-    h_flex,
-    indicator::Indicator,
-    input::{InputEvent, InputState, TextInput},
-    label::Label,
+    button::Button, h_flex, indicator::Indicator, input::{InputEvent, InputState, TextInput}, label::Label,
     popup_menu::{PopupMenu, PopupMenuExt},
     table::{Column, ColumnFixed, ColumnSort, Table, TableDelegate, TableEvent},
     v_flex,
+    ActiveTheme as _,
+    Sizable as _,
+    Size,
+    StyleSized as _,
+    StyledExt,
 };
 use serde::Deserialize;
-use todos::entity::ProjectModel;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = table_project, no_json)]
@@ -75,7 +74,7 @@ impl StockTableDelegate {
     }
     fn on_search(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let companies: Vec<Rc<ProjectModel>> = self
+        let companies1: Vec<Rc<ProjectModel>> = self
             ._projects
             .iter()
             .filter(|menu| {
@@ -85,7 +84,7 @@ impl StockTableDelegate {
             })
             .cloned()
             .collect();
-        self.matched_projects = companies;
+        self.matched_projects = companies1;
     }
     fn update_projects(&mut self, menus: Vec<Rc<ProjectModel>>) {
         self._projects = menus;

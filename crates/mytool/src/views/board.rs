@@ -3,7 +3,7 @@ use super::{
 };
 use crate::{Board, TodoStory};
 use gpui::{AnyView, App, ClickEvent, Context, Entity, Hsla, Window};
-use gpui_component::{IconName, Theme};
+use gpui_component::IconName;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoardType {
@@ -42,10 +42,6 @@ impl BoardType {
     ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
         let item = *self;
         move |this, _, _, cx| {
-            println!("laste_board:{:?}", this.active_board);
-            println!("Clicked on item: {}", item.label(),);
-            let theme_mode = Theme::global(cx);
-            println!("Clicked on theme mode: {:?}", theme_mode.is_dark());
             this.is_board_active = true;
             if this.active_boards.contains_key(&item) {
                 this.active_boards.remove(&item);

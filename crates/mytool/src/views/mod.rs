@@ -23,6 +23,8 @@ use tokio::sync::Mutex;
 
 pub use board::BoardType;
 pub use board_container::{Board, BoardContainer};
+pub use item::{ItemListDelegate, ItemListItem};
+pub use label::{LabelListDelegate, LabelListItem};
 pub use project::{ProjectListDelegate, ProjectListItem};
 
 pub struct DBState {

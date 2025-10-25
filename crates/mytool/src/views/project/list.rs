@@ -11,7 +11,7 @@ use gpui_component::{
     v_flex,
 };
 use todos::entity::ProjectModel;
-actions!(project_list_item, [SelectedProject]);
+actions!(project, [SelectedProject]);
 #[derive(IntoElement)]
 pub struct ProjectListItem {
     base: ListItem,
@@ -55,8 +55,8 @@ impl RenderOnce for ProjectListItem {
 }
 
 pub struct ProjectListDelegate {
-    pub(crate) _projects: Vec<Rc<ProjectModel>>,
-    pub(crate) matched_projects: Vec<Vec<Rc<ProjectModel>>>,
+    pub _projects: Vec<Rc<ProjectModel>>,
+    pub matched_projects: Vec<Vec<Rc<ProjectModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -99,6 +99,7 @@ impl ProjectListDelegate {
     }
     pub fn add(&mut self, project: Rc<ProjectModel>) {
         let mut projects = self._projects.clone();
+
         projects.push(project);
         self.update_projects(projects);
     }

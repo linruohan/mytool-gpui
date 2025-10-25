@@ -6,7 +6,7 @@ mod app;
 pub mod constants;
 pub mod entity;
 pub mod enums;
-mod error;
+pub mod error;
 mod filters;
 pub mod objects;
 pub mod services;

@@ -1,2 +1,3 @@
-mod project_list_item;
-pub use project_list_item::{ProjectListDelegate, ProjectListItem};
+mod list;
+
+pub use list::{ProjectListDelegate, ProjectListItem};

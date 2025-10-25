@@ -12,7 +12,8 @@ mod utils;
 mod views; // 任务管理视图
 mod welcome_story;
 
-pub use service::load_projects;
+// 获取todoist数据
+pub use service::*;
 
 pub use assets::Assets;
 pub use gallery::Gallery;
@@ -31,8 +32,9 @@ pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use utils::play_ogg_file;
 pub use views::{
-    Board, BoardType, CompletedBoard, DBState, InboxBoard, LabelsBoard, PinBoard,
-    ProjectListDelegate, ProjectListItem, ScheduledBoard, TodayBoard, todo_database_init,
+    Board, BoardType, CompletedBoard, DBState, InboxBoard, ItemListDelegate, ItemListItem,
+    LabelListDelegate, LabelListItem, LabelsBoard, PinBoard, ProjectListDelegate, ProjectListItem,
+    ScheduledBoard, TodayBoard, todo_database_init,
 };
 pub use welcome_story::WelcomeStory;
 
