@@ -6,16 +6,16 @@ use gpui::{AnyView, App, ClickEvent, Context, Entity, Focusable, Hsla, Render, W
 use gpui_component::IconName;
 
 pub trait Board: Mytool + Render + Focusable + Sized {
-    fn icon() -> IconName;
-    fn color() -> Hsla;
-    fn count() -> usize;
+    fn icon(&self) -> IconName;
+    fn color(&self) -> Hsla;
+    fn count(&self) -> usize;
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoardType {
     Inbox,     // 未完成任务
     Today,     // 今日任务
     Scheduled, // 计划任务
-    Pinboard,  // 挂起任务
+    Pinboard,  // 关注任务
     Labels,    // 标签list
     Completed, // 已完成任务
 }
@@ -74,33 +74,22 @@ impl BoardType {
     }
 
     pub fn icon(&self) -> IconName {
+        self.board().icon()
+    }
+    pub fn board(&self) -> impl Board {
         match self {
-            Self::Inbox => InboxBoard::icon(),
-            Self::Today => TodayBoard::icon(),
-            Self::Scheduled => ScheduledBoard::icon(),
-            Self::Pinboard => PinBoard::icon(),
-            Self::Labels => LabelsBoard::icon(),
-            Self::Completed => CompletedBoard::icon(),
+            Self::Inbox => InboxBoard,
+            Self::Today => TodayBoard,
+            Self::Scheduled => ScheduledBoard,
+            Self::Pinboard => PinBoard,
+            Self::Labels => LabelsBoard,
+            Self::Completed => CompletedBoard,
         }
     }
     pub fn count(&self) -> usize {
-        match self {
-            Self::Inbox => InboxBoard::count(),
-            Self::Today => TodayBoard::count(),
-            Self::Scheduled => ScheduledBoard::count(),
-            Self::Pinboard => PinBoard::count(),
-            Self::Labels => LabelsBoard::count(),
-            Self::Completed => CompletedBoard::count(),
-        }
+        self.board().count()
     }
     pub fn color(&self) -> Hsla {
-        match self {
-            Self::Inbox => InboxBoard::color(),
-            Self::Today => TodayBoard::color(),
-            Self::Scheduled => ScheduledBoard::color(),
-            Self::Pinboard => PinBoard::color(),
-            Self::Labels => LabelsBoard::color(),
-            Self::Completed => CompletedBoard::color(),
-        }
+        self.board().color()
     }
 }

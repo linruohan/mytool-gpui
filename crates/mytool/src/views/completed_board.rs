@@ -3,13 +3,15 @@ use gpui::{
     Window,
 };
 
-use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
-
 use super::Board;
 use crate::Mytool;
+use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
+use todos::entity::ItemModel;
 
 pub struct CompletedBoard {
     focus_handle: FocusHandle,
+    is_dark: bool,
+    tasks: Vec<ItemModel>,
 }
 
 impl CompletedBoard {
@@ -18,22 +20,36 @@ impl CompletedBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+        let theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
+            is_dark: theme_mode.is_dark(),
+            tasks: Vec::new(),
         }
+    }
+    pub fn tasks(&self) -> &[ItemModel] {
+        &self.tasks
+    }
+
+    pub fn add_task(&mut self, task: ItemModel) {
+        self.tasks.push(task);
+    }
+    pub fn clear_tasks(&mut self) {
+        self.tasks.clear();
     }
 }
 impl Board for CompletedBoard {
-    fn icon() -> IconName {
+    fn icon(&self) -> IconName {
         IconName::CheckRoundOutlineSymbolic
     }
 
-    fn color() -> Hsla {
-        gpui::rgb(0xffbe6f).into()
+    fn color(&self) -> Hsla {
+        let hex = if self.is_dark { 0xffbe6f } else { 0xff7800 };
+        gpui::rgb(hex).into()
     }
 
-    fn count() -> usize {
-        2
+    fn count(&self) -> usize {
+        self.tasks().len()
     }
 }
 
@@ -46,12 +62,12 @@ impl Mytool for CompletedBoard {
         "UI components for building fantastic desktop application by using GPUI."
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
-        Self::view(window, cx)
-    }
-
     fn zoomable() -> Option<PanelControl> {
         None
+    }
+
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
+        Self::view(window, cx)
     }
 }
 
@@ -67,6 +83,10 @@ impl Render for CompletedBoard {
         _: &mut gpui::Window,
         _cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        v_flex().p_4().gap_5().child(Label::new("completed"))
+        v_flex()
+            .p_4()
+            .gap_5()
+            .child(Label::new("completed"))
+            .child(Label::new("completed 内容"))
     }
 }

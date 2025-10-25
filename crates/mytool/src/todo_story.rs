@@ -1,6 +1,7 @@
 use crate::{BoardType, ProjectListDelegate};
 use crate::{DBState, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
+use gpui_component::Sizable;
 use gpui_component::switch::Switch;
 use gpui_component::{
     ActiveTheme as _, ContextModal, List, ListEvent,
@@ -14,7 +15,6 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
-use gpui_component::Sizable;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::option::Option;
@@ -143,7 +143,6 @@ impl TodoStory {
         } else {
             let projects = self.project_list.read(cx).delegate()._projects.clone();
             let project = projects.get(self.active_index.unwrap()).unwrap();
-            println!("project: {}", project.name);
             v_flex().child(Label::new(project.name.clone()))
         }
     }

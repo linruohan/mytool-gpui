@@ -1,7 +1,7 @@
 mod app_menus;
 mod assets;
 mod calendar_story;
-mod components; // 我的组件库
+// mod components; // 我的组件库
 mod crypto; // 加解密
 mod gallery;
 mod service;

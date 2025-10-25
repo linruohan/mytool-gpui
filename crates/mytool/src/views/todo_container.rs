@@ -6,7 +6,7 @@ use gpui::{
 };
 use gpui_component::dock::{PanelControl, PanelEvent};
 use gpui_component::notification::Notification;
-use gpui_component::{ContextModal, IconName, v_flex};
+use gpui_component::{ContextModal, IconName, Theme, v_flex};
 // const PANEL_NAME: &str = "TodoContainer";
 pub struct TodoContainer {
     focus_handle: gpui::FocusHandle,
@@ -50,6 +50,7 @@ impl TodoContainer {
     }
 
     pub fn panel<S: Board + Mytool>(window: &mut Window, cx: &mut App) -> Entity<Self> {
+        let theme_mode = Theme::global(cx).mode;
         let name = S::title();
         let color = S::color();
         let count = S::count();
