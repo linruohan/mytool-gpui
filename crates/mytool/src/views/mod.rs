@@ -1,4 +1,5 @@
 mod board;
+mod board_container;
 mod completed_board;
 mod inbox_board;
 mod item;
@@ -8,7 +9,6 @@ mod pin_board;
 mod project;
 mod scheduled_board;
 mod today_board;
-mod todo_container;
 
 pub use completed_board::CompletedBoard;
 use gpui::Global;
@@ -21,9 +21,9 @@ use std::sync::Arc;
 pub use today_board::TodayBoard;
 use tokio::sync::Mutex;
 
-pub use board::{Board, BoardType};
+pub use board::BoardType;
+pub use board_container::{Board, BoardContainer};
 pub use project::{ProjectListDelegate, ProjectListItem};
-pub use todo_container::TodoContainer;
 
 pub struct DBState {
     pub conn: Arc<Mutex<DatabaseConnection>>,

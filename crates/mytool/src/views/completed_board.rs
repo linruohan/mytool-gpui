@@ -4,13 +4,11 @@ use gpui::{
 };
 
 use super::Board;
-use crate::Mytool;
-use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
+use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
 use todos::entity::ItemModel;
 
 pub struct CompletedBoard {
     focus_handle: FocusHandle,
-    is_dark: bool,
     tasks: Vec<ItemModel>,
 }
 
@@ -20,10 +18,8 @@ impl CompletedBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
-            is_dark: theme_mode.is_dark(),
             tasks: Vec::new(),
         }
     }
@@ -39,21 +35,18 @@ impl CompletedBoard {
     }
 }
 impl Board for CompletedBoard {
-    fn icon(&self) -> IconName {
+    fn icon() -> IconName {
         IconName::CheckRoundOutlineSymbolic
     }
 
-    fn color(&self) -> Hsla {
-        let hex = if self.is_dark { 0xffbe6f } else { 0xff7800 };
-        gpui::rgb(hex).into()
+    fn colors() -> Vec<Hsla> {
+        vec![gpui::rgb(0xffbe6f).into(), gpui::rgb(0xff7800).into()]
     }
 
-    fn count(&self) -> usize {
-        self.tasks().len()
+    fn count() -> usize {
+        0
     }
-}
 
-impl Mytool for CompletedBoard {
     fn title() -> &'static str {
         "Completed"
     }

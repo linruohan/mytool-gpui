@@ -4,13 +4,11 @@ use gpui::{
 };
 
 use super::Board;
-use crate::Mytool;
-use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
+use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
 use todos::entity::ItemModel;
 
 pub struct PinBoard {
     focus_handle: FocusHandle,
-    is_dark: bool,
     tasks: Vec<ItemModel>,
 }
 
@@ -20,10 +18,8 @@ impl PinBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
-            is_dark: theme_mode.is_dark(),
             tasks: Vec::new(),
         }
     }
@@ -39,18 +35,17 @@ impl PinBoard {
     }
 }
 impl Board for PinBoard {
-    fn icon(&self) -> IconName {
+    fn icon() -> IconName {
         IconName::PinSymbolic
     }
-    fn color(&self) -> Hsla {
-        let hex = if self.is_dark { 0xf66151 } else { 0xed333b };
-        gpui::rgb(hex).into()
+
+    fn colors() -> Vec<Hsla> {
+        vec![gpui::rgb(0xf66151).into(), gpui::rgb(0xed333b).into()]
     }
-    fn count(&self) -> usize {
-        self.tasks.len()
+
+    fn count() -> usize {
+        0
     }
-}
-impl Mytool for PinBoard {
     fn title() -> &'static str {
         "Pinboard"
     }

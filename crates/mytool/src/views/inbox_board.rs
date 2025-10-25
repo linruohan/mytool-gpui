@@ -4,13 +4,11 @@ use gpui::{
 };
 
 use super::Board;
-use crate::Mytool;
-use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
+use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
 use todos::entity::ItemModel;
 
 pub struct InboxBoard {
     focus_handle: FocusHandle,
-    is_dark: bool,
     tasks: Vec<ItemModel>,
 }
 
@@ -19,11 +17,9 @@ impl InboxBoard {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme_mode = Theme::global(cx).mode;
+    pub(crate) fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle(),
-            is_dark: theme_mode.is_dark(),
             tasks: Vec::new(),
         }
     }
@@ -39,19 +35,16 @@ impl InboxBoard {
     }
 }
 impl Board for InboxBoard {
-    fn icon(&self) -> IconName {
+    fn icon() -> IconName {
         IconName::MailboxSymbolic
     }
-    fn color(&self) -> Hsla {
-        let hex = if self.is_dark { 0x99c1f1 } else { 0x3584e4 };
-        gpui::rgb(hex).into()
+    fn colors() -> Vec<Hsla> {
+        vec![gpui::rgb(0x99c1f1).into(), gpui::rgb(0x3584e4).into()]
     }
 
-    fn count(&self) -> usize {
-        self.tasks().len()
+    fn count() -> usize {
+        0
     }
-}
-impl Mytool for InboxBoard {
     fn title() -> &'static str {
         "Inbox"
     }

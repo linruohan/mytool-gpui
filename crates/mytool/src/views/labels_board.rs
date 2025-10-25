@@ -4,13 +4,11 @@ use gpui::{
 };
 
 use super::Board;
-use crate::Mytool;
-use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
+use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
 use todos::entity::LabelModel;
 
 pub struct LabelsBoard {
     focus_handle: FocusHandle,
-    is_dark: bool,
     labels: Vec<LabelModel>,
 }
 
@@ -20,10 +18,8 @@ impl LabelsBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
-            is_dark: theme_mode.is_dark(),
             labels: Vec::new(),
         }
     }
@@ -39,19 +35,17 @@ impl LabelsBoard {
     }
 }
 impl Board for LabelsBoard {
-    fn icon(&self) -> IconName {
+    fn icon() -> IconName {
         IconName::TagOutlineSymbolic
     }
-    fn color(&self) -> Hsla {
-        let hex = if self.is_dark { 0xcdab8f } else { 0x986a44 };
-        gpui::rgb(hex).into()
+
+    fn colors() -> Vec<Hsla> {
+        vec![gpui::rgb(0xcdab8f).into(), gpui::rgb(0x986a44).into()]
     }
 
-    fn count(&self) -> usize {
-        self.labels.len()
+    fn count() -> usize {
+        0
     }
-}
-impl Mytool for LabelsBoard {
     fn title() -> &'static str {
         "Labels"
     }

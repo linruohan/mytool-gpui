@@ -1,15 +1,10 @@
 use super::{
-    CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard, TodoContainer,
+    BoardContainer, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard,
 };
-use crate::{Mytool, TodoStory};
-use gpui::{AnyView, App, ClickEvent, Context, Entity, Focusable, Hsla, Render, Window};
+use crate::{Board, TodoStory};
+use gpui::{AnyView, App, ClickEvent, Context, Entity, Hsla, Window};
 use gpui_component::IconName;
 
-pub trait Board: Mytool + Render + Focusable + Sized {
-    fn icon(&self) -> IconName;
-    fn color(&self) -> Hsla;
-    fn count(&self) -> usize;
-}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoardType {
     Inbox,     // 未完成任务
@@ -32,14 +27,14 @@ impl BoardType {
         }
     }
 
-    pub fn container(&self, window: &mut Window, cx: &mut App) -> Entity<TodoContainer> {
+    pub fn container(&self, window: &mut Window, cx: &mut App) -> Entity<BoardContainer> {
         match self {
-            Self::Inbox => TodoContainer::panel::<InboxBoard>(window, cx),
-            Self::Today => TodoContainer::panel::<TodayBoard>(window, cx),
-            Self::Scheduled => TodoContainer::panel::<ScheduledBoard>(window, cx),
-            Self::Pinboard => TodoContainer::panel::<PinBoard>(window, cx),
-            Self::Labels => TodoContainer::panel::<LabelsBoard>(window, cx),
-            Self::Completed => TodoContainer::panel::<CompletedBoard>(window, cx),
+            Self::Inbox => BoardContainer::panel::<InboxBoard>(window, cx),
+            Self::Today => BoardContainer::panel::<TodayBoard>(window, cx),
+            Self::Scheduled => BoardContainer::panel::<ScheduledBoard>(window, cx),
+            Self::Pinboard => BoardContainer::panel::<PinBoard>(window, cx),
+            Self::Labels => BoardContainer::panel::<LabelsBoard>(window, cx),
+            Self::Completed => BoardContainer::panel::<CompletedBoard>(window, cx),
         }
     }
     pub fn handler(
@@ -74,22 +69,34 @@ impl BoardType {
     }
 
     pub fn icon(&self) -> IconName {
-        self.board().icon()
-    }
-    pub fn board(&self) -> impl Board {
         match self {
-            Self::Inbox => InboxBoard,
-            Self::Today => TodayBoard,
-            Self::Scheduled => ScheduledBoard,
-            Self::Pinboard => PinBoard,
-            Self::Labels => LabelsBoard,
-            Self::Completed => CompletedBoard,
+            Self::Inbox => InboxBoard::icon(),
+            Self::Today => TodayBoard::icon(),
+            Self::Scheduled => ScheduledBoard::icon(),
+            Self::Pinboard => PinBoard::icon(),
+            Self::Labels => LabelsBoard::icon(),
+            Self::Completed => CompletedBoard::icon(),
         }
     }
+
     pub fn count(&self) -> usize {
-        self.board().count()
+        match self {
+            Self::Inbox => InboxBoard::count(),
+            Self::Today => TodayBoard::count(),
+            Self::Scheduled => ScheduledBoard::count(),
+            Self::Pinboard => PinBoard::count(),
+            Self::Labels => LabelsBoard::count(),
+            Self::Completed => CompletedBoard::count(),
+        }
     }
-    pub fn color(&self) -> Hsla {
-        self.board().color()
+    pub fn colors(&self) -> Vec<Hsla> {
+        match self {
+            Self::Inbox => InboxBoard::colors(),
+            Self::Today => TodayBoard::colors(),
+            Self::Scheduled => ScheduledBoard::colors(),
+            Self::Pinboard => PinBoard::colors(),
+            Self::Labels => LabelsBoard::colors(),
+            Self::Completed => CompletedBoard::colors(),
+        }
     }
 }

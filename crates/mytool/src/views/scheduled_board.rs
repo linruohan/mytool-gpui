@@ -4,13 +4,11 @@ use gpui::{
 };
 
 use super::Board;
-use crate::Mytool;
 use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
 use todos::entity::ItemModel;
 
 pub struct ScheduledBoard {
     focus_handle: FocusHandle,
-    is_dark: bool,
     tasks: Vec<ItemModel>,
 }
 
@@ -20,10 +18,9 @@ impl ScheduledBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme_mode = Theme::global(cx).mode;
+        let _theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
-            is_dark: theme_mode.is_dark(),
             tasks: Vec::new(),
         }
     }
@@ -39,19 +36,16 @@ impl ScheduledBoard {
     }
 }
 impl Board for ScheduledBoard {
-    fn icon(&self) -> IconName {
+    fn icon() -> IconName {
         IconName::MonthSymbolic
     }
-    fn color(&self) -> Hsla {
-        let hex = if self.is_dark { 0xdc8add } else { 0x9141ac };
-        gpui::rgb(hex).into()
+    fn colors() -> Vec<Hsla> {
+        vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
     }
 
-    fn count(&self) -> usize {
-        self.tasks.len()
+    fn count() -> usize {
+        0
     }
-}
-impl Mytool for ScheduledBoard {
     fn title() -> &'static str {
         "Scheduled"
     }

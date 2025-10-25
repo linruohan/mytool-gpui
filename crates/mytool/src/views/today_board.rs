@@ -4,13 +4,11 @@ use gpui::{
 };
 
 use super::Board;
-use crate::Mytool;
-use gpui_component::{IconName, Theme, dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, label::Label, v_flex, IconName};
 use todos::entity::ItemModel;
 
 pub struct TodayBoard {
     focus_handle: FocusHandle,
-    is_dark: bool,
     tasks: Vec<ItemModel>,
 }
 
@@ -20,10 +18,8 @@ impl TodayBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
-            is_dark: theme_mode.is_dark(),
             tasks: Vec::new(),
         }
     }
@@ -39,18 +35,17 @@ impl TodayBoard {
     }
 }
 impl Board for TodayBoard {
-    fn icon(&self) -> IconName {
+    fn icon() -> IconName {
         IconName::StarOutlineThickSymbolic
     }
-    fn color(&self) -> Hsla {
-        gpui::rgb(0x33d17a).into()
+
+    fn colors() -> Vec<Hsla> {
+        vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
     }
 
-    fn count(&self) -> usize {
-        self.tasks.len()
+    fn count() -> usize {
+        0
     }
-}
-impl Mytool for TodayBoard {
     fn title() -> &'static str {
         "Today"
     }

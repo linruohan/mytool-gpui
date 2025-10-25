@@ -1,33 +1,81 @@
-use crate::{Board, ContainerEvent, Mytool, ShowPanelInfo, ToggleSearch};
+use crate::{ContainerEvent, ShowPanelInfo, ToggleSearch};
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, Window,
+    px, AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla,
+    InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
+    Styled, Window,
 };
 use gpui_component::dock::{PanelControl, PanelEvent};
 use gpui_component::notification::Notification;
-use gpui_component::{ContextModal, IconName, Theme, v_flex};
-// const PANEL_NAME: &str = "TodoContainer";
-pub struct TodoContainer {
+use gpui_component::{v_flex, ContextModal, IconName};
+// const PANEL_NAME: &str = "BoardContainer";
+pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
     pub name: SharedString,
     pub title_bg: Option<Hsla>,
     pub description: SharedString,
     width: Option<gpui::Pixels>,
     height: Option<gpui::Pixels>,
-    mytool: Option<AnyView>,
-    story_klass: Option<SharedString>,
+    board: Option<AnyView>,
+    board_klass: Option<SharedString>,
     closable: bool,
     zoomable: Option<PanelControl>,
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
-    pub board_color: Hsla,
-    pub board_count: usize,
-    pub board_icon: IconName,
+    colors: Vec<Hsla>,
+    count: usize,
+    icon: IconName,
 }
 
-impl EventEmitter<ContainerEvent> for TodoContainer {}
+impl EventEmitter<ContainerEvent> for BoardContainer {}
 
-impl TodoContainer {
+pub trait Board: Render + Sized {
+    fn icon() -> IconName;
+    fn colors() -> Vec<Hsla>;
+    fn count() -> usize;
+    fn klass() -> &'static str {
+        std::any::type_name::<Self>().split("::").last().unwrap()
+    }
+    fn title() -> &'static str;
+
+    fn description() -> &'static str {
+        ""
+    }
+    fn closable() -> bool {
+        true
+    }
+
+    fn zoomable() -> Option<PanelControl> {
+        Some(PanelControl::default())
+    }
+
+    fn title_bg() -> Option<Hsla> {
+        None
+    }
+
+    fn paddings() -> Pixels {
+        px(16.)
+    }
+
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render>;
+
+    fn on_active(&mut self, active: bool, window: &mut Window, cx: &mut App) {
+        let _ = active;
+        let _ = window;
+        let _ = cx;
+    }
+
+    fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
+                     where
+                         Self: 'static,
+    {
+        if let Some(board) = view.downcast::<Self>().ok() {
+            cx.update_entity(&board, |board, cx| {
+                board.on_active(active, window, cx);
+            });
+        }
+    }
+}
+impl BoardContainer {
     pub fn new(_window: &mut Window, cx: &mut App) -> Self {
         let focus_handle = cx.focus_handle();
 
@@ -38,21 +86,20 @@ impl TodoContainer {
             description: "".into(),
             width: None,
             height: None,
-            mytool: None,
-            story_klass: None,
+            board: None,
+            board_klass: None,
             closable: true,
             zoomable: Some(PanelControl::default()),
             on_active: None,
-            board_color: Hsla::default(),
-            board_count: 0,
-            board_icon: IconName::ALargeSmall,
+            colors: Vec::new(),
+            count: 0,
+            icon: IconName::ALargeSmall,
         }
     }
 
-    pub fn panel<S: Board + Mytool>(window: &mut Window, cx: &mut App) -> Entity<Self> {
-        let theme_mode = Theme::global(cx).mode;
+    pub fn panel<S: Board>(window: &mut Window, cx: &mut App) -> Entity<Self> {
         let name = S::title();
-        let color = S::color();
+        let colors = S::colors();
         let count = S::count();
         let icon = S::icon();
 
@@ -63,15 +110,15 @@ impl TodoContainer {
 
         let view = cx.new(|cx| {
             let mut mytool = Self::new(window, cx)
-                .mytool(mytool.into(), story_klass)
+                .board(mytool.into(), story_klass)
                 .on_active(S::on_active_any);
             mytool.focus_handle = focus_handle;
             mytool.closable = S::closable();
             mytool.zoomable = S::zoomable();
             mytool.name = name.into();
-            mytool.board_color = color;
-            mytool.board_count = count;
-            mytool.board_icon = icon;
+            mytool.colors = colors;
+            mytool.count = count;
+            mytool.icon = icon;
             mytool.description = description.into();
             mytool.title_bg = S::title_bg();
             mytool
@@ -90,9 +137,9 @@ impl TodoContainer {
         self
     }
 
-    pub fn mytool(mut self, mytool: AnyView, story_klass: impl Into<SharedString>) -> Self {
-        self.mytool = Some(mytool);
-        self.story_klass = Some(story_klass.into());
+    pub fn board(mut self, board: AnyView, board_klass: impl Into<SharedString>) -> Self {
+        self.board = Some(board);
+        self.board_klass = Some(board_klass.into());
         self
     }
 
@@ -132,29 +179,29 @@ impl TodoContainer {
         window.push_notification(note, cx);
     }
 }
-impl EventEmitter<PanelEvent> for TodoContainer {}
-impl Focusable for TodoContainer {
+impl EventEmitter<PanelEvent> for BoardContainer {}
+impl Focusable for BoardContainer {
     fn focus_handle(&self, _: &App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
-impl Render for TodoContainer {
+impl Render for BoardContainer {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
-            .id("todo-container")
+            .id("board-container")
             .size_full()
             .overflow_y_scroll()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::on_action_panel_info))
             .on_action(cx.listener(Self::on_action_toggle_search))
-            .when_some(self.mytool.clone(), |this, mytool| {
+            .when_some(self.board.clone(), |this, board| {
                 this.child(
                     v_flex()
-                        .id("todo-children")
+                        .id("board-children")
                         .w_full()
                         .flex_1()
                         .p_4()
-                        .child(mytool),
+                        .child(board),
                 )
             })
     }

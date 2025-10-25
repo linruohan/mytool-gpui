@@ -284,8 +284,7 @@ impl Render for TodoStory {
                                                 .map(|(_ix, item)| {
                                                     SidebarBoardItem::new(
                                                         item.label(),
-                                                        item.color(),
-                                                        item.color(),
+                                                        item.colors(),
                                                         item.count(),
                                                         item.icon(),
                                                     )
