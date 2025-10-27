@@ -792,9 +792,9 @@ dependencies = [
 
 [[package]]
 name = "bstr"
-version = "1.12.0"
+version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "234113d19d0d7d613b40e86fb654acf958910802bcceab913a4f9e7cda03b1a4"
+checksum = "63044e1ae8e69f3b5a92c736ca6269b8d12fa7efe39bf34ddb06d102cf0e2cab"
 dependencies = [
  "memchr",
  "serde",
@@ -1573,9 +1573,9 @@ dependencies = [
 
 [[package]]
 name = "deranged"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a41953f86f8a05768a6cda24def994fd2f424b04ec5c719cf89989779f199071"
+checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
 dependencies = [
  "powerfmt",
  "serde_core",
@@ -2618,8 +2618,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-component"
-version = "0.3.0"
-source = "git+https://github.com/linruohan/gpui-component.git#cebd9ec0eb9653edd26f0728712b3539f9b1c714"
+version = "0.3.1"
+source = "git+https://github.com/linruohan/gpui-component.git#e7595b984c0ea03ffd652afc092f5f6918560042"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2658,8 +2658,8 @@ dependencies = [
 
 [[package]]
 name = "gpui-component-macros"
-version = "0.3.0"
-source = "git+https://github.com/linruohan/gpui-component.git#cebd9ec0eb9653edd26f0728712b3539f9b1c714"
+version = "0.3.1"
+source = "git+https://github.com/linruohan/gpui-component.git#e7595b984c0ea03ffd652afc092f5f6918560042"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3937,9 +3937,9 @@ dependencies = [
 
 [[package]]
 name = "moxcms"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c588e11a3082784af229e23e8e4ecf5bcc6fbe4f69101e0421ce8d79da7f0b40"
+checksum = "692af879e4d9383c0fd9dec15524af6b6977c8bf1c6b278a4526d5341347c574"
 dependencies = [
  "num-traits",
  "pxfm",
@@ -5769,9 +5769,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.12.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "229a4a4c221013e7e1f1a043678c5cc39fe5171437c88fb47151a21e6f5b5c79"
+checksum = "94182ad936a0c91c324cd46c6511b9510ed16af436d7b5bab34beab0afd55f7a"
 dependencies = [
  "web-time",
  "zeroize",

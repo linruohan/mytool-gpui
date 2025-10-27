@@ -47,7 +47,7 @@ impl BoardType {
                 this.active_boards.remove(&item);
             } else {
                 this.active_boards.insert(item, true);
-                this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
+                // this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
             }
 
             this.active_board = Some(item);
