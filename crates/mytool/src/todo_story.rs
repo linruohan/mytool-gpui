@@ -1,7 +1,6 @@
-use crate::{BoardType, ProjectListDelegate, load_items, load_labels};
+use crate::{BoardType, ItemClickEvent, ProjectListDelegate, load_items, load_labels};
 use crate::{DBState, ItemListDelegate, LabelListDelegate, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
-use gpui_component::Sizable;
 use gpui_component::switch::Switch;
 use gpui_component::{
     ActiveTheme as _, ContextModal, List,
@@ -15,6 +14,7 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarBoard, SidebarBoardItem, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
+use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::option::Option;
@@ -25,6 +25,7 @@ use todos::entity::{ItemModel, LabelModel, ProjectModel};
 pub struct SelectTodo(SharedString);
 
 pub struct TodoStory {
+    drawer_placement: Option<Placement>,
     active_index: Option<usize>,
     collapsed: bool,
     focus_handle: gpui::FocusHandle,
@@ -72,14 +73,20 @@ impl TodoStory {
         let label_list = cx.new(|cx| List::new(LabelListDelegate::new(), window, cx));
         let item_list = cx.new(|cx| List::new(ItemListDelegate::new(), window, cx));
 
-        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
-            InputEvent::Change => {
-                this.is_board_active = true;
-                this.active_index = Some(0);
+        let _subscriptions = vec![
+            cx.subscribe(&search_input, |this, _, e, cx| match e {
+                InputEvent::Change => {
+                    this.is_board_active = true;
+                    this.active_index = Some(0);
+                    cx.notify()
+                }
+                _ => {}
+            }),
+            cx.subscribe(&search_input, |this, _, event: &ItemClickEvent, cx| {
+                this.open_drawer_at(Placement::Right, window, cx);
                 cx.notify()
-            }
-            _ => {}
-        })];
+            }),
+        ];
         let mut active_boards = HashMap::new();
         active_boards.insert(BoardType::Inbox, true);
 
@@ -128,6 +135,7 @@ impl TodoStory {
         })
         .detach();
         let mut this = Self {
+            drawer_placement: None,
             search_input,
             active_index: Some(0),
             collapsed: false,
@@ -245,6 +253,61 @@ impl TodoStory {
                     }
                 })
         });
+    }
+    pub fn open_drawer_at(
+        &mut self,
+        placement: Placement,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        println!("奥斯丁发射点法速度发生的");
+        let _list_h = match placement {
+            Placement::Left | Placement::Right => px(400.),
+            Placement::Top | Placement::Bottom => px(160.),
+        };
+
+        let overlay = true;
+        let overlay_closable = true;
+        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Your Name"));
+        let _input2 = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("For test focus back on modal close.")
+        });
+        let date = cx.new(|cx| DatePickerState::new(window, cx));
+        window.open_drawer_at(placement, cx, move |this, _, _| {
+            this.size(px(400.))
+                .title("Item 详情:")
+                .gap_4()
+                .child(TextInput::new(&input1))
+                .child(DatePicker::new(&date).placeholder("Date of Birth"))
+                .child(
+                    Button::new("send-notification")
+                        .child("Test Notification")
+                        .on_click(|_, window, cx| {
+                            window.push_notification("Hello this is message from Drawer.", cx)
+                        }),
+                )
+                .footer(
+                    h_flex()
+                        .gap_6()
+                        .items_center()
+                        .child(Button::new("confirm").primary().label("确认").on_click(
+                            |_, window, cx| {
+                                window.close_drawer(cx);
+                            },
+                        ))
+                        .child(
+                            Button::new("cancel")
+                                .label("取消")
+                                .on_click(|_, window, cx| {
+                                    window.close_drawer(cx);
+                                }),
+                        ),
+                )
+        });
+    }
+    fn close_drawer(&mut self, _: &mut Window, cx: &mut Context<Self>) {
+        self.drawer_placement = None;
+        cx.notify();
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {

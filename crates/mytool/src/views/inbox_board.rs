@@ -1,27 +1,24 @@
 use super::Board;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    InteractiveElement as _, ParentElement, Render, Styled, Window, div, px,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
+    InteractiveElement, InteractiveElement as _, ParentElement, Render, Styled, Window, div,
 };
 
 use gpui_component::{
-    ActiveTheme as _, ContextModal as _, IconName, Placement,
-    button::{Button, ButtonVariants as _},
-    date_picker::{DatePicker, DatePickerState},
-    dock::PanelControl,
-    h_flex,
-    input::{InputState, TextInput},
-    label::Label,
-    v_flex,
+    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, label::Label, v_flex,
 };
+pub enum ItemClickEvent {
+    ShowModal,
+    ConnectionError { field1: String },
+}
 
+impl EventEmitter<ItemClickEvent> for InboxBoard {}
 use todos::entity::ItemModel;
 
 pub struct InboxBoard {
     focus_handle: FocusHandle,
     tasks: Vec<ItemModel>,
-    drawer_placement: Option<Placement>,
 }
 
 impl InboxBoard {
@@ -33,7 +30,6 @@ impl InboxBoard {
         Self {
             focus_handle: cx.focus_handle(),
             tasks: Vec::new(),
-            drawer_placement: None,
         }
     }
     pub fn tasks(&self) -> &[ItemModel] {
@@ -45,58 +41,6 @@ impl InboxBoard {
     }
     pub fn clear_tasks(&mut self) {
         self.tasks.clear();
-    }
-    fn open_drawer_at(&mut self, placement: Placement, window: &mut Window, cx: &mut App) {
-        println!("奥斯丁发射点法速度发生的");
-        let _list_h = match placement {
-            Placement::Left | Placement::Right => px(400.),
-            Placement::Top | Placement::Bottom => px(160.),
-        };
-
-        let overlay = true;
-        let overlay_closable = true;
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Your Name"));
-        let _input2 = cx.new(|cx| {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let date = cx.new(|cx| DatePickerState::new(window, cx));
-        window.open_drawer_at(placement, cx, move |this, _, _cx| {
-            this.overlay(overlay)
-                .overlay_closable(overlay_closable)
-                .size(px(400.))
-                .title("Item 详情:")
-                .gap_4()
-                .child(TextInput::new(&input1))
-                .child(DatePicker::new(&date).placeholder("Date of Birth"))
-                .child(
-                    Button::new("send-notification")
-                        .child("Test Notification")
-                        .on_click(|_, window, cx| {
-                            window.push_notification("Hello this is message from Drawer.", cx)
-                        }),
-                )
-                .footer(
-                    h_flex()
-                        .gap_6()
-                        .items_center()
-                        .child(Button::new("confirm").primary().label("确认").on_click(
-                            |_, window, cx| {
-                                window.close_drawer(cx);
-                            },
-                        ))
-                        .child(
-                            Button::new("cancel")
-                                .label("取消")
-                                .on_click(|_, window, cx| {
-                                    window.close_drawer(cx);
-                                }),
-                        ),
-                )
-        });
-    }
-    fn close_drawer(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        self.drawer_placement = None;
-        cx.notify();
     }
 }
 impl Board for InboxBoard {
@@ -169,7 +113,7 @@ impl Render for InboxBoard {
                     .label("drawer")
                     .on_click(cx.listener(|this, _, window, cx| {
                         println!("{}", "但是大声的发射点法");
-                        this.open_drawer_at(Placement::Left, window, cx)
+                        cx.emit(ItemClickEvent::ShowModal)
                     })),
             )
     }

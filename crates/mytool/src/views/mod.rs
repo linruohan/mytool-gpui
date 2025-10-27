@@ -12,7 +12,7 @@ mod today_board;
 
 pub use completed_board::CompletedBoard;
 use gpui::Global;
-pub use inbox_board::InboxBoard;
+pub use inbox_board::{InboxBoard, ItemClickEvent};
 pub use labels_board::LabelsBoard;
 pub use pin_board::PinBoard;
 pub use scheduled_board::ScheduledBoard;
