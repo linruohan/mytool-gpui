@@ -1,22 +1,23 @@
 use crate::views::BoardContainer;
 use crate::{
-    CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ProjectListDelegate, ScheduledBoard,
-    TodayBoard, load_items, load_labels,
+    load_items, load_labels, BoardType, CompletedBoard, InboxBoard, LabelsBoard,
+    PinBoard, ProjectListDelegate, ScheduledBoard, TodayBoard,
 };
-use crate::{DBState, ItemListDelegate, LabelListDelegate, load_projects, play_ogg_file};
+use crate::{load_projects, play_ogg_file, DBState, ItemListDelegate, LabelListDelegate};
 use gpui::{prelude::*, *};
 use gpui_component::select::{Select, SelectState};
+use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
 use gpui_component::switch::Switch;
 use gpui_component::{
-    ActiveTheme as _, ContextModal, List,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    h_flex,
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, h_flex,
     input::{Input, InputEvent, InputState},
     label::Label,
-    resizable::{ResizableState, h_resizable, resizable_panel},
+    resizable::{h_resizable, resizable_panel, ResizableState},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
+    ActiveTheme as _,
+    ContextModal,
+    List,
 };
 use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
@@ -30,7 +31,6 @@ use todos::entity::{ItemModel, LabelModel, ProjectModel};
 pub struct SelectTodo(SharedString);
 
 pub struct TodoStory {
-    drawer_placement: Option<Placement>,
     active_index: Option<usize>,
     collapsed: bool,
     focus_handle: gpui::FocusHandle,
@@ -41,9 +41,9 @@ pub struct TodoStory {
     pub is_board_active: bool,
 
     // 所有看板
-    boards: Vec<(&'static str, Vec<Entity<BoardContainer>>)>,
-    pub active_boards: HashMap<&'static str, bool>,
-    pub active_board: Option<BoardContainer>,
+    boards: Vec<BoardType>,
+    pub active_boards: HashMap<BoardType, bool>,
+    pub active_board: Option<BoardType>,
     // 所有projects
     project_list: Entity<List<ProjectListDelegate>>,
     project_date: Option<String>,
@@ -73,7 +73,7 @@ impl Focusable for TodoStory {
 
 impl TodoStory {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let boards = vec![(
+        let _boards1 = [(
             "Boards",
             vec![
                 BoardContainer::panel::<InboxBoard>(window, cx),
@@ -104,8 +104,16 @@ impl TodoStory {
             // }),
         ];
         let mut active_boards = HashMap::new();
-        active_boards.insert("Inbox", true);
+        active_boards.insert(BoardType::Inbox, true);
 
+        let boards = vec![
+            BoardType::Inbox,
+            BoardType::Today,
+            BoardType::Scheduled,
+            BoardType::Pinboard,
+            BoardType::Labels,
+            BoardType::Completed,
+        ];
         let project_list_clone = project_list.clone();
         let label_list_clone = label_list.clone();
         let item_list_clone = item_list.clone();
@@ -142,7 +150,6 @@ impl TodoStory {
         })
         .detach();
         let mut this = Self {
-            drawer_placement: None,
             search_input,
             active_index: Some(0),
             collapsed: false,
@@ -152,7 +159,7 @@ impl TodoStory {
             is_board_active: true,
             boards,
             active_boards,
-            active_board: None,
+            active_board: Some(BoardType::Inbox),
             project_list,
             project_date: None,
             label_list,
@@ -164,10 +171,10 @@ impl TodoStory {
         }
         this
     }
-    fn render_content(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.is_board_active {
-            // let board = self.active_board.clone().unwrap();
-            v_flex().child(Label::new("123"))
+            let board = self.active_board.unwrap();
+            v_flex().child(board.container(window, cx))
         } else {
             let projects = self.project_list.read(cx).delegate()._projects.clone();
             let project = projects.get(self.active_index.unwrap()).unwrap();
@@ -261,6 +268,7 @@ impl TodoStory {
                 })
         });
     }
+    #[allow(unused)]
     fn open_drawer_at(
         &mut self,
         placement: Placement,
@@ -312,10 +320,6 @@ impl TodoStory {
                 )
         });
     }
-    fn close_drawer(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        self.drawer_placement = None;
-        cx.notify();
-    }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
@@ -328,31 +332,9 @@ impl Render for TodoStory {
         let boards: Vec<_> = self
             .boards
             .iter()
-            .filter_map(|(label, boards)| {
-                let filtered_items: Vec<_> = boards
-                    .iter()
-                    .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
-                    .cloned()
-                    .collect();
-
-                if !filtered_items.is_empty() {
-                    Some((label, filtered_items))
-                } else {
-                    None
-                }
-            })
+            .filter(|story| story.label().to_lowercase().contains(&query))
+            .cloned()
             .collect();
-        let active_group = boards.get(0);
-        let active_story = self
-            .active_index
-            .and(active_group)
-            .and_then(|group| group.1.get(self.active_index.unwrap()));
-        let (_board_name, _board_description) =
-            if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
-                (story.name.clone(), story.description.clone())
-            } else {
-                ("".into(), "".into())
-            };
 
         let projects: Vec<_> = self
             .project_list
@@ -378,23 +360,27 @@ impl Render for TodoStory {
                                 v_flex()
                                     .w_full()
                                     .gap_4()
-                                    .child(div().children(
-                                        boards.clone().into_iter().enumerate().map(
-                                            |(_group_ix, (_group_name, sub_stories))| {
-                                                SidebarMenu::new().children(
-                                                    sub_stories.iter().enumerate().map(
-                                                        |(ix, story)| {
-                                                            SidebarMenuItem::new(
-                                                                story.read(cx).name.clone(),
-                                                            )
-                                                            .active(self.active_index == Some(ix))
-                                                            // .on_click(cx.listener(story.handler()))
-                                                        },
-                                                    ),
-                                                )
-                                            },
+                                    .child(
+                                        SidebarBoard::new().children(
+                                            boards
+                                                .iter()
+                                                .enumerate()
+                                                .map(|(_ix, item)| {
+                                                    SidebarBoardItem::new(
+                                                        item.label(),
+                                                        item.colors(),
+                                                        item.count(),
+                                                        item.icon(),
+                                                    )
+                                                        .size(gpui::Length::Definite(
+                                                            gpui::DefiniteLength::Fraction(0.5),
+                                                        ))
+                                                        .active(self.active_board == Some(*item))
+                                                        .on_click(cx.listener(item.handler()))
+                                                })
+                                                .collect::<Vec<_>>(),
                                         ),
-                                    ))
+                                    )
                                     .child(
                                         h_flex()
                                             .bg(cx.theme().sidebar_border)

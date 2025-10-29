@@ -1,10 +1,7 @@
-use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
-    Window,
-};
+use gpui::{div, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, ParentElement, Render, Styled, Window};
 
 use super::Board;
-use gpui_component::{IconName, dock::PanelControl, label::Label, v_flex};
+use gpui_component::{dock::PanelControl, h_flex, label::Label, v_flex, ActiveTheme, IconName};
 use todos::entity::ItemModel;
 
 pub struct CompletedBoard {
@@ -52,7 +49,7 @@ impl Board for CompletedBoard {
     }
 
     fn description() -> &'static str {
-        "UI components for building fantastic desktop application by using GPUI."
+        "已完成任务"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -74,11 +71,28 @@ impl Render for CompletedBoard {
     fn render(
         &mut self,
         _: &mut gpui::Window,
-        _cx: &mut gpui::Context<Self>,
+        cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         v_flex()
-            .p_4()
-            .gap_5()
+            .overflow_x_hidden()
+            .child(
+                h_flex()
+                    .id("header")
+                    .border_b_1()
+                    .border_color(cx.theme().border)
+                    .justify_between()
+                    .items_start()
+                    .child(
+                        v_flex()
+                            .gap_1()
+                            .child(div().text_xl().child(<CompletedBoard as Board>::title()))
+                            .child(
+                                div()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(<CompletedBoard as Board>::description()),
+                            ),
+                    ),
+            )
             .child(Label::new("completed"))
             .child(Label::new("completed 内容"))
     }

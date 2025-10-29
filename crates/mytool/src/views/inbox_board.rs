@@ -1,12 +1,12 @@
 use super::Board;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement, InteractiveElement as _, ParentElement, Render, Styled, Window, div,
+    div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    Hsla, InteractiveElement as _, ParentElement, Render, Styled, Window,
 };
 
 use gpui_component::{
-    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, label::Label, v_flex,
+    button::Button, dock::PanelControl, h_flex, label::Label, v_flex, ActiveTheme as _, IconName,
 };
 pub enum ItemClickEvent {
     ShowModal,
@@ -59,7 +59,7 @@ impl Board for InboxBoard {
     }
 
     fn description() -> &'static str {
-        "UI components for building fantastic desktop application by using GPUI."
+        "所有未完成任务"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -84,13 +84,10 @@ impl Render for InboxBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         v_flex()
-            .flex_1()
-            .h_full()
             .overflow_x_hidden()
             .child(
                 h_flex()
                     .id("header")
-                    .p_4()
                     .border_b_1()
                     .border_color(cx.theme().border)
                     .justify_between()
