@@ -37,21 +37,21 @@ impl BoardType {
             Self::Completed => BoardContainer::panel::<CompletedBoard>(window, cx),
         }
     }
-    pub fn handler(
+    pub fn handler1(
         &self,
     ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
-        let item = *self;
-        move |this, _, _, cx| {
-            this.is_board_active = true;
-            if this.active_boards.contains_key(&item) {
-                this.active_boards.remove(&item);
-            } else {
-                this.active_boards.insert(item, true);
-                // this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
-            }
-
-            this.active_board = Some(item);
-            cx.notify();
+        let _item = *self;
+        move |_this, _, _window, _cx| {
+            // this.is_board_active = true;
+            // if this.active_boards.contains_key(&item) {
+            //     this.active_boards.remove(&item);
+            // } else {
+            //     this.active_boards.insert(item.label(), true);
+            //     // this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
+            // }
+            //
+            // this.active_board = Some(self.container(window, cx).into());
+            // cx.notify();
         }
     }
 

@@ -1,9 +1,9 @@
-use crate::{ContainerEvent, ShowPanelInfo, ToggleSearch};
+use crate::{ContainerEvent, ShowPanelInfo, TodoStory, ToggleSearch};
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
-    Window, px,
+    AnyView, App, AppContext, ClickEvent, Context, Entity, EventEmitter, Focusable, Hsla,
+    InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString,
+    StatefulInteractiveElement, Styled, Window, px,
 };
 use gpui_component::dock::{PanelControl, PanelEvent};
 use gpui_component::notification::Notification;
@@ -75,6 +75,7 @@ pub trait Board: Render + Sized {
         }
     }
 }
+
 impl BoardContainer {
     pub fn new(_window: &mut Window, cx: &mut App) -> Self {
         let focus_handle = cx.focus_handle();
@@ -94,6 +95,23 @@ impl BoardContainer {
             colors: Vec::new(),
             count: 0,
             icon: IconName::ALargeSmall,
+        }
+    }
+    pub fn handler(
+        &self,
+    ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
+        // let item = *self;
+        move |_this, _, _, cx| {
+            // this.is_board_active = true;
+            // if this.active_boards.contains_key(&item.name) {
+            //     this.active_boards.remove(&item.name.into());
+            // } else {
+            //     this.active_boards.insert(item.name.clone().into(), true);
+            //     // this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
+            // }
+            //
+            // this.active_board = Some(item.clone().into());
+            cx.notify();
         }
     }
 

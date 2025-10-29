@@ -2,7 +2,7 @@ use crate::{CalendarStory, StoryContainer, TodoStory, WelcomeStory};
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _,
-    input::{InputEvent, InputState, TextInput},
+    input::{Input, InputEvent, InputState},
     resizable::{ResizableState, h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
@@ -68,7 +68,7 @@ impl Gallery {
 }
 
 impl Render for Gallery {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let query = self.search_input.read(cx).value().trim().to_lowercase();
 
         let stories: Vec<_> = self
@@ -115,12 +115,14 @@ impl Render for Gallery {
                                 v_flex().w_full().gap_4().child(
                                     div()
                                         .bg(cx.theme().sidebar_accent)
-                                        .px_1()
                                         .rounded_full()
+                                        .when(cx.theme().radius.is_zero(), |this| {
+                                            this.rounded(px(0.))
+                                        })
                                         .flex_1()
                                         .mx_1()
                                         .child(
-                                            TextInput::new(&self.search_input)
+                                            Input::new(&self.search_input)
                                                 .appearance(false)
                                                 .cleanable(),
                                         ),

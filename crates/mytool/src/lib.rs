@@ -41,12 +41,11 @@ pub use welcome_story::WelcomeStory;
 use gpui_component::{
     ActiveTheme, ContextModal, IconName, Root, TitleBar,
     button::Button,
-    context_menu::ContextMenuExt,
     dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle, register_panel},
     group_box::GroupBox,
     h_flex,
+    menu::{ContextMenuExt, PopupMenu},
     notification::Notification,
-    popup_menu::PopupMenu,
     scroll::ScrollbarShow,
     v_flex,
 };
@@ -342,7 +341,7 @@ impl Styled for StorySection {
 }
 
 impl RenderOnce for StorySection {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         GroupBox::new()
             .outline()
             .title(
@@ -355,7 +354,7 @@ impl RenderOnce for StorySection {
             )
             .content_style(
                 StyleRefinement::default()
-                    .rounded_lg()
+                    .rounded(cx.theme().radius_lg)
                     .overflow_x_hidden()
                     .items_center()
                     .justify_center(),
@@ -631,10 +630,6 @@ impl Panel for StoryContainer {
             .contains(&self.name)
     }
 
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
-    }
-
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -644,7 +639,11 @@ impl Panel for StoryContainer {
         }
     }
 
-    fn popup_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
+    }
+
+    fn dropdown_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {
         menu.menu("Info", Box::new(ShowPanelInfo))
     }
 

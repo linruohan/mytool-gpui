@@ -111,7 +111,7 @@ impl Render for InboxBoard {
                 Button::new("asdid")
                     .outline()
                     .label("drawer")
-                    .on_click(cx.listener(|this, _, window, cx| {
+                    .on_click(cx.listener(|_this, _, _window, cx| {
                         println!("{}", "但是大声的发射点法");
                         cx.emit(ItemClickEvent::ShowModal)
                     })),

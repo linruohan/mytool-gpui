@@ -1,13 +1,18 @@
 use std::{sync::Arc, time::Duration};
 
+use fake::Fake;
 use gpui::{
     div, prelude::FluentBuilder as _, px, App, AppContext, Context, Entity, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, ParentElement, Render, SharedString, Styled, Task, Timer,
     WeakEntity, Window,
 };
+use raw_window_handle::HasWindowHandle;
 
 use gpui_component::{
-    button::{Button, ButtonVariant, ButtonVariants as _}, date_picker::{DatePicker, DatePickerState}, h_flex, input::{InputState, TextInput}, list::{List, ListDelegate, ListItem}, v_flex,
+    button::{Button, ButtonVariant, ButtonVariants as _}, checkbox::Checkbox, date_picker::{DatePicker, DatePickerState}, h_flex, input::{Input, InputState}, list::{List, ListDelegate, ListItem},
+    v_flex,
+    webview::WebView,
+    wry,
     ActiveTheme as _,
     ContextModal as _,
     Icon,
@@ -16,8 +21,8 @@ use gpui_component::{
     Placement,
 };
 
-use crate::{section, Mytool};
 use crate::TestAction;
+use crate::{section, Story};
 
 pub struct ListItemDeletegate {
     story: WeakEntity<DrawerStory>,
@@ -43,7 +48,7 @@ impl ListDelegate for ListItemDeletegate {
         let query = query.to_string();
         cx.spawn(async move |this, cx| {
             // Simulate a slow search.
-            let sleep = 0.04;
+            let sleep = (0.05..0.1).fake();
             Timer::after(Duration::from_secs_f64(sleep)).await;
 
             this.update(cx, |this, cx| {
@@ -158,7 +163,8 @@ pub struct DrawerStory {
     model_keyboard: bool,
     overlay_closable: bool,
 }
-impl Mytool for DrawerStory {
+
+impl Story for DrawerStory {
     fn title() -> &'static str {
         "Drawer"
     }
@@ -187,6 +193,47 @@ impl DrawerStory {
             "Bratwurst (Germany)",
             "Bulgogi (Korea)",
             "Burrito (USA)",
+            "Ceviche (Peru)",
+            "Chicken Tikka Masala (India)",
+            "Churrasco (Brazil)",
+            "Couscous (North Africa)",
+            "Croissant (France)",
+            "Dim Sum (China)",
+            "Empanada (Argentina)",
+            "Fajitas (Mexico)",
+            "Falafel (Middle East)",
+            "Feijoada (Brazil)",
+            "Fish and Chips (UK)",
+            "Fondue (Switzerland)",
+            "Goulash (Hungary)",
+            "Haggis (Scotland)",
+            "Kebab (Middle East)",
+            "Kimchi (Korea)",
+            "Lasagna (Italy)",
+            "Maple Syrup Pancakes (Canada)",
+            "Moussaka (Greece)",
+            "Pad Thai (Thailand)",
+            "Paella (Spain)",
+            "Pancakes (USA)",
+            "Pasta Carbonara (Italy)",
+            "Pavlova (Australia)",
+            "Peking Duck (China)",
+            "Pho (Vietnam)",
+            "Pierogi (Poland)",
+            "Pizza (Italy)",
+            "Poutine (Canada)",
+            "Pretzel (Germany)",
+            "Ramen (Japan)",
+            "Rendang (Indonesia)",
+            "Sashimi (Japan)",
+            "Satay (Indonesia)",
+            "Shepherd's Pie (Ireland)",
+            "Sushi (Japan)",
+            "Tacos (Mexico)",
+            "Tandoori Chicken (India)",
+            "Tortilla (Spain)",
+            "Tzatziki (Greece)",
+            "Wiener Schnitzel (Austria)",
         ]
             .iter()
             .map(|s| Arc::new(s.to_string()))
@@ -256,7 +303,7 @@ impl DrawerStory {
                 .size(px(400.))
                 .title("Drawer Title")
                 .gap_4()
-                .child(TextInput::new(&input1))
+                .child(Input::new(&input1))
                 .child(DatePicker::new(&date).placeholder("Date of Birth"))
                 .child(
                     Button::new("send-notification")
@@ -327,6 +374,57 @@ impl Render for DrawerStory {
                 v_flex()
                     .gap_6()
                     .child(
+                        h_flex()
+                            .id("state")
+                            .items_center()
+                            .gap_3()
+                            .child(
+                                Checkbox::new("overlay")
+                                    .label("Overlay")
+                                    .checked(self.modal_overlay)
+                                    .on_click(cx.listener(|view, _, _, cx| {
+                                        view.modal_overlay = !view.modal_overlay;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Checkbox::new("closable")
+                                    .label("Overlay Closable")
+                                    .checked(self.overlay_closable)
+                                    .on_click(cx.listener(|view, _, _, cx| {
+                                        view.overlay_closable = !view.overlay_closable;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Checkbox::new("show-close")
+                                    .label("Close Button")
+                                    .checked(self.model_show_close)
+                                    .on_click(cx.listener(|view, _, _, cx| {
+                                        view.model_show_close = !view.model_show_close;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Checkbox::new("padding")
+                                    .label("Inner Padding")
+                                    .checked(self.model_padding)
+                                    .on_click(cx.listener(|view, _, _, cx| {
+                                        view.model_padding = !view.model_padding;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Checkbox::new("keyboard")
+                                    .label("Keyboard")
+                                    .checked(self.model_keyboard)
+                                    .on_click(cx.listener(|view, _, _, cx| {
+                                        view.model_keyboard = !view.model_keyboard;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .child(
                         section("Normal Drawer")
                             .child(
                                 Button::new("show-drawer-left")
@@ -364,7 +462,7 @@ impl Render for DrawerStory {
                     .child(
                         section("Focus back test")
                             .max_w_md()
-                            .child(TextInput::new(&self.input2))
+                            .child(Input::new(&self.input2))
                             .child(
                                 Button::new("test-action")
                                     .outline()
@@ -379,6 +477,38 @@ impl Render for DrawerStory {
                                         \nthis still can handle the action.",
                                     ),
                             ),
+                    )
+                    .child(
+                        section("WebView in Drawer").child(
+                            Button::new("webview")
+                                .outline()
+                                .label("Open WebView")
+                                .on_click(cx.listener(|_, _, window, cx| {
+                                    let webview = cx.new(|cx| {
+                                        let webview = wry::WebViewBuilder::new()
+                                            .build_as_child(
+                                                &window.window_handle().expect("No window handle"),
+                                            )
+                                            .unwrap();
+
+                                        WebView::new(webview, window, cx)
+                                    });
+                                    webview.update(cx, |webview, _| {
+                                        webview.load_url("https://github.com/explore");
+                                    });
+                                    window.open_drawer(cx, move |drawer, window, cx| {
+                                        let height =
+                                            window.window_bounds().get_bounds().size.height;
+                                        let webview_bounds = webview.read(cx).bounds();
+
+                                        drawer.title("WebView Title").p_0().child(
+                                            div()
+                                                .h(height - webview_bounds.origin.y)
+                                                .child(webview.clone()),
+                                        )
+                                    });
+                                })),
+                        ),
                     )
                     .when_some(self.selected_value.clone(), |this, selected_value| {
                         this.child(
