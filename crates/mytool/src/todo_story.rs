@@ -1,27 +1,26 @@
 use crate::views::BoardContainer;
 use crate::{
-    load_items, load_labels, BoardType, CompletedBoard, InboxBoard, LabelsBoard,
-    PinBoard, ProjectListDelegate, ScheduledBoard, TodayBoard,
+    CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ProjectListDelegate, ScheduledBoard,
+    TodayBoard, load_items, load_labels,
 };
-use crate::{load_projects, play_ogg_file, DBState, ItemListDelegate, LabelListDelegate};
+use crate::{DBState, ItemListDelegate, LabelListDelegate, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
 use gpui_component::select::{Select, SelectState};
 use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
 use gpui_component::switch::Switch;
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, h_flex,
+    ActiveTheme as _, ContextModal, List,
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    h_flex,
     input::{Input, InputEvent, InputState},
     label::Label,
-    resizable::{h_resizable, resizable_panel, ResizableState},
+    resizable::{ResizableState, h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
-    ActiveTheme as _,
-    ContextModal,
-    List,
 };
 use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::option::Option;
 use std::rc::Rc;
 use todos::entity::{ItemModel, LabelModel, ProjectModel};
@@ -41,9 +40,7 @@ pub struct TodoStory {
     pub is_board_active: bool,
 
     // 所有看板
-    boards: Vec<BoardType>,
-    pub active_boards: HashMap<BoardType, bool>,
-    pub active_board: Option<BoardType>,
+    boards: Vec<Entity<BoardContainer>>,
     // 所有projects
     project_list: Entity<List<ProjectListDelegate>>,
     project_date: Option<String>,
@@ -73,17 +70,14 @@ impl Focusable for TodoStory {
 
 impl TodoStory {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let _boards1 = [(
-            "Boards",
-            vec![
-                BoardContainer::panel::<InboxBoard>(window, cx),
-                BoardContainer::panel::<TodayBoard>(window, cx),
-                BoardContainer::panel::<ScheduledBoard>(window, cx),
-                BoardContainer::panel::<PinBoard>(window, cx),
-                BoardContainer::panel::<LabelsBoard>(window, cx),
-                BoardContainer::panel::<CompletedBoard>(window, cx),
-            ],
-        )];
+        let boards = vec![
+            BoardContainer::panel::<InboxBoard>(window, cx),
+            BoardContainer::panel::<TodayBoard>(window, cx),
+            BoardContainer::panel::<ScheduledBoard>(window, cx),
+            BoardContainer::panel::<PinBoard>(window, cx),
+            BoardContainer::panel::<LabelsBoard>(window, cx),
+            BoardContainer::panel::<CompletedBoard>(window, cx),
+        ];
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         let project_list = cx.new(|cx| List::new(ProjectListDelegate::new(), window, cx));
         let label_list = cx.new(|cx| List::new(LabelListDelegate::new(), window, cx));
@@ -103,17 +97,7 @@ impl TodoStory {
             //     cx.notify()
             // }),
         ];
-        let mut active_boards = HashMap::new();
-        active_boards.insert(BoardType::Inbox, true);
 
-        let boards = vec![
-            BoardType::Inbox,
-            BoardType::Today,
-            BoardType::Scheduled,
-            BoardType::Pinboard,
-            BoardType::Labels,
-            BoardType::Completed,
-        ];
         let project_list_clone = project_list.clone();
         let label_list_clone = label_list.clone();
         let item_list_clone = item_list.clone();
@@ -158,8 +142,6 @@ impl TodoStory {
             _subscriptions,
             is_board_active: true,
             boards,
-            active_boards,
-            active_board: Some(BoardType::Inbox),
             project_list,
             project_date: None,
             label_list,
@@ -171,14 +153,18 @@ impl TodoStory {
         }
         this
     }
-    fn render_content(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_content(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.is_board_active {
-            let board = self.active_board.unwrap();
-            v_flex().child(board.container(window, cx))
+            let board = self.boards.get(self.active_index.unwrap()).unwrap();
+            v_flex().child(board.clone())
         } else {
             let projects = self.project_list.read(cx).delegate()._projects.clone();
-            let project = projects.get(self.active_index.unwrap()).unwrap();
-            v_flex().child(Label::new(project.name.clone()))
+            let project = projects.get(self.active_index.unwrap());
+            if let Some(project) = project {
+                v_flex().child(Label::new(project.name.clone()))
+            } else {
+                v_flex().child(Empty)
+            }
         }
     }
     fn set_active_todo(&mut self, name: &str, window: &mut Window, cx: &mut App) {
@@ -332,10 +318,9 @@ impl Render for TodoStory {
         let boards: Vec<_> = self
             .boards
             .iter()
-            .filter(|story| story.label().to_lowercase().contains(&query))
+            .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
             .cloned()
             .collect();
-
         let projects: Vec<_> = self
             .project_list
             .read(cx)
@@ -345,6 +330,7 @@ impl Render for TodoStory {
             .filter(|story| story.name.to_lowercase().contains(&query))
             .cloned()
             .collect();
+
         h_resizable("todos-container", self.sidebar_state.clone())
             .child(
                 resizable_panel()
@@ -361,22 +347,48 @@ impl Render for TodoStory {
                                     .w_full()
                                     .gap_4()
                                     .child(
+                                        div()
+                                            .bg(cx.theme().sidebar_accent)
+                                            .rounded_full()
+                                            .when(cx.theme().radius.is_zero(), |this| {
+                                                this.rounded(px(0.))
+                                            })
+                                            .flex_1()
+                                            .mx_1()
+                                            .child(
+                                                Input::new(&self.search_input)
+                                                    .appearance(false)
+                                                    .cleanable(),
+                                            ),
+                                    )
+                                    .child(
                                         SidebarBoard::new().children(
                                             boards
                                                 .iter()
                                                 .enumerate()
-                                                .map(|(_ix, item)| {
+                                                .map(|(ix, item)| {
+                                                    let board = item.read(cx);
                                                     SidebarBoardItem::new(
-                                                        item.label(),
-                                                        item.colors(),
-                                                        item.count(),
-                                                        item.icon(),
+                                                        board.name.clone(),
+                                                        board.colors.clone(),
+                                                        board.count,
+                                                        board.icon.clone(),
                                                     )
-                                                        .size(gpui::Length::Definite(
-                                                            gpui::DefiniteLength::Fraction(0.5),
-                                                        ))
-                                                        .active(self.active_board == Some(*item))
-                                                        .on_click(cx.listener(item.handler()))
+                                                    .size(gpui::Length::Definite(
+                                                        gpui::DefiniteLength::Fraction(0.5),
+                                                    ))
+                                                    .active(
+                                                        self.is_board_active
+                                                            && self.active_index == Some(ix),
+                                                    )
+                                                    .on_click(cx.listener(
+                                                        move |this, _: &ClickEvent, _, cx| {
+                                                            this.is_board_active = true;
+                                                            this.active_index = Some(ix);
+                                                            cx.notify();
+                                                        },
+                                                    ))
+                                                    // .on_click(cx.listener(item.handler()))
                                                 })
                                                 .collect::<Vec<_>>(),
                                         ),
@@ -414,7 +426,6 @@ impl Render for TodoStory {
                                         .on_click(cx.listener(
                                             move |this, _: &ClickEvent, _, cx| {
                                                 this.is_board_active = false;
-                                                this.active_board = None;
                                                 this.active_index = Some(ix);
                                                 cx.notify();
                                             },

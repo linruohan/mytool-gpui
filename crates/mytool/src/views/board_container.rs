@@ -21,9 +21,9 @@ pub struct BoardContainer {
     closable: bool,
     zoomable: Option<PanelControl>,
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
-    colors: Vec<Hsla>,
-    count: usize,
-    icon: IconName,
+    pub colors: Vec<Hsla>,
+    pub count: usize,
+    pub icon: IconName,
 }
 
 impl EventEmitter<ContainerEvent> for BoardContainer {}

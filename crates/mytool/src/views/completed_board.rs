@@ -1,7 +1,10 @@
-use gpui::{div, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, ParentElement, Render, Styled, Window};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
+    ParentElement, Render, Styled, Window, div,
+};
 
 use super::Board;
-use gpui_component::{dock::PanelControl, h_flex, label::Label, v_flex, ActiveTheme, IconName};
+use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
 use todos::entity::ItemModel;
 
 pub struct CompletedBoard {
