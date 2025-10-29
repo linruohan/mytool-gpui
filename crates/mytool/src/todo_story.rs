@@ -388,7 +388,6 @@ impl Render for TodoStory {
                                                             cx.notify();
                                                         },
                                                     ))
-                                                    // .on_click(cx.listener(item.handler()))
                                                 })
                                                 .collect::<Vec<_>>(),
                                         ),

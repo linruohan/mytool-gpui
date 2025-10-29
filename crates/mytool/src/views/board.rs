@@ -1,8 +1,8 @@
 use super::{
     BoardContainer, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard,
 };
-use crate::{Board, TodoStory};
-use gpui::{AnyView, App, ClickEvent, Context, Entity, Hsla, Window};
+use crate::Board;
+use gpui::{AnyView, App, Entity, Hsla, Window};
 use gpui_component::IconName;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -37,24 +37,6 @@ impl BoardType {
             Self::Completed => BoardContainer::panel::<CompletedBoard>(window, cx),
         }
     }
-    pub fn handler(
-        &self,
-    ) -> impl Fn(&mut TodoStory, &ClickEvent, &mut Window, &mut Context<TodoStory>) + 'static {
-        // let item = *self;
-        move |_this, _, _, cx| {
-            //     this.is_board_active = true;
-            //     if this.active_boards.contains_key(&item) {
-            //         this.active_boards.remove(&item);
-            //     } else {
-            //         this.active_boards.insert(item, true);
-            //         // this.active_boards.remove(&this.active_board.unwrap()); // 我自己写的不一定正确
-            //     }
-            //
-            //     this.active_board = Some(item);
-            cx.notify();
-        }
-    }
-
     pub fn label(&self) -> &'static str {
         match self {
             Self::Inbox => "Inbox",
