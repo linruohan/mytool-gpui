@@ -3,7 +3,7 @@ use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _,
     input::{Input, InputEvent, InputState},
-    resizable::{ResizableState, h_resizable, resizable_panel},
+    resizable::{h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
@@ -14,7 +14,6 @@ pub struct Gallery {
     active_index: Option<usize>,
     collapsed: bool,
     search_input: Entity<InputState>,
-    sidebar_state: Entity<ResizableState>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -44,7 +43,6 @@ impl Gallery {
             active_group_index: Some(0),
             active_index: Some(0),
             collapsed: false,
-            sidebar_state: ResizableState::new(cx),
             _subscriptions,
         };
 
@@ -101,7 +99,7 @@ impl Render for Gallery {
                 ("".into(), "".into())
             };
 
-        h_resizable("gallery-container", self.sidebar_state.clone())
+        h_resizable("gallery-container")
             .child(
                 resizable_panel()
                     .size(px(255.))

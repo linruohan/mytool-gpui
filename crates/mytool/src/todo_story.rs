@@ -5,18 +5,19 @@ use crate::{
 };
 use crate::{DBState, ItemListDelegate, LabelListDelegate, load_projects, play_ogg_file};
 use gpui::{prelude::*, *};
-use gpui_component::select::{Select, SelectState};
-use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
-use gpui_component::switch::Switch;
 use gpui_component::{
-    ActiveTheme as _, ContextModal, List,
+    ActiveTheme as _, ContextModal,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
     input::{Input, InputEvent, InputState},
     label::Label,
-    resizable::{ResizableState, h_resizable, resizable_panel},
+    list::List,
+    resizable::{h_resizable, resizable_panel},
+    select::{Select, SelectState},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
+    sidebar::{SidebarBoard, SidebarBoardItem},
+    switch::Switch,
     v_flex,
 };
 use gpui_component::{Placement, Sizable};
@@ -34,7 +35,6 @@ pub struct TodoStory {
     collapsed: bool,
     focus_handle: gpui::FocusHandle,
     search_input: Entity<InputState>,
-    sidebar_state: Entity<ResizableState>,
     _subscriptions: Vec<Subscription>,
     //  看板是0, projects是1
     pub is_board_active: bool,
@@ -138,7 +138,6 @@ impl TodoStory {
             active_index: Some(0),
             collapsed: false,
             focus_handle: cx.focus_handle(),
-            sidebar_state: ResizableState::new(cx),
             _subscriptions,
             is_board_active: true,
             boards,
@@ -331,7 +330,7 @@ impl Render for TodoStory {
             .cloned()
             .collect();
 
-        h_resizable("todos-container", self.sidebar_state.clone())
+        h_resizable("todos-container")
             .child(
                 resizable_panel()
                     .size(px(255.))
