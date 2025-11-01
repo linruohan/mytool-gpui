@@ -6,7 +6,7 @@ use gpui::{
 };
 
 use gpui_component::{
-    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, label::Label, v_flex,
+    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, v_flex,
 };
 pub enum ItemClickEvent {
     ShowModal,
@@ -103,7 +103,6 @@ impl Render for InboxBoard {
                             ),
                     ),
             )
-            .child(Label::new("asdfasdf"))
             .child(
                 Button::new("asdid")
                     .outline()

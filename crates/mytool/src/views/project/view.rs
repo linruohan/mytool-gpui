@@ -19,7 +19,7 @@ pub struct ProjectListPanel {
     pub project_list: Entity<List<ProjectListDelegate>>,
     project: Rc<ProjectModel>,
     project_due: Option<String>,
-    pub(crate) active_index: Option<usize>,
+    pub active_index: Option<usize>,
     is_connected: bool,
     is_loading: bool,
     collapsed: bool,
@@ -73,7 +73,7 @@ impl ProjectListPanel {
             project_list,
             project: Rc::new(ProjectModel::default()),
             project_due: None,
-            active_index: None,
+            active_index: Some(0),
             collapsed: false,
             _subscriptions,
         }
@@ -86,6 +86,9 @@ impl ProjectListPanel {
             .get(ix.section)
             .and_then(|c| c.get(ix.row))
             .cloned()
+    }
+    pub fn update_active_index(&mut self, value: Option<usize>) {
+        self.active_index = value;
     }
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))

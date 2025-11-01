@@ -90,6 +90,7 @@ impl Render for BoardPanel {
                             .on_click(cx.listener(
                                 move |this, _: &ClickEvent, _, cx| {
                                     this.active_index = Some(ix);
+                                    println!("board:view {:?}", this.active_index);
                                     cx.notify();
                                 },
                             ))
