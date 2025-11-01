@@ -1,12 +1,12 @@
 use crate::Board;
 
 use gpui::{
-    div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    Hsla, InteractiveElement as _, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
+    InteractiveElement as _, ParentElement, Render, Styled, Window, div,
 };
 
 use gpui_component::{
-    button::Button, dock::PanelControl, h_flex, label::Label, v_flex, ActiveTheme as _, IconName,
+    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, label::Label, v_flex,
 };
 pub enum ItemClickEvent {
     ShowModal,

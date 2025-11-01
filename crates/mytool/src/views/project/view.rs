@@ -19,7 +19,7 @@ pub struct ProjectListPanel {
     pub project_list: Entity<List<ProjectListDelegate>>,
     project: Rc<ProjectModel>,
     project_due: Option<String>,
-    active_index: Option<usize>,
+    pub(crate) active_index: Option<usize>,
     is_connected: bool,
     is_loading: bool,
     collapsed: bool,
@@ -97,7 +97,7 @@ impl ProjectListPanel {
             ProjectEvent::Deleted(project) => self.del_project(cx, project.clone()),
         }
     }
-    fn add_project_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn add_project_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
         let _input2 = cx.new(|cx| -> InputState {
             InputState::new(window, cx).placeholder("For test focus back on modal close.")
@@ -220,7 +220,7 @@ impl Render for ProjectListPanel {
                     SidebarMenuItem::new("On This Computer                     ➕").on_click(
                         cx.listener(move |this, _, window: &mut Window, cx| {
                             // let projects = projects.read(cx);
-                            println!("{}", "add projects");
+                            println!("project_panel: {}", "add projects");
                             play_ogg_file("assets/sounds/success.ogg");
                             this.add_project_model(window, cx);
                             cx.notify();

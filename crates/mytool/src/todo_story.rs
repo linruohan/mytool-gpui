@@ -1,10 +1,11 @@
-use crate::{load_items, load_labels, BoardPanel, ProjectEvent, ProjectListPanel};
+use crate::{load_items, load_labels, play_ogg_file, BoardPanel, ProjectEvent, ProjectListPanel};
 use crate::{DBState, ItemListDelegate, LabelListDelegate};
 use gpui::{prelude::*, *};
+use gpui_component::date_picker::DatePickerEvent;
 use gpui_component::dock::PanelView;
 use gpui_component::label::Label;
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
-use gpui_component::Placement;
+use gpui_component::switch::Switch;
 use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerState},
@@ -16,10 +17,11 @@ use gpui_component::{
     v_flex,
     ContextModal,
 };
+use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
 use std::option::Option;
 use std::rc::Rc;
-use todos::entity::{ItemModel, LabelModel};
+use todos::entity::{ItemModel, LabelModel, ProjectModel};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = todo_story, no_json)]
@@ -122,7 +124,6 @@ impl TodoStory {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        println!("奥斯丁发射点法速度发生的");
         let _list_h = match placement {
             Placement::Left | Placement::Right => px(400.),
             Placement::Top | Placement::Bottom => px(160.),
@@ -171,6 +172,68 @@ impl TodoStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
+    fn add_project_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
+        let _input2 = cx.new(|cx| -> InputState {
+            InputState::new(window, cx).placeholder("For test focus back on modal close.")
+        });
+        let now = chrono::Local::now().naive_local().date();
+        let project_due = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
+            picker.set_date(now, window, cx);
+            picker
+        });
+        let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
+            DatePickerEvent::Change(date) => {
+                this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
+            }
+        });
+        let view = cx.entity().clone();
+
+        window.open_modal(cx, move |modal, _, _| {
+            modal
+                .title("Add Project")
+                .overlay(false)
+                .keyboard(true)
+                .show_close(true)
+                .overlay_closable(true)
+                .child(
+                    v_flex()
+                        .gap_3()
+                        .child(Input::new(&input1))
+                        .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
+                )
+                .footer({
+                    let view = view.clone();
+                    let input1 = input1.clone();
+                    move |_, _, _, _cx| {
+                        vec![
+                            Button::new("add").primary().label("Add").on_click({
+                                let view = view.clone();
+                                let input1 = input1.clone();
+                                move |_, window, cx| {
+                                    window.close_modal(cx);
+                                    view.update(cx, |view, cx| {
+                                        let project = ProjectModel {
+                                            name: input1.read(cx).value().to_string(),
+                                            due_date: view.project_due.clone(),
+                                            ..Default::default()
+                                        };
+                                        println!("TODO db add project {:?}", project);
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                            Button::new("cancel")
+                                .label("Cancel")
+                                .on_click(move |_, window, cx| {
+                                    window.close_modal(cx);
+                                }),
+                        ]
+                    }
+                })
+        });
+    }
 }
 
 impl Render for TodoStory {
@@ -178,7 +241,14 @@ impl Render for TodoStory {
         let board_panel = self.board_panel.read(cx);
         let boards = board_panel.boards.clone();
         let board_active_index = board_panel.active_index;
-        let project_list = self.project_panel.read(cx).project_list.read(cx).delegate()._projects.clone();
+        let project_panel = self.project_panel.read(cx);
+        let project_list = project_panel
+            .project_list
+            .read(cx)
+            .delegate()
+            ._projects
+            .clone();
+        let project_avtive_index = project_panel.active_index;
         h_resizable("todos-container")
             .child(
                 resizable_panel()
@@ -190,7 +260,38 @@ impl Render for TodoStory {
                             .border_width(px(0.))
                             .collapsed(self.collapsed)
                             .board(self.board_panel.clone()) // .child(self.project_panel.clone()),
-                            .child(SidebarMenu::new().child(SidebarMenuItem::new("project"))),
+                            .child(
+                                // 添加项目按钮：
+                                SidebarMenu::new().child(
+                                    SidebarMenuItem::new("On This Computer                     ➕")
+                                        .on_click(cx.listener(
+                                            move |this, _, window: &mut Window, cx| {
+                                                // let projects = projects.read(cx);
+                                                println!("click to add project");
+                                                play_ogg_file("assets/sounds/success.ogg");
+                                                this.add_project_model(window, cx);
+                                                cx.notify();
+                                            },
+                                        )),
+                                ),
+                            )
+                            .child(SidebarMenu::new().children(
+                                project_list.iter().enumerate().map(|(ix, story)| {
+                                    SidebarMenuItem::new(story.name.clone())
+                                        .active(
+                                            !self.is_board_active
+                                                && project_avtive_index == Some(ix),
+                                        )
+                                        .on_click(cx.listener(
+                                            move |this, _: &ClickEvent, _, cx| {
+                                                this.is_board_active = false;
+                                                this.active_index = Some(ix);
+                                                cx.notify();
+                                            },
+                                        ))
+                                        .suffix(Switch::new("dark-mode").checked(true).xsmall())
+                                }),
+                            )),
                     ),
             )
             .child(
@@ -203,10 +304,13 @@ impl Render for TodoStory {
                             .id("todos")
                             .flex_1()
                             .overflow_y_scroll()
-                            .when(self.is_board_active && board_active_index.is_some(), |this| {
-                                let board = boards.get(board_active_index.unwrap()).unwrap();
-                                this.child(board.clone())
-                            })
+                            .when(
+                                self.is_board_active && board_active_index.is_some(),
+                                |this| {
+                                    let board = boards.get(board_active_index.unwrap()).unwrap();
+                                    this.child(board.clone())
+                                },
+                            )
                             .when(!self.is_board_active, |this| {
                                 let project = project_list.get(self.active_index.unwrap());
                                 if let Some(project) = project {
