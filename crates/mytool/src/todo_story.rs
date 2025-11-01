@@ -1,11 +1,11 @@
-use crate::{load_items, load_labels, play_ogg_file, BoardPanel, ProjectEvent, ProjectListPanel};
+use crate::{BoardPanel, ProjectEvent, ProjectListPanel, load_items, load_labels, play_ogg_file};
 use crate::{DBState, ItemListDelegate, LabelListDelegate};
 use gpui::{prelude::*, *};
-use gpui_component::date_picker::DatePickerEvent;
 use gpui_component::label::Label;
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::switch::Switch;
 use gpui_component::{
+    ContextModal,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerState},
     h_flex,
@@ -14,13 +14,12 @@ use gpui_component::{
     resizable::{h_resizable, resizable_panel},
     sidebar::Sidebar,
     v_flex,
-    ContextModal,
 };
 use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
 use std::option::Option;
 use std::rc::Rc;
-use todos::entity::{ItemModel, LabelModel, ProjectModel};
+use todos::entity::{ItemModel, LabelModel};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = todo_story, no_json)]
@@ -171,68 +170,6 @@ impl TodoStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
-    fn add_project_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
-        let _input2 = cx.new(|cx| -> InputState {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let now = chrono::Local::now().naive_local().date();
-        let project_due = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
-            picker.set_date(now, window, cx);
-            picker
-        });
-        let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
-            DatePickerEvent::Change(date) => {
-                this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            }
-        });
-        let view = cx.entity().clone();
-
-        window.open_modal(cx, move |modal, _, _| {
-            modal
-                .title("Add Project")
-                .overlay(false)
-                .keyboard(true)
-                .show_close(true)
-                .overlay_closable(true)
-                .child(
-                    v_flex()
-                        .gap_3()
-                        .child(Input::new(&input1))
-                        .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
-                )
-                .footer({
-                    let view = view.clone();
-                    let input1 = input1.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("add").primary().label("Add").on_click({
-                                let view = view.clone();
-                                let input1 = input1.clone();
-                                move |_, window, cx| {
-                                    window.close_modal(cx);
-                                    view.update(cx, |view, cx| {
-                                        let project = ProjectModel {
-                                            name: input1.read(cx).value().to_string(),
-                                            due_date: view.project_due.clone(),
-                                            ..Default::default()
-                                        };
-                                        println!("TODO db add project {:?}", project);
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(move |_, window, cx| {
-                                    window.close_modal(cx);
-                                }),
-                        ]
-                    }
-                })
-        });
-    }
 }
 
 impl Render for TodoStory {
@@ -264,11 +201,14 @@ impl Render for TodoStory {
                                 SidebarMenu::new().child(
                                     SidebarMenuItem::new("On This Computer                     ➕")
                                         .on_click(cx.listener(
-                                            move |_this, _, _window: &mut Window, cx| {
+                                            move |this, _, window: &mut Window, cx| {
                                                 // let projects = projects.read(cx);
                                                 println!("click to add project");
                                                 play_ogg_file("assets/sounds/success.ogg");
-                                                // this.project_panel.read(cx).add_project_model(window,cx);
+                                                this.project_panel.update(cx, |panel, cx| {
+                                                    panel.add_project_model(window, cx);
+                                                    cx.notify();
+                                                });
                                                 cx.notify();
                                             },
                                         )),
@@ -286,7 +226,10 @@ impl Render for TodoStory {
                                                     panel.update_active_index(Some(ix));
                                                     cx.notify();
                                                 });
-                                                println!("project idx:{:?}", project_avtive_index);
+                                                this.board_panel.update(cx, |panel, cx| {
+                                                    panel.update_active_index(None);
+                                                    cx.notify();
+                                                });
                                                 cx.notify();
                                             },
                                         ))
@@ -314,9 +257,8 @@ impl Render for TodoStory {
                                 }
                             })
                             .when(!self.is_board_active, |this| {
-                                let project_some = project_list.get(self.project_panel.read(cx).active_index.unwrap());
+                                let project_some = project_list.get(self.active_index.unwrap());
                                 if let Some(project) = project_some {
-                                    println!("project:{:?}", project_some);
                                     board_active_index = None;
                                     this.child(Label::new(project.name.clone()))
                                 } else {

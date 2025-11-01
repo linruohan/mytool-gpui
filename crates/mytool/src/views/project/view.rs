@@ -1,4 +1,4 @@
-use crate::{load_projects, play_ogg_file, DBState, ProjectEvent, ProjectListDelegate};
+use crate::{DBState, ProjectEvent, ProjectListDelegate, load_projects, play_ogg_file};
 use gpui::{
     App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
     Styled, Subscription, WeakEntity, Window,
@@ -9,7 +9,7 @@ use gpui_component::input::{Input, InputState};
 use gpui_component::list::{List, ListEvent};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::switch::Switch;
-use gpui_component::{v_flex, ContextModal, IndexPath, Sizable};
+use gpui_component::{ContextModal, IndexPath, Sizable, v_flex};
 use std::rc::Rc;
 use todos::entity::ProjectModel;
 
@@ -19,10 +19,8 @@ pub struct ProjectListPanel {
     pub project_list: Entity<List<ProjectListDelegate>>,
     project: Rc<ProjectModel>,
     project_due: Option<String>,
-    pub active_index: Option<usize>,
-    is_connected: bool,
     is_loading: bool,
-    collapsed: bool,
+    pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -65,16 +63,14 @@ impl ProjectListPanel {
                 })
                 .ok();
         })
-            .detach();
+        .detach();
         Self {
             input_esc,
-            is_connected: false,
             is_loading: false,
             project_list,
             project: Rc::new(ProjectModel::default()),
             project_due: None,
             active_index: Some(0),
-            collapsed: false,
             _subscriptions,
         }
     }
@@ -95,7 +91,10 @@ impl ProjectListPanel {
     }
     pub fn handle_project_event(&mut self, event: &ProjectEvent, cx: &mut Context<Self>) {
         match event {
-            ProjectEvent::Added(project) => self.add_project(cx, project.clone()),
+            ProjectEvent::Added(project) => {
+                println!("handle_project_event:");
+                self.add_project(cx, project.clone())
+            }
             ProjectEvent::Modified(project) => self.mod_project(cx, project.clone()),
             ProjectEvent::Deleted(project) => self.del_project(cx, project.clone()),
         }
@@ -162,6 +161,30 @@ impl ProjectListPanel {
                 })
         });
     }
+    // 更新projects
+    fn get_projects(&mut self, cx: &mut Context<Self>) {
+        if !self.is_loading {
+            return;
+        }
+        let db = cx.global::<DBState>().conn.clone();
+        cx.spawn(async move |this, cx| {
+            let db = db.lock().await;
+            let projects = load_projects(db.clone()).await;
+            let rc_projects: Vec<Rc<ProjectModel>> =
+                projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+
+            this.update(cx, |this, cx| {
+                this.project_list.update(cx, |list, cx| {
+                    list.delegate_mut().update_projects(rc_projects);
+                    cx.notify();
+                });
+
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
 
     pub fn add_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
@@ -169,15 +192,19 @@ impl ProjectListPanel {
         }
         self.is_loading = true;
         cx.notify();
+        let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectListPanel>, cx| {
+            let db = db.lock().await;
+            let ret = crate::service::add_project(project.clone(), db.clone()).await;
+            println!("add_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
-                cx.emit(ProjectEvent::Added(project.clone()));
                 cx.notify();
             })
-                .ok();
+            .ok();
         })
-          .detach();
+        .detach();
+        self.get_projects(cx);
     }
     pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
@@ -185,15 +212,19 @@ impl ProjectListPanel {
         }
         self.is_loading = true;
         cx.notify();
+        let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectListPanel>, cx| {
+            let db = db.lock().await;
+            let ret = crate::service::mod_project(project.clone(), db.clone()).await;
+            println!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
-                cx.emit(ProjectEvent::Modified(project.clone()));
                 cx.notify();
             })
-                .ok();
+            .ok();
         })
-          .detach();
+        .detach();
+        self.get_projects(cx);
     }
     pub fn del_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
@@ -201,15 +232,19 @@ impl ProjectListPanel {
         }
         self.is_loading = true;
         cx.notify();
+        let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectListPanel>, cx| {
+            let db = db.lock().await;
+            let ret = crate::service::del_project(project.clone(), db.clone()).await;
+            println!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
-                cx.emit(ProjectEvent::Deleted(project.clone()));
                 cx.notify();
             })
-                .ok();
+            .ok();
         })
-          .detach();
+        .detach();
+        self.get_projects(cx);
     }
 }
 

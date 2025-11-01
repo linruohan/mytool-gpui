@@ -48,6 +48,9 @@ impl BoardPanel {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+    pub fn update_active_index(&mut self, value: Option<usize>) {
+        self.active_index = value;
+    }
 }
 
 impl Render for BoardPanel {
