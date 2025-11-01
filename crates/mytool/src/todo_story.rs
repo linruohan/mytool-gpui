@@ -175,7 +175,9 @@ impl TodoStory {
 
 impl Render for TodoStory {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let boards = self.board_panel.read(cx).boards.clone();
+        let board_panel = self.board_panel.read(cx);
+        let boards = board_panel.boards.clone();
+        let board_active_index = board_panel.active_index;
         let project_list = self.project_panel.read(cx).project_list.read(cx).delegate()._projects.clone();
         h_resizable("todos-container")
             .child(
@@ -201,8 +203,8 @@ impl Render for TodoStory {
                             .id("todos")
                             .flex_1()
                             .overflow_y_scroll()
-                            .when(self.is_board_active, |this| {
-                                let board = boards.get(self.active_index.unwrap()).unwrap();
+                            .when(self.is_board_active && board_active_index.is_some(), |this| {
+                                let board = boards.get(board_active_index.unwrap()).unwrap();
                                 this.child(board.clone())
                             })
                             .when(!self.is_board_active, |this| {

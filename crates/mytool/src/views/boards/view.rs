@@ -13,7 +13,7 @@ use gpui_component::{h_flex, v_flex, ActiveTheme};
 pub struct BoardPanel {
     search_input: Entity<InputState>,
     pub boards: Vec<Entity<BoardContainer>>,
-    active_index: Option<usize>,
+    pub(crate) active_index: Option<usize>,
     is_loading: bool,
     _subscriptions: Vec<Subscription>,
 }
