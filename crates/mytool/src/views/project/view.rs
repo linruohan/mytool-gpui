@@ -16,7 +16,7 @@ use todos::entity::ProjectModel;
 impl EventEmitter<ProjectEvent> for ProjectListPanel {}
 pub struct ProjectListPanel {
     input_esc: Entity<InputState>,
-    project_list: Entity<List<ProjectListDelegate>>,
+    pub project_list: Entity<List<ProjectListDelegate>>,
     project: Rc<ProjectModel>,
     project_due: Option<String>,
     active_index: Option<usize>,
@@ -65,7 +65,7 @@ impl ProjectListPanel {
                 })
                 .ok();
         })
-          .detach();
+            .detach();
         Self {
             input_esc,
             is_connected: false,
@@ -213,12 +213,10 @@ impl ProjectListPanel {
 impl Render for ProjectListPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let projects: Vec<_> = self.project_list.read(cx).delegate()._projects.clone();
-        v_flex()
-            .w_full()
-            .gap_4()
-            .child(
-                // 添加项目按钮：
-                SidebarMenu::new().child(
+        v_flex().w_full().gap_4().child(
+            // 添加项目按钮：
+            SidebarMenu::new()
+                .child(
                     SidebarMenuItem::new("On This Computer                     ➕").on_click(
                         cx.listener(move |this, _, window: &mut Window, cx| {
                             // let projects = projects.read(cx);
@@ -228,7 +226,8 @@ impl Render for ProjectListPanel {
                             cx.notify();
                         }),
                     ),
-                ).children(projects.iter().enumerate().map(|(ix, story)| {
+                )
+                .children(projects.iter().enumerate().map(|(ix, story)| {
                     SidebarMenuItem::new(story.name.clone())
                         .active(self.active_index == Some(ix))
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -236,6 +235,7 @@ impl Render for ProjectListPanel {
                             cx.notify();
                         }))
                         .suffix(Switch::new("dark-mode").checked(true).xsmall())
-                })))
+                })),
+        )
     }
 }

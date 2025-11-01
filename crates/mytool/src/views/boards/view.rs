@@ -3,16 +3,16 @@ use crate::{
 };
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, IntoElement, IsZero, ParentElement, Render,
-    Styled, Subscription, Window, div, px,
+    div, px, App, AppContext, ClickEvent, Context, Entity, IntoElement, IsZero,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
-use gpui_component::{ActiveTheme, h_flex, v_flex};
+use gpui_component::{h_flex, v_flex, ActiveTheme};
 
 pub struct BoardPanel {
     search_input: Entity<InputState>,
-    boards: Vec<Entity<BoardContainer>>,
+    pub boards: Vec<Entity<BoardContainer>>,
     active_index: Option<usize>,
     is_loading: bool,
     _subscriptions: Vec<Subscription>,

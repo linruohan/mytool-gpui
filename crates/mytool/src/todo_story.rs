@@ -1,6 +1,9 @@
 use crate::{load_items, load_labels, BoardPanel, ProjectEvent, ProjectListPanel};
 use crate::{DBState, ItemListDelegate, LabelListDelegate};
 use gpui::{prelude::*, *};
+use gpui_component::dock::PanelView;
+use gpui_component::label::Label;
+use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::Placement;
 use gpui_component::{
     button::{Button, ButtonVariants},
@@ -171,7 +174,9 @@ impl TodoStory {
 }
 
 impl Render for TodoStory {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let boards = self.board_panel.read(cx).boards.clone();
+        let project_list = self.project_panel.read(cx).project_list.read(cx).delegate()._projects.clone();
         h_resizable("todos-container")
             .child(
                 resizable_panel()
@@ -182,8 +187,8 @@ impl Render for TodoStory {
                             .width(relative(1.))
                             .border_width(px(0.))
                             .collapsed(self.collapsed)
-                            .board(self.board_panel.clone())
-                            .child(self.project_panel.clone()),
+                            .board(self.board_panel.clone()) // .child(self.project_panel.clone()),
+                            .child(SidebarMenu::new().child(SidebarMenuItem::new("project"))),
                     ),
             )
             .child(
@@ -197,10 +202,16 @@ impl Render for TodoStory {
                             .flex_1()
                             .overflow_y_scroll()
                             .when(self.is_board_active, |this| {
-                                this.child(self.board_panel.clone())
+                                let board = boards.get(self.active_index.unwrap()).unwrap();
+                                this.child(board.clone())
                             })
                             .when(!self.is_board_active, |this| {
-                                this.child(self.project_panel.clone())
+                                let project = project_list.get(self.active_index.unwrap());
+                                if let Some(project) = project {
+                                    this.child(Label::new(project.name.clone()))
+                                } else {
+                                    this.child(Empty)
+                                }
                             }),
                     )
                     .into_any_element(),
