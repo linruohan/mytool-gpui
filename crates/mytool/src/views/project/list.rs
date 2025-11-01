@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use gpui::{
     App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
     Window, actions,
@@ -10,8 +8,17 @@ use gpui_component::{
     list::{List, ListDelegate, ListItem},
     v_flex,
 };
+use std::rc::Rc;
 use todos::entity::ProjectModel;
+
 actions!(project, [SelectedProject]);
+
+pub enum ProjectEvent {
+    Added(Rc<ProjectModel>),
+    Modified(Rc<ProjectModel>),
+    Deleted(Rc<ProjectModel>),
+}
+
 #[derive(IntoElement)]
 pub struct ProjectListItem {
     base: ListItem,
@@ -72,7 +79,7 @@ impl ProjectListDelegate {
             query: "".into(),
         }
     }
-    fn prepare(&mut self, query: impl Into<SharedString>) {
+    fn search_project(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
         let projects: Vec<Rc<ProjectModel>> = self
             ._projects
@@ -103,7 +110,6 @@ impl ProjectListDelegate {
         projects.push(project);
         self.update_projects(projects);
     }
-
     #[allow(dead_code)]
     pub fn selected_project(&self) -> Option<Rc<ProjectModel>> {
         let Some(ix) = self.selected_index else {
@@ -126,7 +132,7 @@ impl ListDelegate for ProjectListDelegate {
         _: &mut Window,
         _: &mut Context<List<Self>>,
     ) -> Task<()> {
-        self.prepare(query.to_owned());
+        self.search_project(query.to_owned());
         Task::ready(())
     }
 

@@ -3,57 +3,55 @@ use gpui::{
     ParentElement, Render, Styled, Window, div,
 };
 
-use super::Board;
-use gpui_component::{
-    ActiveTheme, IconName, Theme, dock::PanelControl, h_flex, label::Label, v_flex,
-};
-use todos::entity::ItemModel;
+use crate::Board;
+use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
+use todos::entity::LabelModel;
 
-pub struct ScheduledBoard {
+pub struct LabelsBoard {
     focus_handle: FocusHandle,
-    tasks: Vec<ItemModel>,
+    labels: Vec<LabelModel>,
 }
 
-impl ScheduledBoard {
+impl LabelsBoard {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        let _theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
-            tasks: Vec::new(),
+            labels: Vec::new(),
         }
     }
-    pub fn tasks(&self) -> &[ItemModel] {
-        &self.tasks
+    pub fn labels(&self) -> &[LabelModel] {
+        &self.labels
     }
 
-    pub fn add_task(&mut self, task: ItemModel) {
-        self.tasks.push(task);
+    pub fn add_label(&mut self, label: LabelModel) {
+        self.labels.push(label);
     }
-    pub fn clear_tasks(&mut self) {
-        self.tasks.clear();
+    pub fn clear_labels(&mut self) {
+        self.labels.clear();
     }
 }
-impl Board for ScheduledBoard {
+impl Board for LabelsBoard {
     fn icon() -> IconName {
-        IconName::MonthSymbolic
+        IconName::TagOutlineSymbolic
     }
+
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
+        vec![gpui::rgb(0xcdab8f).into(), gpui::rgb(0x986a44).into()]
     }
 
     fn count() -> usize {
         1
     }
     fn title() -> &'static str {
-        "Scheduled"
+        "Labels"
     }
 
     fn description() -> &'static str {
-        "计划中任务，在其他时间去执行的任务"
+        "所有的标签"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -65,13 +63,13 @@ impl Board for ScheduledBoard {
     }
 }
 
-impl Focusable for ScheduledBoard {
+impl Focusable for LabelsBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl Render for ScheduledBoard {
+impl Render for LabelsBoard {
     fn render(
         &mut self,
         _: &mut gpui::Window,
@@ -89,15 +87,15 @@ impl Render for ScheduledBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<ScheduledBoard as Board>::title()))
+                            .child(div().text_xl().child(<LabelsBoard as Board>::title()))
                             .child(
                                 div()
                                     .text_color(cx.theme().muted_foreground)
-                                    .child(<ScheduledBoard as Board>::description()),
+                                    .child(<LabelsBoard as Board>::description()),
                             ),
                     ),
             )
-            .child(Label::new("scheduled"))
-            .child(Label::new("scheduled 内容"))
+            .child(Label::new("labels"))
+            .child(Label::new("label内容"))
     }
 }

@@ -3,7 +3,7 @@ use gpui::{
     ParentElement, Render, Styled, Window, div,
 };
 
-use super::Board;
+use crate::Board;
 use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
 use todos::entity::ItemModel;
 

@@ -3,21 +3,24 @@ use gpui::{
     ParentElement, Render, Styled, Window, div,
 };
 
-use super::Board;
-use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
+use crate::Board;
+use gpui_component::{
+    ActiveTheme, IconName, Theme, dock::PanelControl, h_flex, label::Label, v_flex,
+};
 use todos::entity::ItemModel;
 
-pub struct PinBoard {
+pub struct ScheduledBoard {
     focus_handle: FocusHandle,
     tasks: Vec<ItemModel>,
 }
 
-impl PinBoard {
+impl ScheduledBoard {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+        let _theme_mode = Theme::global(cx).mode;
         Self {
             focus_handle: cx.focus_handle(),
             tasks: Vec::new(),
@@ -34,24 +37,23 @@ impl PinBoard {
         self.tasks.clear();
     }
 }
-impl Board for PinBoard {
+impl Board for ScheduledBoard {
     fn icon() -> IconName {
-        IconName::PinSymbolic
+        IconName::MonthSymbolic
     }
-
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xf66151).into(), gpui::rgb(0xed333b).into()]
+        vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
     }
 
     fn count() -> usize {
         1
     }
     fn title() -> &'static str {
-        "Pinboard"
+        "Scheduled"
     }
 
     fn description() -> &'static str {
-        "重点关注任务"
+        "计划中任务，在其他时间去执行的任务"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -63,13 +65,13 @@ impl Board for PinBoard {
     }
 }
 
-impl Focusable for PinBoard {
+impl Focusable for ScheduledBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl Render for PinBoard {
+impl Render for ScheduledBoard {
     fn render(
         &mut self,
         _: &mut gpui::Window,
@@ -87,15 +89,15 @@ impl Render for PinBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<PinBoard as Board>::title()))
+                            .child(div().text_xl().child(<ScheduledBoard as Board>::title()))
                             .child(
                                 div()
                                     .text_color(cx.theme().muted_foreground)
-                                    .child(<PinBoard as Board>::description()),
+                                    .child(<ScheduledBoard as Board>::description()),
                             ),
                     ),
             )
-            .child(Label::new("pinned"))
-            .child(Label::new("pinned 内容"))
+            .child(Label::new("scheduled"))
+            .child(Label::new("scheduled 内容"))
     }
 }

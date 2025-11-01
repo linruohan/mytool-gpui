@@ -31,11 +31,8 @@ pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use utils::play_ogg_file;
-pub use views::{
-    Board, BoardType, CompletedBoard, DBState, InboxBoard, ItemClickEvent, ItemListDelegate,
-    ItemListItem, LabelListDelegate, LabelListItem, LabelsBoard, PinBoard, ProjectListDelegate,
-    ProjectListItem, ScheduledBoard, TodayBoard, todo_database_init,
-};
+pub use views::*;
+
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{

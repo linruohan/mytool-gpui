@@ -3,16 +3,16 @@ use gpui::{
     ParentElement, Render, Styled, Window, div,
 };
 
-use super::Board;
+use crate::Board;
 use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
-use todos::entity::LabelModel;
+use todos::entity::ItemModel;
 
-pub struct LabelsBoard {
+pub struct TodayBoard {
     focus_handle: FocusHandle,
-    labels: Vec<LabelModel>,
+    tasks: Vec<ItemModel>,
 }
 
-impl LabelsBoard {
+impl TodayBoard {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
@@ -20,38 +20,38 @@ impl LabelsBoard {
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle(),
-            labels: Vec::new(),
+            tasks: Vec::new(),
         }
     }
-    pub fn labels(&self) -> &[LabelModel] {
-        &self.labels
+    pub fn tasks(&self) -> &[ItemModel] {
+        &self.tasks
     }
 
-    pub fn add_label(&mut self, label: LabelModel) {
-        self.labels.push(label);
+    pub fn add_task(&mut self, task: ItemModel) {
+        self.tasks.push(task);
     }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
+    pub fn clear_tasks(&mut self) {
+        self.tasks.clear();
     }
 }
-impl Board for LabelsBoard {
+impl Board for TodayBoard {
     fn icon() -> IconName {
-        IconName::TagOutlineSymbolic
+        IconName::StarOutlineThickSymbolic
     }
 
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xcdab8f).into(), gpui::rgb(0x986a44).into()]
+        vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
     }
 
     fn count() -> usize {
         1
     }
     fn title() -> &'static str {
-        "Labels"
+        "Today"
     }
 
     fn description() -> &'static str {
-        "所有的标签"
+        "今天需要完成的任务"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -63,13 +63,13 @@ impl Board for LabelsBoard {
     }
 }
 
-impl Focusable for LabelsBoard {
+impl Focusable for TodayBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl Render for LabelsBoard {
+impl Render for TodayBoard {
     fn render(
         &mut self,
         _: &mut gpui::Window,
@@ -87,15 +87,15 @@ impl Render for LabelsBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<LabelsBoard as Board>::title()))
+                            .child(div().text_xl().child(<TodayBoard as Board>::title()))
                             .child(
                                 div()
                                     .text_color(cx.theme().muted_foreground)
-                                    .child(<LabelsBoard as Board>::description()),
+                                    .child(<TodayBoard as Board>::description()),
                             ),
                     ),
             )
-            .child(Label::new("labels"))
-            .child(Label::new("label内容"))
+            .child(Label::new("today"))
+            .child(Label::new("today 内容"))
     }
 }

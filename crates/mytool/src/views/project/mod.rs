@@ -1,3 +1,5 @@
 mod list;
+mod view;
 
-pub use list::{ProjectListDelegate, ProjectListItem};
+pub use list::{ProjectEvent, ProjectListDelegate, ProjectListItem};
+pub use view::ProjectListPanel;

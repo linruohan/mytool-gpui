@@ -1,23 +1,32 @@
+use crate::Board;
+
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, div,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
+    InteractiveElement as _, ParentElement, Render, Styled, Window, div,
 };
 
-use super::Board;
-use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
+use gpui_component::{
+    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, label::Label, v_flex,
+};
+pub enum ItemClickEvent {
+    ShowModal,
+    ConnectionError { field1: String },
+}
+
+impl EventEmitter<ItemClickEvent> for InboxBoard {}
 use todos::entity::ItemModel;
 
-pub struct TodayBoard {
+pub struct InboxBoard {
     focus_handle: FocusHandle,
     tasks: Vec<ItemModel>,
 }
 
-impl TodayBoard {
+impl InboxBoard {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub(crate) fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle(),
             tasks: Vec::new(),
@@ -34,24 +43,23 @@ impl TodayBoard {
         self.tasks.clear();
     }
 }
-impl Board for TodayBoard {
+impl Board for InboxBoard {
     fn icon() -> IconName {
-        IconName::StarOutlineThickSymbolic
+        IconName::MailboxSymbolic
     }
-
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
+        vec![gpui::rgb(0x99c1f1).into(), gpui::rgb(0x3584e4).into()]
     }
 
     fn count() -> usize {
         1
     }
     fn title() -> &'static str {
-        "Today"
+        "Inbox"
     }
 
     fn description() -> &'static str {
-        "今天需要完成的任务"
+        "所有未完成任务"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -63,16 +71,16 @@ impl Board for TodayBoard {
     }
 }
 
-impl Focusable for TodayBoard {
+impl Focusable for InboxBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl Render for TodayBoard {
+impl Render for InboxBoard {
     fn render(
         &mut self,
-        _: &mut gpui::Window,
+        _window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         v_flex()
@@ -87,15 +95,23 @@ impl Render for TodayBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<TodayBoard as Board>::title()))
+                            .child(div().text_xl().child(<InboxBoard as Board>::title()))
                             .child(
                                 div()
                                     .text_color(cx.theme().muted_foreground)
-                                    .child(<TodayBoard as Board>::description()),
+                                    .child(<InboxBoard as Board>::description()),
                             ),
                     ),
             )
-            .child(Label::new("today"))
-            .child(Label::new("today 内容"))
+            .child(Label::new("asdfasdf"))
+            .child(
+                Button::new("asdid")
+                    .outline()
+                    .label("drawer")
+                    .on_click(cx.listener(|_this, _, _window, cx| {
+                        println!("{}", "但是大声的发射点法");
+                        cx.emit(ItemClickEvent::ShowModal)
+                    })),
+            )
     }
 }

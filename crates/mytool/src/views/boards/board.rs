@@ -1,7 +1,7 @@
-use super::{
+use crate::Board;
+use crate::views::{
     BoardContainer, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard,
 };
-use crate::Board;
 use gpui::{AnyView, App, Entity, Hsla, Window};
 use gpui_component::IconName;
 

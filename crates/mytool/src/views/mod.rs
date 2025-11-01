@@ -1,31 +1,23 @@
-mod board;
-mod board_container;
-mod completed_board;
-mod inbox_board;
+mod boards;
 mod item;
 mod label;
-mod labels_board;
-mod pin_board;
 mod project;
-mod scheduled_board;
-mod today_board;
 
-pub use completed_board::CompletedBoard;
+pub use boards::completed_board::CompletedBoard;
+pub use boards::inbox_board::{InboxBoard, ItemClickEvent};
+pub use boards::labels_board::LabelsBoard;
+pub use boards::pin_board::PinBoard;
+pub use boards::scheduled_board::ScheduledBoard;
+pub use boards::today_board::TodayBoard;
 use gpui::Global;
-pub use inbox_board::{InboxBoard, ItemClickEvent};
-pub use labels_board::LabelsBoard;
-pub use pin_board::PinBoard;
-pub use scheduled_board::ScheduledBoard;
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
-pub use today_board::TodayBoard;
 use tokio::sync::Mutex;
 
-pub use board::BoardType;
-pub use board_container::{Board, BoardContainer};
-pub use item::{ItemListDelegate, ItemListItem};
-pub use label::{LabelListDelegate, LabelListItem};
-pub use project::{ProjectListDelegate, ProjectListItem};
+pub use boards::*;
+pub use item::*;
+pub use label::*;
+pub use project::*;
 
 pub struct DBState {
     pub conn: Arc<Mutex<DatabaseConnection>>,

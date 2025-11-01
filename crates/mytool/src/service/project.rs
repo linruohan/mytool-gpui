@@ -1,4 +1,5 @@
 use sea_orm::DatabaseConnection;
+use std::rc::Rc;
 use todos::Store;
 use todos::entity::ProjectModel;
 use todos::error::TodoError;
@@ -8,8 +9,28 @@ pub async fn load_projects(db: DatabaseConnection) -> Vec<ProjectModel> {
 }
 
 pub async fn add_project(
-    project: ProjectModel,
+    project: Rc<ProjectModel>,
     db: DatabaseConnection,
 ) -> Result<ProjectModel, TodoError> {
-    Store::new(db).await.insert_project(project).await
+    Store::new(db)
+        .await
+        .insert_project(project.as_ref().clone())
+        .await
+}
+
+pub async fn mod_project(
+    project: Rc<ProjectModel>,
+    db: DatabaseConnection,
+) -> Result<ProjectModel, TodoError> {
+    Store::new(db)
+        .await
+        .update_project(project.as_ref().clone())
+        .await
+}
+
+pub async fn del_project(
+    project: Rc<ProjectModel>,
+    db: DatabaseConnection,
+) -> Result<(), TodoError> {
+    Store::new(db).await.delete_project(&project.id).await
 }

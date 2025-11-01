@@ -1,32 +1,23 @@
-use super::Board;
-
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, ParentElement, Render, Styled, Window, div,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
+    ParentElement, Render, Styled, Window, div,
 };
 
-use gpui_component::{
-    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, label::Label, v_flex,
-};
-pub enum ItemClickEvent {
-    ShowModal,
-    ConnectionError { field1: String },
-}
-
-impl EventEmitter<ItemClickEvent> for InboxBoard {}
+use crate::Board;
+use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
 use todos::entity::ItemModel;
 
-pub struct InboxBoard {
+pub struct PinBoard {
     focus_handle: FocusHandle,
     tasks: Vec<ItemModel>,
 }
 
-impl InboxBoard {
+impl PinBoard {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    pub(crate) fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         Self {
             focus_handle: cx.focus_handle(),
             tasks: Vec::new(),
@@ -43,23 +34,24 @@ impl InboxBoard {
         self.tasks.clear();
     }
 }
-impl Board for InboxBoard {
+impl Board for PinBoard {
     fn icon() -> IconName {
-        IconName::MailboxSymbolic
+        IconName::PinSymbolic
     }
+
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0x99c1f1).into(), gpui::rgb(0x3584e4).into()]
+        vec![gpui::rgb(0xf66151).into(), gpui::rgb(0xed333b).into()]
     }
 
     fn count() -> usize {
         1
     }
     fn title() -> &'static str {
-        "Inbox"
+        "Pinboard"
     }
 
     fn description() -> &'static str {
-        "所有未完成任务"
+        "重点关注任务"
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -71,16 +63,16 @@ impl Board for InboxBoard {
     }
 }
 
-impl Focusable for InboxBoard {
+impl Focusable for PinBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.focus_handle.clone()
     }
 }
 
-impl Render for InboxBoard {
+impl Render for PinBoard {
     fn render(
         &mut self,
-        _window: &mut gpui::Window,
+        _: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         v_flex()
@@ -95,23 +87,15 @@ impl Render for InboxBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<InboxBoard as Board>::title()))
+                            .child(div().text_xl().child(<PinBoard as Board>::title()))
                             .child(
                                 div()
                                     .text_color(cx.theme().muted_foreground)
-                                    .child(<InboxBoard as Board>::description()),
+                                    .child(<PinBoard as Board>::description()),
                             ),
                     ),
             )
-            .child(Label::new("asdfasdf"))
-            .child(
-                Button::new("asdid")
-                    .outline()
-                    .label("drawer")
-                    .on_click(cx.listener(|_this, _, _window, cx| {
-                        println!("{}", "但是大声的发射点法");
-                        cx.emit(ItemClickEvent::ShowModal)
-                    })),
-            )
+            .child(Label::new("pinned"))
+            .child(Label::new("pinned 内容"))
     }
 }
