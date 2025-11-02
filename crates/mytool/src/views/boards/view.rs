@@ -14,7 +14,6 @@ pub struct BoardPanel {
     search_input: Entity<InputState>,
     pub boards: Vec<Entity<BoardContainer>>,
     pub(crate) active_index: Option<usize>,
-    is_loading: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -39,7 +38,6 @@ impl BoardPanel {
         Self {
             search_input,
             boards,
-            is_loading: false,
             active_index: None,
             _subscriptions,
         }

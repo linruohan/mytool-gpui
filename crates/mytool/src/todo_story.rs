@@ -1,5 +1,4 @@
-use crate::{BoardPanel, ProjectEvent, ProjectListPanel, load_items, load_labels, play_ogg_file};
-use crate::{DBState, ItemListDelegate, LabelListDelegate};
+use crate::{BoardPanel, ProjectEvent, ProjectsPanel, play_ogg_file};
 use gpui::{prelude::*, *};
 use gpui_component::label::Label;
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
@@ -10,7 +9,6 @@ use gpui_component::{
     date_picker::{DatePicker, DatePickerState},
     h_flex,
     input::{Input, InputState},
-    list::List,
     resizable::{h_resizable, resizable_panel},
     sidebar::Sidebar,
     v_flex,
@@ -18,8 +16,6 @@ use gpui_component::{
 use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
 use std::option::Option;
-use std::rc::Rc;
-use todos::entity::{ItemModel, LabelModel};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = todo_story, no_json)]
@@ -30,16 +26,12 @@ pub struct TodoStory {
     focus_handle: gpui::FocusHandle,
     active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
-    //  看板是0, projects是1
+    // 看板是0, projects是1
     pub is_board_active: bool,
     // 所有看板
     board_panel: Entity<BoardPanel>,
-    // 所有projects
-    project_panel: Entity<ProjectListPanel>,
-    project_due: Option<String>,
-    // labels
-    label_list: Entity<List<LabelListDelegate>>,
-    item_list: Entity<List<ItemListDelegate>>,
+    // projects
+    project_panel: Entity<ProjectsPanel>,
 }
 
 impl super::Mytool for TodoStory {
@@ -63,10 +55,8 @@ impl Focusable for TodoStory {
 
 impl TodoStory {
     pub fn new(_init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let project_panel = ProjectListPanel::view(window, cx);
+        let project_panel = ProjectsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
-        let label_list = cx.new(|cx| List::new(LabelListDelegate::new(), window, cx));
-        let item_list = cx.new(|cx| List::new(ItemListDelegate::new(), window, cx));
         let _subscriptions =
             vec![
                 cx.subscribe(&project_panel, |this, _, event: &ProjectEvent, cx| {
@@ -75,32 +65,6 @@ impl TodoStory {
                     });
                 }),
             ];
-
-        let label_list_clone = label_list.clone();
-        let item_list_clone = item_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let items = load_items(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|i| Rc::new(i.clone())).collect();
-            let rc_items: Vec<Rc<ItemModel>> = items.iter().map(|i| Rc::new(i.clone())).collect();
-
-            let _ = cx
-                .update_entity(&label_list_clone, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
-                    cx.notify();
-                })
-                .ok();
-            let _ = cx
-                .update_entity(&item_list_clone, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
         Self {
             collapsed: false,
             active_index: None,
@@ -109,9 +73,6 @@ impl TodoStory {
             is_board_active: true,
             board_panel,
             project_panel,
-            project_due: None,
-            label_list,
-            item_list,
         }
     }
 

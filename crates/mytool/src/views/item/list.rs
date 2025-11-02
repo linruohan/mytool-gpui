@@ -12,6 +12,13 @@ use gpui_component::{
 use std::rc::Rc;
 use todos::entity::ItemModel;
 actions!(label, [SelectedItem]);
+
+pub enum ItemEvent {
+    Added(Rc<ItemModel>),
+    Modified(Rc<ItemModel>),
+    Deleted(Rc<ItemModel>),
+}
+
 #[derive(IntoElement)]
 pub struct ItemListItem {
     base: ListItem,
@@ -74,8 +81,8 @@ impl RenderOnce for ItemListItem {
 }
 
 pub struct ItemListDelegate {
-    _items: Vec<Rc<ItemModel>>,
-    matched_items: Vec<Vec<Rc<ItemModel>>>,
+    pub(crate) _items: Vec<Rc<ItemModel>>,
+    pub(crate) matched_items: Vec<Vec<Rc<ItemModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,

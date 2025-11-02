@@ -13,7 +13,11 @@ use std::rc::Rc;
 use todos::entity::LabelModel;
 
 actions!(label, [SelectedLabel]);
-
+pub enum LabelEvent {
+    Added(Rc<LabelModel>),
+    Modified(Rc<LabelModel>),
+    Deleted(Rc<LabelModel>),
+}
 #[derive(IntoElement)]
 pub struct LabelListItem {
     base: ListItem,
@@ -97,8 +101,8 @@ impl RenderOnce for LabelListItem {
 }
 
 pub struct LabelListDelegate {
-    _labels: Vec<Rc<LabelModel>>,
-    matched_labels: Vec<Vec<Rc<LabelModel>>>,
+    pub(crate) _labels: Vec<Rc<LabelModel>>,
+    pub(crate) matched_labels: Vec<Vec<Rc<LabelModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
