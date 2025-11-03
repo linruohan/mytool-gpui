@@ -195,8 +195,13 @@ impl ListDelegate for LabelListDelegate {
         cx.notify();
     }
 
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary confirm: {}", secondary);
+    fn confirm(
+        &mut self,
+        _secondary: bool,
+        window: &mut Window,
+        cx: &mut Context<ListState<Self>>,
+    ) {
+        println!("Confirmed with secondary confirm: {:?}", self._labels);
         window.dispatch_action(Box::new(SelectedLabel), cx);
     }
 }

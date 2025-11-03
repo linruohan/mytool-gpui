@@ -1,10 +1,11 @@
 use crate::{
-    BoardContainer, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard,
+    BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard, PinBoard,
+    ScheduledBoard, TodayBoard,
 };
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, IntoElement, IsZero, ParentElement, Render,
-    Styled, Subscription, Window, div, px,
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, IsZero, ParentElement,
+    Render, Styled, Subscription, Window, div, px,
 };
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
@@ -16,6 +17,8 @@ pub struct BoardPanel {
     pub(crate) active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
+impl EventEmitter<LabelEvent> for BoardPanel {}
+impl EventEmitter<ItemEvent> for BoardPanel {}
 
 impl BoardPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {

@@ -1,15 +1,15 @@
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, div,
+    ParentElement, Render, Styled, Subscription, Window, div,
 };
 
-use crate::Board;
-use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
-use todos::entity::LabelModel;
+use crate::{Board, LabelEvent, LabelsPanel};
+use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, v_flex};
 
 pub struct LabelsBoard {
+    _subscriptions: Vec<Subscription>,
     focus_handle: FocusHandle,
-    labels: Vec<LabelModel>,
+    pub labels_panel: Entity<LabelsPanel>,
 }
 
 impl LabelsBoard {
@@ -17,21 +17,36 @@ impl LabelsBoard {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+    fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let labels_panel = LabelsPanel::view(window, cx);
+        let _subscriptions =
+            vec![
+                cx.subscribe(&labels_panel, |this, _, event: &LabelEvent, cx| {
+                    this.labels_panel.update(cx, |panel, cx| {
+                        panel.handle_label_event(event, cx);
+                    });
+                }),
+            ];
+        cx.spawn(async move |this, cx| {
+            this.update(cx, |this, cx| {
+                // Update results panel
+                this.labels_panel.update(cx, |panel, cx| {
+                    panel.get_labels(cx);
+                });
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        println!(
+            "_labels_panel: {:?}",
+            labels_panel.read(cx).label_list.read(cx).delegate()._labels
+        );
         Self {
             focus_handle: cx.focus_handle(),
-            labels: Vec::new(),
+            _subscriptions,
+            labels_panel,
         }
-    }
-    pub fn labels(&self) -> &[LabelModel] {
-        &self.labels
-    }
-
-    pub fn add_label(&mut self, label: LabelModel) {
-        self.labels.push(label);
-    }
-    pub fn clear_labels(&mut self) {
-        self.labels.clear();
     }
 }
 impl Board for LabelsBoard {
@@ -86,7 +101,6 @@ impl Render for LabelsBoard {
                     .items_start()
                     .child(
                         v_flex()
-                            .gap_1()
                             .child(div().text_xl().child(<LabelsBoard as Board>::title()))
                             .child(
                                 div()
@@ -95,7 +109,6 @@ impl Render for LabelsBoard {
                             ),
                     ),
             )
-            .child(Label::new("labels"))
-            .child(Label::new("label内容"))
+            .child(self.labels_panel.clone())
     }
 }

@@ -1,17 +1,16 @@
 use super::LabelEvent;
-use crate::{DBState, LabelListDelegate, load_labels, play_ogg_file};
+use crate::{DBState, LabelListDelegate, load_labels};
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window,
 };
 use gpui_component::{
+    ActiveTheme,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
-    list::{ListEvent, ListState},
-    sidebar::{SidebarMenu, SidebarMenuItem},
-    switch::Switch,
-    {ContextModal, IndexPath, Sizable, v_flex},
+    list::{List, ListEvent, ListState},
+    {ContextModal, IndexPath, v_flex},
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -58,6 +57,7 @@ impl LabelsPanel {
             let labels = load_labels(db.clone()).await;
             let rc_labels: Vec<Rc<LabelModel>> =
                 labels.iter().map(|pro| Rc::new(pro.clone())).collect();
+            println!("len labels: {}", labels.len());
             let _ = cx
                 .update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(rc_labels);
@@ -170,7 +170,7 @@ impl LabelsPanel {
         });
     }
     // 更新labels
-    fn get_labels(&mut self, cx: &mut Context<Self>) {
+    pub fn get_labels(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {
             return;
         }
@@ -258,30 +258,8 @@ impl LabelsPanel {
 
 impl Render for LabelsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let labels: Vec<_> = self.label_list.read(cx).delegate()._labels.clone();
-        v_flex().w_full().gap_4().child(
-            // 添加项目按钮：
-            SidebarMenu::new()
-                .child(
-                    SidebarMenuItem::new("On This Computer                     ➕").on_click(
-                        cx.listener(move |this, _, window: &mut Window, cx| {
-                            // let labels = labels.read(cx);
-                            println!("label_panel: {}", "add labels");
-                            play_ogg_file("assets/sounds/success.ogg");
-                            this.add_label_model(window, cx);
-                            cx.notify();
-                        }),
-                    ),
-                )
-                .children(labels.iter().enumerate().map(|(ix, story)| {
-                    SidebarMenuItem::new(story.name.clone())
-                        .active(self.active_index == Some(ix))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.active_index = Some(ix);
-                            cx.notify();
-                        }))
-                        .suffix(Switch::new("dark-mode").checked(true).xsmall())
-                })),
-        )
+        v_flex()
+            .rounded(cx.theme().radius)
+            .child(List::new(&self.label_list))
     }
 }

@@ -1,24 +1,22 @@
-use crate::Board;
+use crate::{Board, ItemEvent, ItemsPanel};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, ParentElement, Render, Styled, Window, div,
+    InteractiveElement as _, ParentElement, Render, Styled, Subscription, Window, div,
 };
 
-use gpui_component::{
-    ActiveTheme as _, IconName, button::Button, dock::PanelControl, h_flex, v_flex,
-};
+use gpui_component::{ActiveTheme as _, IconName, dock::PanelControl, h_flex, v_flex};
 pub enum ItemClickEvent {
     ShowModal,
     ConnectionError { field1: String },
 }
 
 impl EventEmitter<ItemClickEvent> for InboxBoard {}
-use todos::entity::ItemModel;
 
 pub struct InboxBoard {
+    _subscriptions: Vec<Subscription>,
     focus_handle: FocusHandle,
-    tasks: Vec<ItemModel>,
+    items_panel: Entity<ItemsPanel>,
 }
 
 impl InboxBoard {
@@ -26,21 +24,20 @@ impl InboxBoard {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    pub(crate) fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let items_panel = ItemsPanel::view(window, cx);
+        let _subscriptions = vec![
+            cx.subscribe(&items_panel, |this, _, event: &ItemEvent, cx| {
+                this.items_panel.update(cx, |panel, cx| {
+                    panel.handle_item_event(event, cx);
+                });
+            }),
+        ];
         Self {
             focus_handle: cx.focus_handle(),
-            tasks: Vec::new(),
+            _subscriptions,
+            items_panel,
         }
-    }
-    pub fn tasks(&self) -> &[ItemModel] {
-        &self.tasks
-    }
-
-    pub fn add_task(&mut self, task: ItemModel) {
-        self.tasks.push(task);
-    }
-    pub fn clear_tasks(&mut self) {
-        self.tasks.clear();
     }
 }
 impl Board for InboxBoard {
@@ -103,14 +100,6 @@ impl Render for InboxBoard {
                             ),
                     ),
             )
-            .child(
-                Button::new("asdid")
-                    .outline()
-                    .label("drawer")
-                    .on_click(cx.listener(|_this, _, _window, cx| {
-                        println!("{}", "但是大声的发射点法");
-                        cx.emit(ItemClickEvent::ShowModal)
-                    })),
-            )
+            .child(self.items_panel.clone())
     }
 }
