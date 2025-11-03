@@ -3,10 +3,10 @@ use gpui::{
     App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
     Window, actions, div, px,
 };
-use gpui_component::label::Label;
 use gpui_component::{
     ActiveTheme, IndexPath, Selectable, h_flex,
-    list::{List, ListDelegate, ListItem},
+    label::Label,
+    list::{ListDelegate, ListItem, ListState},
     v_flex,
 };
 use std::rc::Rc;
@@ -167,7 +167,7 @@ impl ListDelegate for LabelListDelegate {
         &mut self,
         query: &str,
         _: &mut Window,
-        _: &mut Context<List<Self>>,
+        _: &mut Context<ListState<Self>>,
     ) -> Task<()> {
         self.prepare(query.to_owned());
         Task::ready(())
@@ -176,12 +176,7 @@ impl ListDelegate for LabelListDelegate {
         self.matched_labels.len()
     }
 
-    fn render_item(
-        &self,
-        ix: IndexPath,
-        _: &mut Window,
-        _: &mut Context<List<Self>>,
-    ) -> Option<Self::Item> {
+    fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(company) = self.matched_labels[ix.section].get(ix.row) {
             return Some(LabelListItem::new(ix, company.clone(), ix, selected));
@@ -194,13 +189,13 @@ impl ListDelegate for LabelListDelegate {
         &mut self,
         ix: Option<IndexPath>,
         _: &mut Window,
-        cx: &mut Context<List<Self>>,
+        cx: &mut Context<ListState<Self>>,
     ) {
         self.selected_index = ix;
         cx.notify();
     }
 
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
+    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
         println!("Confirmed with secondary confirm: {}", secondary);
         window.dispatch_action(Box::new(SelectedLabel), cx);
     }

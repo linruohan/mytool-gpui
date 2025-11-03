@@ -5,7 +5,7 @@ use gpui::{
 use gpui_component::{
     IndexPath, Selectable,
     label::Label,
-    list::{List, ListDelegate, ListItem},
+    list::{ListDelegate, ListItem, ListState},
     v_flex,
 };
 use std::rc::Rc;
@@ -130,7 +130,7 @@ impl ListDelegate for ProjectListDelegate {
         &mut self,
         query: &str,
         _: &mut Window,
-        _: &mut Context<List<Self>>,
+        _: &mut Context<ListState<Self>>,
     ) -> Task<()> {
         self.search_project(query.to_owned());
         Task::ready(())
@@ -140,12 +140,7 @@ impl ListDelegate for ProjectListDelegate {
         self.matched_projects.len()
     }
 
-    fn render_item(
-        &self,
-        ix: IndexPath,
-        _: &mut Window,
-        _: &mut Context<List<Self>>,
-    ) -> Option<Self::Item> {
+    fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(menu) = self.matched_projects[ix.section].get(ix.row) {
             return Some(ProjectListItem::new(ix, menu.clone(), ix, selected));
@@ -158,12 +153,12 @@ impl ListDelegate for ProjectListDelegate {
         &mut self,
         ix: Option<IndexPath>,
         _: &mut Window,
-        cx: &mut Context<List<Self>>,
+        cx: &mut Context<ListState<Self>>,
     ) {
         self.selected_index = ix;
         cx.notify();
     }
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<List<Self>>) {
+    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
         println!("Confirmed with secondary: {}", secondary);
         window.dispatch_action(Box::new(SelectedProject), cx);
     }

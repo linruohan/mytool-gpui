@@ -3,20 +3,22 @@ use gpui::{
     App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
     Styled, Subscription, WeakEntity, Window,
 };
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::date_picker::{DatePicker, DatePickerState};
-use gpui_component::input::{Input, InputState};
-use gpui_component::list::{List, ListEvent};
-use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
-use gpui_component::switch::Switch;
-use gpui_component::{ContextModal, IndexPath, Sizable, v_flex};
+use gpui_component::{
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerState},
+    input::{Input, InputState},
+    list::{ListEvent, ListState},
+    sidebar::{SidebarMenu, SidebarMenuItem},
+    switch::Switch,
+    {ContextModal, IndexPath, Sizable, v_flex},
+};
 use std::rc::Rc;
 use todos::entity::ItemModel;
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
 pub struct ItemsPanel {
     input_esc: Entity<InputState>,
-    pub item_list: Entity<List<ItemListDelegate>>,
+    pub item_list: Entity<ListState<ItemListDelegate>>,
     item_due: Option<String>,
     is_loading: bool,
     pub active_index: Option<usize>,
@@ -31,7 +33,7 @@ impl ItemsPanel {
                 .clean_on_escape()
         });
 
-        let item_list = cx.new(|cx| List::new(ItemListDelegate::new(), window, cx));
+        let item_list = cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx));
 
         let _subscriptions =
             vec![

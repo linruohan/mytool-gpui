@@ -2628,7 +2628,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.4.0-preview0"
-source = "git+https://github.com/linruohan/gpui-component.git#8fd4062c5fa2ff987a306cad799dad097e82b381"
+source = "git+https://github.com/linruohan/gpui-component.git#ab487ad4f205bfa18cdc545e9b5778feccd416b9"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2668,7 +2668,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.4.0-preview0"
-source = "git+https://github.com/linruohan/gpui-component.git#8fd4062c5fa2ff987a306cad799dad097e82b381"
+source = "git+https://github.com/linruohan/gpui-component.git#ab487ad4f205bfa18cdc545e9b5778feccd416b9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5584,9 +5584,9 @@ dependencies = [
 
 [[package]]
 name = "rust-embed"
-version = "8.8.0"
+version = "8.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb44e1917075637ee8c7bcb865cf8830e3a92b5b1189e44e3a0ab5a0d5be314b"
+checksum = "947d7f3fad52b283d261c4c99a084937e2fe492248cb9a68a8435a861b8798ca"
 dependencies = [
  "rust-embed-impl",
  "rust-embed-utils",
@@ -5595,9 +5595,9 @@ dependencies = [
 
 [[package]]
 name = "rust-embed-impl"
-version = "8.8.0"
+version = "8.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "382499b49db77a7c19abd2a574f85ada7e9dbe125d5d1160fa5cad7c4cf71fc9"
+checksum = "5fa2c8c9e8711e10f9c4fd2d64317ef13feaab820a4c51541f1a8c8e2e851ab2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5609,9 +5609,9 @@ dependencies = [
 
 [[package]]
 name = "rust-embed-utils"
-version = "8.8.0"
+version = "8.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21fcbee55c2458836bcdbfffb6ec9ba74bbc23ca7aa6816015a3dd2c4d8fc185"
+checksum = "60b161f275cb337fe0a44d924a5f4df0ed69c2c39519858f931ce61c779d3475"
 dependencies = [
  "globset",
  "sha2",
@@ -5868,9 +5868,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82d20c4491bc164fa2f6c5d44565947a52ad80b9505d8e36f8d54c27c739fcd0"
+checksum = "1317c3bf3e7df961da95b0a56a172a02abead31276215a0497241a7624b487ce"
 dependencies = [
  "dyn-clone",
  "indexmap",
@@ -5882,9 +5882,9 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33d020396d1d138dc19f1165df7545479dcd58d93810dc5d646a16e55abefa80"
+checksum = "5f760a6150d45dd66ec044983c124595ae76912e77ed0b44124cb3e415cce5d9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7429,9 +7429,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.16"
+version = "0.7.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14307c986784f72ef81c89db7d9e28d6ac26d16213b109ea501696195e6e3ce5"
+checksum = "2efa149fe76073d6e8fd97ef4f4eca7b67f599660115591483572e406e165594"
 dependencies = [
  "bytes",
  "futures-core",
@@ -8894,9 +8894,9 @@ dependencies = [
 
 [[package]]
 name = "winresource"
-version = "0.1.25"
+version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f882b1d5b5ab0c26bdd08afa85da4b829a982772088d1da911698e08976daf9b"
+checksum = "61fffd966cea9f118dbfb245cbc508406a5ef4b2d030eb73aedb52f63710724a"
 dependencies = [
  "toml 0.9.8",
  "version_check",

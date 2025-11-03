@@ -4,20 +4,22 @@ use gpui::{
     App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
     Styled, Subscription, WeakEntity, Window,
 };
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::date_picker::{DatePicker, DatePickerEvent, DatePickerState};
-use gpui_component::input::{Input, InputState};
-use gpui_component::list::{List, ListEvent};
-use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
-use gpui_component::switch::Switch;
-use gpui_component::{ContextModal, IndexPath, Sizable, v_flex};
+use gpui_component::{
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    input::{Input, InputState},
+    list::{ListEvent, ListState},
+    sidebar::{SidebarMenu, SidebarMenuItem},
+    switch::Switch,
+    {ContextModal, IndexPath, Sizable, v_flex},
+};
 use std::rc::Rc;
 use todos::entity::LabelModel;
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
 pub struct LabelsPanel {
     input_esc: Entity<InputState>,
-    pub label_list: Entity<List<LabelListDelegate>>,
+    pub label_list: Entity<ListState<LabelListDelegate>>,
     label_due: Option<String>,
     is_loading: bool,
     pub active_index: Option<usize>,
@@ -32,7 +34,7 @@ impl LabelsPanel {
                 .clean_on_escape()
         });
 
-        let label_list = cx.new(|cx| List::new(LabelListDelegate::new(), window, cx));
+        let label_list = cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx));
 
         let _subscriptions = vec![cx.subscribe_in(
             &label_list,
