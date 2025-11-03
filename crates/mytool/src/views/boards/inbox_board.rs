@@ -1,11 +1,11 @@
 use crate::{Board, ItemEvent, ItemsPanel};
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, ParentElement, Render, Styled, Subscription, Window, div,
+    div, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    Hsla, InteractiveElement as _, ParentElement, Render, Styled, Subscription, Window,
 };
 
-use gpui_component::{ActiveTheme as _, IconName, dock::PanelControl, h_flex, v_flex};
+use gpui_component::{dock::PanelControl, h_flex, v_flex, ActiveTheme as _, IconName};
 pub enum ItemClickEvent {
     ShowModal,
     ConnectionError { field1: String },
@@ -81,7 +81,7 @@ impl Render for InboxBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         v_flex()
-            .overflow_x_hidden()
+            // .overflow_x_hidden()
             .child(
                 h_flex()
                     .id("header")

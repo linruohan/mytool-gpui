@@ -1,10 +1,8 @@
-use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Subscription, Window, div,
-};
+use gpui::{div, App, AppContext, ClickEvent, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, ParentElement, Render, Styled, Subscription, Window};
 
 use crate::{Board, LabelEvent, LabelsPanel};
-use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, v_flex};
+use gpui_component::button::Button;
+use gpui_component::{dock::PanelControl, h_flex, v_flex, ActiveTheme, IconName};
 
 pub struct LabelsBoard {
     _subscriptions: Vec<Subscription>,
@@ -38,10 +36,6 @@ impl LabelsBoard {
             .ok();
         })
         .detach();
-        println!(
-            "_labels_panel: {:?}",
-            labels_panel.read(cx).label_list.read(cx).delegate()._labels
-        );
         Self {
             focus_handle: cx.focus_handle(),
             _subscriptions,
@@ -109,6 +103,16 @@ impl Render for LabelsBoard {
                             ),
                     ),
             )
+            .child(Button::new("update").label("更新labels").on_click(
+                cx.listener(
+                    move |this, _: &ClickEvent, _, cx| {
+                        this.labels_panel.update(cx, |panel, cx| {
+                            cx.emit(LabelEvent::Loaded);
+                            cx.notify();
+                        });
+                    },
+                )
+            ))
             .child(self.labels_panel.clone())
     }
 }

@@ -1,16 +1,16 @@
 use super::LabelEvent;
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{load_labels, DBState, LabelListDelegate};
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
     Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
-    {ContextModal, IndexPath, v_flex},
+    ActiveTheme,
+    {v_flex, ContextModal, IndexPath},
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -92,6 +92,10 @@ impl LabelsPanel {
     }
     pub fn handle_label_event(&mut self, event: &LabelEvent, cx: &mut Context<Self>) {
         match event {
+            LabelEvent::Loaded => {
+                println!("Loaded");
+                self.get_labels(cx);
+            }
             LabelEvent::Added(label) => {
                 println!("handle_label_event:");
                 self.add_label(cx, label.clone())

@@ -1,19 +1,20 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, div, px,
+    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable, h_flex,
-    label::Label,
-    list::{ListDelegate, ListItem, ListState},
-    v_flex,
+    h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, v_flex,
+    ActiveTheme,
+    IndexPath,
+    Selectable,
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
 
 actions!(label, [SelectedLabel]);
 pub enum LabelEvent {
+    Loaded,
     Added(Rc<LabelModel>),
     Modified(Rc<LabelModel>),
     Deleted(Rc<LabelModel>),
