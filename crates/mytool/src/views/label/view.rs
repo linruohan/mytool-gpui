@@ -1,16 +1,16 @@
 use super::LabelEvent;
-use crate::{load_labels, DBState, LabelListDelegate};
+use crate::{DBState, LabelListDelegate, load_labels};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window,
+    App, AppContext, Context, Edges, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
+    StyledExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
-    ActiveTheme,
-    {v_flex, ContextModal, IndexPath},
+    {ContextModal, IndexPath, v_flex},
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -261,9 +261,7 @@ impl LabelsPanel {
 }
 
 impl Render for LabelsPanel {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .rounded(cx.theme().radius)
-            .child(List::new(&self.label_list))
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        List::new(&self.label_list).paddings(Edges::all(px(8.)))
     }
 }

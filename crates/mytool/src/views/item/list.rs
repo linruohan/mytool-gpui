@@ -1,13 +1,13 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, px,
+    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Window,
 };
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable, h_flex,
-    label::Label,
-    list::{ListDelegate, ListItem, ListState},
-    v_flex,
+    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, ContextModal, IndexPath, Placement,
+    Selectable,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -67,14 +67,19 @@ impl RenderOnce for ItemListItem {
             .rounded(cx.theme().radius)
             .child(
                 h_flex().items_center().justify_between().gap_2().child(
-                    h_flex().gap_2().child(
-                        v_flex()
-                            .gap_1()
-                            .max_w(px(500.))
-                            .overflow_x_hidden()
-                            .flex_nowrap()
-                            .child(Label::new(self.item.content.clone()).whitespace_nowrap()),
-                    ),
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .justify_end()
+                        .child(div().w(px(65.)).child(self.item.id.clone()))
+                        .child(div().w(px(65.)).child(self.item.content.clone()))
+                        .child(
+                            div()
+                                .w(px(65.))
+                                .child(self.item.added_at.clone().to_string()),
+                        )
+                        .child(Button::new("edit"))
+                        .child(Button::new("edit")),
                 ),
             )
     }
@@ -144,6 +149,53 @@ impl ItemListDelegate {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+    fn open_drawer_at_item(
+        &mut self,
+        item: Rc<ItemModel>,
+        window: &mut Window,
+        cx: &mut Context<ListState<Self>>,
+    ) {
+        window.open_drawer_at(Placement::Right, cx, move |this, _, _cx| {
+            this.overlay(true)
+                .overlay_closable(false)
+                .size(px(400.))
+                .title(item.content.clone())
+                .gap_4()
+                .child(
+                    Button::new("send-notification")
+                        .child("Test Notification")
+                        .on_click(|_, window, cx| {
+                            window.push_notification("Hello this is message from Drawer.", cx)
+                        }),
+                )
+                .child(
+                    Label::new(item.content.clone()), // List::new(&item)
+                    //     .border_1()
+                    //     .border_color(cx.theme().border)
+                    //     .rounded(cx.theme().radius)
+                    //     .size_full()
+                    //     .flex_1()
+                    //     .h(px(400.)),
+                )
+                .footer(
+                    h_flex()
+                        .gap_6()
+                        .items_center()
+                        .child(Button::new("confirm").primary().label("确认").on_click(
+                            |_, window, cx| {
+                                window.close_drawer(cx);
+                            },
+                        ))
+                        .child(
+                            Button::new("cancel")
+                                .label("取消")
+                                .on_click(|_, window, cx| {
+                                    window.close_drawer(cx);
+                                }),
+                        ),
+                )
+        });
+    }
 }
 impl ListDelegate for ItemListDelegate {
     type Item = ItemListItem;
@@ -166,7 +218,6 @@ impl ListDelegate for ItemListDelegate {
         if let Some(company) = self.matched_items[ix.section].get(ix.row) {
             return Some(ItemListItem::new(ix, company.clone(), ix, selected));
         }
-
         None
     }
 
@@ -181,7 +232,10 @@ impl ListDelegate for ItemListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary item: {}", secondary);
         window.dispatch_action(Box::new(SelectedItem), cx);
+        let item_some = self.selected_item();
+        if let Some(item) = item_some {
+            self.open_drawer_at_item(item, window, cx);
+        }
     }
 }

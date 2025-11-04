@@ -4,7 +4,7 @@ use gpui::{
     Styled, Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    ActiveTheme,
+    StyledExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerState},
     input::{Input, InputState},
@@ -243,12 +243,7 @@ impl ItemsPanel {
 }
 
 impl Render for ItemsPanel {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .w_full()
-            .border_1()
-            .border_color(cx.theme().border)
-            .rounded(cx.theme().radius)
-            .child(List::new(&self.item_list).paddings(Edges::all(px(8.))))
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        List::new(&self.item_list).paddings(Edges::all(px(8.)))
     }
 }

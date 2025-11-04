@@ -3,10 +3,10 @@ use gpui::{
     actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
     SharedString, Styled, Task, Window,
 };
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::label::Label;
 use gpui_component::{
-    h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, v_flex,
-    ActiveTheme,
-    IndexPath,
+    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, ContextModal, IndexPath, Placement,
     Selectable,
 };
 use std::rc::Rc;
@@ -66,37 +66,15 @@ impl RenderOnce for LabelListItem {
             })
             .rounded(cx.theme().radius)
             .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .child(
-                        h_flex().gap_2().child(
-                            v_flex()
-                                .gap_1()
-                                .max_w(px(500.))
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(Label::new(self.label.name.clone()).whitespace_nowrap()),
-                        ),
-                    )
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .justify_end()
-                            .child(div().w(px(65.)).child(self.label.name.clone()))
-                            .child(
-                                h_flex().w(px(65.)).justify_end().child(
-                                    div()
-                                        .rounded(cx.theme().radius)
-                                        .whitespace_nowrap()
-                                        .text_size(px(12.))
-                                        .px_1()
-                                        .child(self.label.name.clone()),
-                                ),
-                            ),
-                    ),
+                h_flex().items_center().justify_between().gap_2().child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .justify_end()
+                        .child(div().w(px(65.)).child(self.label.id.clone()))
+                        .child(div().w(px(65.)).child(self.label.name.clone()))
+                        .child(div().w(px(65.)).child(self.label.color.clone())),
+                ),
             )
     }
 }
@@ -160,6 +138,53 @@ impl LabelListDelegate {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+    fn open_drawer_at_label(
+        &mut self,
+        label: Rc<LabelModel>,
+        window: &mut Window,
+        cx: &mut Context<ListState<Self>>,
+    ) {
+        window.open_drawer_at(Placement::Right, cx, move |this, _, _cx| {
+            this.overlay(true)
+                .overlay_closable(false)
+                .size(px(400.))
+                .title(label.name.clone())
+                .gap_4()
+                .child(
+                    Button::new("send-notification")
+                        .child("Test Notification")
+                        .on_click(|_, window, cx| {
+                            window.push_notification("Hello this is message from Drawer.", cx)
+                        }),
+                )
+                .child(
+                    Label::new(label.name.clone()), // List::new(&label)
+                    //     .border_1()
+                    //     .border_color(cx.theme().border)
+                    //     .rounded(cx.theme().radius)
+                    //     .size_full()
+                    //     .flex_1()
+                    //     .h(px(400.)),
+                )
+                .footer(
+                    h_flex()
+                        .gap_6()
+                        .items_center()
+                        .child(Button::new("confirm").primary().label("确认").on_click(
+                            |_, window, cx| {
+                                window.close_drawer(cx);
+                            },
+                        ))
+                        .child(
+                            Button::new("cancel")
+                                .label("取消")
+                                .on_click(|_, window, cx| {
+                                    window.close_drawer(cx);
+                                }),
+                        ),
+                )
+        });
+    }
 }
 impl ListDelegate for LabelListDelegate {
     type Item = LabelListItem;
@@ -202,7 +227,10 @@ impl ListDelegate for LabelListDelegate {
         window: &mut Window,
         cx: &mut Context<ListState<Self>>,
     ) {
-        println!("Confirmed with secondary confirm: {:?}", self._labels);
         window.dispatch_action(Box::new(SelectedLabel), cx);
+        let label_some = self.selected_label();
+        if let Some(label) = label_some {
+            self.open_drawer_at_label(label, window, cx)
+        }
     }
 }

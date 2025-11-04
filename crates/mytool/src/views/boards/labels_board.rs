@@ -1,8 +1,10 @@
-use gpui::{div, App, AppContext, ClickEvent, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, ParentElement, Render, Styled, Subscription, Window};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
+    ParentElement, Render, Styled, Subscription, Window, div,
+};
 
 use crate::{Board, LabelEvent, LabelsPanel};
-use gpui_component::button::Button;
-use gpui_component::{dock::PanelControl, h_flex, v_flex, ActiveTheme, IconName};
+use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, v_flex};
 
 pub struct LabelsBoard {
     _subscriptions: Vec<Subscription>,
@@ -25,17 +27,6 @@ impl LabelsBoard {
                     });
                 }),
             ];
-        cx.spawn(async move |this, cx| {
-            this.update(cx, |this, cx| {
-                // Update results panel
-                this.labels_panel.update(cx, |panel, cx| {
-                    panel.get_labels(cx);
-                });
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
         Self {
             focus_handle: cx.focus_handle(),
             _subscriptions,
@@ -85,7 +76,9 @@ impl Render for LabelsBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         v_flex()
-            .overflow_x_hidden()
+            .track_focus(&self.focus_handle)
+            .size_full()
+            .gap_4()
             .child(
                 h_flex()
                     .id("header")
@@ -103,16 +96,6 @@ impl Render for LabelsBoard {
                             ),
                     ),
             )
-            .child(Button::new("update").label("更新labels").on_click(
-                cx.listener(
-                    move |this, _: &ClickEvent, _, cx| {
-                        this.labels_panel.update(cx, |panel, cx| {
-                            cx.emit(LabelEvent::Loaded);
-                            cx.notify();
-                        });
-                    },
-                )
-            ))
             .child(self.labels_panel.clone())
     }
 }
