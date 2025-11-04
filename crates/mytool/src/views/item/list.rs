@@ -1,13 +1,13 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions, div, px,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::label::Label;
 use gpui_component::{
-    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, ContextModal, IndexPath, Placement,
-    Selectable,
+    ActiveTheme, ContextModal, IconName, IndexPath, Placement, Selectable, h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -71,15 +71,15 @@ impl RenderOnce for ItemListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(div().w(px(65.)).child(self.item.id.clone()))
-                        .child(div().w(px(65.)).child(self.item.content.clone()))
+                        .child(div().w(px(25.)).child(self.item.id.clone()))
+                        .child(div().w(px(35.)).child(self.item.content.clone()))
                         .child(
                             div()
-                                .w(px(65.))
+                                .w(px(35.))
                                 .child(self.item.added_at.clone().to_string()),
                         )
-                        .child(Button::new("edit"))
-                        .child(Button::new("edit")),
+                        .child(Button::new("edit").icon(IconName::EditSymbolic))
+                        .child(Button::new("delete").icon(IconName::Delete)),
                 ),
             )
     }
@@ -170,12 +170,12 @@ impl ItemListDelegate {
                 )
                 .child(
                     Label::new(item.content.clone()), // List::new(&item)
-                    //     .border_1()
-                    //     .border_color(cx.theme().border)
-                    //     .rounded(cx.theme().radius)
-                    //     .size_full()
-                    //     .flex_1()
-                    //     .h(px(400.)),
+                                                      //     .border_1()
+                                                      //     .border_color(cx.theme().border)
+                                                      //     .rounded(cx.theme().radius)
+                                                      //     .size_full()
+                                                      //     .flex_1()
+                                                      //     .h(px(400.)),
                 )
                 .footer(
                     h_flex()
@@ -231,7 +231,12 @@ impl ListDelegate for ItemListDelegate {
         cx.notify();
     }
 
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
+    fn confirm(
+        &mut self,
+        _secondary: bool,
+        window: &mut Window,
+        cx: &mut Context<ListState<Self>>,
+    ) {
         window.dispatch_action(Box::new(SelectedItem), cx);
         let item_some = self.selected_item();
         if let Some(item) = item_some {

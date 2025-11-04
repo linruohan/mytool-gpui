@@ -1,13 +1,12 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions, div, px,
 };
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::label::Label;
+use gpui_component::button::Button;
 use gpui_component::{
-    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, ContextModal, IndexPath, Placement,
-    Selectable,
+    ActiveTheme, IconName, IndexPath, Selectable, h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -71,9 +70,20 @@ impl RenderOnce for LabelListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(div().w(px(65.)).child(self.label.id.clone()))
-                        .child(div().w(px(65.)).child(self.label.name.clone()))
-                        .child(div().w(px(65.)).child(self.label.color.clone())),
+                        .child(div().w(px(15.)).child(self.label.id.clone()))
+                        .child(div().w(px(120.)).child(self.label.name.clone()))
+                        .child(div().w(px(115.)).child(self.label.color.clone()))
+                        .child(Button::new("edit").icon(IconName::EditSymbolic).on_click(
+                            move |_event, _window, _cx| {
+                                let label = self.label.clone();
+                                println!("edit label:{:?}", label);
+                            },
+                        ))
+                        .child(Button::new("delete").icon(IconName::Delete).on_click(
+                            move |_event, _window, _cx| {
+                                println!("delete label:");
+                            },
+                        )),
                 ),
             )
     }
@@ -138,53 +148,6 @@ impl LabelListDelegate {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
-    fn open_drawer_at_label(
-        &mut self,
-        label: Rc<LabelModel>,
-        window: &mut Window,
-        cx: &mut Context<ListState<Self>>,
-    ) {
-        window.open_drawer_at(Placement::Right, cx, move |this, _, _cx| {
-            this.overlay(true)
-                .overlay_closable(false)
-                .size(px(400.))
-                .title(label.name.clone())
-                .gap_4()
-                .child(
-                    Button::new("send-notification")
-                        .child("Test Notification")
-                        .on_click(|_, window, cx| {
-                            window.push_notification("Hello this is message from Drawer.", cx)
-                        }),
-                )
-                .child(
-                    Label::new(label.name.clone()), // List::new(&label)
-                    //     .border_1()
-                    //     .border_color(cx.theme().border)
-                    //     .rounded(cx.theme().radius)
-                    //     .size_full()
-                    //     .flex_1()
-                    //     .h(px(400.)),
-                )
-                .footer(
-                    h_flex()
-                        .gap_6()
-                        .items_center()
-                        .child(Button::new("confirm").primary().label("确认").on_click(
-                            |_, window, cx| {
-                                window.close_drawer(cx);
-                            },
-                        ))
-                        .child(
-                            Button::new("cancel")
-                                .label("取消")
-                                .on_click(|_, window, cx| {
-                                    window.close_drawer(cx);
-                                }),
-                        ),
-                )
-        });
-    }
 }
 impl ListDelegate for LabelListDelegate {
     type Item = LabelListItem;
@@ -228,9 +191,5 @@ impl ListDelegate for LabelListDelegate {
         cx: &mut Context<ListState<Self>>,
     ) {
         window.dispatch_action(Box::new(SelectedLabel), cx);
-        let label_some = self.selected_label();
-        if let Some(label) = label_some {
-            self.open_drawer_at_label(label, window, cx)
-        }
     }
 }

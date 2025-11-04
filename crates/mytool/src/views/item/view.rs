@@ -1,10 +1,10 @@
 use crate::{DBState, ItemEvent, ItemListDelegate, load_items};
 use gpui::{
-    App, AppContext, Context, Edges, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window, px,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    StyledExt,
+    ActiveTheme,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerState},
     input::{Input, InputState},
@@ -243,7 +243,13 @@ impl ItemsPanel {
 }
 
 impl Render for ItemsPanel {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        List::new(&self.item_list).paddings(Edges::all(px(8.)))
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        List::new(&self.item_list)
+            .p(px(8.))
+            .flex_1()
+            .w_full()
+            .border_1()
+            .border_color(cx.theme().border)
+            .rounded(cx.theme().radius)
     }
 }
