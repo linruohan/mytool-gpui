@@ -1,4 +1,4 @@
-use crate::{Board, DBState, ItemEvent, ItemListDelegate, load_items};
+use crate::{DBState, ItemListDelegate, get_project_items};
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
     Render, Styled, Subscription, WeakEntity, Window, div,
@@ -16,8 +16,13 @@ use gpui_component::{
 };
 use std::rc::Rc;
 use todos::entity::{ItemModel, ProjectModel};
-
-impl EventEmitter<ItemEvent> for ProjectItemsPanel {}
+pub enum ProjectItemEvent {
+    Loaded,
+    Added(Rc<ItemModel>),
+    Modified(Rc<ItemModel>),
+    Deleted(Rc<ItemModel>),
+}
+impl EventEmitter<ProjectItemEvent> for ProjectItemsPanel {}
 pub struct ProjectItemsPanel {
     input_esc: Entity<InputState>,
     project: Rc<ProjectModel>,
@@ -35,6 +40,7 @@ impl ProjectItemsPanel {
                 .placeholder("Enter DB URL")
                 .clean_on_escape()
         });
+        let project = Rc::new(ProjectModel::default());
 
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
@@ -57,7 +63,7 @@ impl ProjectItemsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
-            let items = load_items(db.clone()).await;
+            let items = get_project_items(project, db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
             let _ = cx
@@ -78,6 +84,10 @@ impl ProjectItemsPanel {
             project: Rc::new(ProjectModel::default()),
         }
     }
+    pub fn project(mut self, project: Rc<ProjectModel>) -> Self {
+        self.project = project;
+        self
+    }
     pub fn update_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project;
         self.update_items(cx);
@@ -97,14 +107,15 @@ impl ProjectItemsPanel {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
-    pub fn handle_item_event(&mut self, event: &ItemEvent, cx: &mut Context<Self>) {
+    pub fn handle_project_item_event(&mut self, event: &ProjectItemEvent, cx: &mut Context<Self>) {
         match event {
-            ItemEvent::Added(item) => {
+            ProjectItemEvent::Added(item) => {
                 println!("handle_item_event:");
                 self.add_item(cx, item.clone())
             }
-            ItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
-            ItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
+            ProjectItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
+            ProjectItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
+            _ => {}
         }
     }
     pub fn show_model(
@@ -132,7 +143,7 @@ impl ProjectItemsPanel {
 
         window.open_modal(cx, move |modal, _, _| {
             modal
-                .title("Add Project")
+                .title("Add Item")
                 .overlay(false)
                 .keyboard(true)
                 .show_close(true)
@@ -158,7 +169,7 @@ impl ProjectItemsPanel {
                                             content: input1.read(cx).value().to_string(),
                                             ..Default::default()
                                         };
-                                        cx.emit(ItemEvent::Added(item.into()));
+                                        cx.emit(ProjectItemEvent::Added(item.into()));
                                         cx.notify();
                                     });
                                 }
@@ -179,9 +190,10 @@ impl ProjectItemsPanel {
             return;
         }
         let db = cx.global::<DBState>().conn.clone();
+        let project = self.project.clone();
         cx.spawn(async move |this, cx| {
             let db = db.lock().await;
-            let items = load_items(db.clone()).await;
+            let items = get_project_items(project, db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
 
@@ -302,6 +314,12 @@ impl Render for ProjectItemsPanel {
                                                             })
                                                         {
                                                             this.show_model(model, window, cx);
+                                                        } else {
+                                                            this.show_model(
+                                                                Rc::new(ItemModel::default()),
+                                                                window,
+                                                                cx,
+                                                            );
                                                         }
                                                         cx.notify();
                                                     },

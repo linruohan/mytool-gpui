@@ -1,8 +1,8 @@
 use sea_orm::DatabaseConnection;
 use std::rc::Rc;
+use todos::Store;
 use todos::entity::LabelModel;
 use todos::error::TodoError;
-use todos::Store;
 
 pub async fn load_labels(db: DatabaseConnection) -> Vec<LabelModel> {
     Store::new(db).await.labels().await
