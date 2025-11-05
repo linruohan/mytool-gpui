@@ -33,7 +33,8 @@ impl LabelsPanel {
                 .clean_on_escape()
         });
 
-        let label_list = cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx));
+        let label_list =
+            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).searchable(true));
 
         let _subscriptions = vec![cx.subscribe_in(
             &label_list,

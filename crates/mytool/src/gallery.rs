@@ -122,7 +122,7 @@ impl Render for Gallery {
                                         .child(
                                             Input::new(&self.search_input)
                                                 .appearance(false)
-                                                .cleanable(),
+                                                .cleanable(true),
                                         ),
                                 ),
                             )

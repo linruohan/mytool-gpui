@@ -4,13 +4,14 @@ use gpui::{
     Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
+    IconName,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{ListEvent, ListState},
+    menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
-    switch::Switch,
-    {ContextModal, IndexPath, Sizable, v_flex},
+    {ContextModal, IndexPath, v_flex},
 };
 use std::rc::Rc;
 use todos::entity::ProjectModel;
@@ -74,7 +75,7 @@ impl ProjectsPanel {
             _subscriptions,
         }
     }
-    fn get_selected_project(&self, ix: IndexPath, cx: &App) -> Option<Rc<ProjectModel>> {
+    pub(crate) fn get_selected_project(&self, ix: IndexPath, cx: &App) -> Option<Rc<ProjectModel>> {
         self.project_list
             .read(cx)
             .delegate()
@@ -91,6 +92,9 @@ impl ProjectsPanel {
     }
     pub fn handle_project_event(&mut self, event: &ProjectEvent, cx: &mut Context<Self>) {
         match event {
+            ProjectEvent::Loaded => {
+                self.update_projects(cx);
+            }
             ProjectEvent::Added(project) => {
                 println!("handle_project_event:");
                 self.add_project(cx, project.clone())
@@ -99,7 +103,12 @@ impl ProjectsPanel {
             ProjectEvent::Deleted(project) => self.del_project(cx, project.clone()),
         }
     }
-    pub fn add_project_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn show_model(
+        &mut self,
+        _model: Rc<ProjectModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
         let _input2 = cx.new(|cx| -> InputState {
             InputState::new(window, cx).placeholder("For test focus back on modal close.")
@@ -162,7 +171,7 @@ impl ProjectsPanel {
         });
     }
     // 更新projects
-    fn get_projects(&mut self, cx: &mut Context<Self>) {
+    fn update_projects(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {
             return;
         }
@@ -204,7 +213,7 @@ impl ProjectsPanel {
             .ok();
         })
         .detach();
-        self.get_projects(cx);
+        self.update_projects(cx);
     }
     pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
@@ -224,7 +233,7 @@ impl ProjectsPanel {
             .ok();
         })
         .detach();
-        self.get_projects(cx);
+        self.update_projects(cx);
     }
     pub fn del_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
@@ -244,13 +253,14 @@ impl ProjectsPanel {
             .ok();
         })
         .detach();
-        self.get_projects(cx);
+        self.update_projects(cx);
     }
 }
 
 impl Render for ProjectsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let projects: Vec<_> = self.project_list.read(cx).delegate()._projects.clone();
+        let view = cx.entity();
         v_flex().w_full().gap_4().child(
             // 添加项目按钮：
             SidebarMenu::new()
@@ -260,7 +270,8 @@ impl Render for ProjectsPanel {
                             // let projects = projects.read(cx);
                             println!("project_panel: {}", "add projects");
                             play_ogg_file("assets/sounds/success.ogg");
-                            this.add_project_model(window, cx);
+                            let default_model = Rc::new(ProjectModel::default());
+                            this.show_model(default_model, window, cx);
                             cx.notify();
                         }),
                     ),
@@ -272,7 +283,55 @@ impl Render for ProjectsPanel {
                             this.active_index = Some(ix);
                             cx.notify();
                         }))
-                        .suffix(Switch::new("dark-mode").checked(true).xsmall())
+                        .suffix(
+                            Button::new("project-popup-menu")
+                                .label("label")
+                                .icon(IconName::EllipsisVertical)
+                                .dropdown_menu({
+                                    let view = view.clone();
+                                    move |this, window, _cx| {
+                                        this.link(
+                                            "About",
+                                            "https://github.com/longbridge/gpui-component",
+                                        )
+                                        .separator()
+                                        .item(PopupMenuItem::new("Edit project").on_click(
+                                            window.listener_for(&view, |this, _, window, cx| {
+                                                if let Some(model) = this
+                                                    .active_index
+                                                    .map(IndexPath::new)
+                                                    .and_then(|index| {
+                                                        this.get_selected_project(index, cx)
+                                                    })
+                                                {
+                                                    this.show_model(model, window, cx);
+                                                }
+                                                cx.notify();
+                                            }),
+                                        ))
+                                        .separator()
+                                        .item(
+                                            PopupMenuItem::new("Delete project").on_click(
+                                                window.listener_for(
+                                                    &view,
+                                                    |this, _, _window, cx| {
+                                                        let index = this.active_index.unwrap();
+                                                        let project_some = this
+                                                            .get_selected_project(
+                                                                IndexPath::new(index),
+                                                                cx,
+                                                            );
+                                                        if let Some(project) = project_some {
+                                                            this.del_project(cx, project.clone());
+                                                        }
+                                                        cx.notify();
+                                                    },
+                                                ),
+                                            ),
+                                        )
+                                    }
+                                }),
+                        )
                 })),
         )
     }

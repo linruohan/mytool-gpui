@@ -14,6 +14,7 @@ use todos::entity::ProjectModel;
 actions!(project, [SelectedProject]);
 
 pub enum ProjectEvent {
+    Loaded,
     Added(Rc<ProjectModel>),
     Modified(Rc<ProjectModel>),
     Deleted(Rc<ProjectModel>),

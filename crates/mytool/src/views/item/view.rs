@@ -32,7 +32,8 @@ impl ItemsPanel {
                 .clean_on_escape()
         });
 
-        let item_list = cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx));
+        let item_list =
+            cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
         let _subscriptions =
             vec![

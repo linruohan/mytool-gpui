@@ -74,7 +74,11 @@ impl Render for BoardPanel {
                     .when(cx.theme().radius.is_zero(), |this| this.rounded(px(0.)))
                     .flex_1()
                     .mx_1()
-                    .child(Input::new(&self.search_input).appearance(false).cleanable()),
+                    .child(
+                        Input::new(&self.search_input)
+                            .appearance(false)
+                            .cleanable(true),
+                    ),
             )
             .child(
                 SidebarBoard::new().children(

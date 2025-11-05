@@ -1,19 +1,19 @@
-use crate::{BoardPanel, ProjectEvent, ProjectsPanel, play_ogg_file};
+use crate::{play_ogg_file, BoardPanel, ProjectEvent, ProjectsPanel};
 use gpui::{prelude::*, *};
 use gpui_component::label::Label;
+use gpui_component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
-use gpui_component::switch::Switch;
+use gpui_component::Placement;
 use gpui_component::{
-    ContextModal,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerState},
-    h_flex,
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerState}, h_flex,
     input::{Input, InputState},
     resizable::{h_resizable, resizable_panel},
     sidebar::Sidebar,
     v_flex,
+    ContextModal,
+    IconName,
+    IndexPath,
 };
-use gpui_component::{Placement, Sizable};
 use serde::Deserialize;
 use std::option::Option;
 
@@ -155,6 +155,7 @@ impl Render for TodoStory {
             ._projects
             .clone();
         let project_avtive_index = project_panel.active_index;
+        let view = cx.entity();
         h_resizable("todos-container")
             .child(
                 resizable_panel()
@@ -171,12 +172,12 @@ impl Render for TodoStory {
                                 SidebarMenu::new().child(
                                     SidebarMenuItem::new("On This Computer                     ➕")
                                         .on_click(cx.listener(
-                                            move |this, _, window: &mut Window, cx| {
+                                            move |this, _, _window: &mut Window, cx| {
                                                 // let projects = projects.read(cx);
                                                 println!("click to add project");
                                                 play_ogg_file("assets/sounds/success.ogg");
-                                                this.project_panel.update(cx, |panel, cx| {
-                                                    panel.add_project_model(window, cx);
+                                                this.project_panel.update(cx, |_panel, cx| {
+                                                    // panel.show_model(window, cx);
                                                     cx.notify();
                                                 });
                                                 cx.notify();
@@ -203,7 +204,53 @@ impl Render for TodoStory {
                                                 cx.notify();
                                             },
                                         ))
-                                        .suffix(Switch::new("dark-mode").checked(true).xsmall())
+                                        .suffix(
+                                            Button::new("project-popup-menu")
+                                                .icon(IconName::EllipsisVertical)
+                                                .dropdown_menu({
+                                                    let view = view.clone();
+                                                    move |this, window, _cx| {
+                                                        this.link(
+                                                            "About",
+                                                            "https://github.com/longbridge/gpui-component",
+                                                        )
+                                                            .separator()
+                                                            .item(PopupMenuItem::new("Edit project").on_click(
+                                                                window.listener_for(&view, |this, _c, _window, cx| {
+                                                                    println!("index: {:?}", this.active_index);
+                                                                    this.project_panel.update(cx, |_panel, cx| {
+                                                                        // panel.show_model(window, cx);
+                                                                        cx.notify();
+                                                                    });
+                                                                    cx.notify();
+                                                                }),
+                                        ))
+                                                            .separator()
+                                                            .item(
+                                                                PopupMenuItem::new("Delete project").on_click(
+                                                                    window.listener_for(
+                                                                        &view,
+                                                                        |this, _, _window, cx| {
+                                                                            this.project_panel.update(cx, |panel, cx| {
+                                                                                let index = this.active_index.unwrap();
+                                                                                let project_some = panel
+                                                                                    .get_selected_project(
+                                                                                        IndexPath::new(index),
+                                                                                        cx,
+                                                                                    );
+                                                                                if let Some(project) = project_some {
+                                                                                    panel.del_project(cx, project.clone());
+                                                                                }
+                                                                                cx.notify();
+                                                                            });
+                                                                            cx.notify();
+                                                                        },
+                                                                    ),
+                                                                ),
+                                                            )
+                                                    }
+                                                }),
+                                        )
                                 }),
                             )),
                     ),
