@@ -1,18 +1,17 @@
-use crate::{play_ogg_file, BoardPanel, ProjectEvent, ProjectsPanel};
+use crate::{BoardPanel, ProjectEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file};
 use gpui::{prelude::*, *};
-use gpui_component::label::Label;
+use gpui_component::Placement;
 use gpui_component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
-use gpui_component::Placement;
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerState}, h_flex,
+    ContextModal, IconName, IndexPath,
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerState},
+    h_flex,
     input::{Input, InputState},
     resizable::{h_resizable, resizable_panel},
     sidebar::Sidebar,
     v_flex,
-    ContextModal,
-    IconName,
-    IndexPath,
 };
 use serde::Deserialize;
 use std::option::Option;
@@ -32,6 +31,7 @@ pub struct TodoStory {
     board_panel: Entity<BoardPanel>,
     // projects
     project_panel: Entity<ProjectsPanel>,
+    project_item_panel: Entity<ProjectItemsPanel>,
 }
 
 impl super::Mytool for TodoStory {
@@ -57,6 +57,7 @@ impl TodoStory {
     pub fn new(_init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let project_panel = ProjectsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
+        let project_item_panel = ProjectItemsPanel::view(window, cx);
         let _subscriptions = vec![
             cx.subscribe(&project_panel, |this, _, event: &ProjectEvent, cx| {
                 this.project_panel.update(cx, |project_panel, cx| {
@@ -82,6 +83,7 @@ impl TodoStory {
             is_board_active: true,
             board_panel,
             project_panel,
+            project_item_panel,
         }
     }
 
@@ -277,7 +279,11 @@ impl Render for TodoStory {
                                 let project_some = project_list.get(self.active_index.unwrap());
                                 if let Some(project) = project_some {
                                     board_active_index = None;
-                                    this.child(Label::new(project.name.clone()))
+                                    self.project_item_panel.update(cx, |panel, cx| {
+                                        panel.update_project(project.clone(), cx);
+                                        cx.notify();
+                                    });
+                                    this.child(self.project_item_panel.clone())
                                 } else {
                                     this.child(Empty)
                                 }
