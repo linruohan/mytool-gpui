@@ -4,14 +4,14 @@ use gpui::{
     Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    IconName,
+    IconName, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{ListEvent, ListState},
     menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
-    {ContextModal, IndexPath, v_flex},
+    v_flex,
 };
 use std::rc::Rc;
 use todos::entity::ProjectModel;

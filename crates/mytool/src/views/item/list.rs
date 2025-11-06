@@ -6,7 +6,7 @@ use gpui::{
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme, ContextModal, IconName, IndexPath, Placement, Selectable, h_flex,
+    ActiveTheme, IconName, IndexPath, Placement, Selectable, WindowExt, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
@@ -112,12 +112,6 @@ impl ItemListDelegate {
                 item.content
                     .to_lowercase()
                     .contains(&self.query.to_lowercase())
-                    | item
-                        .description
-                        .clone()
-                        .unwrap()
-                        .to_lowercase()
-                        .contains(&self.query.to_lowercase())
             })
             .cloned()
             .collect();
@@ -149,13 +143,13 @@ impl ItemListDelegate {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
-    fn open_drawer_at_item(
+    fn open_sheet_at_item(
         &mut self,
         item: Rc<ItemModel>,
         window: &mut Window,
         cx: &mut Context<ListState<Self>>,
     ) {
-        window.open_drawer_at(Placement::Right, cx, move |this, _, _cx| {
+        window.open_sheet_at(Placement::Right, cx, move |this, _, _cx| {
             this.overlay(true)
                 .overlay_closable(false)
                 .size(px(400.))
@@ -168,29 +162,21 @@ impl ItemListDelegate {
                             window.push_notification("Hello this is message from Drawer.", cx)
                         }),
                 )
-                .child(
-                    Label::new(item.content.clone()), // List::new(&item)
-                                                      //     .border_1()
-                                                      //     .border_color(cx.theme().border)
-                                                      //     .rounded(cx.theme().radius)
-                                                      //     .size_full()
-                                                      //     .flex_1()
-                                                      //     .h(px(400.)),
-                )
+                .child(Label::new(item.content.clone()))
                 .footer(
                     h_flex()
                         .gap_6()
                         .items_center()
                         .child(Button::new("confirm").primary().label("确认").on_click(
                             |_, window, cx| {
-                                window.close_drawer(cx);
+                                window.close_sheet(cx);
                             },
                         ))
                         .child(
                             Button::new("cancel")
                                 .label("取消")
                                 .on_click(|_, window, cx| {
-                                    window.close_drawer(cx);
+                                    window.close_sheet(cx);
                                 }),
                         ),
                 )
@@ -240,7 +226,7 @@ impl ListDelegate for ItemListDelegate {
         window.dispatch_action(Box::new(SelectedItem), cx);
         let item_some = self.selected_item();
         if let Some(item) = item_some {
-            self.open_drawer_at_item(item, window, cx);
+            self.open_sheet_at_item(item, window, cx);
         }
     }
 }

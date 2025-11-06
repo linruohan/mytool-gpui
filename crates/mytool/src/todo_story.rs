@@ -1,19 +1,15 @@
 use crate::{
-    play_ogg_file, BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel,
+    BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
 };
 use gpui::{prelude::*, *};
 use gpui_component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
-use gpui_component::Placement;
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerState}, h_flex,
-    input::{Input, InputState},
+    IconName, IndexPath,
+    button::{Button, ButtonVariants},
     resizable::{h_resizable, resizable_panel},
     sidebar::Sidebar,
     v_flex,
-    ContextModal,
-    IconName,
-    IndexPath,
 };
 use serde::Deserialize;
 use std::option::Option;
@@ -59,7 +55,7 @@ impl TodoStory {
     pub fn new(_init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let project_panel = ProjectsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
-        let project_item_panel = ProjectItemsPanel::view(window, cx);
+        let project_item_panel = ProjectItemsPanel::view(None, window, cx);
         let _subscriptions = vec![
             cx.subscribe(&project_panel, |this, _, event: &ProjectEvent, cx| {
                 this.project_panel.update(cx, |project_panel, cx| {
@@ -91,58 +87,6 @@ impl TodoStory {
             project_panel,
             project_item_panel,
         }
-    }
-
-    #[allow(unused)]
-    fn open_drawer_at(
-        &mut self,
-        placement: Placement,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let _list_h = match placement {
-            Placement::Left | Placement::Right => px(400.),
-            Placement::Top | Placement::Bottom => px(160.),
-        };
-
-        let _overlay = true;
-        let _overlay_closable = true;
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Your Name"));
-        let _input2 = cx.new(|cx| {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let date = cx.new(|cx| DatePickerState::new(window, cx));
-        window.open_drawer_at(placement, cx, move |this, _, _| {
-            this.size(px(400.))
-                .title("Item 详情:")
-                .gap_4()
-                .child(Input::new(&input1))
-                .child(DatePicker::new(&date).placeholder("Date of Birth"))
-                .child(
-                    Button::new("send-notification")
-                        .child("Test Notification")
-                        .on_click(|_, window, cx| {
-                            window.push_notification("Hello this is message from Drawer.", cx)
-                        }),
-                )
-                .footer(
-                    h_flex()
-                        .gap_6()
-                        .items_center()
-                        .child(Button::new("confirm").primary().label("确认").on_click(
-                            |_, window, cx| {
-                                window.close_drawer(cx);
-                            },
-                        ))
-                        .child(
-                            Button::new("cancel")
-                                .label("取消")
-                                .on_click(|_, window, cx| {
-                                    window.close_drawer(cx);
-                                }),
-                        ),
-                )
-        });
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
@@ -286,7 +230,7 @@ impl Render for TodoStory {
                                 if let Some(project) = project_some {
                                     board_active_index = None;
                                     self.project_item_panel.update(cx, |panel, cx| {
-                                        panel.project(project.clone());
+                                        panel.set_active_project(project.clone(), cx);
                                         cx.notify();
                                     });
                                     this.child(self.project_item_panel.clone())

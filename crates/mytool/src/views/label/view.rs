@@ -5,12 +5,12 @@ use gpui::{
     Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    ActiveTheme,
+    ActiveTheme, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
-    {ContextModal, IndexPath, v_flex},
+    v_flex,
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;

@@ -7,7 +7,7 @@ use gpui::{
 };
 use gpui_component::dock::{PanelControl, PanelEvent};
 use gpui_component::notification::Notification;
-use gpui_component::{ContextModal, IconName, v_flex};
+use gpui_component::{IconName, WindowExt, v_flex};
 // const PANEL_NAME: &str = "BoardContainer";
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,

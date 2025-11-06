@@ -14,11 +14,11 @@ use gpui_component::{
     webview::WebView,
     wry,
     ActiveTheme as _,
-    ContextModal as _,
     Icon,
     IconName,
     IndexPath,
     Placement,
+    WindowExt as _,
 };
 
 use crate::TestAction;
@@ -120,7 +120,7 @@ impl ListDelegate for ListItemDeletegate {
 
     fn cancel(&mut self, window: &mut Window, cx: &mut Context<List<Self>>) {
         _ = self.story.update(cx, |this, cx| {
-            this.close_drawer(window, cx);
+            this.close_sheet(window, cx);
         });
     }
 
@@ -280,7 +280,7 @@ impl DrawerStory {
         }
     }
 
-    fn open_drawer_at(
+    fn open_sheet_at(
         &mut self,
         placement: Placement,
         window: &mut Window,
@@ -328,21 +328,21 @@ impl DrawerStory {
                         .items_center()
                         .child(Button::new("confirm").primary().label("Confirm").on_click(
                             |_, window, cx| {
-                                window.close_drawer(cx);
+                                window.close_sheet(cx);
                             },
                         ))
                         .child(
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(|_, window, cx| {
-                                    window.close_drawer(cx);
+                                    window.close_sheet(cx);
                                 }),
                         ),
                 )
         });
     }
 
-    fn close_drawer(&mut self, _: &mut Window, cx: &mut Context<Self>) {
+    fn close_sheet(&mut self, _: &mut Window, cx: &mut Context<Self>) {
         self.drawer_placement = None;
         cx.notify();
     }

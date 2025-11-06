@@ -5,14 +5,14 @@ use gpui::{
 };
 use gpui_component::list::List;
 use gpui_component::{
-    ActiveTheme, IconName,
+    ActiveTheme, IconName, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
     input::{Input, InputState},
     list::{ListEvent, ListState},
     menu::{DropdownMenu, PopupMenuItem},
-    {ContextModal, IndexPath, v_flex},
+    v_flex,
 };
 use std::rc::Rc;
 use todos::entity::{ItemModel, ProjectModel};
@@ -34,13 +34,16 @@ pub struct ProjectItemsPanel {
 }
 
 impl ProjectItemsPanel {
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        project: Option<Rc<ProjectModel>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let input_esc = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Enter DB URL")
                 .clean_on_escape()
         });
-        let project = Rc::new(ProjectModel::default());
 
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
@@ -59,22 +62,7 @@ impl ProjectItemsPanel {
                 }),
             ];
 
-        let item_list_clone = item_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let items = get_project_items(project, db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            let _ = cx
-                .update_entity(&item_list_clone, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
-        Self {
+        let mut this = Self {
             input_esc,
             item_due: None,
             is_loading: false,
@@ -82,13 +70,17 @@ impl ProjectItemsPanel {
             active_index: Some(0),
             _subscriptions,
             project: Rc::new(ProjectModel::default()),
+        };
+        if let Some(pro) = project {
+            this.set_active_project(pro, cx);
         }
+        this
     }
     pub fn project(mut self, project: Rc<ProjectModel>) -> Self {
         self.project = project;
         self
     }
-    pub fn update_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
+    pub fn set_active_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project;
         self.update_items(cx);
     }
@@ -104,8 +96,12 @@ impl ProjectItemsPanel {
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
-    pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
-        cx.new(|cx| Self::new(window, cx))
+    pub fn view(
+        project: Option<Rc<ProjectModel>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Entity<Self> {
+        cx.new(|cx| Self::new(project, window, cx))
     }
     pub fn handle_project_item_event(&mut self, event: &ProjectItemEvent, cx: &mut Context<Self>) {
         match event {

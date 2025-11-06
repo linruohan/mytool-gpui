@@ -36,7 +36,7 @@ pub use views::*;
 pub use welcome_story::WelcomeStory;
 
 use gpui_component::{
-    ActiveTheme, ContextModal, IconName, Root, TitleBar,
+    ActiveTheme, IconName, Root, TitleBar, WindowExt,
     button::Button,
     dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle, register_panel},
     group_box::GroupBox,
@@ -186,7 +186,7 @@ impl StoryRoot {
 
 impl Render for StoryRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let drawer_layer = Root::render_drawer_layer(window, cx);
+        let sheet_layer = Root::render_sheet_layer(window, cx);
         let modal_layer = Root::render_modal_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
 
@@ -198,7 +198,7 @@ impl Render for StoryRoot {
                     .child(self.title_bar.clone())
                     .child(div().flex_1().overflow_hidden().child(self.view.clone())),
             )
-            .children(drawer_layer)
+            .children(sheet_layer)
             .children(modal_layer)
             .children(notification_layer)
     }
