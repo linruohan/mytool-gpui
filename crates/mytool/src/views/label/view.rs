@@ -1,16 +1,16 @@
 use super::LabelEvent;
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{load_labels, DBState, LabelListDelegate};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    input::{Input, InputState},
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
+    ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -34,7 +34,7 @@ impl LabelsPanel {
         });
 
         let label_list =
-            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).searchable(true));
+            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).searchable(false));
 
         let _subscriptions = vec![cx.subscribe_in(
             &label_list,

@@ -1,13 +1,13 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, div, px,
+    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Window,
 };
 use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Placement, Selectable, WindowExt, h_flex,
-    list::{ListDelegate, ListItem, ListState},
+    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, IndexPath, Placement, Selectable,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -71,15 +71,13 @@ impl RenderOnce for ItemListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(div().w(px(25.)).child(self.item.id.clone()))
-                        .child(div().w(px(35.)).child(self.item.content.clone()))
+                        .child(div().w(px(15.)).child(self.item.id.clone()))
+                        .child(div().w(px(120.)).child(self.item.content.clone()))
                         .child(
                             div()
-                                .w(px(35.))
+                                .w(px(235.))
                                 .child(self.item.added_at.clone().to_string()),
                         )
-                        .child(Button::new("edit").icon(IconName::EditSymbolic))
-                        .child(Button::new("delete").icon(IconName::Delete)),
                 ),
             )
     }

@@ -1,15 +1,15 @@
-use crate::{DBState, ItemEvent, ItemListDelegate, load_items};
+use crate::{get_items_by_project_id, load_items, DBState, ItemEvent, ItemListDelegate};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerState},
-    input::{Input, InputState},
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerState}, input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
+    ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -33,7 +33,7 @@ impl ItemsPanel {
         });
 
         let item_list =
-            cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
+            cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(false));
 
         let _subscriptions =
             vec![
@@ -53,7 +53,7 @@ impl ItemsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
-            let items = load_items(db.clone()).await;
+            let items = get_items_by_project_id("1", db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("len items: {}", items.len());
