@@ -3,16 +3,18 @@ use gpui::{
     App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
     Window, actions, div, px,
 };
-use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::button::ButtonVariants;
 use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme, IndexPath, Placement, Selectable, WindowExt, h_flex,
+    ActiveTheme, IconName, IndexPath, Placement, Selectable, WindowExt,
+    button::Button,
+    h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
-actions!(label, [SelectedItem]);
 
+actions!(item, [SelectedItem]);
 pub enum ItemEvent {
     Added(Rc<ItemModel>),
     Modified(Rc<ItemModel>),
@@ -56,36 +58,68 @@ impl Selectable for ItemListItem {
 
 impl RenderOnce for ItemListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let text_color = if self.selected {
+            cx.theme().accent_foreground
+        } else {
+            cx.theme().foreground
+        };
+
+        let bg_color = if self.selected {
+            cx.theme().list_active
+        } else if self.ix.row.is_multiple_of(2) {
+            cx.theme().list
+        } else {
+            cx.theme().list_even
+        };
+
         self.base
             .px_2()
             .py_1()
             .overflow_x_hidden()
+            .bg(bg_color)
             .border_1()
+            .border_color(bg_color)
             .when(self.selected, |this| {
                 this.border_color(cx.theme().list_active_border)
             })
             .rounded(cx.theme().radius)
             .child(
-                h_flex().items_center().justify_between().gap_2().child(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .justify_end()
-                        .child(div().w(px(15.)).child(self.item.id.clone()))
-                        .child(div().w(px(120.)).child(self.item.content.clone()))
-                        .child(
-                            div()
-                                .w(px(235.))
-                                .child(self.item.added_at.clone().to_string()),
-                        ),
-                ),
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .text_color(text_color)
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .justify_end()
+                            .child(div().w(px(215.)).child(self.item.id.clone()))
+                            .child(div().w(px(120.)).child(self.item.content.clone()))
+                            .child(
+                                div()
+                                    .w(px(315.))
+                                    .child(self.item.added_at.to_string().clone()),
+                            )
+                            .child(Button::new("edit").icon(IconName::EditSymbolic).on_click(
+                                move |_event, _window, _cx| {
+                                    let item = self.item.clone();
+                                    println!("edit item:{:?}", item);
+                                },
+                            ))
+                            .child(Button::new("delete").icon(IconName::Delete).on_click(
+                                move |_event, _window, _cx| {
+                                    println!("delete item:");
+                                },
+                            )),
+                    ),
             )
     }
 }
 
 pub struct ItemListDelegate {
-    pub(crate) _items: Vec<Rc<ItemModel>>,
-    pub(crate) matched_items: Vec<Vec<Rc<ItemModel>>>,
+    pub _items: Vec<Rc<ItemModel>>,
+    pub matched_items: Vec<Vec<Rc<ItemModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -125,13 +159,7 @@ impl ItemListDelegate {
             self.selected_index = Some(IndexPath::default());
         }
     }
-    pub fn add(&mut self, item: Rc<ItemModel>) {
-        let mut items = self._items.clone();
-        items.push(item.clone());
-        self.update_items(items);
-    }
-    #[allow(unused)]
-    fn selected_item(&self) -> Option<Rc<ItemModel>> {
+    pub fn selected_item(&self) -> Option<Rc<ItemModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };
@@ -193,15 +221,17 @@ impl ListDelegate for ItemListDelegate {
         self.prepare(query.to_owned());
         Task::ready(())
     }
-    fn items_count(&self, _section: usize, _cx: &App) -> usize {
-        self.matched_items.len()
+
+    fn items_count(&self, section: usize, _: &App) -> usize {
+        self.matched_items[section].len()
     }
 
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(company) = self.matched_items[ix.section].get(ix.row) {
-            return Some(ItemListItem::new(ix, company.clone(), ix, selected));
+        if let Some(item) = self.matched_items[ix.section].get(ix.row) {
+            return Some(ItemListItem::new(ix, item.clone(), ix, selected));
         }
+
         None
     }
 
@@ -215,12 +245,8 @@ impl ListDelegate for ItemListDelegate {
         cx.notify();
     }
 
-    fn confirm(
-        &mut self,
-        _secondary: bool,
-        window: &mut Window,
-        cx: &mut Context<ListState<Self>>,
-    ) {
+    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
+        println!("Confirmed with secondary: {}", secondary);
         window.dispatch_action(Box::new(SelectedItem), cx);
         let item_some = self.selected_item();
         if let Some(item) = item_some {

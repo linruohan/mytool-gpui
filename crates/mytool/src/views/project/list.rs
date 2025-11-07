@@ -1,18 +1,16 @@
+use gpui::prelude::FluentBuilder;
 use gpui::{
     App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions,
+    Window, actions, div, px,
 };
 use gpui_component::{
-    IndexPath, Selectable,
-    label::Label,
+    ActiveTheme, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
-    v_flex,
 };
 use std::rc::Rc;
 use todos::entity::ProjectModel;
 
 actions!(project, [SelectedProject]);
-
 pub enum ProjectEvent {
     Loaded,
     Added(Rc<ProjectModel>),
@@ -43,6 +41,7 @@ impl ProjectListItem {
         }
     }
 }
+
 impl Selectable for ProjectListItem {
     fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
@@ -53,12 +52,52 @@ impl Selectable for ProjectListItem {
         self.selected
     }
 }
+
 impl RenderOnce for ProjectListItem {
-    fn render(self, _: &mut Window, _cx: &mut App) -> impl IntoElement {
-        v_flex()
-            .p_4()
-            .gap_5()
-            .child(Label::new(self.project.name.clone()))
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let text_color = if self.selected {
+            cx.theme().accent_foreground
+        } else {
+            cx.theme().foreground
+        };
+
+        let bg_color = if self.selected {
+            cx.theme().list_active
+        } else if self.ix.row.is_multiple_of(2) {
+            cx.theme().list
+        } else {
+            cx.theme().list_even
+        };
+
+        self.base
+            .px_2()
+            .py_1()
+            .overflow_x_hidden()
+            .bg(bg_color)
+            .border_1()
+            .border_color(bg_color)
+            .when(self.selected, |this| {
+                this.border_color(cx.theme().list_active_border)
+            })
+            .rounded(cx.theme().radius)
+            .child(
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .text_color(text_color)
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .justify_end()
+                            .child(div().w(px(15.)).child(self.project.id.clone()))
+                            .child(div().w(px(120.)).child(self.project.name.clone()))
+                            .child(div().w(px(115.)).child(
+                                self.project.description.clone().unwrap_or_default().clone(),
+                            )),
+                    ),
+            )
     }
 }
 
@@ -80,7 +119,7 @@ impl ProjectListDelegate {
             query: "".into(),
         }
     }
-    fn search_project(&mut self, query: impl Into<SharedString>) {
+    fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
         let projects: Vec<Rc<ProjectModel>> = self
             ._projects
@@ -97,7 +136,7 @@ impl ProjectListDelegate {
             self.matched_projects.push(vec![project]);
         }
     }
-    #[allow(dead_code)]
+
     pub fn update_projects(&mut self, projects: Vec<Rc<ProjectModel>>) {
         self._projects = projects;
         self.matched_projects = vec![self._projects.clone()];
@@ -105,13 +144,6 @@ impl ProjectListDelegate {
             self.selected_index = Some(IndexPath::default());
         }
     }
-    pub fn add(&mut self, project: Rc<ProjectModel>) {
-        let mut projects = self._projects.clone();
-
-        projects.push(project);
-        self.update_projects(projects);
-    }
-    #[allow(dead_code)]
     pub fn selected_project(&self) -> Option<Rc<ProjectModel>> {
         let Some(ix) = self.selected_index else {
             return None;
@@ -123,7 +155,6 @@ impl ProjectListDelegate {
             .cloned()
     }
 }
-
 impl ListDelegate for ProjectListDelegate {
     type Item = ProjectListItem;
 
@@ -133,18 +164,18 @@ impl ListDelegate for ProjectListDelegate {
         _: &mut Window,
         _: &mut Context<ListState<Self>>,
     ) -> Task<()> {
-        self.search_project(query.to_owned());
+        self.prepare(query.to_owned());
         Task::ready(())
     }
 
-    fn items_count(&self, _section: usize, _app: &App) -> usize {
-        self.matched_projects.len()
+    fn items_count(&self, section: usize, _: &App) -> usize {
+        self.matched_projects[section].len()
     }
 
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(menu) = self.matched_projects[ix.section].get(ix.row) {
-            return Some(ProjectListItem::new(ix, menu.clone(), ix, selected));
+        if let Some(project) = self.matched_projects[ix.section].get(ix.row) {
+            return Some(ProjectListItem::new(ix, project.clone(), ix, selected));
         }
 
         None
@@ -159,6 +190,7 @@ impl ListDelegate for ProjectListDelegate {
         self.selected_index = ix;
         cx.notify();
     }
+
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
         println!("Confirmed with secondary: {}", secondary);
         window.dispatch_action(Box::new(SelectedProject), cx);
