@@ -126,12 +126,11 @@ impl ProjectsPanel {
         });
         let view = cx.entity().clone();
 
-        window.open_modal(cx, move |modal, _, _| {
+        window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title("Add Project")
                 .overlay(false)
                 .keyboard(true)
-                .show_close(true)
                 .overlay_closable(true)
                 .child(
                     v_flex()
@@ -148,7 +147,7 @@ impl ProjectsPanel {
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
-                                    window.close_modal(cx);
+                                    window.close_sheet(cx);
                                     view.update(cx, |view, cx| {
                                         let project = ProjectModel {
                                             name: input1.read(cx).value().to_string(),
@@ -163,7 +162,7 @@ impl ProjectsPanel {
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(move |_, window, cx| {
-                                    window.close_modal(cx);
+                                    window.close_sheet(cx);
                                 }),
                         ]
                     }

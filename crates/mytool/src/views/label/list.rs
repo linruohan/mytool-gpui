@@ -1,12 +1,12 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    actions, div, px, App, Context, ElementId, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions, div, px,
 };
 use gpui_component::button::Button;
 use gpui_component::{
-    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, IconName, IndexPath,
-    Selectable,
+    ActiveTheme, IconName, IndexPath, Selectable, h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -133,7 +133,7 @@ impl LabelListDelegate {
         }
     }
     #[allow(unused)]
-    fn selected_label(&self) -> Option<Rc<LabelModel>> {
+    pub(crate) fn selected_label(&self) -> Option<Rc<LabelModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };

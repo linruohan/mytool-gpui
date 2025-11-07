@@ -4,6 +4,7 @@ mod calendar_story;
 // mod components; // 我的组件库
 mod crypto; // 加解密
 mod gallery;
+mod list_story;
 mod service;
 mod themes;
 mod title_bar;
@@ -16,9 +17,8 @@ mod welcome_story;
 pub use service::*;
 
 pub use assets::Assets;
-pub use gallery::Gallery;
-
 pub use calendar_story::CalendarStory;
+pub use gallery::Gallery;
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
     Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, ParentElement, Pixels,
@@ -26,6 +26,7 @@ use gpui::{
     Window, WindowBounds, WindowKind, WindowOptions, actions, div, prelude::FluentBuilder as _, px,
     rems, size,
 };
+pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
@@ -187,7 +188,7 @@ impl StoryRoot {
 impl Render for StoryRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let sheet_layer = Root::render_sheet_layer(window, cx);
-        let modal_layer = Root::render_modal_layer(window, cx);
+        let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
 
         div()
@@ -199,7 +200,7 @@ impl Render for StoryRoot {
                     .child(div().flex_1().overflow_hidden().child(self.view.clone())),
             )
             .children(sheet_layer)
-            .children(modal_layer)
+            .children(dialog_layer)
             .children(notification_layer)
     }
 }
@@ -585,6 +586,7 @@ impl StoryState {
         match self.story_klass.to_string().as_str() {
             "CalendarStory" => mytool!(CalendarStory),
             "TodoStory" => mytool!(TodoStory),
+            "ListStory" => mytool!(ListStory),
             _ => {
                 unreachable!("Invalid story klass: {}", self.story_klass)
             }

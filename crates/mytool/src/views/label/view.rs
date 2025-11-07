@@ -1,16 +1,16 @@
 use super::LabelEvent;
-use crate::{load_labels, DBState, LabelListDelegate};
+use crate::{DBState, LabelListDelegate, load_labels};
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState},
+    ActiveTheme, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
-    ActiveTheme,
-    IndexPath,
-    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -123,12 +123,11 @@ impl LabelsPanel {
         });
         let view = cx.entity().clone();
 
-        window.open_modal(cx, move |modal, _, _| {
+        window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title("Add Project")
                 .overlay(false)
                 .keyboard(true)
-                .show_close(true)
                 .overlay_closable(true)
                 .child(
                     v_flex()
@@ -145,7 +144,7 @@ impl LabelsPanel {
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
-                                    window.close_modal(cx);
+                                    window.close_sheet(cx);
                                     view.update(cx, |_view, cx| {
                                         let label = LabelModel {
                                             id: "".to_string(),
@@ -167,7 +166,7 @@ impl LabelsPanel {
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(move |_, window, cx| {
-                                    window.close_modal(cx);
+                                    window.close_sheet(cx);
                                 }),
                         ]
                     }

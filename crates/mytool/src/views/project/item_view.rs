@@ -1,18 +1,18 @@
-use crate::{get_project_items, DBState, ItemListDelegate};
+use crate::{DBState, ItemListDelegate, get_project_items};
 use gpui::{
-    div, App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
+    Render, Styled, Subscription, WeakEntity, Window, div,
 };
 use gpui_component::list::List;
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, h_flex, input::{Input, InputState},
+    ActiveTheme, IconName, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    h_flex,
+    input::{Input, InputState},
     list::ListState,
     menu::{DropdownMenu, PopupMenuItem},
     v_flex,
-    ActiveTheme,
-    IconName,
-    IndexPath,
-    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::{ItemModel, ProjectModel};
@@ -43,19 +43,18 @@ impl ProjectItemsPanel {
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
-        let _subscriptions =
-            vec![
-                // cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
-                //     if let ListEvent::Confirm(ix) = ev
-                //         && let Some(conn) = this.get_selected_item(*ix, cx)
-                //     {
-                //         this.input_esc.update(cx, |is, cx| {
-                //             is.set_value(conn.clone().content.clone(), window, cx);
-                //             cx.notify();
-                //         })
-                //     }
-                // }),
-            ];
+        let _subscriptions = vec![
+            // cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
+            //     if let ListEvent::Confirm(ix) = ev
+            //         && let Some(conn) = this.get_selected_item(*ix, cx)
+            //     {
+            //         this.input_esc.update(cx, |is, cx| {
+            //             is.set_value(conn.clone().content.clone(), window, cx);
+            //             cx.notify();
+            //         })
+            //     }
+            // }),
+        ];
         let item_list_clone = item_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         let project_clone = project.clone();
@@ -72,7 +71,7 @@ impl ProjectItemsPanel {
                 })
                 .ok();
         })
-          .detach();
+        .detach();
         Self {
             input_esc,
             item_due: None,
@@ -133,12 +132,11 @@ impl ProjectItemsPanel {
         });
         let view = cx.entity().clone();
 
-        window.open_modal(cx, move |modal, _, _| {
+        window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title("Add Item")
                 .overlay(false)
                 .keyboard(true)
-                .show_close(true)
                 .overlay_closable(true)
                 .child(
                     v_flex()
@@ -155,7 +153,7 @@ impl ProjectItemsPanel {
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
-                                    window.close_modal(cx);
+                                    window.close_sheet(cx);
                                     view.update(cx, |_view, cx| {
                                         let item = ItemModel {
                                             content: input1.read(cx).value().to_string(),
@@ -169,7 +167,7 @@ impl ProjectItemsPanel {
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(move |_, window, cx| {
-                                    window.close_modal(cx);
+                                    window.close_sheet(cx);
                                 }),
                         ]
                     }

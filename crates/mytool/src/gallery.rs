@@ -1,4 +1,4 @@
-use crate::{CalendarStory, StoryContainer, TodoStory, WelcomeStory};
+use crate::{CalendarStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _,
@@ -34,6 +34,7 @@ impl Gallery {
                 StoryContainer::panel::<WelcomeStory>(window, cx),
                 StoryContainer::panel::<CalendarStory>(window, cx),
                 StoryContainer::panel::<TodoStory>(window, cx),
+                StoryContainer::panel::<ListStory>(window, cx),
             ],
         )];
 
