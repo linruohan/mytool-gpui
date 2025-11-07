@@ -33,8 +33,7 @@ impl LabelsPanel {
                 .clean_on_escape()
         });
 
-        let label_list =
-            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).searchable(false));
+        let label_list = cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx));
 
         let _subscriptions = vec![cx.subscribe_in(
             &label_list,
@@ -58,7 +57,7 @@ impl LabelsPanel {
             let labels = load_labels(db.clone()).await;
             let rc_labels: Vec<Rc<LabelModel>> =
                 labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("labelpanel: len labels: {}", labels.len());
+            println!("label_panel: len labels: {}", labels.len());
             let _ = cx
                 .update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(rc_labels);
