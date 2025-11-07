@@ -1,4 +1,4 @@
-use crate::{play_ogg_file, BoardPanel, ProjectEvent, ProjectItemsPanel, ProjectsPanel};
+use crate::{BoardPanel, ProjectEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file};
 use gpui::{prelude::*, *};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::{

@@ -1,217 +1,22 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, ElementId, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, RenderOnce, ScrollStrategy, SharedString, Styled,
-    Subscription, Task, Window, actions, div, prelude::FluentBuilder as _, px,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
 };
 
 use crate::{DBState, LabelListDelegate, load_labels};
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable, Sizable,
+    ActiveTheme, IndexPath, Sizable,
     button::Button,
     checkbox::Checkbox,
     h_flex,
-    label::Label,
-    list::{List, ListDelegate, ListEvent, ListItem, ListState},
+    list::{List, ListDelegate, ListEvent, ListState},
     v_flex,
 };
 use todos::entity::LabelModel;
 
 actions!(list_story, [SelectedCompany]);
-
-#[derive(IntoElement)]
-struct CompanyListItem {
-    base: ListItem,
-    ix: IndexPath,
-    company: Rc<LabelModel>,
-    selected: bool,
-}
-
-impl CompanyListItem {
-    pub fn new(
-        id: impl Into<ElementId>,
-        company: Rc<LabelModel>,
-        ix: IndexPath,
-        selected: bool,
-    ) -> Self {
-        CompanyListItem {
-            company,
-            ix,
-            base: ListItem::new(id),
-            selected,
-        }
-    }
-}
-
-impl Selectable for CompanyListItem {
-    fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
-        self
-    }
-
-    fn is_selected(&self) -> bool {
-        self.selected
-    }
-}
-
-impl RenderOnce for CompanyListItem {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let text_color = if self.selected {
-            cx.theme().accent_foreground
-        } else {
-            cx.theme().foreground
-        };
-
-        let bg_color = if self.selected {
-            cx.theme().list_active
-        } else if self.ix.row.is_multiple_of(2) {
-            cx.theme().list
-        } else {
-            cx.theme().list_even
-        };
-
-        self.base
-            .px_2()
-            .py_1()
-            .overflow_x_hidden()
-            .bg(bg_color)
-            .border_1()
-            .border_color(bg_color)
-            .when(self.selected, |this| {
-                this.border_color(cx.theme().list_active_border)
-            })
-            .rounded(cx.theme().radius)
-            .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .text_color(text_color)
-                    .child(
-                        h_flex().gap_2().child(
-                            v_flex()
-                                .gap_1()
-                                .max_w(px(500.))
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(Label::new(self.company.name.clone()).whitespace_nowrap()),
-                        ),
-                    )
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .justify_end()
-                            .child(
-                                div()
-                                    .w(px(65.))
-                                    .text_color(text_color)
-                                    .child(self.company.color.clone()),
-                            )
-                            .child(
-                                h_flex().w(px(65.)).justify_end().child(
-                                    div()
-                                        .rounded(cx.theme().radius)
-                                        .whitespace_nowrap()
-                                        .text_size(px(12.))
-                                        .px_1()
-                                        .child(self.company.id.clone()),
-                                ),
-                            ),
-                    ),
-            )
-    }
-}
-
-struct CompanyListDelegate {
-    industries: Vec<SharedString>,
-    _companies: Vec<Rc<LabelModel>>,
-    matched_companies: Vec<Vec<Rc<LabelModel>>>,
-    selected_index: Option<IndexPath>,
-    confirmed_index: Option<IndexPath>,
-    query: SharedString,
-    loading: bool,
-    eof: bool,
-    lazy_load: bool,
-}
-
-impl CompanyListDelegate {
-    fn prepare(&mut self, query: impl Into<SharedString>) {
-        self.query = query.into();
-        let companies: Vec<Rc<LabelModel>> = self
-            ._companies
-            .iter()
-            .filter(|company| {
-                company
-                    .name
-                    .to_lowercase()
-                    .contains(&self.query.to_lowercase())
-            })
-            .cloned()
-            .collect();
-        for company in companies.into_iter() {
-            self.matched_companies.push(vec![company]);
-        }
-    }
-
-    fn selected_company(&self) -> Option<Rc<LabelModel>> {
-        let Some(ix) = self.selected_index else {
-            return None;
-        };
-
-        self.matched_companies
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
-    }
-}
-
-impl ListDelegate for CompanyListDelegate {
-    type Item = CompanyListItem;
-
-    fn perform_search(
-        &mut self,
-        query: &str,
-        _: &mut Window,
-        _: &mut Context<ListState<Self>>,
-    ) -> Task<()> {
-        self.prepare(query.to_owned());
-        Task::ready(())
-    }
-
-    fn sections_count(&self, _: &App) -> usize {
-        self.industries.len()
-    }
-
-    fn items_count(&self, section: usize, _: &App) -> usize {
-        self.matched_companies[section].len()
-    }
-
-    fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
-        let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(company) = self.matched_companies[ix.section].get(ix.row) {
-            return Some(CompanyListItem::new(ix, company.clone(), ix, selected));
-        }
-
-        None
-    }
-
-    fn set_selected_index(
-        &mut self,
-        ix: Option<IndexPath>,
-        _: &mut Window,
-        cx: &mut Context<ListState<Self>>,
-    ) {
-        self.selected_index = ix;
-        cx.notify();
-    }
-
-    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
-        window.dispatch_action(Box::new(SelectedCompany), cx);
-    }
-}
 
 pub struct ListStory {
     focus_handle: FocusHandle,
@@ -265,8 +70,8 @@ impl ListStory {
             let db = db.lock().await;
             let labels = load_labels(db.clone()).await;
             let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("len labels: {}", labels.len());
+                labels.iter().map(|label| Rc::new(label.clone())).collect();
+            println!("list_story: len labels: {}", rc_labels.len());
             let _ = cx
                 .update_entity(&company_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(rc_labels);

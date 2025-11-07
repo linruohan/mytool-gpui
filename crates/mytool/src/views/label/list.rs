@@ -3,9 +3,10 @@ use gpui::{
     App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
     Window, actions, div, px,
 };
-use gpui_component::button::Button;
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Selectable, h_flex,
+    ActiveTheme, IconName, IndexPath, Selectable,
+    button::Button,
+    h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
@@ -18,6 +19,7 @@ pub enum LabelEvent {
     Modified(Rc<LabelModel>),
     Deleted(Rc<LabelModel>),
 }
+
 #[derive(IntoElement)]
 pub struct LabelListItem {
     base: ListItem,
@@ -55,43 +57,64 @@ impl Selectable for LabelListItem {
 
 impl RenderOnce for LabelListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let text_color = if self.selected {
+            cx.theme().accent_foreground
+        } else {
+            cx.theme().foreground
+        };
+
+        let bg_color = if self.selected {
+            cx.theme().list_active
+        } else if self.ix.row.is_multiple_of(2) {
+            cx.theme().list
+        } else {
+            cx.theme().list_even
+        };
+
         self.base
             .px_2()
             .py_1()
             .overflow_x_hidden()
+            .bg(bg_color)
             .border_1()
+            .border_color(bg_color)
             .when(self.selected, |this| {
                 this.border_color(cx.theme().list_active_border)
             })
             .rounded(cx.theme().radius)
             .child(
-                h_flex().items_center().justify_between().gap_2().child(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .justify_end()
-                        .child(div().w(px(15.)).child(self.label.id.clone()))
-                        .child(div().w(px(120.)).child(self.label.name.clone()))
-                        .child(div().w(px(115.)).child(self.label.color.clone()))
-                        .child(Button::new("edit").icon(IconName::EditSymbolic).on_click(
-                            move |_event, _window, _cx| {
-                                let label = self.label.clone();
-                                println!("edit label:{:?}", label);
-                            },
-                        ))
-                        .child(Button::new("delete").icon(IconName::Delete).on_click(
-                            move |_event, _window, _cx| {
-                                println!("delete label:");
-                            },
-                        )),
-                ),
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .text_color(text_color)
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .justify_end()
+                            .child(div().w(px(15.)).child(self.label.id.clone()))
+                            .child(div().w(px(120.)).child(self.label.name.clone()))
+                            .child(div().w(px(115.)).child(self.label.color.clone()))
+                            .child(Button::new("edit").icon(IconName::EditSymbolic).on_click(
+                                move |_event, _window, _cx| {
+                                    let label = self.label.clone();
+                                    println!("edit label:{:?}", label);
+                                },
+                            ))
+                            .child(Button::new("delete").icon(IconName::Delete).on_click(
+                                move |_event, _window, _cx| {
+                                    println!("delete label:");
+                                },
+                            )),
+                    ),
             )
     }
 }
 
 pub struct LabelListDelegate {
-    pub(crate) _labels: Vec<Rc<LabelModel>>,
-    pub(crate) matched_labels: Vec<Vec<Rc<LabelModel>>>,
+    pub _labels: Vec<Rc<LabelModel>>,
+    pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -132,8 +155,7 @@ impl LabelListDelegate {
             self.selected_index = Some(IndexPath::default());
         }
     }
-    #[allow(unused)]
-    pub(crate) fn selected_label(&self) -> Option<Rc<LabelModel>> {
+    pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };
@@ -156,14 +178,15 @@ impl ListDelegate for LabelListDelegate {
         self.prepare(query.to_owned());
         Task::ready(())
     }
-    fn items_count(&self, _section: usize, _cx: &App) -> usize {
-        self.matched_labels.len()
+
+    fn items_count(&self, section: usize, _: &App) -> usize {
+        self.matched_labels[section].len()
     }
 
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(company) = self.matched_labels[ix.section].get(ix.row) {
-            return Some(LabelListItem::new(ix, company.clone(), ix, selected));
+        if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
+            return Some(LabelListItem::new(ix, label.clone(), ix, selected));
         }
 
         None
@@ -179,12 +202,8 @@ impl ListDelegate for LabelListDelegate {
         cx.notify();
     }
 
-    fn confirm(
-        &mut self,
-        _secondary: bool,
-        window: &mut Window,
-        cx: &mut Context<ListState<Self>>,
-    ) {
+    fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
+        println!("Confirmed with secondary: {}", secondary);
         window.dispatch_action(Box::new(SelectedLabel), cx);
     }
 }

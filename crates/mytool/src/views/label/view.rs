@@ -58,7 +58,7 @@ impl LabelsPanel {
             let labels = load_labels(db.clone()).await;
             let rc_labels: Vec<Rc<LabelModel>> =
                 labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("len labels: {}", labels.len());
+            println!("labelpanel: len labels: {}", labels.len());
             let _ = cx
                 .update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(rc_labels);
