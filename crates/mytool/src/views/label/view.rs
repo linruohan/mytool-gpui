@@ -1,15 +1,15 @@
 use super::LabelEvent;
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{load_labels, DBState, LabelListDelegate};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    input::{Input, InputState},
-    list::{List, ListEvent, ListState},
+    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState},
     v_flex,
+    ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -103,38 +103,60 @@ impl LabelsPanel {
             LabelEvent::Deleted(label) => self.del_label(cx, label.clone()),
         }
     }
-    pub fn add_label_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Label Name"));
+    pub fn show_label_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        is_edit: bool,
+    ) {
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Label Name"));
+
+        // 如果是编辑模式，预填充当前标签名
+        if is_edit {
+            if let Some(active_index) = self.active_index {
+                println!("show_label_dialog: active index: {}", active_index);
+                let label_some = self.get_selected_label(IndexPath::new(active_index), &cx);
+                if let Some(label) = label_some {
+                    name_input.update(cx, |is, cx| {
+                        is.set_value(label.name.clone(), window, cx);
+                        cx.notify();
+                    })
+                }
+            }
+        }
+
         let view = cx.entity().clone();
+        let dialog_title = if is_edit { "Edit Label" } else { "Add Label" };
+        let button_label = if is_edit { "Save" } else { "Add" };
+
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("Add Label")
+                .title(dialog_title)
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(v_flex().gap_3().child(Input::new(&input1)))
+                .child(v_flex().gap_3().child(Input::new(&name_input)))
                 .footer({
                     let view = view.clone();
-                    let input1 = input1.clone();
+                    let name_input_clone = name_input.clone();
                     move |_, _, _, _cx| {
                         vec![
-                            Button::new("add").primary().label("Save").on_click({
+                            Button::new("save").primary().label(button_label).on_click({
                                 let view = view.clone();
-                                let input1 = input1.clone();
+                                let name_input_clone1 = name_input_clone.clone();
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |_view, cx| {
                                         let label = LabelModel {
-                                            id: "".to_string(),
-                                            name: input1.read(cx).value().to_string(),
-                                            color: "".to_string(),
-                                            item_order: 0,
-                                            is_deleted: false,
-                                            is_favorite: false,
-                                            backend_type: None,
-                                            source_id: None,
+                                            name: name_input_clone1.read(cx).value().to_string(),
+                                            ..Default::default()
                                         };
-                                        cx.emit(LabelEvent::Added(label.into()));
+                                        // 根据模式发射不同事件
+                                        if is_edit {
+                                            cx.emit(LabelEvent::Modified(label.into()));
+                                        } else {
+                                            cx.emit(LabelEvent::Added(label.into()));
+                                        }
                                         cx.notify();
                                     });
                                 }
@@ -148,6 +170,39 @@ impl LabelsPanel {
                     }
                 })
         });
+    }
+    pub fn show_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(active_index) = self.active_index {
+            let label_some = self.get_selected_label(IndexPath::new(active_index), &cx);
+            if let Some(label) = label_some {
+                let view = cx.entity().clone();
+                window.open_dialog(cx, move |dialog, _, _| {
+                    dialog
+                        .confirm()
+                        .overlay(true)
+                        .overlay_closable(true)
+                        .child("Are you sure to delete the label?")
+                        .on_ok({
+                            let view = view.clone();
+                            let label = label.clone();
+                            move |_, window, cx| {
+                                let view = view.clone();
+                                let label = label.clone();
+                                view.update(cx, |_view, cx| {
+                                    cx.emit(LabelEvent::Deleted(label));
+                                    cx.notify();
+                                });
+                                window.push_notification("You have delete ok.", cx);
+                                true
+                            }
+                        })
+                        .on_cancel(|_, window, cx| {
+                            window.push_notification("You have canceled delete.", cx);
+                            true
+                        })
+                });
+            };
+        }
     }
     // 更新labels
     pub fn get_labels(&mut self, cx: &mut Context<Self>) {

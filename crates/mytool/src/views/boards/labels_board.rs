@@ -76,7 +76,7 @@ impl Render for LabelsBoard {
         _window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        let labels_panel = self.labels_panel.clone();
+        let _labels_panel = self.labels_panel.clone();
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -111,11 +111,15 @@ impl Render for LabelsBoard {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .on_click(move |_event, window, cx| {
-                                        labels_panel.update(cx, |labels_panel, cx| {
-                                            labels_panel.add_label_model(window, cx);
-                                            cx.notify();
-                                        })
+                                    .on_click({
+                                        let labels_panel = self.labels_panel.clone();
+                                        move |_event, window, cx| {
+                                            let labels_panel_clone = labels_panel.clone();
+                                            labels_panel_clone.update(cx, |labels_panel, cx| {
+                                                labels_panel.show_label_dialog(window, cx, false);
+                                                cx.notify();
+                                            })
+                                        }
                                     }),
                             )
                             .child(
@@ -124,8 +128,15 @@ impl Render for LabelsBoard {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::EditSymbolic)
-                                    .on_click(move |_event, _window, _cx| {
-                                        println!("edit label:");
+                                    .on_click({
+                                        let labels_panel = self.labels_panel.clone();
+                                        move |_event, window, cx| {
+                                            let labels_panel_clone = labels_panel.clone();
+                                            labels_panel_clone.update(cx, |labels_panel, cx| {
+                                                labels_panel.show_label_dialog(window, cx, true);
+                                                cx.notify();
+                                            })
+                                        }
                                     }),
                             )
                             .child(
@@ -133,8 +144,15 @@ impl Render for LabelsBoard {
                                     .icon(IconName::UserTrashSymbolic)
                                     .small()
                                     .ghost()
-                                    .on_click(|_, _, _cx| {
-                                        println!("delete label:");
+                                    .on_click({
+                                        let labels_panel = self.labels_panel.clone();
+                                        move |_event, window, cx| {
+                                            let labels_panel_clone = labels_panel.clone();
+                                            labels_panel_clone.update(cx, |labels_panel, cx| {
+                                                labels_panel.show_delete_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
                                     }),
                             ),
                     ),
