@@ -1,15 +1,15 @@
 use super::LabelEvent;
-use crate::{load_labels, DBState, LabelListDelegate};
+use crate::{DBState, LabelListDelegate, load_labels};
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState},
+    ActiveTheme, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    input::{Input, InputState},
+    list::{List, ListEvent, ListState},
     v_flex,
-    ActiveTheme,
-    IndexPath,
-    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::LabelModel;
@@ -32,7 +32,8 @@ impl LabelsPanel {
                 .clean_on_escape()
         });
 
-        let label_list = cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx));
+        let label_list =
+            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
 
         let _subscriptions = vec![cx.subscribe_in(
             &label_list,
@@ -41,6 +42,7 @@ impl LabelsPanel {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(conn) = this.get_selected_label(*ix, cx)
                 {
+                    this.update_active_index(Some(ix.row));
                     this.input_esc.update(cx, |is, cx| {
                         is.set_value(conn.clone().name.clone(), window, cx);
                         cx.notify();

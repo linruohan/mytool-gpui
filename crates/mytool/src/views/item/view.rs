@@ -32,7 +32,8 @@ impl ItemsPanel {
                 .clean_on_escape()
         });
 
-        let item_list = cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx));
+        let item_list =
+            cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
 
         let _subscriptions =
             vec![
@@ -40,6 +41,7 @@ impl ItemsPanel {
                     if let ListEvent::Confirm(ix) = ev
                         && let Some(conn) = this.get_selected_item(*ix, cx)
                     {
+                        this.update_active_index(Some(ix.row));
                         this.input_esc.update(cx, |is, cx| {
                             is.set_value(conn.clone().content.clone(), window, cx);
                             cx.notify();
