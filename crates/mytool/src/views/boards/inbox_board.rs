@@ -2,10 +2,12 @@ use crate::{Board, ItemEvent, ItemsPanel};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, ParentElement, Render, Styled, Subscription, Window, div,
+    InteractiveElement as _, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
 
-use gpui_component::{ActiveTheme as _, IconName, dock::PanelControl, h_flex, v_flex};
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::{ActiveTheme as _, IconName, Sizable, dock::PanelControl, h_flex, v_flex};
+
 pub enum ItemClickEvent {
     ShowModal,
     ConnectionError { field1: String },
@@ -80,6 +82,7 @@ impl Render for InboxBoard {
         _window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        let items_panel = self.items_panel.clone();
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -98,6 +101,47 @@ impl Render for InboxBoard {
                                 div()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<InboxBoard as Board>::description()),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_end()
+                            .px_2()
+                            .gap_2()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(
+                                Button::new("add-label")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PlusLargeSymbolic)
+                                    .on_click(move |_event, window, cx| {
+                                        items_panel.update(cx, |labels_panel, cx| {
+                                            labels_panel.add_item_model(window, cx);
+                                            cx.notify();
+                                        })
+                                    }),
+                            )
+                            .child(
+                                Button::new("edit-item")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditSymbolic)
+                                    .on_click(move |_event, _window, _cx| {
+                                        println!("edit item:");
+                                    }),
+                            )
+                            .child(
+                                Button::new("delete-item")
+                                    .icon(IconName::UserTrashSymbolic)
+                                    .small()
+                                    .ghost()
+                                    .on_click(|_, _, _cx| {
+                                        println!("delete item:");
+                                    }),
                             ),
                     ),
             )

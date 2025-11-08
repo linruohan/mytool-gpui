@@ -129,7 +129,7 @@ impl ItemsPanel {
                     let input1 = input1.clone();
                     move |_, _, _, _cx| {
                         vec![
-                            Button::new("add").primary().label("Add").on_click({
+                            Button::new("add").primary().label("Save").on_click({
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
@@ -245,7 +245,7 @@ impl ItemsPanel {
 impl Render for ItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         List::new(&self.item_list)
-            .p(px(8.))
+            .p(px(2.))
             .flex_1()
             .w_full()
             .border_1()

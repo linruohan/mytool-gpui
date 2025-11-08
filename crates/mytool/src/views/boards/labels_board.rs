@@ -1,10 +1,11 @@
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Subscription, Window, div,
+    MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
 
 use crate::{Board, LabelEvent, LabelsPanel};
-use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, v_flex};
+use gpui_component::button::{Button, ButtonVariants};
+use gpui_component::{ActiveTheme, IconName, Sizable, dock::PanelControl, h_flex, v_flex};
 
 pub struct LabelsBoard {
     _subscriptions: Vec<Subscription>,
@@ -72,9 +73,10 @@ impl Focusable for LabelsBoard {
 impl Render for LabelsBoard {
     fn render(
         &mut self,
-        _: &mut gpui::Window,
+        _window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        let labels_panel = self.labels_panel.clone();
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -93,6 +95,47 @@ impl Render for LabelsBoard {
                                 div()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<LabelsBoard as Board>::description()),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_end()
+                            .px_2()
+                            .gap_2()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(
+                                Button::new("add-label")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PlusLargeSymbolic)
+                                    .on_click(move |_event, window, cx| {
+                                        labels_panel.update(cx, |labels_panel, cx| {
+                                            labels_panel.add_label_model(window, cx);
+                                            cx.notify();
+                                        })
+                                    }),
+                            )
+                            .child(
+                                Button::new("edit-label")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditSymbolic)
+                                    .on_click(move |_event, _window, _cx| {
+                                        println!("edit label:");
+                                    }),
+                            )
+                            .child(
+                                Button::new("delete-label")
+                                    .icon(IconName::UserTrashSymbolic)
+                                    .small()
+                                    .ghost()
+                                    .on_click(|_, _, _cx| {
+                                        println!("delete label:");
+                                    }),
                             ),
                     ),
             )

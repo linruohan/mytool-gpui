@@ -7,7 +7,6 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
@@ -105,41 +104,21 @@ impl LabelsPanel {
         }
     }
     pub fn add_label_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
-        let _input2 = cx.new(|cx| -> InputState {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let now = chrono::Local::now().naive_local().date();
-        let label_due = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
-            picker.set_date(now, window, cx);
-            picker
-        });
-        let _ = cx.subscribe(&label_due, |this, _, ev, _| match ev {
-            DatePickerEvent::Change(date) => {
-                this.label_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            }
-        });
+        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Label Name"));
         let view = cx.entity().clone();
-
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("Add Project")
+                .title("Add Label")
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(
-                    v_flex()
-                        .gap_3()
-                        .child(Input::new(&input1))
-                        .child(DatePicker::new(&label_due).placeholder("DueDate of Project")),
-                )
+                .child(v_flex().gap_3().child(Input::new(&input1)))
                 .footer({
                     let view = view.clone();
                     let input1 = input1.clone();
                     move |_, _, _, _cx| {
                         vec![
-                            Button::new("add").primary().label("Add").on_click({
+                            Button::new("add").primary().label("Save").on_click({
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
@@ -148,8 +127,6 @@ impl LabelsPanel {
                                         let label = LabelModel {
                                             id: "".to_string(),
                                             name: input1.read(cx).value().to_string(),
-                                            // due_date: view.label_due.clone(),
-                                            // ..Default::default()
                                             color: "".to_string(),
                                             item_order: 0,
                                             is_deleted: false,
@@ -262,7 +239,7 @@ impl LabelsPanel {
 impl Render for LabelsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         List::new(&self.label_list)
-            .p(px(8.))
+            .p(px(2.))
             .flex_1()
             .w_full()
             .border_1()

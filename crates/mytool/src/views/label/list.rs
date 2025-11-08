@@ -1,14 +1,10 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions, div, px,
 };
-use gpui_component::Sizable;
-use gpui_component::button::ButtonVariants;
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Selectable,
-    button::Button,
-    h_flex,
+    ActiveTheme, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
@@ -97,38 +93,7 @@ impl RenderOnce for LabelListItem {
                             .justify_end()
                             .child(div().w(px(15.)).child(self.label.id.clone()))
                             .child(div().w(px(120.)).child(self.label.name.clone()))
-                            .child(div().w(px(115.)).child(self.label.color.clone()))
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_end()
-                                    .px_2()
-                                    .gap_2()
-                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                        cx.stop_propagation()
-                                    })
-                                    .child(
-                                        Button::new("edit")
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::EditSymbolic)
-                                            .on_click(move |_event, _window, _cx| {
-                                                let label = self.label.clone();
-                                                println!("edit label:{:?}", label);
-                                            }),
-                                    )
-                                    .child(
-                                        Button::new("delete")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .small()
-                                            .ghost()
-                                            .on_click(|_, _, _cx| {
-                                                println!("delete label:");
-                                            }),
-                                    ),
-                            ),
+                            .child(div().w(px(115.)).child(self.label.color.clone())),
                     ),
             )
     }
