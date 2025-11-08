@@ -3,6 +3,7 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
+use ContainerPanel;
 use gpui::Application;
 use mytool::*;
 
@@ -15,6 +16,7 @@ async fn main() {
 
     app.run(move |cx| {
         mytool::init(cx);
+        ContainerPanel::init(cx);
         cx.set_global(DBState { conn: db });
         cx.activate(true);
         mytool::create_new_window(
@@ -22,5 +24,9 @@ async fn main() {
             move |window, cx| Gallery::view(name.as_deref(), window, cx),
             cx,
         );
+        // open_new(cx, |_, _, _| {
+        //     // do something
+        // })
+        // .detach();
     });
 }

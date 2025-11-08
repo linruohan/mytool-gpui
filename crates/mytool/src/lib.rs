@@ -7,6 +7,7 @@ mod gallery;
 mod list_story;
 mod service;
 mod themes;
+mod tiles;
 mod title_bar;
 mod todo_story;
 mod utils;
@@ -14,8 +15,6 @@ mod views; // 任务管理视图
 mod welcome_story;
 
 // 获取todoist数据
-pub use service::*;
-
 pub use assets::Assets;
 pub use calendar_story::CalendarStory;
 pub use gallery::Gallery;
@@ -28,6 +27,8 @@ use gpui::{
 };
 pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
+pub use service::*;
+pub use tiles::*;
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
