@@ -1,4 +1,4 @@
-use crate::{BoardPanel, ProjectEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file};
+use crate::{BoardPanel, ProjectEvent, ProjectsPanel, play_ogg_file};
 use gpui::{prelude::*, *};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::{
@@ -92,7 +92,7 @@ impl TodoStory {
 }
 
 impl Render for TodoStory {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let board_panel = self.board_panel.read(cx);
         let boards = board_panel.boards.clone();
         let board_active_index = board_panel.active_index;
@@ -169,7 +169,9 @@ impl Render for TodoStory {
                                 if let Some(project) = project_some {
                                     // board_active_index = None;
                                     println!("project:{:?}", project.clone());
-                                    this.child(ProjectItemsPanel::view(project.clone(), window, cx))
+                                    // TODO
+                                    // this.child(ProjectItemsPanel::view(project.clone(), window, cx))
+                                    this.child(Label::new("project demo"))
                                 } else {
                                     this.child(Label::new("project"))
                                 }

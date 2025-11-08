@@ -4,12 +4,13 @@ use crate::{
 };
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, IsZero, ParentElement,
-    Render, Styled, Subscription, Window, div, px,
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    IsZero, MouseButton, ParentElement, Render, Styled, Subscription, Window, div, px,
 };
+use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
-use gpui_component::{ActiveTheme, h_flex, v_flex};
+use gpui_component::{ActiveTheme, IconName, Sizable, h_flex, v_flex};
 
 pub struct BoardPanel {
     search_input: Entity<InputState>,
@@ -75,9 +76,30 @@ impl Render for BoardPanel {
                     .flex_1()
                     .mx_1()
                     .child(
-                        Input::new(&self.search_input)
-                            .appearance(false)
-                            .cleanable(true),
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_end()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(
+                                Input::new(&self.search_input)
+                                    .appearance(false)
+                                    .cleanable(true),
+                            )
+                            .child(
+                                Button::new("add-label")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditFindSymbolic),
+                            )
+                            .child(
+                                Button::new("edit-item")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::MenuLargeSymbolic),
+                            ),
                     ),
             )
             .child(

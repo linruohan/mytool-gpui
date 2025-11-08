@@ -1,4 +1,4 @@
-use crate::{CalendarStory, ListStory, StoryContainer};
+use crate::{CalendarStory, StoryContainer, WelcomeStory};
 use anyhow::{Context as _, Result};
 use gpui::*;
 use gpui_component::{
@@ -304,7 +304,7 @@ impl StoryTiles {
             vec![
                 DockItem::tab(
                     ContainerPanel::new(
-                        Arc::new(StoryContainer::panel::<ListStory>(window, cx)),
+                        Arc::new(StoryContainer::panel::<WelcomeStory>(window, cx)),
                         window,
                         cx,
                     ),
