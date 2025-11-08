@@ -76,7 +76,6 @@ impl Render for LabelsBoard {
         _window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        let _labels_panel = self.labels_panel.clone();
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -149,7 +148,7 @@ impl Render for LabelsBoard {
                                         move |_event, window, cx| {
                                             let labels_panel_clone = labels_panel.clone();
                                             labels_panel_clone.update(cx, |labels_panel, cx| {
-                                                labels_panel.show_delete_dialog(window, cx);
+                                                labels_panel.show_label_delete_dialog(window, cx);
                                                 cx.notify();
                                             })
                                         }

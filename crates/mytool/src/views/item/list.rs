@@ -198,7 +198,7 @@ impl ItemListDelegate {
     ) {
         window.open_sheet_at(Placement::Right, cx, move |this, _, _cx| {
             this.overlay(true)
-                .overlay_closable(false)
+                .overlay_closable(true)
                 .size(px(400.))
                 .title(item.content.clone())
                 .gap_4()
@@ -267,7 +267,7 @@ impl ListDelegate for ItemListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
+        println!("Confirmed with items: {}", secondary);
         window.dispatch_action(Box::new(SelectedItem), cx);
         let item_some = self.selected_item();
         if let Some(item) = item_some {

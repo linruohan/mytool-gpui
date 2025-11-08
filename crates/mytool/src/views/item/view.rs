@@ -6,7 +6,6 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerState},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
@@ -100,49 +99,53 @@ impl ItemsPanel {
             ItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
         }
     }
-    pub fn add_item_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Item Content"));
-        let _input2 = cx.new(|cx| -> InputState {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let now = chrono::Local::now().naive_local().date();
-        let item_due = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
-            picker.set_date(now, window, cx);
-            picker
-        });
+    pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Item Name"));
+        if is_edit {
+            if let Some(active_index) = self.active_index {
+                println!("show_item_dialog: active_index: {:?}", self.active_index);
+                let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
+                if let Some(item) = item_some {
+                    name_input.update(cx, |is, cx| {
+                        is.set_value(item.content.clone(), window, cx);
+                        cx.notify();
+                    })
+                }
+            }
+        }
 
         let view = cx.entity().clone();
+        let dialog_title = if is_edit { "Edit Item" } else { "Add Item" };
+        let button_item = if is_edit { "Save" } else { "Add" };
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("Add Item")
+                .title(dialog_title)
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(
-                    v_flex()
-                        .gap_3()
-                        .child(Input::new(&input1))
-                        .child(DatePicker::new(&item_due).placeholder("DueDate of Item")),
-                )
+                .child(v_flex().gap_3().child(Input::new(&name_input)))
                 .footer({
                     let view = view.clone();
-                    let input1 = input1.clone();
+                    let name_input_clone = name_input.clone();
                     move |_, _, _, _cx| {
                         vec![
-                            Button::new("add").primary().label("Save").on_click({
+                            Button::new("save").primary().label(button_item).on_click({
                                 let view = view.clone();
-                                let input1 = input1.clone();
+                                let name_input_clone1 = name_input_clone.clone();
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |_view, cx| {
                                         let item = ItemModel {
-                                            content: input1.read(cx).value().to_string(),
-                                            // due: Some(view.item_due.clone()),
+                                            content: name_input_clone1.read(cx).value().to_string(),
                                             ..Default::default()
                                         };
-                                        cx.emit(ItemEvent::Added(item.into()));
+                                        // 根据模式发射不同事件
+                                        if is_edit {
+                                            cx.emit(ItemEvent::Modified(item.into()));
+                                        } else {
+                                            cx.emit(ItemEvent::Added(item.into()));
+                                        }
                                         cx.notify();
                                     });
                                 }
@@ -156,6 +159,39 @@ impl ItemsPanel {
                     }
                 })
         });
+    }
+    pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(active_index) = self.active_index {
+            let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
+            if let Some(item) = item_some {
+                let view = cx.entity().clone();
+                window.open_dialog(cx, move |dialog, _, _| {
+                    dialog
+                        .confirm()
+                        .overlay(true)
+                        .overlay_closable(true)
+                        .child("Are you sure to delete the item?")
+                        .on_ok({
+                            let view = view.clone();
+                            let item = item.clone();
+                            move |_, window, cx| {
+                                let view = view.clone();
+                                let item = item.clone();
+                                view.update(cx, |_view, cx| {
+                                    cx.emit(ItemEvent::Deleted(item));
+                                    cx.notify();
+                                });
+                                window.push_notification("You have delete ok.", cx);
+                                true
+                            }
+                        })
+                        .on_cancel(|_, window, cx| {
+                            window.push_notification("You have canceled delete.", cx);
+                            true
+                        })
+                });
+            };
+        }
     }
     // 更新items
     fn get_items(&mut self, cx: &mut Context<Self>) {

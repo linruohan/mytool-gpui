@@ -173,7 +173,7 @@ impl LabelsPanel {
                 })
         });
     }
-    pub fn show_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn show_label_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
             let label_some = self.get_selected_label(IndexPath::new(active_index), &cx);
             if let Some(label) = label_some {
