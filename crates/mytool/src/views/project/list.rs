@@ -1,10 +1,11 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, div, px,
+    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
 };
+use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable, h_flex,
+    ActiveTheme, IconName, IndexPath, Selectable, Sizable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
@@ -95,7 +96,38 @@ impl RenderOnce for ProjectListItem {
                             .child(div().w(px(120.)).child(self.project.name.clone()))
                             .child(div().w(px(115.)).child(
                                 self.project.description.clone().unwrap_or_default().clone(),
-                            )),
+                            ))
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .justify_end()
+                                    .px_2()
+                                    .gap_2()
+                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation()
+                                    })
+                                    .child(
+                                        Button::new("edit")
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::EditSymbolic)
+                                            .on_click(move |_event, _window, _cx| {
+                                                let project = self.project.clone();
+                                                println!("edit project:{:?}", project);
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("delete")
+                                            .icon(IconName::UserTrashSymbolic)
+                                            .small()
+                                            .ghost()
+                                            .on_click(|_, _, _cx| {
+                                                println!("delete project:");
+                                            }),
+                                    ),
+                            ),
                     ),
             )
     }

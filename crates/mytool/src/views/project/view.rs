@@ -103,7 +103,7 @@ impl ProjectsPanel {
             ProjectEvent::Deleted(project) => self.del_project(cx, project.clone()),
         }
     }
-    pub fn show_model(
+    pub fn open_project_dialog(
         &mut self,
         _model: Rc<ProjectModel>,
         window: &mut Window,
@@ -270,7 +270,7 @@ impl Render for ProjectsPanel {
                             println!("project_panel: {}", "add projects");
                             play_ogg_file("assets/sounds/success.ogg");
                             let default_model = Rc::new(ProjectModel::default());
-                            this.show_model(default_model, window, cx);
+                            this.open_project_dialog(default_model, window, cx);
                             cx.notify();
                         }),
                     ),
@@ -303,7 +303,7 @@ impl Render for ProjectsPanel {
                                                         this.get_selected_project(index, cx)
                                                     })
                                                 {
-                                                    this.show_model(model, window, cx);
+                                                    this.open_project_dialog(model, window, cx);
                                                 }
                                                 cx.notify();
                                             }),

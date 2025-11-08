@@ -121,7 +121,7 @@ impl RenderOnce for LabelListItem {
                                     )
                                     .child(
                                         Button::new("delete")
-                                            .icon(IconName::Delete)
+                                            .icon(IconName::UserTrashSymbolic)
                                             .small()
                                             .ghost()
                                             .on_click(|_, _, _cx| {

@@ -1,12 +1,12 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, div, px,
+    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
 };
 use gpui_component::button::ButtonVariants;
 use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Placement, Selectable, WindowExt,
+    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
     button::Button,
     h_flex,
     list::{ListDelegate, ListItem, ListState},
@@ -101,17 +101,37 @@ impl RenderOnce for ItemListItem {
                                     .w(px(315.))
                                     .child(self.item.added_at.to_string().clone()),
                             )
-                            .child(Button::new("edit").icon(IconName::EditSymbolic).on_click(
-                                move |_event, _window, _cx| {
-                                    let item = self.item.clone();
-                                    println!("edit item:{:?}", item);
-                                },
-                            ))
-                            .child(Button::new("delete").icon(IconName::Delete).on_click(
-                                move |_event, _window, _cx| {
-                                    println!("delete item:");
-                                },
-                            )),
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .justify_end()
+                                    .px_2()
+                                    .gap_2()
+                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation()
+                                    })
+                                    .child(
+                                        Button::new("edit")
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::EditSymbolic)
+                                            .on_click(move |_event, _window, _cx| {
+                                                let item = self.item.clone();
+                                                println!("edit item:{:?}", item);
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("delete")
+                                            .icon(IconName::UserTrashSymbolic)
+                                            .small()
+                                            .ghost()
+                                            .on_click(|_, _, _cx| {
+                                                println!("delete item:");
+                                            }),
+                                    ),
+                            ),
                     ),
             )
     }
