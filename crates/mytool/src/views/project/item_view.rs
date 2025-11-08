@@ -1,4 +1,4 @@
-use crate::{DBState, ItemListDelegate, get_items_by_project_id, get_project_items};
+use crate::{DBState, ItemListDelegate, get_project_items};
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
     Render, Styled, Subscription, WeakEntity, Window, div,
@@ -34,13 +34,13 @@ pub struct ProjectItemsPanel {
 }
 
 impl ProjectItemsPanel {
-    pub fn new(project: Rc<ProjectModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_esc = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder("Enter DB URL")
                 .clean_on_escape()
         });
-        let project_clone = project.clone();
+        // let project_clone = project.clone();
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
@@ -57,23 +57,23 @@ impl ProjectItemsPanel {
                 }
             }),
         ];
-        let item_list_clone = item_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
+        // let item_list_clone = item_list.clone();
+        // let db = cx.global::<DBState>().conn.clone();
 
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let items = get_items_by_project_id(&project_clone.id, db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("len items: {}", items.len());
-            let _ = cx
-                .update_entity(&item_list_clone, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
+        // cx.spawn(async move |_view, cx| {
+        //     let db = db.lock().await;
+        //     let items = get_items_by_project_id(&project_clone.id, db.clone()).await;
+        //     let rc_items: Vec<Rc<ItemModel>> =
+        //         items.iter().map(|pro| Rc::new(pro.clone())).collect();
+        //     println!("len items: {}", items.len());
+        //     let _ = cx
+        //         .update_entity(&item_list_clone, |list, cx| {
+        //             list.delegate_mut().update_items(rc_items);
+        //             cx.notify();
+        //         })
+        //         .ok();
+        // })
+        // .detach();
         Self {
             input_esc,
             item_due: None,
@@ -81,7 +81,8 @@ impl ProjectItemsPanel {
             item_list,
             active_index: Some(0),
             _subscriptions,
-            project: project.clone(),
+            // project: project.clone(),
+            project: Rc::new(ProjectModel::default()),
         }
     }
 
@@ -94,18 +95,15 @@ impl ProjectItemsPanel {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
-    pub fn project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
+    pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project;
-        println!(
-            "update items after: {:?}",
-            self.item_list.read(cx).delegate()._items
-        );
+        self.update_items(cx);
     }
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
-    pub fn view(project: Rc<ProjectModel>, window: &mut Window, cx: &mut App) -> Entity<Self> {
-        cx.new(|cx| Self::new(project, window, cx))
+    pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
+        cx.new(|cx| Self::new(window, cx))
     }
     pub fn handle_project_item_event(&mut self, event: &ProjectItemEvent, cx: &mut Context<Self>) {
         match event {
@@ -190,13 +188,12 @@ impl ProjectItemsPanel {
         }
         let db = cx.global::<DBState>().conn.clone();
         let project = self.project.clone();
-        println!("update project:{:?}", project.clone());
         cx.spawn(async move |this, cx| {
             let db = db.lock().await;
             let items = get_project_items(project, db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("project update items: {:?}", rc_items.len());
+            println!("project's items: {:?}", rc_items.len());
             this.update(cx, |this, cx| {
                 this.item_list.update(cx, |list, cx| {
                     list.delegate_mut().update_items(rc_items);

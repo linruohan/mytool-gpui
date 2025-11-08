@@ -20,8 +20,8 @@ impl EventEmitter<ProjectEvent> for ProjectsPanel {}
 pub struct ProjectsPanel {
     input_esc: Entity<InputState>,
     pub project_list: Entity<ListState<ProjectListDelegate>>,
-    project_due: Option<String>,
     is_loading: bool,
+    project_due: Option<String>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
@@ -70,8 +70,8 @@ impl ProjectsPanel {
             input_esc,
             is_loading: false,
             project_list,
-            project_due: None,
             active_index: Some(0),
+            project_due: None,
             _subscriptions,
         }
     }

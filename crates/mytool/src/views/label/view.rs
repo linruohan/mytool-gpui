@@ -18,7 +18,6 @@ impl EventEmitter<LabelEvent> for LabelsPanel {}
 pub struct LabelsPanel {
     input_esc: Entity<InputState>,
     pub label_list: Entity<ListState<LabelListDelegate>>,
-    label_due: Option<String>,
     is_loading: bool,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
@@ -71,7 +70,6 @@ impl LabelsPanel {
             input_esc,
             is_loading: false,
             label_list,
-            label_due: None,
             active_index: Some(0),
             _subscriptions,
         }

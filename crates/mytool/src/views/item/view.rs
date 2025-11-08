@@ -3,9 +3,11 @@ use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
     Subscription, WeakEntity, Window, px,
 };
+use gpui_component::date_picker::{DatePickerEvent, DatePickerState};
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
+    date_picker::DatePicker,
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
@@ -101,6 +103,18 @@ impl ItemsPanel {
     }
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Item Name"));
+        let des_input = cx.new(|cx| InputState::new(window, cx).placeholder("Enter task details."));
+        let now = chrono::Local::now().naive_local().date();
+        let item_due = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
+            picker.set_date(now, window, cx);
+            picker
+        });
+        let _ = cx.subscribe(&item_due, |this, _, ev, _| match ev {
+            DatePickerEvent::Change(date) => {
+                this.item_due = date.format("%Y-%m-%d").map(|s| s.to_string());
+            }
+        });
         if is_edit {
             if let Some(active_index) = self.active_index {
                 println!("show_item_dialog: active_index: {:?}", self.active_index);
@@ -108,6 +122,10 @@ impl ItemsPanel {
                 if let Some(item) = item_some {
                     name_input.update(cx, |is, cx| {
                         is.set_value(item.content.clone(), window, cx);
+                        cx.notify();
+                    });
+                    des_input.update(cx, |is, cx| {
+                        is.set_value(item.description.clone().unwrap_or_default(), window, cx);
                         cx.notify();
                     })
                 }
@@ -124,20 +142,32 @@ impl ItemsPanel {
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(v_flex().gap_3().child(Input::new(&name_input)))
+                .child(
+                    v_flex()
+                        .gap_3()
+                        .child(Input::new(&name_input))
+                        .child(Input::new(&des_input))
+                        .child(DatePicker::new(&item_due).placeholder("DueDate of Item")),
+                )
                 .footer({
                     let view = view.clone();
                     let name_input_clone = name_input.clone();
+                    let des_input_clone = des_input.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("save").primary().label(button_item).on_click({
                                 let view = view.clone();
                                 let name_input_clone1 = name_input_clone.clone();
+                                let des_input_clone1 = des_input_clone.clone();
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
-                                    view.update(cx, |_view, cx| {
+                                    view.update(cx, |view, cx| {
                                         let item = ItemModel {
                                             content: name_input_clone1.read(cx).value().to_string(),
+                                            description: Some(
+                                                des_input_clone1.read(cx).value().to_string(),
+                                            ),
+                                            item_type: view.item_due.clone(),
                                             ..Default::default()
                                         };
                                         // 根据模式发射不同事件

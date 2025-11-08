@@ -1,8 +1,9 @@
-use crate::{BoardPanel, ProjectEvent, ProjectsPanel, play_ogg_file};
+use crate::{
+    BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
+};
 use gpui::{prelude::*, *};
 use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::{
-    label::Label,
     resizable::{h_resizable, resizable_panel},
     sidebar::Sidebar,
     v_flex,
@@ -27,6 +28,7 @@ pub struct TodoStory {
     board_panel: Entity<BoardPanel>,
     // projects
     project_panel: Entity<ProjectsPanel>,
+    project_items_panel: Entity<ProjectItemsPanel>,
 }
 
 impl super::Mytool for TodoStory {
@@ -51,6 +53,7 @@ impl Focusable for TodoStory {
 impl TodoStory {
     pub fn new(_init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let project_panel = ProjectsPanel::view(window, cx);
+        let project_items_panel = ProjectItemsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
         let _subscriptions = vec![
             cx.subscribe(&project_panel, |this, _, event: &ProjectEvent, cx| {
@@ -58,15 +61,15 @@ impl TodoStory {
                     project_panel.handle_project_event(event, cx);
                 });
             }),
-            // cx.subscribe(
-            //     &project_items_panel,
-            //     |this, _, event: &ProjectItemEvent, cx| {
-            //         this.project_items_panel
-            //             .update(cx, |project_items_panel, cx| {
-            //                 project_items_panel.handle_project_item_event(event, cx);
-            //             });
-            //     },
-            // ),
+            cx.subscribe(
+                &project_items_panel,
+                |this, _, event: &ProjectItemEvent, cx| {
+                    this.project_items_panel
+                        .update(cx, |project_items_panel, cx| {
+                            project_items_panel.handle_project_item_event(event, cx);
+                        });
+                },
+            ),
         ];
         Self {
             collapsed: false,
@@ -76,6 +79,7 @@ impl TodoStory {
             is_board_active: true,
             board_panel,
             project_panel,
+            project_items_panel,
         }
     }
 
@@ -127,12 +131,17 @@ impl Render for TodoStory {
                                 project_list.iter().enumerate().map(|(ix, story)| {
                                     SidebarMenuItem::new(story.name.clone())
                                         .active(project_avtive_index == Some(ix))
-                                        .on_click(cx.listener(
-                                            move |this, _: &ClickEvent, _, cx| {
+                                        .on_click({
+                                            let story = story.clone();
+                                            cx.listener(move |this, _: &ClickEvent, _, cx| {
                                                 this.is_board_active = false;
                                                 this.active_index = Some(ix);
                                                 this.project_panel.update(cx, |panel, cx| {
                                                     panel.update_active_index(Some(ix));
+                                                    cx.notify();
+                                                });
+                                                this.project_items_panel.update(cx, |panel, cx| {
+                                                    panel.set_project(story.clone(), cx);
                                                     cx.notify();
                                                 });
                                                 this.board_panel.update(cx, |panel, cx| {
@@ -140,8 +149,8 @@ impl Render for TodoStory {
                                                     cx.notify();
                                                 });
                                                 cx.notify();
-                                            },
-                                        ))
+                                            })
+                                        })
                                 }),
                             )),
                     ),
@@ -165,16 +174,7 @@ impl Render for TodoStory {
                                 }
                             })
                             .when(!self.is_board_active, |this| {
-                                let project_some = project_list.get(self.active_index.unwrap());
-                                if let Some(project) = project_some {
-                                    // board_active_index = None;
-                                    println!("project:{:?}", project.clone());
-                                    // TODO
-                                    // this.child(ProjectItemsPanel::view(project.clone(), window, cx))
-                                    this.child(Label::new("project demo"))
-                                } else {
-                                    this.child(Label::new("project"))
-                                }
+                                this.child(self.project_items_panel.clone())
                             }),
                     )
                     .into_any_element(),
