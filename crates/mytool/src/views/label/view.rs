@@ -143,7 +143,7 @@ impl LabelsPanel {
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
-                                    window.close_sheet(cx);
+                                    window.close_dialog(cx);
                                     view.update(cx, |_view, cx| {
                                         let label = LabelModel {
                                             id: "".to_string(),
@@ -165,7 +165,7 @@ impl LabelsPanel {
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(move |_, window, cx| {
-                                    window.close_sheet(cx);
+                                    window.close_dialog(cx);
                                 }),
                         ]
                     }

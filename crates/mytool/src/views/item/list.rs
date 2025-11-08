@@ -189,6 +189,7 @@ impl ItemListDelegate {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+    // open_sheet_at_item: 点击任务，靠右显示任务详情
     fn open_sheet_at_item(
         &mut self,
         item: Rc<ItemModel>,

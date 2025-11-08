@@ -162,7 +162,7 @@ impl ProjectItemsPanel {
                                 let view = view.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
-                                    window.close_sheet(cx);
+                                    window.close_dialog(cx);
                                     view.update(cx, |_view, cx| {
                                         let item = ItemModel {
                                             content: input1.read(cx).value().to_string(),
@@ -176,7 +176,7 @@ impl ProjectItemsPanel {
                             Button::new("cancel")
                                 .label("Cancel")
                                 .on_click(move |_, window, cx| {
-                                    window.close_sheet(cx);
+                                    window.close_dialog(cx);
                                 }),
                         ]
                     }

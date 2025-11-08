@@ -9,6 +9,8 @@ use gpui_component::{
 };
 use serde::Deserialize;
 use std::option::Option;
+use std::rc::Rc;
+use todos::entity::ProjectModel;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = todo_story, no_json)]
@@ -80,6 +82,13 @@ impl TodoStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
+    fn add_project(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        play_ogg_file("assets/sounds/success.ogg");
+        self.project_panel.update(cx, |project_panel, cx| {
+            project_panel.open_project_dialog(Rc::new(ProjectModel::default()), window, cx);
+            cx.notify();
+        });
+    }
 }
 
 impl Render for TodoStory {
@@ -110,19 +119,8 @@ impl Render for TodoStory {
                             .child(
                                 // 添加项目按钮：
                                 SidebarMenu::new().child(
-                                    SidebarMenuItem::new("On This Computer                     ➕")
-                                        .on_click(cx.listener(
-                                            move |this, _, _window: &mut Window, cx| {
-                                                // let projects = projects.read(cx);
-                                                println!("click to add project");
-                                                play_ogg_file("assets/sounds/success.ogg");
-                                                this.project_panel.update(cx, |_panel, cx| {
-                                                    // panel.show_model(window, cx);
-                                                    cx.notify();
-                                                });
-                                                cx.notify();
-                                            },
-                                        )),
+                                    SidebarMenuItem::new("On This Computer       ➕")
+                                        .on_click(cx.listener(Self::add_project)),
                                 ),
                             )
                             .child(SidebarMenu::new().children(
