@@ -111,6 +111,23 @@ impl Render for InboxBoard {
                             .gap_2()
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
+                                Button::new("finish-label")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::CheckmarkSmallSymbolic)
+                                    .on_click({
+                                        let items_panel = self.items_panel.clone();
+                                        move |_event, window, cx| {
+                                            let items_panel_clone = items_panel.clone();
+                                            items_panel_clone.update(cx, |items_panel, cx| {
+                                                items_panel.show_finish_item_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
                                 Button::new("add-label")
                                     .small()
                                     .ghost()

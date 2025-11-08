@@ -34,3 +34,6 @@ pub async fn get_project_items(
 pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).await.get_items_by_project(project_id).await
 }
+pub async fn get_items_completed(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).await.get_items_completed().await
+}

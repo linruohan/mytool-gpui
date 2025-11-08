@@ -16,6 +16,7 @@ use todos::entity::ItemModel;
 
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {
+    Finished(Rc<ItemModel>),
     Added(Rc<ItemModel>),
     Modified(Rc<ItemModel>),
     Deleted(Rc<ItemModel>),

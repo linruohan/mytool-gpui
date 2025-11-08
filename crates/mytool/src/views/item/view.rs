@@ -4,6 +4,7 @@ use gpui::{
     Subscription, WeakEntity, Window, px,
 };
 use gpui_component::date_picker::{DatePickerEvent, DatePickerState};
+use gpui_component::select::{Select, SelectState};
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
@@ -21,6 +22,8 @@ pub struct ItemsPanel {
     pub item_list: Entity<ListState<ItemListDelegate>>,
     item_due: Option<String>,
     is_loading: bool,
+    is_checked: bool, // 任务完成状态
+    priority_select: Entity<SelectState<Vec<String>>>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
@@ -35,7 +38,20 @@ impl ItemsPanel {
 
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
-
+        let priority_select = cx.new(|cx| {
+            SelectState::new(
+                vec![
+                    "P1".to_string(),
+                    "P2".to_string(),
+                    "P3".to_string(),
+                    "P4".to_string(),
+                    "".to_string(),
+                ],
+                None,
+                window,
+                cx,
+            )
+        });
         let _subscriptions =
             vec![
                 cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
@@ -71,12 +87,14 @@ impl ItemsPanel {
             input_esc,
             item_due: None,
             is_loading: false,
+            is_checked: false,
             item_list,
+            priority_select,
             active_index: Some(0),
             _subscriptions,
         }
     }
-    fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
+    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
         self.item_list
             .read(cx)
             .delegate()
@@ -99,11 +117,16 @@ impl ItemsPanel {
             }
             ItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
             ItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
+            ItemEvent::Finished(item) => self.finish_item(cx, item.clone()),
         }
+    }
+    fn toggle_finished(&mut self, selectable: bool, _: &mut Window, _cx: &mut Context<Self>) {
+        self.is_checked = selectable;
     }
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Item Name"));
         let des_input = cx.new(|cx| InputState::new(window, cx).placeholder("Enter task details."));
+        let select = self.priority_select.clone();
         let now = chrono::Local::now().naive_local().date();
         let item_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
@@ -147,6 +170,18 @@ impl ItemsPanel {
                         .gap_3()
                         .child(Input::new(&name_input))
                         .child(Input::new(&des_input))
+                        .child(Select::new(&select))
+                        // .child(
+                        //     Checkbox::new("is_checked")
+                        //         .label("已完成")
+                        //         .checked(self.is_checked)
+                        //         .on_click({
+                        //             let view = view.clone();
+                        //             cx.listener(|this, check: &bool, window, cx| {
+                        //                 this.toggle_finished(*check, window, cx)
+                        //             })
+                        //         }),
+                        // )
                         .child(DatePicker::new(&item_due).placeholder("DueDate of Item")),
                 )
                 .footer({
@@ -167,6 +202,8 @@ impl ItemsPanel {
                                             description: Some(
                                                 des_input_clone1.read(cx).value().to_string(),
                                             ),
+                                            checked: view.is_checked,
+                                            priority: Some(0),
                                             item_type: view.item_due.clone(),
                                             ..Default::default()
                                         };
@@ -217,6 +254,41 @@ impl ItemsPanel {
                         })
                         .on_cancel(|_, window, cx| {
                             window.push_notification("You have canceled delete.", cx);
+                            true
+                        })
+                });
+            };
+        }
+    }
+    pub fn show_finish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(active_index) = self.active_index {
+            let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
+            if let Some(item) = item_some {
+                let view = cx.entity().clone();
+                window.open_dialog(cx, move |dialog, _, _| {
+                    dialog
+                        .confirm()
+                        .overlay(true)
+                        .overlay_closable(true)
+                        .child("Are you sure to finish the item?")
+                        .on_ok({
+                            let view = view.clone();
+                            let item = item.clone();
+                            move |_, window, cx| {
+                                let view = view.clone();
+                                let mut item = item.clone();
+                                let item_mut = Rc::make_mut(&mut item);
+                                item_mut.checked = true; //切换为完成状态
+                                view.update(cx, |_view, cx| {
+                                    cx.emit(ItemEvent::Finished(item.clone()));
+                                    cx.notify();
+                                });
+                                window.push_notification("You have finished item ok.", cx);
+                                true
+                            }
+                        })
+                        .on_cancel(|_, window, cx| {
+                            window.push_notification("You have canceled.", cx);
                             true
                         })
                 });
@@ -287,6 +359,10 @@ impl ItemsPanel {
         })
         .detach();
         self.get_items(cx);
+    }
+    pub fn finish_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
+        let item = item.clone();
+        self.mod_item(cx, item);
     }
     pub fn del_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
         if self.is_loading {
