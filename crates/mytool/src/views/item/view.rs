@@ -74,7 +74,7 @@ impl ItemsPanel {
             let items = get_items_by_project_id("1", db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("len items: {}", items.len());
+            println!("all items: {}", items.len());
             let _ = cx
                 .update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(rc_items);

@@ -1,15 +1,15 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
+    actions, div, px, App, Context, ElementId, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::button::ButtonVariants;
 use gpui_component::label::Label;
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
-    button::Button,
-    h_flex,
-    list::{ListDelegate, ListItem, ListState},
+    button::Button, h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, IconName, IndexPath, Placement,
+    Selectable,
+    Sizable,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -95,12 +95,21 @@ impl RenderOnce for ItemListItem {
                             .gap_2()
                             .items_center()
                             .justify_end()
-                            .child(div().w(px(215.)).child(self.item.id.clone()))
                             .child(div().w(px(120.)).child(self.item.content.clone()))
                             .child(
                                 div()
                                     .w(px(315.))
                                     .child(self.item.added_at.to_string().clone()),
+                            )
+                            .child(
+                                div()
+                                    .w(px(315.))
+                                    .child(self.item.checked.to_string().clone()),
+                            )
+                            .child(
+                                div()
+                                    .w(px(315.))
+                                    .child(self.item.priority.unwrap_or_default().to_string().clone()),
                             )
                             .child(
                                 div()

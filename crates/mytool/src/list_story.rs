@@ -1,18 +1,18 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
+    actions, px, App, AppContext, Context, Entity, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window,
 };
 
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{load_labels, DBState, LabelListDelegate};
 use gpui_component::{
-    ActiveTheme, IndexPath, Sizable,
-    button::Button,
-    checkbox::Checkbox,
-    h_flex,
+    button::Button, checkbox::Checkbox, h_flex,
     list::{List, ListDelegate, ListEvent, ListState},
     v_flex,
+    ActiveTheme,
+    IndexPath,
+    Sizable,
 };
 use todos::entity::LabelModel;
 
@@ -29,7 +29,7 @@ pub struct ListStory {
 
 impl super::Mytool for ListStory {
     fn title() -> &'static str {
-        "List"
+        "labels"
     }
 
     fn description() -> &'static str {

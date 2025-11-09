@@ -1,12 +1,12 @@
-use crate::{DBState, ItemListDelegate, get_items_completed, load_items};
+use crate::{get_items_completed, load_items, DBState, ItemListDelegate};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    input::InputState,
-    list::{List, ListEvent, ListState},
+    input::InputState, list::{List, ListEvent, ListState}, ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -57,7 +57,7 @@ impl ItemsCompletedPanel {
             let items = get_items_completed(db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("len items: {}", items.len());
+            println!("completed items: {}", items.len());
             let _ = cx
                 .update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(rc_items);
