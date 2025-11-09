@@ -1,10 +1,10 @@
 use crate::constants;
 use crate::entity::prelude::*;
 use crate::entity::{
-    AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
-    LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
-    SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items, labels,
-    projects, reminders, sections,
+    attachments, items, labels, projects, reminders,
+    sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel,
+    LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel, SectionActiveModel,
+    SectionModel, SourceActiveModel, SourceModel,
 };
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, Item, Section};
@@ -563,7 +563,6 @@ impl Store {
             .filter(
                 items::Column::Checked
                     .eq(1)
-                    .and(items::Column::SectionId.eq("")),
             )
             .all(&self.db)
             .await

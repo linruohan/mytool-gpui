@@ -1,17 +1,17 @@
-use crate::{DBState, ItemEvent, ItemListDelegate, get_items_by_project_id, load_items};
+use crate::{get_items_by_project_id, load_items, DBState, ItemEvent, ItemListDelegate};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::date_picker::{DatePickerEvent, DatePickerState};
 use gpui_component::select::{Select, SelectState};
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    date_picker::DatePicker,
-    input::{Input, InputState},
+    button::{Button, ButtonVariants}, date_picker::DatePicker, input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
+    ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -279,8 +279,10 @@ impl ItemsPanel {
                                 let mut item = item.clone();
                                 let item_mut = Rc::make_mut(&mut item);
                                 item_mut.checked = true; //切换为完成状态
+                                println!("item_mut: {:?}", item_mut);
+                                println!("item before: {:?}", item);
                                 view.update(cx, |_view, cx| {
-                                    cx.emit(ItemEvent::Finished(item.clone()));
+                                    cx.emit(ItemEvent::Finished(item));
                                     cx.notify();
                                 });
                                 window.push_notification("You have finished item ok.", cx);
