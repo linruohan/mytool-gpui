@@ -1,18 +1,18 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, px, App, AppContext, Context, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
 };
 
-use crate::{load_labels, DBState, LabelListDelegate};
+use crate::{DBState, LabelListDelegate, load_labels};
 use gpui_component::{
-    button::Button, checkbox::Checkbox, h_flex,
+    ActiveTheme, IndexPath, Sizable,
+    button::Button,
+    checkbox::Checkbox,
+    h_flex,
     list::{List, ListDelegate, ListEvent, ListState},
     v_flex,
-    ActiveTheme,
-    IndexPath,
-    Sizable,
 };
 use todos::entity::LabelModel;
 

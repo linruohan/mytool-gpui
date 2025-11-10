@@ -1,15 +1,15 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    actions, div, px, App, Context, ElementId, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
+    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
 };
 use gpui_component::button::ButtonVariants;
 use gpui_component::label::Label;
 use gpui_component::{
-    button::Button, h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, IconName, IndexPath, Placement,
-    Selectable,
-    Sizable,
-    WindowExt,
+    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
+    button::Button,
+    h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
@@ -107,9 +107,9 @@ impl RenderOnce for ItemListItem {
                                     .child(self.item.checked.to_string().clone()),
                             )
                             .child(
-                                div()
-                                    .w(px(315.))
-                                    .child(self.item.priority.unwrap_or_default().to_string().clone()),
+                                div().w(px(315.)).child(
+                                    self.item.priority.unwrap_or_default().to_string().clone(),
+                                ),
                             )
                             .child(
                                 div()

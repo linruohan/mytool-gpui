@@ -1,12 +1,12 @@
-use crate::{get_items_completed, load_items, DBState, ItemListDelegate};
+use crate::{DBState, ItemListDelegate, get_items_completed, load_items};
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    input::InputState, list::{List, ListEvent, ListState}, ActiveTheme,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, IndexPath, WindowExt,
+    input::InputState,
+    list::{List, ListEvent, ListState},
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;

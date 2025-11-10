@@ -1,10 +1,10 @@
 use crate::constants;
 use crate::entity::prelude::*;
 use crate::entity::{
-    attachments, items, labels, projects, reminders,
-    sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel,
-    LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel, SectionActiveModel,
-    SectionModel, SourceActiveModel, SourceModel,
+    AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
+    LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
+    SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items, labels,
+    projects, reminders, sections,
 };
 use crate::error::TodoError;
 use crate::objects::{BaseTrait, Item, Section};
@@ -560,10 +560,7 @@ impl Store {
     }
     pub async fn get_items_completed(&self) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Checked
-                    .eq(1)
-            )
+            .filter(items::Column::Checked.eq(1))
             .all(&self.db)
             .await
         {

@@ -1,17 +1,17 @@
-use crate::{get_items_by_project_id, load_items, DBState, ItemEvent, ItemListDelegate};
+use crate::{DBState, ItemEvent, ItemListDelegate, get_items_by_project_id, load_items};
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::date_picker::{DatePickerEvent, DatePickerState};
 use gpui_component::select::{Select, SelectState};
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::DatePicker, input::{Input, InputState},
+    ActiveTheme, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    date_picker::DatePicker,
+    input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
-    ActiveTheme,
-    IndexPath,
-    WindowExt,
 };
 use std::rc::Rc;
 use todos::entity::ItemModel;
