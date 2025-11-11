@@ -1979,9 +1979,9 @@ dependencies = [
 
 [[package]]
 name = "exr"
-version = "1.73.0"
+version = "1.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f83197f59927b46c04a183a619b7c29df34e63e63c7869320862268c0ef687e0"
+checksum = "4300e043a56aa2cb633c01af81ca8f699a321879a7854d3896a0ba89056363be"
 dependencies = [
  "bit_field",
  "half",
@@ -2628,7 +2628,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.4.0-preview1"
-source = "git+https://github.com/linruohan/gpui-component.git#e69ac647c44c90f586c7977920a64c583c47b892"
+source = "git+https://github.com/linruohan/gpui-component.git#1d8d579e968b2db2d4f011cd160a986ce29b359c"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2668,7 +2668,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.4.0-preview1"
-source = "git+https://github.com/linruohan/gpui-component.git#e69ac647c44c90f586c7977920a64c583c47b892"
+source = "git+https://github.com/linruohan/gpui-component.git#1d8d579e968b2db2d4f011cd160a986ce29b359c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5351,9 +5351,9 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
-version = "0.35.1"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ad4bbcc6571cb756b6c2572f0e7b387d579a60c3bb30212b91d79141a11ede8"
+checksum = "6717cf23b488adf64b9d711329542ba34de147df262370221940dfabc2c91358"
 dependencies = [
  "bytemuck",
  "font-types",
@@ -5942,9 +5942,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm"
-version = "1.1.17"
+version = "1.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "699b1ec145a6530c8f862eed7529d8a6068392e628d81cc70182934001e9c2a3"
+checksum = "6d945f62558fac19e5988680d2fdf747b734c2dbc6ce2cb81ba33ed8dde5b103"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -5972,9 +5972,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-macros"
-version = "1.1.17"
+version = "1.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c964f4b7f34f53decf381bc88f03187b9355e07f356ce65544626e781a9585"
+checksum = "84c2e64a50a9cc8339f10a27577e10062c7f995488e469f2c95762c5ee847832"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
