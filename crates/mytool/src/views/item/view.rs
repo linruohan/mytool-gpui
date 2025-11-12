@@ -1,12 +1,14 @@
-use crate::{DBState, ItemEvent, ItemListDelegate, get_items_by_project_id, load_items};
+use crate::{DBState, ItemEvent, ItemListDelegate, load_items};
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    App, AppContext, Axis, Context, Entity, EventEmitter, Focusable, IntoElement, ParentElement,
+    Render, Styled, Subscription, WeakEntity, Window, px,
 };
+use gpui_component::color_picker::{ColorPicker, ColorPickerState};
 use gpui_component::date_picker::{DatePickerEvent, DatePickerState};
-use gpui_component::select::{Select, SelectState};
+use gpui_component::form::{field, v_form};
+use gpui_component::select::SelectState;
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
+    ActiveTheme, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::DatePicker,
     input::{Input, InputState},
@@ -18,23 +20,30 @@ use todos::entity::ItemModel;
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
 pub struct ItemsPanel {
-    input_esc: Entity<InputState>,
     pub item_list: Entity<ListState<ItemListDelegate>>,
     item_due: Option<String>,
     is_loading: bool,
-    is_checked: bool, // 任务完成状态
-    priority_select: Entity<SelectState<Vec<String>>>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
+    name_input: Entity<InputState>,
+    desc_input: Entity<InputState>,
+    color_state: Entity<ColorPickerState>,
+    // item_date: Entity<DatePickerState>,
+    priority_select: Entity<SelectState<Vec<String>>>,
+    is_checked: bool, // 任务完成状态
 }
 
 impl ItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_esc = cx.new(|cx| {
+        let color_state = cx.new(|cx| ColorPickerState::new(window, cx));
+
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("task title here..."));
+        let desc_input = cx.new(|cx| {
             InputState::new(window, cx)
-                .placeholder("Enter DB URL")
-                .clean_on_escape()
+                .auto_grow(5, 20)
+                .placeholder("task description here...")
         });
+        let _date = cx.new(|cx| DatePickerState::new(window, cx));
 
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
@@ -52,26 +61,27 @@ impl ItemsPanel {
                 cx,
             )
         });
-        let _subscriptions =
-            vec![
-                cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
-                    if let ListEvent::Confirm(ix) = ev
-                        && let Some(conn) = this.get_selected_item(*ix, cx)
-                    {
-                        this.update_active_index(Some(ix.row));
-                        this.input_esc.update(cx, |is, cx| {
-                            is.set_value(conn.clone().content.clone(), window, cx);
-                            cx.notify();
-                        })
-                    }
-                }),
-            ];
+        let _subscriptions = vec![cx.subscribe_in(
+            &item_list,
+            window,
+            |this, _, ev: &ListEvent, _window, cx| {
+                if let ListEvent::Confirm(ix) = ev
+                    && let Some(_conn) = this.get_selected_item(*ix, cx)
+                {
+                    this.update_active_index(Some(ix.row));
+                    // this.input_esc.update(cx, |is, cx| {
+                    //     is.set_value(conn.clone().content.clone(), window, cx);
+                    //     cx.notify();
+                    // })
+                }
+            },
+        )];
 
         let item_list_clone = item_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
-            let items = get_items_by_project_id("1", db.clone()).await;
+            let items = load_items(db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("all items: {}", items.len());
@@ -84,7 +94,6 @@ impl ItemsPanel {
         })
         .detach();
         Self {
-            input_esc,
             item_due: None,
             is_loading: false,
             is_checked: false,
@@ -92,6 +101,9 @@ impl ItemsPanel {
             priority_select,
             active_index: Some(0),
             _subscriptions,
+            name_input,
+            desc_input,
+            color_state,
         }
     }
     pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
@@ -120,13 +132,15 @@ impl ItemsPanel {
             ItemEvent::Finished(item) => self.finish_item(cx, item.clone()),
         }
     }
-    fn toggle_finished(&mut self, selectable: bool, _: &mut Window, _cx: &mut Context<Self>) {
-        self.is_checked = selectable;
+    fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
+        self.is_checked = *selectable;
     }
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Item Name"));
-        let des_input = cx.new(|cx| InputState::new(window, cx).placeholder("Enter task details."));
-        let select = self.priority_select.clone();
+        let name_input = self.name_input.clone();
+        let desc_input = self.desc_input.clone();
+        let _priority_select = self.priority_select.clone();
+        let color_state = self.color_state.clone();
+        let _is_checked = self.is_checked;
         let now = chrono::Local::now().naive_local().date();
         let item_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
@@ -147,7 +161,7 @@ impl ItemsPanel {
                         is.set_value(item.content.clone(), window, cx);
                         cx.notify();
                     });
-                    des_input.update(cx, |is, cx| {
+                    desc_input.update(cx, |is, cx| {
                         is.set_value(item.description.clone().unwrap_or_default(), window, cx);
                         cx.notify();
                     })
@@ -166,28 +180,42 @@ impl ItemsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex()
-                        .gap_3()
-                        .child(Input::new(&name_input))
-                        .child(Input::new(&des_input))
-                        .child(Select::new(&select))
-                        // .child(
-                        //     Checkbox::new("is_checked")
-                        //         .label("已完成")
-                        //         .checked(self.is_checked)
-                        //         .on_click({
-                        //             let view = view.clone();
-                        //             cx.listener(|this, check: &bool, window, cx| {
-                        //                 this.toggle_finished(*check, window, cx)
-                        //             })
-                        //         }),
-                        // )
-                        .child(DatePicker::new(&item_due).placeholder("DueDate of Item")),
+                    v_flex().gap_3().child(
+                        v_form()
+                            .layout(Axis::Vertical)
+                            .columns(1)
+                            .label_width(px(140.))
+                            .child(field().child(Input::new(&name_input)).required(true))
+                            .child(field().child(Input::new(&desc_input)))
+                            // .child(
+                            //     field().child(
+                            //         h_flex()
+                            //             .gap_2()
+                            //             .border_1()
+                            //             .border_color(cx.theme().border)
+                            //             .rounded(cx.theme().radius)
+                            //             .child(
+                            //                 Select::new(&priority_select).pr_0().appearance(false),
+                            //             )
+                            //             .child(
+                            //                 Checkbox::new("item-finish")
+                            //                     .label("toggle-finish")
+                            //                     .checked(is_checked),
+                            //             ),
+                            //     ),
+                            // )
+                            .child(
+                                field().child(
+                                    ColorPicker::new(&color_state).small().label("Item color"),
+                                ),
+                            )
+                            .child(field().label("date").child(DatePicker::new(&item_due))),
+                    ),
                 )
                 .footer({
                     let view = view.clone();
                     let name_input_clone = name_input.clone();
-                    let des_input_clone = des_input.clone();
+                    let des_input_clone = desc_input.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("save").primary().label(button_item).on_click({
@@ -226,6 +254,8 @@ impl ItemsPanel {
                     }
                 })
         });
+        self.name_input.focus_handle(cx).focus(window);
+        self.desc_input.focus_handle(cx).focus(window);
     }
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {

@@ -5,7 +5,7 @@ use gpui::{
     ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
 };
 
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{DBState, ItemListDelegate, load_items};
 use gpui_component::{
     ActiveTheme, IndexPath, Sizable,
     button::Button,
@@ -14,14 +14,14 @@ use gpui_component::{
     list::{List, ListDelegate, ListEvent, ListState},
     v_flex,
 };
-use todos::entity::LabelModel;
+use todos::entity::ItemModel;
 
 actions!(list_story, [SelectedCompany]);
 
 pub struct ListStory {
     focus_handle: FocusHandle,
-    company_list: Entity<ListState<LabelListDelegate>>,
-    selected_company: Option<Rc<LabelModel>>,
+    company_list: Entity<ListState<ItemListDelegate>>,
+    selected_company: Option<Rc<ItemModel>>,
     selectable: bool,
     searchable: bool,
     _subscriptions: Vec<Subscription>,
@@ -48,7 +48,7 @@ impl ListStory {
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let company_list =
-            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).searchable(true));
+            cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
         let _subscriptions =
             vec![
@@ -68,13 +68,13 @@ impl ListStory {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
+            let labels = load_items(db.clone()).await;
+            let rc_labels: Vec<Rc<ItemModel>> =
                 labels.iter().map(|label| Rc::new(label.clone())).collect();
             println!("list_story: len labels: {}", rc_labels.len());
             let _ = cx
                 .update_entity(&company_list_clone, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
+                    list.delegate_mut().update_items(rc_labels);
                     cx.notify();
                 })
                 .ok();
@@ -93,7 +93,7 @@ impl ListStory {
 
     fn selected_company(&mut self, _: &SelectedCompany, _: &mut Window, cx: &mut Context<Self>) {
         let picker = self.company_list.read(cx);
-        if let Some(company) = picker.delegate().selected_label() {
+        if let Some(company) = picker.delegate().selected_item() {
             self.selected_company = Some(company);
         }
     }

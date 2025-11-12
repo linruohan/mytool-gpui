@@ -4,6 +4,7 @@ use gpui::{
     RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
 };
 use gpui_component::button::ButtonVariants;
+use gpui_component::checkbox::Checkbox;
 use gpui_component::label::Label;
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
@@ -90,6 +91,7 @@ impl RenderOnce for ItemListItem {
                     .justify_between()
                     .gap_2()
                     .text_color(text_color)
+                    .child(Checkbox::new("item-checked").checked(self.item.checked))
                     .child(
                         h_flex()
                             .gap_2()
@@ -97,14 +99,13 @@ impl RenderOnce for ItemListItem {
                             .justify_end()
                             .child(div().w(px(120.)).child(self.item.content.clone()))
                             .child(
-                                div()
-                                    .w(px(315.))
-                                    .child(self.item.added_at.to_string().clone()),
-                            )
-                            .child(
-                                div()
-                                    .w(px(315.))
-                                    .child(self.item.checked.to_string().clone()),
+                                div().w(px(315.)).child(
+                                    self.item
+                                        .description
+                                        .clone()
+                                        .unwrap_or_default()
+                                        .to_string(),
+                                ),
                             )
                             .child(
                                 div().w(px(315.)).child(
