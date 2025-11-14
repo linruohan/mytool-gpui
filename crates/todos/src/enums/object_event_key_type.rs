@@ -24,6 +24,7 @@ impl ObjectEventKeyType {
             _ => ObjectEventKeyType::CONTENT,
         }
     }
+
     pub fn get_label(&self) -> &str {
         match self {
             ObjectEventKeyType::CONTENT => "Content",

@@ -9,8 +9,7 @@ use gpui_component::{
     ActiveTheme as _, IconName, PixelsExt, Sizable as _, Theme, TitleBar, WindowExt as _,
     badge::Badge,
     button::{Button, ButtonVariants as _},
-    menu::AppMenuBar,
-    menu::DropdownMenu as _,
+    menu::{AppMenuBar, DropdownMenu as _},
     scroll::ScrollbarShow,
 };
 
@@ -99,9 +98,7 @@ struct FontSizeSelector {
 
 impl FontSizeSelector {
     pub fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self {
-            focus_handle: cx.focus_handle(),
-        }
+        Self { focus_handle: cx.focus_handle() }
     }
 
     fn on_select_font(

@@ -7,10 +7,6 @@ pub struct Color {
 
 impl Color {
     pub fn new(id: u32, name: &str, hexadecimal: &str) -> Color {
-        Self {
-            id,
-            name: name.to_string(),
-            hexadecimal: hexadecimal.to_string(),
-        }
+        Self { id, name: name.to_string(), hexadecimal: hexadecimal.to_string() }
     }
 }

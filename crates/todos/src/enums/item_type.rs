@@ -17,6 +17,7 @@ impl ItemType {
             _ => ItemType::TASK,
         }
     }
+
     pub fn to_lowercase(&self) -> String {
         match self {
             ItemType::TASK => "task".to_string(),

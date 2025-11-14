@@ -1,10 +1,13 @@
-use crate::enums::{RecurrencyEndType, RecurrencyType};
-use crate::utils::DateTime;
+use std::{fmt, str::FromStr};
+
 use chrono::NaiveDateTime;
 use sea_orm::Iden;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::str::FromStr;
+
+use crate::{
+    enums::{RecurrencyEndType, RecurrencyType},
+    utils::DateTime,
+};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize)]
 pub struct DueDate {
@@ -39,15 +42,19 @@ impl DueDate {
     pub fn datetime(&self) -> Option<NaiveDateTime> {
         NaiveDateTime::from_str(&self.date).ok()
     }
+
     pub fn set_datetime(&mut self, value: NaiveDateTime) {
         self.date = value.format("%Y-%m-%d %H:%M:%S").to_string();
     }
+
     pub fn end_datetime(&self) -> Option<NaiveDateTime> {
         self.recurrency_end.parse().ok()
     }
+
     pub fn has_weeks(&self) -> bool {
         !self.recurrency_weeks.is_empty()
     }
+
     pub fn end_type(&self) -> RecurrencyEndType {
         if !self.recurrency_end.is_empty() {
             return RecurrencyEndType::OnDate;
@@ -57,6 +64,7 @@ impl DueDate {
         }
         RecurrencyEndType::NEVER
     }
+
     pub fn is_recurrency_end(&self) -> bool {
         match self.end_type() {
             RecurrencyEndType::AFTER => self.recurrency_count - 1 <= 0,
@@ -78,9 +86,9 @@ impl DueDate {
     }
 
     pub fn to_friendly_string(&self) -> String {
-        self.recurrency_type
-            .to_friendly_string(self.recurrency_interval as i32)
+        self.recurrency_type.to_friendly_string(self.recurrency_interval as i32)
     }
+
     pub fn reset(&mut self) {
         self.date = "".to_string();
         self.timezone = "".to_string();
@@ -89,6 +97,7 @@ impl DueDate {
         self.recurrency_type = RecurrencyType::NONE;
         self.recurrency_end = "".to_string();
     }
+
     pub fn duplicate(&self) -> DueDate {
         DueDate {
             date: self.date.clone(),

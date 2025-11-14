@@ -1,8 +1,5 @@
 // Turns off console window on Windows, but not when building with dev profile.
-#![cfg_attr(
-    all(not(debug_assertions), target_os = "windows"),
-    windows_subsystem = "windows"
-)]
+#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 use gpui::Application;
 use gpui_component_assets::Assets;
 use mytool::*;

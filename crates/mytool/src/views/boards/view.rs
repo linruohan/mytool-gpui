@@ -1,16 +1,21 @@
+use gpui::{
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    IsZero, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
+    prelude::FluentBuilder, px,
+};
+use gpui_component::{
+    ActiveTheme, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    h_flex,
+    input::{Input, InputEvent, InputState},
+    sidebar::{SidebarBoard, SidebarBoardItem},
+    v_flex,
+};
+
 use crate::{
     BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard, PinBoard,
     ScheduledBoard, TodayBoard,
 };
-use gpui::prelude::FluentBuilder;
-use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    IsZero, MouseButton, ParentElement, Render, Styled, Subscription, Window, div, px,
-};
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::input::{Input, InputEvent, InputState};
-use gpui_component::sidebar::{SidebarBoard, SidebarBoardItem};
-use gpui_component::{ActiveTheme, IconName, Sizable, h_flex, v_flex};
 
 pub struct BoardPanel {
     search_input: Entity<InputState>,
@@ -36,20 +41,16 @@ impl BoardPanel {
             InputEvent::Change => {
                 this.active_index = Some(0);
                 cx.notify()
-            }
-            _ => {}
+            },
+            _ => {},
         })];
-        Self {
-            search_input,
-            boards,
-            active_index: None,
-            _subscriptions,
-        }
+        Self { search_input, boards, active_index: None, _subscriptions }
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
@@ -64,7 +65,7 @@ impl Render for BoardPanel {
             .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
             .cloned()
             .collect();
-        //项目分类：
+        // 项目分类：
         v_flex()
             .w_full()
             .gap_4()
@@ -81,11 +82,7 @@ impl Render for BoardPanel {
                             .items_center()
                             .justify_end()
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Input::new(&self.search_input)
-                                    .appearance(false)
-                                    .cleanable(true),
-                            )
+                            .child(Input::new(&self.search_input).appearance(false).cleanable(true))
                             .child(
                                 Button::new("add-label")
                                     .small()

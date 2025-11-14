@@ -1,13 +1,16 @@
-use crate::{ContainerEvent, ShowPanelInfo, ToggleSearch};
-use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
-    Window, px,
+    Window, prelude::FluentBuilder, px,
 };
-use gpui_component::dock::{PanelControl, PanelEvent};
-use gpui_component::notification::Notification;
-use gpui_component::{IconName, WindowExt, v_flex};
+use gpui_component::{
+    IconName, WindowExt,
+    dock::{PanelControl, PanelEvent},
+    notification::Notification,
+    v_flex,
+};
+
+use crate::{ContainerEvent, ShowPanelInfo, ToggleSearch};
 // const PANEL_NAME: &str = "BoardContainer";
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
@@ -110,9 +113,8 @@ impl BoardContainer {
         let focus_handle = cx.focus_handle();
 
         let view = cx.new(|cx| {
-            let mut mytool = Self::new(window, cx)
-                .board(mytool.into(), story_klass)
-                .on_active(S::on_active_any);
+            let mut mytool =
+                Self::new(window, cx).board(mytool.into(), story_klass).on_active(S::on_active_any);
             mytool.focus_handle = focus_handle;
             mytool.closable = S::closable();
             mytool.zoomable = S::zoomable();
@@ -196,14 +198,7 @@ impl Render for BoardContainer {
             .on_action(cx.listener(Self::on_action_panel_info))
             .on_action(cx.listener(Self::on_action_toggle_search))
             .when_some(self.board.clone(), |this, board| {
-                this.child(
-                    v_flex()
-                        .id("board-children")
-                        .w_full()
-                        .flex_1()
-                        .p_4()
-                        .child(board),
-                )
+                this.child(v_flex().id("board-children").w_full().flex_1().p_4().child(board))
             })
     }
 }

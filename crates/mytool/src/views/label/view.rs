@@ -1,5 +1,5 @@
-use super::LabelEvent;
-use crate::{DBState, LabelListDelegate, load_labels};
+use std::rc::Rc;
+
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
     Subscription, WeakEntity, Window, px,
@@ -11,8 +11,10 @@ use gpui_component::{
     list::{List, ListEvent, ListState},
     v_flex,
 };
-use std::rc::Rc;
 use todos::entity::LabelModel;
+
+use super::LabelEvent;
+use crate::{DBState, LabelListDelegate, load_labels};
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
 pub struct LabelsPanel {
@@ -25,19 +27,14 @@ pub struct LabelsPanel {
 
 impl LabelsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_esc = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter DB URL")
-                .clean_on_escape()
-        });
+        let input_esc =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
 
         let label_list =
             cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
 
-        let _subscriptions = vec![cx.subscribe_in(
-            &label_list,
-            window,
-            |this, _, ev: &ListEvent, window, cx| {
+        let _subscriptions =
+            vec![cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(conn) = this.get_selected_label(*ix, cx)
                 {
@@ -47,8 +44,7 @@ impl LabelsPanel {
                         cx.notify();
                     })
                 }
-            },
-        )];
+            })];
 
         let label_list_clone = label_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -66,14 +62,9 @@ impl LabelsPanel {
                 .ok();
         })
         .detach();
-        Self {
-            input_esc,
-            is_loading: false,
-            label_list,
-            active_index: Some(0),
-            _subscriptions,
-        }
+        Self { input_esc, is_loading: false, label_list, active_index: Some(0), _subscriptions }
     }
+
     fn get_selected_label(&self, ix: IndexPath, cx: &App) -> Option<Rc<LabelModel>> {
         self.label_list
             .read(cx)
@@ -83,26 +74,30 @@ impl LabelsPanel {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
+
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+
     pub fn handle_label_event(&mut self, event: &LabelEvent, cx: &mut Context<Self>) {
         match event {
             LabelEvent::Loaded => {
                 println!("Loaded");
                 self.get_labels(cx);
-            }
+            },
             LabelEvent::Added(label) => {
                 println!("handle_label_event:");
                 self.add_label(cx, label.clone())
-            }
+            },
             LabelEvent::Modified(label) => self.mod_label(cx, label.clone()),
             LabelEvent::Deleted(label) => self.del_label(cx, label.clone()),
         }
     }
+
     pub fn show_label_dialog(
         &mut self,
         window: &mut Window,
@@ -161,16 +156,15 @@ impl LabelsPanel {
                                     });
                                 }
                             }),
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                }),
+                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
                         ]
                     }
                 })
         });
     }
+
     pub fn show_label_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
             let label_some = self.get_selected_label(IndexPath::new(active_index), &cx);
@@ -204,6 +198,7 @@ impl LabelsPanel {
             };
         }
     }
+
     // 更新labels
     pub fn get_labels(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {
@@ -249,6 +244,7 @@ impl LabelsPanel {
         .detach();
         self.get_labels(cx);
     }
+
     pub fn mod_label(&mut self, cx: &mut Context<Self>, label: Rc<LabelModel>) {
         if self.is_loading {
             return;
@@ -269,6 +265,7 @@ impl LabelsPanel {
         .detach();
         self.get_labels(cx);
     }
+
     pub fn del_label(&mut self, cx: &mut Context<Self>, label: Rc<LabelModel>) {
         if self.is_loading {
             return;

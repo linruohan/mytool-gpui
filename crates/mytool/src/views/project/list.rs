@@ -1,14 +1,15 @@
-use gpui::prelude::FluentBuilder;
+use std::rc::Rc;
+
 use gpui::{
     App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
+    RenderOnce, SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
-use gpui_component::button::{Button, ButtonVariants};
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Selectable, Sizable, h_flex,
+    ActiveTheme, IconName, IndexPath, Selectable, Sizable,
+    button::{Button, ButtonVariants},
+    h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
-use std::rc::Rc;
 use todos::entity::ProjectModel;
 
 actions!(project, [SelectedProject]);
@@ -34,12 +35,7 @@ impl ProjectListItem {
         ix: IndexPath,
         selected: bool,
     ) -> Self {
-        ProjectListItem {
-            project,
-            ix,
-            base: ListItem::new(id),
-            selected,
-        }
+        ProjectListItem { project, ix, base: ListItem::new(id), selected }
     }
 }
 
@@ -56,11 +52,8 @@ impl Selectable for ProjectListItem {
 
 impl RenderOnce for ProjectListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let text_color = if self.selected {
-            cx.theme().accent_foreground
-        } else {
-            cx.theme().foreground
-        };
+        let text_color =
+            if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         let bg_color = if self.selected {
             cx.theme().list_active
@@ -77,58 +70,51 @@ impl RenderOnce for ProjectListItem {
             .bg(bg_color)
             .border_1()
             .border_color(bg_color)
-            .when(self.selected, |this| {
-                this.border_color(cx.theme().list_active_border)
-            })
+            .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .text_color(text_color)
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .justify_end()
-                            .child(div().w(px(15.)).child(self.project.id.clone()))
-                            .child(div().w(px(120.)).child(self.project.name.clone()))
-                            .child(div().w(px(115.)).child(
+                h_flex().items_center().justify_between().gap_2().text_color(text_color).child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .justify_end()
+                        .child(div().w(px(15.)).child(self.project.id.clone()))
+                        .child(div().w(px(120.)).child(self.project.name.clone()))
+                        .child(
+                            div().w(px(115.)).child(
                                 self.project.description.clone().unwrap_or_default().clone(),
-                            ))
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_end()
-                                    .px_2()
-                                    .gap_2()
-                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                        cx.stop_propagation()
-                                    })
-                                    .child(
-                                        Button::new("edit")
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::EditSymbolic)
-                                            .on_click(move |_event, _window, _cx| {
-                                                let project = self.project.clone();
-                                                println!("edit project:{:?}", project);
-                                            }),
-                                    )
-                                    .child(
-                                        Button::new("delete")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .small()
-                                            .ghost()
-                                            .on_click(|_, _, _cx| {
-                                                println!("delete project:");
-                                            }),
-                                    ),
                             ),
-                    ),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .justify_end()
+                                .px_2()
+                                .gap_2()
+                                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                                .child(
+                                    Button::new("edit")
+                                        .small()
+                                        .ghost()
+                                        .compact()
+                                        .icon(IconName::EditSymbolic)
+                                        .on_click(move |_event, _window, _cx| {
+                                            let project = self.project.clone();
+                                            println!("edit project:{:?}", project);
+                                        }),
+                                )
+                                .child(
+                                    Button::new("delete")
+                                        .icon(IconName::UserTrashSymbolic)
+                                        .small()
+                                        .ghost()
+                                        .on_click(|_, _, _cx| {
+                                            println!("delete project:");
+                                        }),
+                                ),
+                        ),
+                ),
             )
     }
 }
@@ -151,17 +137,13 @@ impl ProjectListDelegate {
             query: "".into(),
         }
     }
+
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
         let projects: Vec<Rc<ProjectModel>> = self
             ._projects
             .iter()
-            .filter(|project| {
-                project
-                    .name
-                    .to_lowercase()
-                    .contains(&self.query.to_lowercase())
-            })
+            .filter(|project| project.name.to_lowercase().contains(&self.query.to_lowercase()))
             .cloned()
             .collect();
         for project in projects.into_iter() {
@@ -176,15 +158,13 @@ impl ProjectListDelegate {
             self.selected_index = Some(IndexPath::default());
         }
     }
+
     pub fn selected_project(&self) -> Option<Rc<ProjectModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };
 
-        self.matched_projects
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
+        self.matched_projects.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 }
 impl ListDelegate for ProjectListDelegate {

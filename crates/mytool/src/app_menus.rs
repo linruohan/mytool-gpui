@@ -43,10 +43,7 @@ pub fn init(title: impl Into<SharedString>, cx: &mut App) {
                     "Delete Previous Word",
                     gpui_component::input::DeleteToPreviousWordStart,
                 ),
-                MenuItem::action(
-                    "Delete Next Word",
-                    gpui_component::input::DeleteToNextWordEnd,
-                ),
+                MenuItem::action("Delete Next Word", gpui_component::input::DeleteToNextWordEnd),
                 MenuItem::separator(),
                 MenuItem::action("Find", gpui_component::input::Search),
                 MenuItem::separator(),
@@ -61,10 +58,7 @@ pub fn init(title: impl Into<SharedString>, cx: &mut App) {
                 MenuItem::action("Toggle Search", ToggleSearch),
             ],
         },
-        Menu {
-            name: "Help".into(),
-            items: vec![MenuItem::action("Open Website", Open)],
-        },
+        Menu { name: "Help".into(), items: vec![MenuItem::action("Open Website", Open)] },
     ]);
 }
 

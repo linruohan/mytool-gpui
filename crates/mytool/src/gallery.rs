@@ -1,4 +1,3 @@
-use crate::{CalendarStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _,
@@ -7,6 +6,8 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
+
+use crate::{CalendarStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
 
 pub struct Gallery {
     stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
@@ -25,18 +26,15 @@ impl Gallery {
                 this.active_group_index = Some(0);
                 this.active_index = Some(0);
                 cx.notify()
-            }
-            _ => {}
+            },
+            _ => {},
         })];
-        let stories = vec![(
-            "Components",
-            vec![
-                StoryContainer::panel::<WelcomeStory>(window, cx),
-                StoryContainer::panel::<CalendarStory>(window, cx),
-                StoryContainer::panel::<TodoStory>(window, cx),
-                StoryContainer::panel::<ListStory>(window, cx),
-            ],
-        )];
+        let stories = vec![("Components", vec![
+            StoryContainer::panel::<WelcomeStory>(window, cx),
+            StoryContainer::panel::<CalendarStory>(window, cx),
+            StoryContainer::panel::<TodoStory>(window, cx),
+            StoryContainer::panel::<ListStory>(window, cx),
+        ])];
 
         let mut this = Self {
             search_input,
@@ -80,11 +78,7 @@ impl Render for Gallery {
                     .cloned()
                     .collect();
 
-                if !filtered_items.is_empty() {
-                    Some((name, filtered_items))
-                } else {
-                    None
-                }
+                if !filtered_items.is_empty() { Some((name, filtered_items)) } else { None }
             })
             .collect();
 
@@ -102,52 +96,47 @@ impl Render for Gallery {
 
         h_resizable("gallery-container")
             .child(
-                resizable_panel()
-                    .size(px(255.))
-                    .size_range(px(200.)..px(320.))
-                    .child(
-                        Sidebar::left()
-                            .width(relative(1.))
-                            .border_width(px(0.))
-                            .collapsed(self.collapsed)
-                            .header(
-                                v_flex().w_full().gap_4().child(
-                                    div()
-                                        .bg(cx.theme().sidebar_accent)
-                                        .rounded_full()
-                                        .when(cx.theme().radius.is_zero(), |this| {
-                                            this.rounded(px(0.))
-                                        })
-                                        .flex_1()
-                                        .mx_1()
-                                        .child(
-                                            Input::new(&self.search_input)
-                                                .appearance(false)
-                                                .cleanable(true),
-                                        ),
-                                ),
-                            )
-                            .children(stories.clone().into_iter().enumerate().map(
-                                |(group_ix, (_group_name, sub_stories))| {
-                                    SidebarMenu::new().children(sub_stories.iter().enumerate().map(
-                                        |(ix, story)| {
-                                            SidebarMenuItem::new(story.read(cx).name.clone())
-                                                .active(
-                                                    self.active_group_index == Some(group_ix)
-                                                        && self.active_index == Some(ix),
-                                                )
-                                                .on_click(cx.listener(
-                                                    move |this, _: &ClickEvent, _, cx| {
-                                                        this.active_group_index = Some(group_ix);
-                                                        this.active_index = Some(ix);
-                                                        cx.notify();
-                                                    },
-                                                ))
-                                        },
-                                    ))
-                                },
-                            )),
-                    ),
+                resizable_panel().size(px(255.)).size_range(px(200.)..px(320.)).child(
+                    Sidebar::left()
+                        .width(relative(1.))
+                        .border_width(px(0.))
+                        .collapsed(self.collapsed)
+                        .header(
+                            v_flex().w_full().gap_4().child(
+                                div()
+                                    .bg(cx.theme().sidebar_accent)
+                                    .rounded_full()
+                                    .when(cx.theme().radius.is_zero(), |this| this.rounded(px(0.)))
+                                    .flex_1()
+                                    .mx_1()
+                                    .child(
+                                        Input::new(&self.search_input)
+                                            .appearance(false)
+                                            .cleanable(true),
+                                    ),
+                            ),
+                        )
+                        .children(stories.clone().into_iter().enumerate().map(
+                            |(group_ix, (_group_name, sub_stories))| {
+                                SidebarMenu::new().children(sub_stories.iter().enumerate().map(
+                                    |(ix, story)| {
+                                        SidebarMenuItem::new(story.read(cx).name.clone())
+                                            .active(
+                                                self.active_group_index == Some(group_ix)
+                                                    && self.active_index == Some(ix),
+                                            )
+                                            .on_click(cx.listener(
+                                                move |this, _: &ClickEvent, _, cx| {
+                                                    this.active_group_index = Some(group_ix);
+                                                    this.active_index = Some(ix);
+                                                    cx.notify();
+                                                },
+                                            ))
+                                    },
+                                ))
+                            },
+                        )),
+                ),
             )
             .child(
                 v_flex()

@@ -15,6 +15,7 @@ impl ProjectViewStyle {
             _ => ProjectViewStyle::LIST,
         }
     }
+
     pub fn to_lowercase(&self) -> String {
         match self {
             ProjectViewStyle::LIST => "list".to_string(),

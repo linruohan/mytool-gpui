@@ -1,4 +1,5 @@
-use crate::{DBState, ItemListDelegate, get_items_completed, load_items};
+use std::rc::Rc;
+
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
     Subscription, WeakEntity, Window, px,
@@ -8,8 +9,9 @@ use gpui_component::{
     input::InputState,
     list::{List, ListEvent, ListState},
 };
-use std::rc::Rc;
 use todos::entity::ItemModel;
+
+use crate::{DBState, ItemListDelegate, get_items_completed, load_items};
 pub enum ItemCompletedEvent {
     UnFinished(Rc<ItemModel>),
 }
@@ -26,29 +28,24 @@ pub struct ItemsCompletedPanel {
 
 impl ItemsCompletedPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_esc = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter DB URL")
-                .clean_on_escape()
-        });
+        let input_esc =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
 
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
 
         let _subscriptions =
-            vec![
-                cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
-                    if let ListEvent::Confirm(ix) = ev
-                        && let Some(conn) = this.get_selected_item(*ix, cx)
-                    {
-                        this.update_active_index(Some(ix.row));
-                        this.input_esc.update(cx, |is, cx| {
-                            is.set_value(conn.clone().content.clone(), window, cx);
-                            cx.notify();
-                        })
-                    }
-                }),
-            ];
+            vec![cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
+                if let ListEvent::Confirm(ix) = ev
+                    && let Some(conn) = this.get_selected_item(*ix, cx)
+                {
+                    this.update_active_index(Some(ix.row));
+                    this.input_esc.update(cx, |is, cx| {
+                        is.set_value(conn.clone().content.clone(), window, cx);
+                        cx.notify();
+                    })
+                }
+            })];
 
         let item_list_clone = item_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -75,6 +72,7 @@ impl ItemsCompletedPanel {
             _subscriptions,
         }
     }
+
     fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
         self.item_list
             .read(cx)
@@ -84,20 +82,24 @@ impl ItemsCompletedPanel {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
+
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+
     pub fn handle_item_event(&mut self, event: &ItemCompletedEvent, cx: &mut Context<Self>) {
         match event {
             ItemCompletedEvent::UnFinished(item) => {
                 println!("toggle unfinished item:");
                 self.unfinish_item(cx, item.clone())
-            }
+            },
         }
     }
+
     pub fn show_unfinish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
@@ -133,6 +135,7 @@ impl ItemsCompletedPanel {
             };
         }
     }
+
     // 更新items
     fn get_items(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {

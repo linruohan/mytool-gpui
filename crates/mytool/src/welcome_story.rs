@@ -1,7 +1,6 @@
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Render, Styled as _, Window, px,
 };
-
 use gpui_component::{dock::PanelControl, text::TextView};
 
 use crate::Mytool;
@@ -16,9 +15,7 @@ impl WelcomeStory {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self {
-            focus_handle: cx.focus_handle(),
-        }
+        Self { focus_handle: cx.focus_handle() }
     }
 }
 

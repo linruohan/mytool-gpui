@@ -1,4 +1,5 @@
-use crate::{DBState, ProjectEvent, ProjectListDelegate, load_projects, play_ogg_file};
+use std::rc::Rc;
+
 use gpui::{
     App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
     Styled, Subscription, WeakEntity, Window,
@@ -13,8 +14,9 @@ use gpui_component::{
     sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
 };
-use std::rc::Rc;
 use todos::entity::ProjectModel;
+
+use crate::{DBState, ProjectEvent, ProjectListDelegate, load_projects, play_ogg_file};
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
 pub struct ProjectsPanel {
@@ -28,18 +30,13 @@ pub struct ProjectsPanel {
 
 impl ProjectsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_esc = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter DB URL")
-                .clean_on_escape()
-        });
+        let input_esc =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
 
         let project_list = cx.new(|cx| ListState::new(ProjectListDelegate::new(), window, cx));
 
-        let _subscriptions = vec![cx.subscribe_in(
-            &project_list,
-            window,
-            |this, _, ev: &ListEvent, window, cx| {
+        let _subscriptions =
+            vec![cx.subscribe_in(&project_list, window, |this, _, ev: &ListEvent, window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(conn) = this.get_selected_project(*ix, cx)
                 {
@@ -48,8 +45,7 @@ impl ProjectsPanel {
                         cx.notify();
                     })
                 }
-            },
-        )];
+            })];
 
         let project_list_clone = project_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -75,6 +71,7 @@ impl ProjectsPanel {
             _subscriptions,
         }
     }
+
     pub(crate) fn get_selected_project(&self, ix: IndexPath, cx: &App) -> Option<Rc<ProjectModel>> {
         self.project_list
             .read(cx)
@@ -84,25 +81,29 @@ impl ProjectsPanel {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
+
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+
     pub fn handle_project_event(&mut self, event: &ProjectEvent, cx: &mut Context<Self>) {
         match event {
             ProjectEvent::Loaded => {
                 self.update_projects(cx);
-            }
+            },
             ProjectEvent::Added(project) => {
                 println!("handle_project_event:");
                 self.add_project(cx, project.clone())
-            }
+            },
             ProjectEvent::Modified(project) => self.mod_project(cx, project.clone()),
             ProjectEvent::Deleted(project) => self.del_project(cx, project.clone()),
         }
     }
+
     pub fn open_project_dialog(
         &mut self,
         _model: Rc<ProjectModel>,
@@ -122,7 +123,7 @@ impl ProjectsPanel {
         let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            }
+            },
         });
         let view = cx.entity().clone();
 
@@ -159,16 +160,15 @@ impl ProjectsPanel {
                                     });
                                 }
                             }),
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                }),
+                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
                         ]
                     }
                 })
         });
     }
+
     // 更新projects
     fn update_projects(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {
@@ -214,6 +214,7 @@ impl ProjectsPanel {
         .detach();
         self.update_projects(cx);
     }
+
     pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
             return;
@@ -234,6 +235,7 @@ impl ProjectsPanel {
         .detach();
         self.update_projects(cx);
     }
+
     pub fn del_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
         if self.is_loading {
             return;
@@ -263,18 +265,16 @@ impl Render for ProjectsPanel {
         v_flex().w_full().gap_4().child(
             // 添加项目按钮：
             SidebarMenu::new()
-                .child(
-                    SidebarMenuItem::new("On This Computer                     ➕").on_click(
-                        cx.listener(move |this, _, window: &mut Window, cx| {
-                            // let projects = projects.read(cx);
-                            println!("project_panel: {}", "add projects");
-                            play_ogg_file("assets/sounds/success.ogg");
-                            let default_model = Rc::new(ProjectModel::default());
-                            this.open_project_dialog(default_model, window, cx);
-                            cx.notify();
-                        }),
-                    ),
-                )
+                .child(SidebarMenuItem::new("On This Computer                     ➕").on_click(
+                    cx.listener(move |this, _, window: &mut Window, cx| {
+                        // let projects = projects.read(cx);
+                        println!("project_panel: {}", "add projects");
+                        play_ogg_file("assets/sounds/success.ogg");
+                        let default_model = Rc::new(ProjectModel::default());
+                        this.open_project_dialog(default_model, window, cx);
+                        cx.notify();
+                    }),
+                ))
                 .children(projects.iter().enumerate().map(|(ix, story)| {
                     SidebarMenuItem::new(story.name.clone())
                         .active(self.active_index == Some(ix))

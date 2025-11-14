@@ -1,17 +1,17 @@
-use crate::{
-    BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
-};
+use std::{option::Option, rc::Rc};
+
 use gpui::{prelude::*, *};
-use gpui_component::sidebar::{SidebarMenu, SidebarMenuItem};
 use gpui_component::{
     resizable::{h_resizable, resizable_panel},
-    sidebar::Sidebar,
+    sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
 };
 use serde::Deserialize;
-use std::option::Option;
-use std::rc::Rc;
 use todos::entity::ProjectModel;
+
+use crate::{
+    BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
+};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = todo_story, no_json)]
@@ -61,15 +61,11 @@ impl TodoStory {
                     project_panel.handle_project_event(event, cx);
                 });
             }),
-            cx.subscribe(
-                &project_items_panel,
-                |this, _, event: &ProjectItemEvent, cx| {
-                    this.project_items_panel
-                        .update(cx, |project_items_panel, cx| {
-                            project_items_panel.handle_project_item_event(event, cx);
-                        });
-                },
-            ),
+            cx.subscribe(&project_items_panel, |this, _, event: &ProjectItemEvent, cx| {
+                this.project_items_panel.update(cx, |project_items_panel, cx| {
+                    project_items_panel.handle_project_item_event(event, cx);
+                });
+            }),
         ];
         Self {
             collapsed: false,
@@ -86,6 +82,7 @@ impl TodoStory {
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
+
     fn add_project(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         play_ogg_file("assets/sounds/success.ogg");
         self.project_panel.update(cx, |project_panel, cx| {
@@ -101,21 +98,13 @@ impl Render for TodoStory {
         let boards = board_panel.boards.clone();
         let board_active_index = board_panel.active_index;
         let project_panel = self.project_panel.read(cx);
-        let project_list = project_panel
-            .project_list
-            .read(cx)
-            .delegate()
-            ._projects
-            .clone();
+        let project_list = project_panel.project_list.read(cx).delegate()._projects.clone();
         let _view = cx.entity();
         let project_avtive_index = project_panel.active_index;
         h_resizable("todos-container")
             .child(
-                resizable_panel()
-                    .size(px(255.))
-                    .size_range(px(200.)..px(320.))
-                    .child(
-                        Sidebar::left()
+                resizable_panel().size(px(255.)).size_range(px(200.)..px(320.)).child(
+                    Sidebar::left()
                             .width(relative(1.))
                             .border_width(px(0.))
                             .collapsed(self.collapsed)
@@ -153,7 +142,7 @@ impl Render for TodoStory {
                                         })
                                 }),
                             )),
-                    ),
+                ),
             )
             .child(
                 v_flex()

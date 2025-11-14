@@ -38,11 +38,7 @@ impl CalendarStory {
         let calendar = cx.new(|cx| CalendarState::new(window, cx));
         let calendar_wide = cx.new(|cx| CalendarState::new(window, cx));
 
-        Self {
-            calendar,
-            calendar_wide,
-            focus_handle: cx.focus_handle(),
-        }
+        Self { calendar, calendar_wide, focus_handle: cx.focus_handle() }
     }
 }
 
@@ -56,11 +52,7 @@ impl Render for CalendarStory {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .gap_3()
-            .child(
-                section("Normal")
-                    .max_w_md()
-                    .child(Calendar::new(&self.calendar)),
-            )
+            .child(section("Normal").max_w_md().child(Calendar::new(&self.calendar)))
             .child(
                 section("With 3 Months")
                     .max_w_md()

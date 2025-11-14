@@ -22,17 +22,6 @@ use gpui::{
     Window, WindowBounds, WindowKind, WindowOptions, actions, div, prelude::FluentBuilder as _, px,
     rems, size,
 };
-pub use list_story::ListStory;
-use serde::{Deserialize, Serialize};
-pub use service::*;
-pub use title_bar::AppTitleBar;
-pub use todo_story::TodoStory;
-use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
-pub use utils::play_ogg_file;
-pub use views::*;
-
-pub use welcome_story::WelcomeStory;
-
 use gpui_component::{
     ActiveTheme, IconName, Root, TitleBar, WindowExt,
     button::Button,
@@ -44,6 +33,15 @@ use gpui_component::{
     scroll::ScrollbarShow,
     v_flex,
 };
+pub use list_story::ListStory;
+use serde::{Deserialize, Serialize};
+pub use service::*;
+pub use title_bar::AppTitleBar;
+pub use todo_story::TodoStory;
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
+pub use utils::play_ogg_file;
+pub use views::*;
+pub use welcome_story::WelcomeStory;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]
@@ -61,20 +59,17 @@ pub struct SelectFont(usize);
 #[action(namespace = mytool, no_json)]
 pub struct SelectRadius(usize);
 
-actions!(
-    mytool,
-    [
-        Quit,
-        About,
-        Open,
-        CloseWindow,
-        ToggleSearch,
-        TestAction,
-        Tab,
-        TabPrev,
-        ShowPanelInfo
-    ]
-);
+actions!(mytool, [
+    Quit,
+    About,
+    Open,
+    CloseWindow,
+    ToggleSearch,
+    TestAction,
+    Tab,
+    TabPrev,
+    ShowPanelInfo
+]);
 
 const PANEL_NAME: &str = "StoryContainer";
 
@@ -84,9 +79,7 @@ pub struct AppState {
 impl AppState {
     fn init(cx: &mut App) {
         rust_i18n::set_locale("zh-CN");
-        let state = Self {
-            invisible_panels: cx.new(|_| Vec::new()),
-        };
+        let state = Self { invisible_panels: cx.new(|_| Vec::new()) };
         cx.set_global::<AppState>(state);
     }
 
@@ -129,10 +122,7 @@ pub fn create_new_window_with_size<F, E>(
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(window_bounds)),
             titlebar: Some(TitleBar::title_bar_options()),
-            window_min_size: Some(gpui::Size {
-                width: px(480.),
-                height: px(320.),
-            }),
+            window_min_size: Some(gpui::Size { width: px(480.), height: px(320.) }),
             kind: WindowKind::Normal,
             #[cfg(target_os = "linux")]
             window_background: gpui::WindowBackgroundAppearance::Transparent,
@@ -175,10 +165,7 @@ impl StoryRoot {
         cx: &mut Context<Self>,
     ) -> Self {
         let title_bar = cx.new(|cx| AppTitleBar::new(title, window, cx));
-        Self {
-            title_bar,
-            view: view.into(),
-        }
+        Self { title_bar, view: view.into() }
     }
 }
 
@@ -252,7 +239,7 @@ pub fn init(cx: &mut App) {
             PanelInfo::Panel(value) => StoryState::from_value(value.clone()),
             _ => {
                 unreachable!("Invalid PanelInfo: {:?}", info)
-            }
+            },
         };
 
         let view = cx.new(|cx| {
@@ -262,13 +249,9 @@ pub fn init(cx: &mut App) {
                 .mytool(mytool, story_state.story_klass)
                 .on_active(on_active);
 
-            cx.on_focus_in(
-                &container.focus_handle,
-                window,
-                |this: &mut StoryContainer, _, _| {
-                    println!("StoryContainer focus in: {}", this.name);
-                },
-            )
+            cx.on_focus_in(&container.focus_handle, window, |this: &mut StoryContainer, _, _| {
+                println!("StoryContainer focus in: {}", this.name);
+            })
             .detach();
 
             container.name = title.into();
@@ -362,12 +345,7 @@ pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
     StorySection {
         title: title.into(),
         sub_title: vec![],
-        base: h_flex()
-            .flex_wrap()
-            .justify_center()
-            .items_center()
-            .w_full()
-            .gap_4(),
+        base: h_flex().flex_wrap().justify_center().items_center().w_full().gap_4(),
         children: vec![],
     }
 }
@@ -584,7 +562,7 @@ impl StoryState {
             "ListStory" => mytool!(ListStory),
             _ => {
                 unreachable!("Invalid story klass: {}", self.story_klass)
-            }
+            },
         }
     }
 }
@@ -600,10 +578,7 @@ impl Panel for StoryContainer {
 
     fn title_style(&self, cx: &App) -> Option<TitleStyle> {
         if let Some(bg) = self.title_bg {
-            Some(TitleStyle {
-                background: bg,
-                foreground: cx.theme().foreground,
-            })
+            Some(TitleStyle { background: bg, foreground: cx.theme().foreground })
         } else {
             None
         }
@@ -618,10 +593,7 @@ impl Panel for StoryContainer {
     }
 
     fn visible(&self, cx: &App) -> bool {
-        !AppState::global(cx)
-            .invisible_panels
-            .read(cx)
-            .contains(&self.name)
+        !AppState::global(cx).invisible_panels.read(cx).contains(&self.name)
     }
 
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
@@ -643,24 +615,18 @@ impl Panel for StoryContainer {
 
     fn toolbar_buttons(&self, _window: &mut Window, _cx: &mut App) -> Option<Vec<Button>> {
         Some(vec![
-            Button::new("info")
-                .icon(IconName::Info)
-                .on_click(|_, window, cx| {
-                    window.push_notification("You have clicked info button", cx);
-                }),
-            Button::new("search")
-                .icon(IconName::Search)
-                .on_click(|_, window, cx| {
-                    window.push_notification("You have clicked search button", cx);
-                }),
+            Button::new("info").icon(IconName::Info).on_click(|_, window, cx| {
+                window.push_notification("You have clicked info button", cx);
+            }),
+            Button::new("search").icon(IconName::Search).on_click(|_, window, cx| {
+                window.push_notification("You have clicked search button", cx);
+            }),
         ])
     }
 
     fn dump(&self, _cx: &App) -> PanelState {
         let mut state = PanelState::new(self);
-        let story_state = StoryState {
-            story_klass: self.story_klass.clone().unwrap(),
-        };
+        let story_state = StoryState { story_klass: self.story_klass.clone().unwrap() };
         state.info = PanelInfo::panel(story_state.to_value());
         state
     }
@@ -683,12 +649,7 @@ impl Render for StoryContainer {
             .on_action(cx.listener(Self::on_action_toggle_search))
             .when_some(self.mytool.clone(), |this, mytool| {
                 this.child(
-                    v_flex()
-                        .id("story-children")
-                        .w_full()
-                        .flex_1()
-                        .p(self.paddings)
-                        .child(mytool),
+                    v_flex().id("story-children").w_full().flex_1().p(self.paddings).child(mytool),
                 )
             })
     }

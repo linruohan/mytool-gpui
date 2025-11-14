@@ -1,9 +1,13 @@
-use crate::Board;
-use crate::views::{
-    BoardContainer, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard, TodayBoard,
-};
 use gpui::{AnyView, App, Entity, Hsla, Window};
 use gpui_component::IconName;
+
+use crate::{
+    Board,
+    views::{
+        BoardContainer, CompletedBoard, InboxBoard, LabelsBoard, PinBoard, ScheduledBoard,
+        TodayBoard,
+    },
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoardType {
@@ -37,6 +41,7 @@ impl BoardType {
             Self::Completed => BoardContainer::panel::<CompletedBoard>(window, cx),
         }
     }
+
     pub fn label(&self) -> &'static str {
         match self {
             Self::Inbox => "Inbox",
@@ -69,6 +74,7 @@ impl BoardType {
             Self::Completed => CompletedBoard::count(),
         }
     }
+
     pub fn colors(&self) -> Vec<Hsla> {
         match self {
             Self::Inbox => InboxBoard::colors(),

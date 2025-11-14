@@ -1,5 +1,4 @@
-use crate::BaseObject;
-use crate::{Store, enums::FilterType};
+use crate::{BaseObject, Store, enums::FilterType};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Labels {
     pub base: BaseObject,
@@ -24,6 +23,7 @@ impl Labels {
     pub async fn count(&self, store: Store) -> usize {
         store.get_items_has_labels().await.len()
     }
+
     pub fn count_updated(&self) {
 
         // Store::instance().label_added.connect (() => {

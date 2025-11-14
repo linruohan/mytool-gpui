@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::{
     default,
     fmt::{self, Display},
 };
+
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 #[derive(Debug, Clone, PartialEq, EnumString, Default, Eq, Hash, Deserialize, Serialize)]
 #[strum(serialize_all = "camelCase")]
@@ -22,6 +23,7 @@ impl FilterItemType {
             FilterItemType::SECTION => "Section",
         }
     }
+
     pub fn get_icon(&self) -> &str {
         match self {
             FilterItemType::PRIORITY => "flag-outline-thick-symbolic",
@@ -30,6 +32,7 @@ impl FilterItemType {
             FilterItemType::SECTION => "arrow3-right-symbolic",
         }
     }
+
     pub fn to_lowercase(&self) -> String {
         match self {
             FilterItemType::PRIORITY => "priority".to_string(),

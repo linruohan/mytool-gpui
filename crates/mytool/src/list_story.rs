@@ -4,8 +4,6 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
 };
-
-use crate::{DBState, ItemListDelegate, load_items};
 use gpui_component::{
     ActiveTheme, IndexPath, Sizable,
     button::Button,
@@ -15,6 +13,8 @@ use gpui_component::{
     v_flex,
 };
 use todos::entity::ItemModel;
+
+use crate::{DBState, ItemListDelegate, load_items};
 
 actions!(list_story, [SelectedCompany]);
 
@@ -51,19 +51,17 @@ impl ListStory {
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
         let _subscriptions =
-            vec![
-                cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
-                    ListEvent::Select(ix) => {
-                        println!("List Selected: {:?}", ix);
-                    }
-                    ListEvent::Confirm(ix) => {
-                        println!("List Confirmed: {:?}", ix);
-                    }
-                    ListEvent::Cancel => {
-                        println!("List Cancelled");
-                    }
-                }),
-            ];
+            vec![cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
+                ListEvent::Select(ix) => {
+                    println!("List Selected: {:?}", ix);
+                },
+                ListEvent::Confirm(ix) => {
+                    println!("List Confirmed: {:?}", ix);
+                },
+                ListEvent::Cancel => {
+                    println!("List Cancelled");
+                },
+            })];
         let company_list_clone = company_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {

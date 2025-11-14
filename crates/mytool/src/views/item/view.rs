@@ -1,22 +1,23 @@
-use crate::{DBState, ItemEvent, ItemListDelegate, load_items};
+use std::rc::Rc;
+
 use gpui::{
     App, AppContext, Axis, Context, Entity, EventEmitter, Focusable, IntoElement, ParentElement,
     Render, Styled, Subscription, WeakEntity, Window, px,
 };
-use gpui_component::color_picker::{ColorPicker, ColorPickerState};
-use gpui_component::date_picker::{DatePickerEvent, DatePickerState};
-use gpui_component::form::{field, v_form};
-use gpui_component::select::SelectState;
 use gpui_component::{
     ActiveTheme, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
-    date_picker::DatePicker,
+    color_picker::{ColorPicker, ColorPickerState},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    form::{field, v_form},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
+    select::SelectState,
     v_flex,
 };
-use std::rc::Rc;
 use todos::entity::ItemModel;
+
+use crate::{DBState, ItemEvent, ItemListDelegate, load_items};
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
 pub struct ItemsPanel {
@@ -39,9 +40,7 @@ impl ItemsPanel {
 
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("task title here..."));
         let desc_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .auto_grow(5, 20)
-                .placeholder("task description here...")
+            InputState::new(window, cx).auto_grow(5, 20).placeholder("task description here...")
         });
         let _date = cx.new(|cx| DatePickerState::new(window, cx));
 
@@ -61,10 +60,8 @@ impl ItemsPanel {
                 cx,
             )
         });
-        let _subscriptions = vec![cx.subscribe_in(
-            &item_list,
-            window,
-            |this, _, ev: &ListEvent, _window, cx| {
+        let _subscriptions =
+            vec![cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(_conn) = this.get_selected_item(*ix, cx)
                 {
@@ -74,8 +71,7 @@ impl ItemsPanel {
                     //     cx.notify();
                     // })
                 }
-            },
-        )];
+            })];
 
         let item_list_clone = item_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -106,6 +102,7 @@ impl ItemsPanel {
             color_state,
         }
     }
+
     pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
         self.item_list
             .read(cx)
@@ -115,26 +112,31 @@ impl ItemsPanel {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
+
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+
     pub fn handle_item_event(&mut self, event: &ItemEvent, cx: &mut Context<Self>) {
         match event {
             ItemEvent::Added(item) => {
                 println!("handle_item_event:");
                 self.add_item(cx, item.clone())
-            }
+            },
             ItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
             ItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
             ItemEvent::Finished(item) => self.finish_item(cx, item.clone()),
         }
     }
+
     fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
         self.is_checked = *selectable;
     }
+
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
         let name_input = self.name_input.clone();
         let desc_input = self.desc_input.clone();
@@ -150,7 +152,7 @@ impl ItemsPanel {
         let _ = cx.subscribe(&item_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.item_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            }
+            },
         });
         if is_edit {
             if let Some(active_index) = self.active_index {
@@ -245,11 +247,9 @@ impl ItemsPanel {
                                     });
                                 }
                             }),
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                }),
+                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
                         ]
                     }
                 })
@@ -257,6 +257,7 @@ impl ItemsPanel {
         self.name_input.focus_handle(cx).focus(window);
         self.desc_input.focus_handle(cx).focus(window);
     }
+
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
@@ -290,6 +291,7 @@ impl ItemsPanel {
             };
         }
     }
+
     pub fn show_finish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
@@ -327,6 +329,7 @@ impl ItemsPanel {
             };
         }
     }
+
     // 更新items
     fn get_items(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {
@@ -372,6 +375,7 @@ impl ItemsPanel {
         .detach();
         self.get_items(cx);
     }
+
     pub fn mod_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
         if self.is_loading {
             return;
@@ -392,10 +396,12 @@ impl ItemsPanel {
         .detach();
         self.get_items(cx);
     }
+
     pub fn finish_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
         let item = item.clone();
         self.mod_item(cx, item);
     }
+
     pub fn del_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
         if self.is_loading {
             return;

@@ -2,12 +2,12 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
     ParentElement, Render, Styled, Window, div,
 };
-
-use crate::Board;
 use gpui_component::{
     ActiveTheme, IconName, Theme, dock::PanelControl, h_flex, label::Label, v_flex,
 };
 use todos::entity::ItemModel;
+
+use crate::Board;
 
 pub struct ScheduledBoard {
     focus_handle: FocusHandle,
@@ -21,11 +21,9 @@ impl ScheduledBoard {
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         let _theme_mode = Theme::global(cx).mode;
-        Self {
-            focus_handle: cx.focus_handle(),
-            tasks: Vec::new(),
-        }
+        Self { focus_handle: cx.focus_handle(), tasks: Vec::new() }
     }
+
     pub fn tasks(&self) -> &[ItemModel] {
         &self.tasks
     }
@@ -33,6 +31,7 @@ impl ScheduledBoard {
     pub fn add_task(&mut self, task: ItemModel) {
         self.tasks.push(task);
     }
+
     pub fn clear_tasks(&mut self) {
         self.tasks.clear();
     }
@@ -41,6 +40,7 @@ impl Board for ScheduledBoard {
     fn icon() -> IconName {
         IconName::MonthSymbolic
     }
+
     fn colors() -> Vec<Hsla> {
         vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
     }
@@ -48,6 +48,7 @@ impl Board for ScheduledBoard {
     fn count() -> usize {
         1
     }
+
     fn title() -> &'static str {
         "Scheduled"
     }

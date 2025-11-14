@@ -2,10 +2,14 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
     MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
+use gpui_component::{
+    ActiveTheme, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    dock::PanelControl,
+    h_flex, v_flex,
+};
 
 use crate::{Board, ItemCompletedEvent, ItemsCompletedPanel};
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme, IconName, Sizable, dock::PanelControl, h_flex, v_flex};
 
 pub struct CompletedBoard {
     focus_handle: FocusHandle,
@@ -21,18 +25,12 @@ impl CompletedBoard {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let items_panel = ItemsCompletedPanel::view(window, cx);
         let _subscriptions =
-            vec![
-                cx.subscribe(&items_panel, |this, _, event: &ItemCompletedEvent, cx| {
-                    this.items_panel.update(cx, |panel, cx| {
-                        panel.handle_item_event(event, cx);
-                    });
-                }),
-            ];
-        Self {
-            focus_handle: cx.focus_handle(),
-            _subscriptions,
-            items_panel,
-        }
+            vec![cx.subscribe(&items_panel, |this, _, event: &ItemCompletedEvent, cx| {
+                this.items_panel.update(cx, |panel, cx| {
+                    panel.handle_item_event(event, cx);
+                });
+            })];
+        Self { focus_handle: cx.focus_handle(), _subscriptions, items_panel }
     }
 }
 impl Board for CompletedBoard {

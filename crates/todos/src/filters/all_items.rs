@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use super::FilterItem;
 use uuid::Uuid;
 
+use super::FilterItem;
 use crate::{BaseObject, objects::BaseTrait};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AllItems {

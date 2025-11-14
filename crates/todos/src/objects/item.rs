@@ -1,18 +1,22 @@
-use super::{BaseObject, Project, Section};
-use crate::Reminder;
-use crate::entity::prelude::ItemEntity;
-use crate::entity::{
-    AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel, SectionModel, SourceModel,
-};
-use crate::enums::{ItemType, RecurrencyEndType, RecurrencyType, ReminderType};
-use crate::error::TodoError;
-use crate::objects::{BaseTrait, DueDate};
-use crate::{Store, Util, constants, utils};
+use std::collections::HashMap;
+
 use chrono::{Datelike, Local, NaiveDateTime};
 use futures::{TryFutureExt, TryStreamExt};
 use sea_orm::prelude::*;
-use std::collections::HashMap;
 use tokio::sync::OnceCell;
+
+use super::{BaseObject, Project, Section};
+use crate::{
+    Reminder, Store, Util, constants,
+    entity::{
+        AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel, SectionModel,
+        SourceModel, prelude::ItemEntity,
+    },
+    enums::{ItemType, RecurrencyEndType, RecurrencyType, ReminderType},
+    error::TodoError,
+    objects::{BaseTrait, DueDate},
+    utils,
+};
 
 #[derive(Clone, Debug)]
 pub struct Item {
@@ -32,17 +36,21 @@ impl Item {
             .map(|json_str| serde_json::from_value::<DueDate>(json_str.clone()).ok())
             .unwrap_or_default()
     }
+
     pub fn set_due(&mut self, due: DueDate) -> &mut Self {
         self.model.due = Some(serde_json::value::to_value(due).unwrap());
         self
     }
+
     pub fn priority(&self) -> i32 {
         self.model.priority.unwrap_or_else(|| constants::PRIORITY_4)
     }
+
     pub fn set_priority(&mut self, priority: i32) -> &mut Self {
         self.model.priority = Some(priority.into());
         self
     }
+
     pub fn labels(&self) -> Vec<LabelModel> {
         self.model
             .labels
@@ -50,17 +58,21 @@ impl Item {
             .and_then(|json_str| serde_json::from_value::<Vec<LabelModel>>(json_str.clone()).ok())
             .unwrap_or_default()
     }
+
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
         self.model.labels = Some(serde_json::value::to_value(labels).unwrap());
         self
     }
+
     pub fn extra_data(&self) -> Option<serde_json::Value> {
         self.model.extra_data.clone()
     }
+
     pub fn set_extra_data(&mut self, extra_data: Option<serde_json::Value>) -> &mut Self {
         self.model.extra_data = extra_data;
         self
     }
+
     pub fn item_type(&self) -> Option<ItemType> {
         self.model
             .item_type
@@ -68,6 +80,7 @@ impl Item {
             .map(|item_type| serde_json::from_str::<ItemType>(item_type).ok())
             .unwrap_or(Some(ItemType::TASK))
     }
+
     pub fn set_item_type(&mut self, item_type: ItemType) -> &mut Self {
         self.model.item_type = Some(serde_json::to_string(&item_type).unwrap());
         self
@@ -87,11 +100,11 @@ impl Item {
             show_item: false,
         }
     }
+
     pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async { Store::new(self.db.clone()).await })
-            .await
+        self.store.get_or_init(|| async { Store::new(self.db.clone()).await }).await
     }
+
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = ItemEntity::find_by_id(item_id)
             .one(&db)
@@ -104,9 +117,11 @@ impl Item {
     pub fn activate_name_editable(&self) -> bool {
         false
     }
+
     pub fn set_activate_name_editable(&mut self, activate_name_editable: bool) -> bool {
         activate_name_editable
     }
+
     pub fn short_content(&self) -> String {
         Util::get_default().get_short_name(&self.model.content, 0)
     }
@@ -119,6 +134,7 @@ impl Item {
             _ => "planner-flag",
         }
     }
+
     pub fn priority_color(&self) -> &str {
         match self.model.priority.as_ref() {
             Some(&constants::PRIORITY_1) => "#ff7066",
@@ -136,19 +152,15 @@ impl Item {
             _ => "Priority 4: none",
         }
     }
+
     pub fn pinned_icon(&self) -> &str {
-        if self.model.pinned {
-            "planner-pin-tack"
-        } else {
-            "planner-pinned"
-        }
+        if self.model.pinned { "planner-pin-tack" } else { "planner-pinned" }
     }
 
     pub fn has_due(&self) -> bool {
-        self.due()
-            .and_then(|d| Some(d.datetime().is_some()))
-            .unwrap_or(false)
+        self.due().and_then(|d| Some(d.datetime().is_some())).unwrap_or(false)
     }
+
     pub fn has_time(&self) -> bool {
         self.due()
             .and_then(|d| d.datetime())
@@ -169,6 +181,7 @@ impl Item {
         };
         self.store().await.get_item(id).await.is_some()
     }
+
     pub async fn has_section(&self) -> bool {
         let Some(id) = self.model.section_id.as_deref() else {
             return false;
@@ -179,6 +192,7 @@ impl Item {
     pub fn show_item(&self) -> bool {
         self.show_item
     }
+
     pub fn set_show_item(&mut self, show_item: bool) -> &mut Self {
         self.show_item = show_item;
         self
@@ -199,6 +213,7 @@ impl Item {
             })
             .unwrap_or_default()
     }
+
     pub fn updated_datetime(&self) -> NaiveDateTime {
         self.model
             .updated_at
@@ -211,50 +226,40 @@ impl Item {
     }
 
     pub async fn parent(&self) -> Option<ItemModel> {
-        self.store()
-            .await
-            .get_item(&self.model.parent_id.as_ref()?)
-            .await
+        self.store().await.get_item(&self.model.parent_id.as_ref()?).await
     }
+
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store()
-            .await
-            .get_project(&self.model.project_id.as_ref()?)
-            .await
+        self.store().await.get_project(&self.model.project_id.as_ref()?).await
     }
+
     pub async fn section(&self) -> Option<SectionModel> {
-        self.store()
-            .await
-            .get_section(&self.model.section_id.as_ref()?)
-            .await
+        self.store().await.get_section(&self.model.section_id.as_ref()?).await
     }
+
     // subitems
     pub async fn items(&self) -> Vec<ItemModel> {
         let mut items = self.store().await.get_subitems(&self.model.id).await;
         items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
         items
     }
+
     pub async fn items_uncomplete(&self) -> Vec<ItemModel> {
-        self.store()
-            .await
-            .get_subitems_uncomplete(&self.model.id)
-            .await
+        self.store().await.get_subitems_uncomplete(&self.model.id).await
     }
+
     pub async fn reminders(&self) -> Vec<ReminderModel> {
-        self.store()
-            .await
-            .get_reminders_by_item(&self.model.id)
-            .await
+        self.store().await.get_reminders_by_item(&self.model.id).await
     }
+
     pub async fn attachments(&self) -> Vec<AttachmentModel> {
-        self.store()
-            .await
-            .get_attachments_by_itemid(&self.model.id)
-            .await
+        self.store().await.get_attachments_by_itemid(&self.model.id).await
     }
+
     pub(crate) fn has_labels(&self) -> bool {
         !self.labels().is_empty()
     }
+
     pub fn has_label(&self, id: &str) -> bool {
         self.get_label(id).is_some()
     }
@@ -270,9 +275,11 @@ impl Item {
         })
         .await
     }
+
     pub fn get_label(&self, id: &str) -> Option<LabelModel> {
         self.labels().iter().find(|l| l.id == id).cloned()
     }
+
     pub fn get_label_by_name(
         &self,
         name: &str,
@@ -286,6 +293,7 @@ impl Item {
     }
 
     pub fn get_caldav_categories(&self) {}
+
     pub fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
         for (key, label) in &new_labels {
             if self.get_label(&label.id).is_none() {
@@ -298,9 +306,11 @@ impl Item {
             }
         }
     }
+
     pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
         self.items().await.iter().find(|i| i.id == id).cloned()
     }
+
     pub async fn add_item_if_not_exists(
         &self,
         item: &mut ItemModel,
@@ -310,9 +320,10 @@ impl Item {
             None => {
                 item.parent_id = Some(self.model.id.clone());
                 self.store().await.insert_item(item.clone(), true).await
-            }
+            },
         }
     }
+
     pub fn generate_copy(&self) -> ItemModel {
         ItemModel {
             content: self.model.content.clone(),
@@ -323,6 +334,7 @@ impl Item {
             ..Default::default()
         }
     }
+
     pub fn duplicate(&self) -> ItemModel {
         ItemModel {
             content: self.model.content.clone(),
@@ -334,6 +346,7 @@ impl Item {
             ..Default::default()
         }
     }
+
     pub fn get_format_date(&self) -> String {
         if !self.has_due() {
             " ".to_string()
@@ -350,13 +363,11 @@ impl Item {
                 .unwrap_or_else(|| " ".to_string())
         }
     }
+
     pub fn get_labels_names(&self, labels: Vec<LabelModel>) -> String {
-        labels
-            .iter()
-            .map(|l| l.name.as_str())
-            .collect::<Vec<_>>()
-            .join(",")
+        labels.iter().map(|l| l.name.as_str()).collect::<Vec<_>>().join(",")
     }
+
     pub fn set_recurrency(&self, due_date: &DueDate) {
         let Some(mut due) = self.due() else { return };
         if due.is_recurrency_equal(due_date.clone()) {
@@ -368,13 +379,13 @@ impl Item {
         match due_date.recurrency_type {
             RecurrencyType::MINUTELY | RecurrencyType::HOURLY if !self.has_due() => {
                 due.date = datetime_utils.get_todoist_datetime_format(&Local::now().naive_local());
-            }
+            },
             RecurrencyType::EveryDay | RecurrencyType::EveryMonth | RecurrencyType::EveryYear
                 if !self.has_due() =>
             {
                 due.date = datetime_utils
                     .get_todoist_datetime_format(&datetime_utils.get_today_format_date());
-            }
+            },
             RecurrencyType::EveryWeek => {
                 if due_date.has_weeks() {
                     let due_selected = self
@@ -401,8 +412,8 @@ impl Item {
                     due.date = datetime_utils
                         .get_todoist_datetime_format(&datetime_utils.get_today_format_date());
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
 
         due.is_recurring = due_date.is_recurring;
@@ -412,6 +423,7 @@ impl Item {
         due.recurrency_count = due_date.recurrency_count;
         due.recurrency_end = due_date.recurrency_end.clone();
     }
+
     pub async fn update_next_recurrency(&mut self) -> Result<(), TodoError> {
         let Some(mut due) = self.due() else {
             return Ok(());
@@ -428,12 +440,10 @@ impl Item {
             due.recurrency_count = due.recurrency_count.saturating_sub(1);
         }
         self.model.due = serde_json::to_value(&due).ok();
-        self.store()
-            .await
-            .update_item(self.model.clone(), "")
-            .await?;
+        self.store().await.update_item(self.model.clone(), "").await?;
         Ok(())
     }
+
     pub async fn add_item_label(
         &mut self,
         label_model: LabelModel,
@@ -441,15 +451,14 @@ impl Item {
         let mut labels = self.labels();
         labels.insert(0, label_model.clone());
         self.model.labels = serde_json::to_value(&labels).ok();
-        self.store()
-            .await
-            .update_item(self.model.clone(), "")
-            .await?;
+        self.store().await.update_item(self.model.clone(), "").await?;
         self.store().await.insert_label(label_model.clone()).await
     }
+
     pub async fn delete_item(&self) -> Result<(), TodoError> {
         self.store().await.delete_item(&self.model.id).await
     }
+
     pub async fn delete_item_label(&mut self, id: &str) -> Result<u64, TodoError> {
         let labels_model = self.labels();
         let Some(label_model) = self.get_label(id) else {
@@ -457,30 +466,26 @@ impl Item {
         };
         let labels: Vec<_> = labels_model.into_iter().filter(|l| l.id != id).collect();
         self.model.labels = serde_json::to_value(&labels).ok();
-        self.store()
-            .await
-            .update_item(self.model.clone(), "")
-            .await?;
+        self.store().await.update_item(self.model.clone(), "").await?;
         self.store().await.delete_label(id).await
     }
+
     pub async fn update_local(&self) {
         self.store().await.update_item(self.model.clone(), "").await;
     }
+
     pub async fn update(&self, update_id: &str) -> Result<ItemModel, TodoError> {
-        self.store()
-            .await
-            .update_item(self.model.clone(), &update_id)
-            .await
+        self.store().await.update_item(self.model.clone(), &update_id).await
     }
+
     pub async fn move_item(&self, project_id: &str, section_id: &str) -> Result<(), TodoError> {
-        self.store()
-            .await
-            .move_item(&self.model.id, project_id, section_id)
-            .await
+        self.store().await.move_item(&self.model.id, project_id, section_id).await
     }
+
     pub async fn update_pin(&self) -> Result<(), TodoError> {
         self.store().await.update_item_pin(&self.model.id).await
     }
+
     pub async fn was_archived(&self) -> bool {
         Box::pin(async move {
             if let Some(p) = self.parent().await.as_ref() {
@@ -498,6 +503,7 @@ impl Item {
         })
         .await
     }
+
     pub async fn source(&self) -> Option<SourceModel> {
         if let Some(project_model) = self.project().await.as_ref() {
             if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
@@ -506,35 +512,37 @@ impl Item {
         }
         None
     }
+
     pub fn add_reminder_events(&self, reminder: &Reminder) {
         // self.store.reminder_added(reminder);
         // self.store.reminders().add(reminder);
         // reminder.item().reminder_added(reminder);
         // _add_reminder(reminder);
     }
+
     pub async fn remove_all_relative_reminders(&self) -> Result<(), TodoError> {
         let reminders = self.reminders().await;
         let store = self.store().await;
 
-        for r in reminders
-            .iter()
-            .filter(|r| r.reminder_type == Some(ReminderType::RELATIVE.to_string()))
+        for r in
+            reminders.iter().filter(|r| r.reminder_type == Some(ReminderType::RELATIVE.to_string()))
         {
             store.delete_reminder(&r.id).await?;
         }
         Ok(())
     }
+
     pub fn update_date(&mut self, date: &NaiveDateTime) {
         if let Some(mut due) = self.due() {
             due.date = utils::DateTime::default().get_todoist_datetime_format(date);
             self.update_due(due); // Move due into update_due
         }
     }
+
     pub async fn update_sync(&self, update_id: &str) {
-        self.store()
-            .await
-            .update_item(self.model.clone(), update_id);
+        self.store().await.update_item(self.model.clone(), update_id);
     }
+
     pub fn update_due(&mut self, due_date: DueDate) {
         if self.has_time() {
             self.remove_all_relative_reminders();
@@ -558,13 +566,11 @@ impl Item {
         }
         self.update_sync("");
     }
+
     pub async fn get_reminder(&self, reminder: &ReminderModel) -> Option<ReminderModel> {
-        self.reminders()
-            .await
-            .iter()
-            .find(|r| r.due == reminder.due)
-            .cloned()
+        self.reminders().await.iter().find(|r| r.due == reminder.due).cloned()
     }
+
     pub async fn add_reminder_if_not_exists(
         &self,
         reminder: &ReminderModel,
@@ -574,25 +580,18 @@ impl Item {
             None => self.store().await.insert_reminder(reminder.clone()).await,
         }
     }
+
     pub async fn get_attachment(&self, attachment: &AttachmentModel) -> Option<AttachmentModel> {
-        self.attachments()
-            .await
-            .iter()
-            .find(|a| a.file_path == attachment.file_path)
-            .cloned()
+        self.attachments().await.iter().find(|a| a.file_path == attachment.file_path).cloned()
     }
+
     pub async fn add_attachment_if_not_exists(
         &self,
         attachment: &AttachmentModel,
     ) -> Result<AttachmentModel, TodoError> {
         match self.get_attachment(attachment).await {
             Some(attachment) => Ok(attachment),
-            None => {
-                self.store()
-                    .await
-                    .insert_attachment(attachment.clone())
-                    .await
-            }
+            None => self.store().await.insert_attachment(attachment.clone()).await,
         }
     }
 
@@ -605,16 +604,14 @@ impl Item {
             None => self.store().await.insert_label(label.clone()).await,
         }
     }
+
     pub fn add_reminder(&self, reminder: &mut ReminderModel) {
         reminder.item_id = Some(self.model.id.clone());
         self.add_reminder_if_not_exists(reminder);
     }
 
     pub async fn complete_item(&self) {
-        self.store()
-            .await
-            .complete_item(&self.model.id, true, true)
-            .await;
+        self.store().await.complete_item(&self.model.id, true, true).await;
     }
 }
 

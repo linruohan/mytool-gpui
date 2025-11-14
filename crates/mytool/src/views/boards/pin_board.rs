@@ -2,10 +2,10 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
     ParentElement, Render, Styled, Window, div,
 };
-
-use crate::Board;
 use gpui_component::{ActiveTheme, IconName, dock::PanelControl, h_flex, label::Label, v_flex};
 use todos::entity::ItemModel;
+
+use crate::Board;
 
 pub struct PinBoard {
     focus_handle: FocusHandle,
@@ -18,11 +18,9 @@ impl PinBoard {
     }
 
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self {
-            focus_handle: cx.focus_handle(),
-            tasks: Vec::new(),
-        }
+        Self { focus_handle: cx.focus_handle(), tasks: Vec::new() }
     }
+
     pub fn tasks(&self) -> &[ItemModel] {
         &self.tasks
     }
@@ -30,6 +28,7 @@ impl PinBoard {
     pub fn add_task(&mut self, task: ItemModel) {
         self.tasks.push(task);
     }
+
     pub fn clear_tasks(&mut self) {
         self.tasks.clear();
     }
@@ -46,6 +45,7 @@ impl Board for PinBoard {
     fn count() -> usize {
         1
     }
+
     fn title() -> &'static str {
         "Pinboard"
     }

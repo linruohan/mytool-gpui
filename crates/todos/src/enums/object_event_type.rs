@@ -15,12 +15,14 @@ impl ObjectEventType {
             _ => ObjectEventType::INSERT,
         }
     }
+
     pub fn get_label(&self) -> &str {
         match self {
             ObjectEventType::INSERT => "Task Created",
             ObjectEventType::UPDATE => "Task Updated",
         }
     }
+
     pub fn to_lowercase(&self) -> String {
         match self {
             ObjectEventType::INSERT => "insert".to_string(),

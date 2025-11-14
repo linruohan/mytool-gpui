@@ -1,4 +1,5 @@
 use std::fmt;
+
 use strum::EnumString;
 #[derive(Debug, Clone, PartialEq, EnumString)]
 #[strum(serialize_all = "camelCase")] // 自动处理连字符格式
@@ -35,7 +36,7 @@ impl FilterType {
                 } else {
                     "#3584e4"
                 }
-            }
+            },
             FilterType::TODAY => "#33d17a",
             FilterType::SCHEDULED => {
                 if dark {
@@ -43,30 +44,31 @@ impl FilterType {
                 } else {
                     "#9141ac"
                 }
-            }
+            },
             FilterType::PINBOARD => {
                 if dark {
                     "#f66151"
                 } else {
                     "#ed333b"
                 }
-            }
+            },
             FilterType::LABELS => {
                 if dark {
                     "#cdab8f"
                 } else {
                     "#986a44"
                 }
-            }
+            },
             FilterType::COMPLETED => {
                 if dark {
                     "#ffbe6f"
                 } else {
                     "#ff7800"
                 }
-            }
+            },
         }
     }
+
     pub fn to_lowercase(&self) -> String {
         match self {
             FilterType::INBOX => "inbox".to_string(),

@@ -1,3 +1,5 @@
+use std::str;
+
 use aes_gcm::{
     Aes256Gcm, Key, Nonce,
     aead::{Aead, KeyInit},
@@ -8,7 +10,6 @@ use password_hash::{
     rand_core::{OsRng, RngCore},
 };
 use pbkdf2::{Params, Pbkdf2};
-use std::str;
 #[allow(unused)]
 pub fn encrypt(content: &str, password: &str) -> String {
     let mut salt = [0u8; 16];
@@ -50,17 +51,12 @@ pub fn decrypt(encrypted: &str, password: &str) -> String {
 
 #[allow(unused)]
 fn derive_key(password: &str, salt: &[u8]) -> Output {
-    let params = Params {
-        rounds: 12345,
-        output_length: 32,
-    };
+    let params = Params { rounds: 12345, output_length: 32 };
 
     let salt_string = SaltString::encode_b64(salt).unwrap();
     let salt = Salt::from(&salt_string);
     let password = password.as_bytes();
-    let key = Pbkdf2
-        .hash_password_customized(password, None, None, params, salt)
-        .unwrap();
+    let key = Pbkdf2.hash_password_customized(password, None, None, params, salt).unwrap();
     key.hash.unwrap()
 }
 #[allow(unused)]

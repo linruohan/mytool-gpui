@@ -1,7 +1,6 @@
+use std::{fs::File, io::BufReader, thread};
+
 use rodio::Decoder;
-use std::fs::File;
-use std::io::BufReader;
-use std::thread;
 
 pub fn play_ogg_file(path: &str) -> thread::JoinHandle<()> {
     let path = path.to_owned();

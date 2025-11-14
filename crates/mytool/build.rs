@@ -11,9 +11,7 @@ fn main() {
             let rc_file = std::path::Path::new("resources/windows/mytool.rc");
             println!("cargo:rerun-if-changed={}", manifest.display());
             println!("cargo:rerun-if-changed={}", rc_file.display());
-            embed_resource::compile(rc_file, embed_resource::NONE)
-                .manifest_required()
-                .unwrap();
+            embed_resource::compile(rc_file, embed_resource::NONE).manifest_required().unwrap();
             #[cfg(target_env = "msvc")]
             {
                 // todo(windows): This is to avoid stack overflow. Remove it when solved.
@@ -38,7 +36,7 @@ fn main() {
                 eprintln!("{}", e);
                 std::process::exit(1);
             }
-        }
+        },
         _ => (),
     };
 }

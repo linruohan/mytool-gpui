@@ -1,12 +1,15 @@
-use crate::{Board, ItemEvent, ItemsPanel};
-
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
     InteractiveElement as _, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
+use gpui_component::{
+    ActiveTheme as _, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    dock::PanelControl,
+    h_flex, v_flex,
+};
 
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme as _, IconName, Sizable, dock::PanelControl, h_flex, v_flex};
+use crate::{Board, ItemEvent, ItemsPanel};
 
 pub enum ItemClickEvent {
     ShowModal,
@@ -28,24 +31,19 @@ impl InboxBoard {
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let items_panel = ItemsPanel::view(window, cx);
-        let _subscriptions = vec![
-            cx.subscribe(&items_panel, |this, _, event: &ItemEvent, cx| {
-                this.items_panel.update(cx, |panel, cx| {
-                    panel.handle_item_event(event, cx);
-                });
-            }),
-        ];
-        Self {
-            focus_handle: cx.focus_handle(),
-            _subscriptions,
-            items_panel,
-        }
+        let _subscriptions = vec![cx.subscribe(&items_panel, |this, _, event: &ItemEvent, cx| {
+            this.items_panel.update(cx, |panel, cx| {
+                panel.handle_item_event(event, cx);
+            });
+        })];
+        Self { focus_handle: cx.focus_handle(), _subscriptions, items_panel }
     }
 }
 impl Board for InboxBoard {
     fn icon() -> IconName {
         IconName::MailboxSymbolic
     }
+
     fn colors() -> Vec<Hsla> {
         vec![gpui::rgb(0x99c1f1).into(), gpui::rgb(0x3584e4).into()]
     }
@@ -53,6 +51,7 @@ impl Board for InboxBoard {
     fn count() -> usize {
         1
     }
+
     fn title() -> &'static str {
         "Inbox"
     }

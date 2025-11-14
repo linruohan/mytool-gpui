@@ -1,21 +1,22 @@
-use crate::{DBState, ItemListDelegate, get_project_items};
+use std::rc::Rc;
+
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
     Render, Styled, Subscription, WeakEntity, Window, div,
 };
-use gpui_component::list::{List, ListEvent};
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
     input::{Input, InputState},
-    list::ListState,
+    list::{List, ListEvent, ListState},
     menu::{DropdownMenu, PopupMenuItem},
     v_flex,
 };
-use std::rc::Rc;
 use todos::entity::{ItemModel, ProjectModel};
+
+use crate::{DBState, ItemListDelegate, get_project_items};
 pub enum ProjectItemEvent {
     Loaded,
     Added(Rc<ItemModel>),
@@ -35,28 +36,23 @@ pub struct ProjectItemsPanel {
 
 impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_esc = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter DB URL")
-                .clean_on_escape()
-        });
+        let input_esc =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
         // let project_clone = project.clone();
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
-        let _subscriptions = vec![
-            cx.subscribe(&item_list, |_, _, ev: &ListEvent, _| match ev {
-                ListEvent::Select(ix) => {
-                    println!("ProjectItemsPanel List Selected: {:?}", ix);
-                }
-                ListEvent::Confirm(ix) => {
-                    println!("ProjectItemsPanel List Confirmed: {:?}", ix);
-                }
-                ListEvent::Cancel => {
-                    println!("ProjectItemsPanel List Cancelled");
-                }
-            }),
-        ];
+        let _subscriptions = vec![cx.subscribe(&item_list, |_, _, ev: &ListEvent, _| match ev {
+            ListEvent::Select(ix) => {
+                println!("ProjectItemsPanel List Selected: {:?}", ix);
+            },
+            ListEvent::Confirm(ix) => {
+                println!("ProjectItemsPanel List Confirmed: {:?}", ix);
+            },
+            ListEvent::Cancel => {
+                println!("ProjectItemsPanel List Cancelled");
+            },
+        })];
         // let item_list_clone = item_list.clone();
         // let db = cx.global::<DBState>().conn.clone();
 
@@ -95,27 +91,32 @@ impl ProjectItemsPanel {
             .and_then(|c| c.get(ix.row))
             .cloned()
     }
+
     pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project;
         self.update_items(cx);
     }
+
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
+
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
         cx.new(|cx| Self::new(window, cx))
     }
+
     pub fn handle_project_item_event(&mut self, event: &ProjectItemEvent, cx: &mut Context<Self>) {
         match event {
             ProjectItemEvent::Added(item) => {
                 println!("handle_item_event:");
                 self.add_item(cx, item.clone())
-            }
+            },
             ProjectItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
             ProjectItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
-            _ => {}
+            _ => {},
         }
     }
+
     pub fn show_model(
         &mut self,
         _model: Rc<ItemModel>,
@@ -135,7 +136,7 @@ impl ProjectItemsPanel {
         let _ = cx.subscribe(&item_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.item_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            }
+            },
         });
         let view = cx.entity().clone();
 
@@ -171,16 +172,15 @@ impl ProjectItemsPanel {
                                     });
                                 }
                             }),
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                }),
+                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
                         ]
                     }
                 })
         });
     }
+
     // 更新items
     pub fn update_items(&mut self, cx: &mut Context<Self>) {
         if !self.is_loading {
@@ -227,6 +227,7 @@ impl ProjectItemsPanel {
         .detach();
         self.update_items(cx);
     }
+
     pub fn mod_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
         if self.is_loading {
             return;
@@ -247,6 +248,7 @@ impl ProjectItemsPanel {
         .detach();
         self.update_items(cx);
     }
+
     pub fn del_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
         if self.is_loading {
             return;
@@ -285,65 +287,57 @@ impl Render for ProjectItemsPanel {
                     .items_start()
                     .child(v_flex().child(div().text_xl().child(self.project.name.clone())))
                     .child(
-                        div()
-                            .items_end()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(
-                                Button::new("item-popup-menu")
-                                    .icon(IconName::EllipsisVertical)
-                                    .dropdown_menu({
-                                        let view = view.clone();
-                                        move |this, window, _cx| {
-                                            this.link(
-                                                "About",
-                                                "https://github.com/longbridge/gpui-component",
-                                            )
-                                            .separator()
-                                            .item(PopupMenuItem::new("Edit item").on_click(
+                        div().items_end().text_color(cx.theme().muted_foreground).child(
+                            Button::new("item-popup-menu")
+                                .icon(IconName::EllipsisVertical)
+                                .dropdown_menu({
+                                    let view = view.clone();
+                                    move |this, window, _cx| {
+                                        this.link(
+                                            "About",
+                                            "https://github.com/longbridge/gpui-component",
+                                        )
+                                        .separator()
+                                        .item(PopupMenuItem::new("Edit item").on_click(
+                                            window.listener_for(&view, |this, _, window, cx| {
+                                                if let Some(model) =
+                                                    this.active_index.map(IndexPath::new).and_then(
+                                                        |index| this.get_selected_item(index, cx),
+                                                    )
+                                                {
+                                                    this.show_model(model, window, cx);
+                                                } else {
+                                                    this.show_model(
+                                                        Rc::new(ItemModel::default()),
+                                                        window,
+                                                        cx,
+                                                    );
+                                                }
+                                                cx.notify();
+                                            }),
+                                        ))
+                                        .separator()
+                                        .item(
+                                            PopupMenuItem::new("Delete item").on_click(
                                                 window.listener_for(
                                                     &view,
-                                                    |this, _, window, cx| {
-                                                        if let Some(model) = this
-                                                            .active_index
-                                                            .map(IndexPath::new)
-                                                            .and_then(|index| {
-                                                                this.get_selected_item(index, cx)
-                                                            })
-                                                        {
-                                                            this.show_model(model, window, cx);
-                                                        } else {
-                                                            this.show_model(
-                                                                Rc::new(ItemModel::default()),
-                                                                window,
-                                                                cx,
-                                                            );
+                                                    |this, _, _window, cx| {
+                                                        let index = this.active_index.unwrap();
+                                                        let item_some = this.get_selected_item(
+                                                            IndexPath::new(index),
+                                                            cx,
+                                                        );
+                                                        if let Some(item) = item_some {
+                                                            this.del_item(cx, item.clone());
                                                         }
                                                         cx.notify();
                                                     },
                                                 ),
-                                            ))
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Delete item").on_click(
-                                                    window.listener_for(
-                                                        &view,
-                                                        |this, _, _window, cx| {
-                                                            let index = this.active_index.unwrap();
-                                                            let item_some = this.get_selected_item(
-                                                                IndexPath::new(index),
-                                                                cx,
-                                                            );
-                                                            if let Some(item) = item_some {
-                                                                this.del_item(cx, item.clone());
-                                                            }
-                                                            cx.notify();
-                                                        },
-                                                    ),
-                                                ),
-                                            )
-                                        }
-                                    }),
-                            ),
+                                            ),
+                                        )
+                                    }
+                                }),
+                        ),
                     ),
             )
             .child(List::new(&self.item_list))

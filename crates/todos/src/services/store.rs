@@ -1,20 +1,21 @@
-use crate::constants;
-use crate::entity::prelude::*;
-use crate::entity::{
-    AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
-    LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
-    SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items, labels,
-    projects, reminders, sections,
-};
-use crate::error::TodoError;
-use crate::objects::{BaseTrait, Item, Section};
-use crate::utils::DateTime;
 use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
-use sea_orm::prelude::Expr;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    Set,
+    Set, prelude::Expr,
+};
+
+use crate::{
+    constants,
+    entity::{
+        AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
+        LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
+        SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items,
+        labels, prelude::*, projects, reminders, sections,
+    },
+    error::TodoError,
+    objects::{BaseTrait, Item, Section},
+    utils::DateTime,
 };
 
 #[derive(Clone, Debug)]
@@ -26,18 +27,14 @@ impl Store {
     pub async fn new(db: DatabaseConnection) -> Store {
         Self { db }
     }
+
     // attachments
     pub async fn attachments(&self) -> Vec<AttachmentModel> {
-        AttachmentEntity::find()
-            .all(&self.db)
-            .await
-            .unwrap_or_default()
+        AttachmentEntity::find().all(&self.db).await.unwrap_or_default()
     }
+
     pub async fn delete_attachment(&self, id: &str) -> Result<u64, TodoError> {
-        Ok(AttachmentEntity::delete_by_id(id)
-            .exec(&self.db)
-            .await?
-            .rows_affected)
+        Ok(AttachmentEntity::delete_by_id(id).exec(&self.db).await?.rows_affected)
     }
 
     pub async fn insert_attachment(
@@ -60,17 +57,16 @@ impl Store {
     pub async fn sources(&self) -> Vec<SourceModel> {
         SourceEntity::find().all(&self.db).await.unwrap_or_default()
     }
+
     pub async fn get_source(&self, id: &str) -> Option<SourceModel> {
-        SourceEntity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        SourceEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
 
     pub async fn insert_source(&self, sources: SourceModel) -> Result<SourceModel, TodoError> {
         let mut active_source: SourceActiveModel = sources.into();
         Ok(active_source.insert(&self.db).await?)
     }
+
     pub async fn delete_source(&self, source_id: &str) -> Result<u64, TodoError> {
         let result = SourceEntity::delete_by_id(source_id).exec(&self.db).await?;
         if result.rows_affected > 0 {
@@ -85,23 +81,21 @@ impl Store {
         let mut active_source: SourceActiveModel = source.into();
         Ok(active_source.update(&self.db).await?)
     }
+
     // projects
     pub async fn projects(&self) -> Vec<ProjectModel> {
-        ProjectEntity::find()
-            .all(&self.db)
-            .await
-            .unwrap_or_default()
+        ProjectEntity::find().all(&self.db).await.unwrap_or_default()
     }
+
     pub async fn insert_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
         let mut active_project: ProjectActiveModel = project.into();
         Ok(active_project.insert(&self.db).await?)
     }
+
     pub async fn get_project(&self, id: &str) -> Option<ProjectModel> {
-        ProjectEntity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        ProjectEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
+
     pub async fn get_projects_by_source(&self, id: &str) -> Vec<ProjectModel> {
         ProjectEntity::find()
             .filter(projects::Column::SourceId.eq(id))
@@ -109,10 +103,12 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
         let mut active_project: ProjectActiveModel = project.into();
         Ok(active_project.update(&self.db).await?)
     }
+
     pub async fn delete_project(&self, id: &str) -> Result<(), TodoError> {
         Box::pin(async move {
             ProjectEntity::delete_by_id(id).exec(&self.db).await?;
@@ -121,6 +117,7 @@ impl Store {
         })
         .await
     }
+
     async fn _delete_project(&self, project_id: &str) -> Result<(), TodoError> {
         for section in self.get_sections_by_project(project_id).await {
             self.delete_section(&section.id).await?;
@@ -133,6 +130,7 @@ impl Store {
         }
         Ok(())
     }
+
     pub async fn update_project_id(&self, project_id: &str, new_id: &str) -> Result<(), TodoError> {
         let project = ProjectEntity::find_by_id(project_id)
             .one(&self.db)
@@ -157,14 +155,13 @@ impl Store {
             .await?;
         Ok(())
     }
+
     pub async fn next_project_child_order(&self, source_id: &str) -> i32 {
         ProjectEntity::find()
             .filter(
-                projects::Column::SourceId.eq(source_id).and(
-                    projects::Column::IsDeleted
-                        .eq(0)
-                        .and(projects::Column::IsArchived.eq(0)),
-                ),
+                projects::Column::SourceId
+                    .eq(source_id)
+                    .and(projects::Column::IsDeleted.eq(0).and(projects::Column::IsArchived.eq(0))),
             )
             .count(&self.db)
             .await
@@ -211,6 +208,7 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_all_projects_archived(&self) -> Vec<ProjectModel> {
         ProjectEntity::find()
             .filter(projects::Column::IsArchived.eq(1))
@@ -218,6 +216,7 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_all_projects_by_search(&self, search_text: &str) -> Vec<ProjectModel> {
         let search_lover = search_text.to_lowercase();
         ProjectEntity::find()
@@ -229,17 +228,13 @@ impl Store {
 
     // // sections
     pub async fn sections(&self) -> Vec<SectionModel> {
-        SectionEntity::find()
-            .all(&self.db)
-            .await
-            .unwrap_or_default()
+        SectionEntity::find().all(&self.db).await.unwrap_or_default()
     }
+
     pub async fn get_section(&self, id: &str) -> Option<SectionModel> {
-        SectionEntity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        SectionEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
+
     pub async fn get_sections_by_project(&self, project_id: &str) -> Vec<SectionModel> {
         SectionEntity::find()
             .filter(sections::Column::ProjectId.eq(project_id))
@@ -247,6 +242,7 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_sections_archived_by_project(&self, project_id: &str) -> Vec<SectionModel> {
         let sections_model = match SectionEntity::find()
             .filter(sections::Column::ProjectId.eq(project_id))
@@ -268,6 +264,7 @@ impl Store {
             .collect()
             .await
     }
+
     pub async fn get_all_sections_by_search(&self, search_text: &str) -> Vec<SectionModel> {
         let search_lover = search_text.to_lowercase();
         SectionEntity::find()
@@ -276,10 +273,12 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn update_section(&self, section: SectionModel) -> Result<SectionModel, TodoError> {
         let mut active_section: SectionActiveModel = section.into();
         Ok(active_section.update(&self.db).await?)
     }
+
     pub async fn move_section(&self, section_id: &str, project_id: &str) -> Result<(), TodoError> {
         let section = SectionEntity::find_by_id(section_id)
             .one(&self.db)
@@ -293,26 +292,21 @@ impl Store {
         .update(&self.db)
         .await?;
         ItemEntity::update_many()
-            .col_expr(
-                items::Column::ProjectId,
-                Expr::value(project_id.to_string()),
-            )
+            .col_expr(items::Column::ProjectId, Expr::value(project_id.to_string()))
             .filter(items::Column::SectionId.eq(section_id))
             .exec(&self.db)
             .await?;
         Ok(())
     }
+
     pub async fn update_section_id(&self, section_id: &str, new_id: &str) -> Result<(), TodoError> {
         let section = SectionEntity::find_by_id(section_id)
             .one(&self.db)
             .await?
             .ok_or(TodoError::NotFound("section not found".to_string()))?;
-        SectionActiveModel {
-            id: Set(new_id.to_string()),
-            ..section.into()
-        }
-        .update(&self.db)
-        .await?;
+        SectionActiveModel { id: Set(new_id.to_string()), ..section.into() }
+            .update(&self.db)
+            .await?;
         ItemEntity::update_many()
             .col_expr(items::Column::SectionId, Expr::value(new_id.to_string()))
             .filter(items::Column::SectionId.eq(section_id))
@@ -320,16 +314,13 @@ impl Store {
             .await?;
         Ok(())
     }
+
     pub async fn archive_section(&self, section_id: &str, archived: bool) -> Result<(), TodoError> {
         let section = SectionEntity::find_by_id(section_id)
             .one(&self.db)
             .await?
             .ok_or(TodoError::NotFound("section not found".to_string()))?;
-        let archived_new = if section.is_archived == archived {
-            !archived
-        } else {
-            archived
-        };
+        let archived_new = if section.is_archived == archived { !archived } else { archived };
         let active_model = SectionActiveModel {
             is_archived: Set(archived_new),
             archived_at: Set(Some(Utc::now().naive_utc())),
@@ -341,14 +332,14 @@ impl Store {
         }
         Ok(())
     }
+
     pub async fn insert_section(&self, section: SectionModel) -> Result<SectionModel, TodoError> {
         let mut active_section: sections::ActiveModel = section.into();
         Ok(active_section.insert(&self.db).await?)
     }
+
     pub async fn delete_section(&self, section_id: &str) -> Result<(), TodoError> {
-        let result = SectionEntity::delete_by_id(section_id)
-            .exec(&self.db)
-            .await?;
+        let result = SectionEntity::delete_by_id(section_id).exec(&self.db).await?;
         if result.rows_affected > 0 {
             let items = ItemEntity::find()
                 .filter(items::Column::SectionId.eq(section_id))
@@ -374,7 +365,8 @@ impl Store {
     }
 
     pub async fn add_item(&self, item: ItemModel, insert: bool) {
-        // Services.EventBus.get_default ().update_items_position (item.project_id, item.section_id);
+        // Services.EventBus.get_default ().update_items_position (item.project_id,
+        // item.section_id);
     }
 
     pub async fn update_item(
@@ -385,19 +377,18 @@ impl Store {
         let mut active_model: ItemActiveModel = item.into();
         Ok(active_model.update(&self.db).await?)
     }
+
     pub async fn update_item_pin(&self, item_id: &str) -> Result<(), TodoError> {
         let item_model = self
             .get_item(item_id)
             .await
             .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
-        ItemEntity::update(ItemActiveModel {
-            pinned: Set(true),
-            ..item_model.into()
-        })
-        .exec(&self.db)
-        .await?;
+        ItemEntity::update(ItemActiveModel { pinned: Set(true), ..item_model.into() })
+            .exec(&self.db)
+            .await?;
         Ok(())
     }
+
     pub async fn move_item(
         &self,
         item_id: &str,
@@ -418,14 +409,8 @@ impl Store {
         .await?;
         let subitems = self.get_subitems(item_id).await;
         ItemEntity::update_many()
-            .col_expr(
-                items::Column::ProjectId,
-                Expr::value(project_id.to_string()),
-            )
-            .col_expr(
-                items::Column::SectionId,
-                Expr::value(section_id.to_string()),
-            )
+            .col_expr(items::Column::ProjectId, Expr::value(project_id.to_string()))
+            .col_expr(items::Column::SectionId, Expr::value(section_id.to_string()))
             .filter(items::Column::ParentId.eq(item_id.to_string()))
             .exec(&self.db)
             .await?;
@@ -446,6 +431,7 @@ impl Store {
         })
         .await
     }
+
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
         Box::pin(async move {
             let item = Item::from_db(self.db.clone(), item_id).await?;
@@ -490,22 +476,19 @@ impl Store {
                     .all(&self.db)
                     .await?;
                 for item in subitems {
-                    self.complete_item(&item.id, item_model.checked, complete_subitems)
-                        .await?
+                    self.complete_item(&item.id, item_model.checked, complete_subitems).await?
                 }
             };
-            if let Some(parent) = ItemEntity::find()
-                .filter(items::Column::ParentId.eq(item_id))
-                .one(&self.db)
-                .await?
+            if let Some(parent) =
+                ItemEntity::find().filter(items::Column::ParentId.eq(item_id)).one(&self.db).await?
             {
-                self.complete_item(&parent.id, item_model.checked, false)
-                    .await?
+                self.complete_item(&parent.id, item_model.checked, false).await?
             };
             Ok(())
         })
         .await
     }
+
     pub async fn update_item_id(&self, item_id: &str, new_id: &str) -> Result<(), TodoError> {
         // 更新item的id为新的id
         let item_model = ItemActiveModel {
@@ -525,6 +508,7 @@ impl Store {
             .await?;
         Ok(())
     }
+
     pub async fn next_item_child_order(&self, project_id: &str, section_id: &str) -> i32 {
         ItemEntity::find()
             .filter(
@@ -536,11 +520,9 @@ impl Store {
             .await
             .unwrap_or(0) as i32
     }
+
     pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
-        ItemEntity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        ItemEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
 
     pub async fn get_items_by_section(&self, section_id: &str) -> Vec<ItemModel> {
@@ -558,15 +540,13 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_items_completed(&self) -> Vec<ItemModel> {
-        let items_model = match ItemEntity::find()
-            .filter(items::Column::Checked.eq(1))
-            .all(&self.db)
-            .await
-        {
-            Ok(items) => items,
-            Err(_) => return vec![],
-        };
+        let items_model =
+            match ItemEntity::find().filter(items::Column::Checked.eq(1)).all(&self.db).await {
+                Ok(items) => items,
+                Err(_) => return vec![],
+            };
         stream::iter(items_model)
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
@@ -580,12 +560,9 @@ impl Store {
             .collect()
             .await
     }
+
     pub async fn get_item_by_ics(&self, ics: &str) -> Option<ItemModel> {
-        ItemEntity::find()
-            .filter(items::Column::Id.eq(ics))
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        ItemEntity::find().filter(items::Column::Id.eq(ics)).one(&self.db).await.unwrap_or_default()
     }
 
     pub async fn get_items_has_labels(&self) -> Vec<ItemModel> {
@@ -613,11 +590,7 @@ impl Store {
 
     pub async fn get_items_by_label(&self, label_id: &str, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Labels
-                    .is_not_null()
-                    .and(items::Column::Checked.eq(1)),
-            )
+            .filter(items::Column::Labels.is_not_null().and(items::Column::Checked.eq(1)))
             .all(&self.db)
             .await
         {
@@ -642,33 +615,25 @@ impl Store {
     }
 
     pub async fn get_items_checked(&self) -> Result<Vec<ItemModel>, TodoError> {
-        Ok(ItemEntity::find()
-            .filter(items::Column::Checked.eq(1))
-            .all(&self.db)
-            .await?)
+        Ok(ItemEntity::find().filter(items::Column::Checked.eq(1)).all(&self.db).await?)
     }
+
     pub async fn get_items_checked_by_project(&self, project_id: &str) -> Vec<ItemModel> {
         ItemEntity::find()
-            .filter(
-                items::Column::ProjectId
-                    .eq(project_id)
-                    .and(items::Column::Checked.eq(1)),
-            )
+            .filter(items::Column::ProjectId.eq(project_id).and(items::Column::Checked.eq(1)))
             .all(&self.db)
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_subitems_uncomplete(&self, item_id: &str) -> Vec<ItemModel> {
         ItemEntity::find()
-            .filter(
-                items::Column::ParentId
-                    .eq(item_id)
-                    .and(items::Column::Checked.eq(0)),
-            )
+            .filter(items::Column::ParentId.eq(item_id).and(items::Column::Checked.eq(0)))
             .all(&self.db)
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_items_by_project(&self, project_id: &str) -> Vec<ItemModel> {
         ItemEntity::find()
             .filter(items::Column::ProjectId.eq(project_id))
@@ -676,24 +641,18 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_items_by_project_pinned(&self, project_id: &str) -> Vec<ItemModel> {
         ItemEntity::find()
-            .filter(
-                items::Column::ProjectId
-                    .eq(project_id)
-                    .and(items::Column::Pinned.eq(1)),
-            )
+            .filter(items::Column::ProjectId.eq(project_id).and(items::Column::Pinned.eq(1)))
             .all(&self.db)
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_items_by_date(&self, date: &NaiveDateTime, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Pinned
-                    .eq(1)
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Pinned.eq(1).and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -702,36 +661,29 @@ impl Store {
         };
         stream::iter(items_model)
             .filter_map(|model| async move {
-                self.valid_item_by_date(&*model.id, date, checked)
-                    .await
-                    .then_some(model)
+                self.valid_item_by_date(&*model.id, date, checked).await.then_some(model)
             })
             .collect()
             .await
     }
+
     pub async fn get_items_no_date(&self, checked: bool) -> Vec<ItemModel> {
         ItemEntity::find()
-            .filter(
-                items::Column::Due
-                    .is_null()
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Due.is_null().and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_items_repeating(&self, checked: bool) -> Vec<ItemModel> {
         ItemEntity::find()
-            .filter(
-                items::Column::Due
-                    .is_not_null()
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Due.is_not_null().and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
             .unwrap_or_default()
         //     i.has_due() && i.due().is_recurring && i.checked() == checked && !i.was_archived()
     }
+
     pub async fn get_items_by_date_range(
         &self,
         start_date: NaiveDateTime,
@@ -739,11 +691,7 @@ impl Store {
         checked: bool,
     ) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Pinned
-                    .eq(1)
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Pinned.eq(1).and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -759,13 +707,10 @@ impl Store {
             .collect()
             .await
     }
+
     pub async fn get_items_by_month(&self, date: &NaiveDateTime, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Pinned
-                    .eq(1)
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Pinned.eq(1).and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -774,20 +719,15 @@ impl Store {
         };
         stream::iter(items_model)
             .filter_map(|model| async move {
-                self.valid_item_by_month(&*model.id, date, checked)
-                    .await
-                    .then_some(model)
+                self.valid_item_by_month(&*model.id, date, checked).await.then_some(model)
             })
             .collect()
             .await
     }
+
     pub async fn get_items_pinned(&self, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Pinned
-                    .eq(1)
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Pinned.eq(1).and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -807,13 +747,10 @@ impl Store {
             .collect()
             .await
     }
+
     pub async fn get_items_by_priority(&self, priority: i32, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Priority
-                    .eq(priority)
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Priority.eq(priority).and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -836,11 +773,7 @@ impl Store {
 
     pub async fn get_items_by_scheduled(&self, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Due
-                    .is_not_null()
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Due.is_not_null().and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -870,11 +803,7 @@ impl Store {
     pub async fn get_items_unlabeled(&self, checked: bool) -> Vec<ItemModel> {
         let date_util = DateTime::default();
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Labels
-                    .is_null()
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Labels.is_null().and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -894,14 +823,11 @@ impl Store {
             .collect()
             .await
     }
+
     pub async fn get_items_no_parent(&self, checked: bool) -> Vec<ItemModel> {
         let date_util = DateTime::default();
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::ParentId
-                    .is_null()
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::ParentId.is_null().and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -921,6 +847,7 @@ impl Store {
             .collect()
             .await
     }
+
     pub async fn valid_item_by_date(
         &self,
         item_id: &str,
@@ -970,6 +897,7 @@ impl Store {
             .map(|due| due >= start_date && due <= end_date)
             .unwrap_or(false)
     }
+
     pub async fn valid_item_by_month(
         &self,
         item_id: &str,
@@ -996,11 +924,7 @@ impl Store {
 
     pub async fn get_items_by_overdeue_view(&self, checked: bool) -> Vec<ItemModel> {
         let items_model = match ItemEntity::find()
-            .filter(
-                items::Column::Due
-                    .is_not_null()
-                    .and(items::Column::Checked.eq(checked)),
-            )
+            .filter(items::Column::Due.is_not_null().and(items::Column::Checked.eq(checked)))
             .all(&self.db)
             .await
         {
@@ -1039,6 +963,7 @@ impl Store {
             .await
             .unwrap()
     }
+
     // 判断一个项目是否过期了，基于逾期状态和是否被选中
     pub async fn valid_item_by_overdue(&self, item_id: &str, checked: bool) -> bool {
         // 获取项目，失败直接返回false
@@ -1065,29 +990,29 @@ impl Store {
     pub async fn labels(&self) -> Vec<LabelModel> {
         LabelEntity::find().all(&self.db).await.unwrap_or_default()
     }
+
     pub async fn insert_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
         let mut active_label: LabelActiveModel = label.into();
         Ok(active_label.insert(&self.db).await?)
     }
+
     pub async fn update_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
         let mut active_label: LabelActiveModel = label.into();
         Ok(active_label.update(&self.db).await?)
     }
+
     pub async fn delete_label(&self, id: &str) -> Result<u64, TodoError> {
-        Ok(LabelEntity::delete_by_id(id)
-            .exec(&self.db)
-            .await?
-            .rows_affected)
+        Ok(LabelEntity::delete_by_id(id).exec(&self.db).await?.rows_affected)
     }
+
     pub async fn label_exists(&self, id: &str) -> bool {
         LabelEntity::find_by_id(id).one(&self.db).await.is_ok()
     }
+
     pub async fn get_label(&self, id: &str) -> Option<LabelModel> {
-        LabelEntity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        LabelEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
+
     pub async fn get_labels_by_item_labels(&self, labels: &str) -> Vec<LabelModel> {
         let labels: Vec<String> = labels.split(',').map(|s| s.trim().to_string()).collect();
         LabelEntity::find()
@@ -1096,17 +1021,15 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_label_by_name(&self, name: &str, source_id: &str) -> Option<LabelModel> {
         LabelEntity::find()
-            .filter(
-                labels::Column::Name
-                    .eq(name)
-                    .and(labels::Column::SourceId.eq(source_id)),
-            )
+            .filter(labels::Column::Name.eq(name).and(labels::Column::SourceId.eq(source_id)))
             .one(&self.db)
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_labels_by_source(&self, source_id: &str) -> Vec<LabelModel> {
         LabelEntity::find()
             .filter(labels::Column::SourceId.eq(source_id))
@@ -1114,6 +1037,7 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn get_all_labels_by_search(&self, search_text: &str) -> Vec<LabelModel> {
         let search_lover = search_text.to_lowercase();
         LabelEntity::find()
@@ -1122,18 +1046,14 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     // reminders
     pub async fn reminders(&self) -> Vec<ReminderModel> {
-        ReminderEntity::find()
-            .all(&self.db)
-            .await
-            .unwrap_or_default()
+        ReminderEntity::find().all(&self.db).await.unwrap_or_default()
     }
+
     pub async fn get_reminder(&self, id: &str) -> Option<ReminderModel> {
-        ReminderEntity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .unwrap_or_default()
+        ReminderEntity::find_by_id(id).one(&self.db).await.unwrap_or_default()
     }
 
     pub async fn get_reminders_by_item(&self, item_id: &str) -> Vec<ReminderModel> {
@@ -1143,6 +1063,7 @@ impl Store {
             .await
             .unwrap_or_default()
     }
+
     pub async fn insert_reminder(
         &self,
         reminder: ReminderModel,
@@ -1151,11 +1072,9 @@ impl Store {
         Ok(active_reminder.insert(&self.db).await?)
         // reminder.item.reminder_added (reminder);
     }
+
     pub async fn delete_reminder(&self, reminder_id: &str) -> Result<u64, TodoError> {
-        Ok(ReminderEntity::delete_by_id(reminder_id)
-            .exec(&self.db)
-            .await?
-            .rows_affected)
+        Ok(ReminderEntity::delete_by_id(reminder_id).exec(&self.db).await?.rows_affected)
         // reminder.item.reminder_deleted (reminder);
     }
 }

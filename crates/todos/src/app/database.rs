@@ -1,9 +1,10 @@
-use crate::settings;
+use std::{cmp::max, time::Duration};
+
 use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbBackend, DbErr, Statement,
 };
-use std::cmp::max;
-use std::time::Duration;
+
+use crate::settings;
 
 pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     let database_config = &settings::get().database();
@@ -38,15 +39,9 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
 #[allow(dead_code)]
 async fn log_database_version(db: &DatabaseConnection) -> anyhow::Result<()> {
     let version_result = db
-        .query_one(Statement::from_string(
-            DbBackend::Sqlite,
-            String::from("SELECT version()"),
-        ))
+        .query_one(Statement::from_string(DbBackend::Sqlite, String::from("SELECT version()")))
         .await?
         .ok_or_else(|| anyhow::anyhow!("failed to get Database version "))?;
-    tracing::info!(
-        "Database version: {}",
-        version_result.try_get_by_index::<String>(0)?
-    );
+    tracing::info!("Database version: {}", version_result.try_get_by_index::<String>(0)?);
     Ok(())
 }

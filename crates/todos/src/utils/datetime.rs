@@ -1,12 +1,13 @@
 use std::{cmp::Ordering, str::FromStr};
 
-use crate::{Item, enums::RecurrencyType, objects::DueDate};
 use anyhow::Result;
 use chrono::{
     Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,
 };
 use chrono_humanize::{Accuracy, HumanTime};
 use serde_json::Value;
+
+use crate::{Item, enums::RecurrencyType, objects::DueDate};
 pub const EMPTY_DATETIME: NaiveDateTime =
     chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc();
 #[derive(Default)]
@@ -36,11 +37,7 @@ impl DateTime {
             returned = format_str.as_str();
         }
         if self.has_time(datetime) {
-            return format!(
-                "{} {}",
-                returned,
-                datetime.format(self.get_default_time_format())
-            );
+            return format!("{} {}", returned, datetime.format(self.get_default_time_format()));
         }
         returned.to_string()
     }
@@ -50,10 +47,12 @@ impl DateTime {
         let human_time = HumanTime::from(now - datetime);
         human_time.to_text_en(Accuracy::Rough, chrono_humanize::Tense::Past)
     }
+
     fn format_duration(&self, days: i64, suffix: &str) -> String {
         let unit = if days > 1 { "days" } else { "day" };
         format!("{days} {unit} {suffix}")
     }
+
     pub fn days_left(&self, datetime: &NaiveDateTime, show_today: bool) -> String {
         let days = (*datetime - Local::now().naive_local()).num_days();
         match (self.is_today(datetime), days.cmp(&0)) {
@@ -66,15 +65,12 @@ impl DateTime {
     }
 
     pub fn get_default_time_format(&self) -> &str {
-        if self.is_clock_format_12h() {
-            "%I:%M"
-        } else {
-            "%H:%M"
-        }
+        if self.is_clock_format_12h() { "%I:%M" } else { "%H:%M" }
     }
 
     pub fn is_clock_format_12h(&self) -> bool {
-        // return Services.Settings.get_default ().settings.get_string ("clock-format").contains ("12h");
+        // return Services.Settings.get_default ().settings.get_string ("clock-format").contains
+        // ("12h");
         false
     }
 
@@ -231,6 +227,7 @@ impl DateTime {
         let time = datetime.time();
         date.with_year(date.year() + years).unwrap().and_time(time)
     }
+
     pub fn add_months(&self, datetime: NaiveDateTime, months: u32) -> NaiveDateTime {
         let mut year = datetime.year();
         let mut month = datetime.month();
@@ -264,13 +261,13 @@ impl DateTime {
                 } else {
                     self.next_recurrency_week(datetime, duedate, false)
                 }
-            }
+            },
             RecurrencyType::EveryMonth => {
                 self.add_months(datetime, duedate.recurrency_interval as u32)
-            }
+            },
             RecurrencyType::EveryYear => {
                 self.add_years(datetime, duedate.recurrency_interval as i32)
-            }
+            },
             _ => returned,
         }
     }
@@ -439,11 +436,7 @@ impl DateTime {
 
     pub fn is_current_month(&self, date: NaiveDateTime) -> bool {
         let now = Local::now().naive_local();
-        if (date.year() == now.year()) {
-            date.month() == now.month()
-        } else {
-            false
-        }
+        if (date.year() == now.year()) { date.month() == now.month() } else { false }
     }
 
     // /**
@@ -507,8 +500,8 @@ impl DateTime {
     //         result.set_timezone (timezone);
 
     //         // Set the time with the updated time zone
-    //         result.set_time (time_local.get_hour (), time_local.get_minute (), time_local.get_second ());
-    //     }
+    //         result.set_time (time_local.get_hour (), time_local.get_minute (),
+    // time_local.get_second ());     }
 
     //     return result;
     // }

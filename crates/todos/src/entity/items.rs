@@ -2,8 +2,7 @@
 
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use sea_orm::entity::prelude::*;
-use sea_orm::{DbErr, Set};
+use sea_orm::{DbErr, Set, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]

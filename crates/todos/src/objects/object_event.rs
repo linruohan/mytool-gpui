@@ -1,8 +1,10 @@
-use crate::enums::ObjectEventType;
-use crate::enums::object_event_key_type::ObjectEventKeyType;
-use crate::objects::DueDate;
-use crate::utils::DateTime;
 use chrono::{NaiveDateTime, Timelike};
+
+use crate::{
+    enums::{ObjectEventType, object_event_key_type::ObjectEventKeyType},
+    objects::DueDate,
+    utils::DateTime,
+};
 
 pub struct ObjectEvent {
     pub id: i64,
@@ -32,18 +34,21 @@ impl ObjectEvent {
                 ObjectEventKeyType::CHECKED => "check-round-outline-symbolic",
                 ObjectEventKeyType::SECTION | ObjectEventKeyType::PROJECT => {
                     "arrow3-right-symbolic"
-                }
+                },
             }
         } else {
             "plus-large-symbolic"
         }
     }
+
     pub fn datetime(&self) -> NaiveDateTime {
         DateTime::default().get_date_from_string(&self.event_date)
     }
+
     pub fn date(&self) -> NaiveDateTime {
         DateTime::default().format_date(self.datetime().date())
     }
+
     pub fn time(&self) -> String {
         if DateTime::default().is_clock_format_12h() {
             self.datetime().time().hour12().1.to_string()
@@ -51,9 +56,11 @@ impl ObjectEvent {
             self.datetime().time().hour().to_string()
         }
     }
+
     pub fn get_due_value(&self, value: String) -> Option<DueDate> {
         serde_json::from_str(value.as_str()).ok()
     }
+
     pub fn get_labels_value(&self, value: String) -> String {
         let labels: Vec<String> = serde_json::from_str(value.as_str()).unwrap_or_default();
         if labels.is_empty() {

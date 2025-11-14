@@ -1,76 +1,45 @@
-use crate::settings::AppConfig;
-use crate::{constants, objects::Color};
+use std::{borrow::Cow, collections::HashMap, fmt::Error};
+
 use rand::Rng;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::fmt::Error;
 use uuid::Uuid;
+
+use crate::{constants, objects::Color, settings::AppConfig};
 pub struct Util {
     pub colors: HashMap<String, Color>,
 }
 
 impl Util {
     pub(crate) fn default() -> Util {
-        Util {
-            colors: HashMap::new(),
-        }
+        Util { colors: HashMap::new() }
     }
 }
 
 impl Util {
     pub fn get_default() -> Util {
-        Self {
-            colors: HashMap::new(),
-        }
+        Self { colors: HashMap::new() }
     }
+
     pub fn get_colors(&self) -> HashMap<String, Color> {
         let mut colors = HashMap::new();
         if self.colors.is_empty() {
-            colors.insert(
-                "berry_red".to_string(),
-                Color::new(30, "Berry Red", "#b8256f"),
-            );
+            colors.insert("berry_red".to_string(), Color::new(30, "Berry Red", "#b8256f"));
             colors.insert("red".to_string(), Color::new(31, "Red", "#db4035"));
             colors.insert("orange".to_string(), Color::new(32, "Orange", "#ff9933"));
-            colors.insert(
-                "yellow".to_string(),
-                Color::new(33, "Olive Green", "#fad000"),
-            );
-            colors.insert(
-                "olive_green".to_string(),
-                Color::new(34, "Yellow", "#afb83b"),
-            );
-            colors.insert(
-                "lime_green".to_string(),
-                Color::new(35, "Lime Green", "#7ecc49"),
-            );
+            colors.insert("yellow".to_string(), Color::new(33, "Olive Green", "#fad000"));
+            colors.insert("olive_green".to_string(), Color::new(34, "Yellow", "#afb83b"));
+            colors.insert("lime_green".to_string(), Color::new(35, "Lime Green", "#7ecc49"));
             colors.insert("green".to_string(), Color::new(36, "Green", "#299438"));
-            colors.insert(
-                "mint_green".to_string(),
-                Color::new(37, "Mint Green", "#6accbc"),
-            );
+            colors.insert("mint_green".to_string(), Color::new(37, "Mint Green", "#6accbc"));
             colors.insert("teal".to_string(), Color::new(38, "Teal", "#158fad"));
-            colors.insert(
-                "sky_blue".to_string(),
-                Color::new(39, "Sky Blue", "#14aaf5"),
-            );
-            colors.insert(
-                "light_blue".to_string(),
-                Color::new(40, "Light Blue", "#96c3eb"),
-            );
+            colors.insert("sky_blue".to_string(), Color::new(39, "Sky Blue", "#14aaf5"));
+            colors.insert("light_blue".to_string(), Color::new(40, "Light Blue", "#96c3eb"));
             colors.insert("blue".to_string(), Color::new(41, "Blue", "#4073ff"));
             colors.insert("grape".to_string(), Color::new(42, "Grape", "#884dff"));
             colors.insert("violet".to_string(), Color::new(43, "Violet", "#af38eb"));
-            colors.insert(
-                "lavender".to_string(),
-                Color::new(44, "Lavender", "#eb96eb"),
-            );
+            colors.insert("lavender".to_string(), Color::new(44, "Lavender", "#eb96eb"));
             colors.insert("magenta".to_string(), Color::new(45, "Magenta", "#e05194"));
             colors.insert("salmon".to_string(), Color::new(46, "Salmon", "#ff8d85"));
-            colors.insert(
-                "charcoal".to_string(),
-                Color::new(47, "Charcoal", "#808080"),
-            );
+            colors.insert("charcoal".to_string(), Color::new(47, "Charcoal", "#808080"));
             colors.insert("grey".to_string(), Color::new(48, "Grey", "#b8b8b8"));
             colors.insert("taupe".to_string(), Color::new(49, "Taupe", "#ccac93"));
         }
@@ -124,8 +93,8 @@ impl Util {
     //         }
 
     //         unowned Gtk.StyleContext style_context = widget.get_style_context ();
-    //         style_context.add_provider (providers[color], Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
-    //     }
+    //         style_context.add_provider (providers[color],
+    // Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);     }
 
     //     public void set_widget_priority (int priority, Gtk.Widget widget) {
     //         widget.remove_css_class ("priority-1-color");
@@ -155,8 +124,8 @@ impl Util {
     //         if (!file_path.query_exists ()) {
     //             MainLoop loop = new MainLoop ();
 
-    //             file_from_uri.copy_async.begin (file_path, 0, Priority.DEFAULT, null, (current_num_bytes, total_num_bytes) => {}, (obj, res) => {
-    //                 try {
+    //             file_from_uri.copy_async.begin (file_path, 0, Priority.DEFAULT, null,
+    // (current_num_bytes, total_num_bytes) => {}, (obj, res) => {                 try {
     //                     if (file_from_uri.copy_async.end (res)) {
     //                         // Services.EventBus.get_default ().avatar_downloaded ();
     //                     }
@@ -219,8 +188,8 @@ impl Util {
     //     private Gtk.MediaFile soud_medida = null;
     //     public void play_audio () {
     //         if (soud_medida == null) {
-    //             soud_medida = Gtk.MediaFile.for_resource ("/io/github/alainm23/planify/success.ogg");
-    //         }
+    //             soud_medida = Gtk.MediaFile.for_resource
+    // ("/io/github/alainm23/planify/success.ogg");         }
 
     //         soud_medida.play ();
     //     }
@@ -263,7 +232,8 @@ impl Util {
     //     }
 
     //     public void show_alert_destroy (Gtk.Window window) {
-    //         var dialog = new Adw.AlertDialog (null, "Process completed, you need to start Planify again."));
+    //         var dialog = new Adw.AlertDialog (null, "Process completed, you need to start Planify
+    // again."));
 
     //         dialog.add_response ("ok", "Ok"));
     //         dialog.present (window);
@@ -291,8 +261,8 @@ impl Util {
     //     }
 
     //     public int get_default_priority () {
-    //         int default_priority = Services.Settings.get_default ().settings.get_enum ("default-priority");
-    //         int returned = 1;
+    //         int default_priority = Services.Settings.get_default ().settings.get_enum
+    // ("default-priority");         int returned = 1;
 
     //         if (default_priority == 0) {
     //             returned = 4;
@@ -324,7 +294,7 @@ impl Util {
     //     }
 
     //     /*
-    //     *   Theme Utils
+    //     * Theme Utils
     //     */
     //     public bool is_dark_theme () {
     //         return Services.Settings.get_default ().settings.get_boolean ("dark-mode");
@@ -377,8 +347,8 @@ impl Util {
     //         return response;
     //     }
 
-    //     public Adw.Toast create_toast (string title, uint timeout = 2, Adw.ToastPriority priority = Adw.ToastPriority.NORMAL) {
-    //         var toast = new Adw.Toast (title);
+    //     public Adw.Toast create_toast (string title, uint timeout = 2, Adw.ToastPriority priority
+    // = Adw.ToastPriority.NORMAL) {         var toast = new Adw.Toast (title);
     //         toast.timeout = timeout;
     //         toast.priority = priority;
 
@@ -464,7 +434,8 @@ impl Util {
     //         inbox_project.color = "blue";
 
     //         Services.Store.instance ().insert_project (inbox_project);
-    //         Services.Settings.get_default ().settings.set_string ("local-inbox-project-id", inbox_project.id);
+    //         Services.Settings.get_default ().settings.set_string ("local-inbox-project-id",
+    // inbox_project.id);
 
     //         return inbox_project;
     //     }
@@ -478,7 +449,9 @@ impl Util {
     //         project.name = "Meet Planify");
     //         project.color = "blue";
     //         project.show_completed = true;
-    //         project.description = "This project shows you everything you need to know to hit the ground running. Don’t hesitate to play around in it – you can always create a new one from settings.");
+    //         project.description = "This project shows you everything you need to know to hit the
+    // ground running. Don’t hesitate to play around in it – you can always create a new one from
+    // settings.");
 
     //         Services.Store.instance ().insert_project (project);
 
@@ -486,39 +459,44 @@ impl Util {
     //         item_01.id = Util.get_default ().generate_id (item_01);
     //         item_01.project_id = project.id;
     //         item_01.content = "Tap this to-do");
-    //         item_01.description = "You're looking at a to-do! Complete it by tapping the checkbox on the left. Completed to-dos are collected at the bottom of your project.");
+    //         item_01.description = "You're looking at a to-do! Complete it by tapping the checkbox
+    // on the left. Completed to-dos are collected at the bottom of your project.");
 
     //         var item_02 = new Objects.Item ();
     //         item_02.id = Util.get_default ().generate_id (item_02);
     //         item_02.project_id = project.id;
     //         item_02.content = "Create a new to-do");
-    //         item_02.description = "Now it's your turn, tap the '+' button at the bottom of your project, enter any pending and tap the blue 'Save' button.");
+    //         item_02.description = "Now it's your turn, tap the '+' button at the bottom of your
+    // project, enter any pending and tap the blue 'Save' button.");
 
     //         var item_03 = new Objects.Item ();
     //         item_03.id = Util.get_default ().generate_id (item_03);
     //         item_03.project_id = project.id;
     //         item_03.content = "Plan this to-do by today or later");
-    //         item_03.description = "Tap the calendar button at the bottom to decide when to do this to-do.");
+    //         item_03.description = "Tap the calendar button at the bottom to decide when to do
+    // this to-do.");
 
     //         var item_04 = new Objects.Item ();
     //         item_04.id = Util.get_default ().generate_id (item_04);
     //         item_04.project_id = project.id;
     //         item_04.content = "Reorder yours to-dos");
-    //         item_04.description = "To reorder your list, tap and hold a to-do, then drag it to where it should go.");
+    //         item_04.description = "To reorder your list, tap and hold a to-do, then drag it to
+    // where it should go.");
 
     //         var item_05 = new Objects.Item ();
     //         item_05.id = Util.get_default ().generate_id (item_05);
     //         item_05.project_id = project.id;
     //         item_05.content = "Create a project");
-    //         item_05.description = "Organize your to-dos better! Go to the left panel and click the '+' button in the 'On This Computer' section and add a project of your own.");
+    //         item_05.description = "Organize your to-dos better! Go to the left panel and click
+    // the '+' button in the 'On This Computer' section and add a project of your own.");
 
     //         var item_06 = new Objects.Item ();
     //         item_06.id = Util.get_default ().generate_id (item_06);
     //         item_06.project_id = project.id;
     //         item_06.content = "You’re done!");
-    //         item_06.description = """That’s all you really need to know. Feel free to start adding your own projects and to-dos.
-    // You can come back to this project later to learn the advanced features below..
-    // We hope you’ll enjoy using Planify!""");
+    //         item_06.description = """That’s all you really need to know. Feel free to start
+    // adding your own projects and to-dos. You can come back to this project later to learn the
+    // advanced features below.. We hope you’ll enjoy using Planify!""");
 
     //         project.add_item_if_not_exists (item_01);
     //         project.add_item_if_not_exists (item_02);
@@ -539,14 +517,16 @@ impl Util {
     //         item_02_01.project_id = project.id;
     //         item_02_01.section_id = section_01.id;
     //         item_02_01.content = "Show your calendar events");
-    //         item_02_01.description = "You can display your system's calendar events in Planify. Go to 'Preferences' 🡒 General 🡒 Calendar Events to turn it on.");
+    //         item_02_01.description = "You can display your system's calendar events in Planify.
+    // Go to 'Preferences' 🡒 General 🡒 Calendar Events to turn it on.");
 
     //         var item_02_02 = new Objects.Item ();
     //         item_02_02.id = Util.get_default ().generate_id (item_02_02);
     //         item_02_02.project_id = project.id;
     //         item_02_02.section_id = section_01.id;
     //         item_02_02.content = "Enable synchronization with third-party service.");
-    //         item_02_02.description = "Planify not only creates tasks locally, it can also synchronize your Todoist account. Go to 'Preferences' 🡒 'Accounts'.");
+    //         item_02_02.description = "Planify not only creates tasks locally, it can also
+    // synchronize your Todoist account. Go to 'Preferences' 🡒 'Accounts'.");
 
     //         section_01.add_item_if_not_exists (item_02_01);
     //         section_01.add_item_if_not_exists (item_02_02);
@@ -563,14 +543,17 @@ impl Util {
     //         item_03_01.project_id = project.id;
     //         item_03_01.section_id = section_02.id;
     //         item_03_01.content = "Drag the plus button!");
-    //         item_03_01.description = "That blue button you see at the bottom of each screen is more powerful than it looks: it's made to move! Drag it up to create a task wherever you want.");
+    //         item_03_01.description = "That blue button you see at the bottom of each screen is
+    // more powerful than it looks: it's made to move! Drag it up to create a task wherever you
+    // want.");
 
     //         var item_03_02 = new Objects.Item ();
     //         item_03_02.id = Util.get_default ().generate_id (item_03_02);
     //         item_03_02.project_id = project.id;
     //         item_03_02.section_id = section_02.id;
     //         item_03_02.content = "Tag your to-dos!");
-    //         item_03_02.description = "Tags allow you to improve your workflow in Planify. To add a Tag click on the tag button at the bottom.");
+    //         item_03_02.description = "Tags allow you to improve your workflow in Planify. To add
+    // a Tag click on the tag button at the bottom.");
 
     //         var item_03_03 = new Objects.Item ();
     //         item_03_03.id = Util.get_default ().generate_id (item_03_03);
@@ -623,14 +606,15 @@ impl Util {
     //     }
 
     //     public string markup_accel_tooltip (string description, string accel) {
-    //         return "%s\n%s".printf (description, """<span weight="600" size="smaller" alpha="75%">%s</span>""".printf (accel));
-    //     }
+    //         return "%s\n%s".printf (description, """<span weight="600" size="smaller"
+    // alpha="75%">%s</span>""".printf (accel));     }
 
     //     public string markup_accels_tooltip (string description, string[] accels) {
     //         string result = "%s\n".printf (description);
 
     //         for (int index = 0; index < accels.length; index++) {
-    //             string accel = """<span weight="600" size="smaller" alpha="75%">%s</span>""".printf (accels[index]);
+    //             string accel = """<span weight="600" size="smaller"
+    // alpha="75%">%s</span>""".printf (accels[index]);
 
     //             if (index < accels.length - 1) {
     //                 result += accel + ", ";
@@ -643,7 +627,7 @@ impl Util {
     //     }
 
     //     /*
-    //     *   XML adn CakDAV Util
+    //     * XML adn CakDAV Util
     //     */
     //     public static string get_task_id_from_url (GXml.DomElement element) {
     //         GXml.DomElement href = element.get_elements_by_tag_name ("d:href").get_element (0);
@@ -652,18 +636,20 @@ impl Util {
     //     }
 
     //     public static string get_task_uid (GXml.DomElement element) {
-    //         GXml.DomElement propstat = element.get_elements_by_tag_name ("d:propstat").get_element (0);
-    //         GXml.DomElement prop = propstat.get_elements_by_tag_name ("d:prop").get_element (0);
-    //         string data = prop.get_elements_by_tag_name ("cal:calendar-data").get_element (0).text_content;
+    //         GXml.DomElement propstat = element.get_elements_by_tag_name
+    // ("d:propstat").get_element (0);         GXml.DomElement prop =
+    // propstat.get_elements_by_tag_name ("d:prop").get_element (0);         string data =
+    // prop.get_elements_by_tag_name ("cal:calendar-data").get_element (0).text_content;
 
     //         ICal.Component ical = new ICal.Component.from_string (data);
     //         return ical.get_uid ();
     //     }
 
     //     public static string get_related_to_uid (GXml.DomElement element) {
-    //         GXml.DomElement propstat = element.get_elements_by_tag_name ("d:propstat").get_element (0);
-    //         GXml.DomElement prop = propstat.get_elements_by_tag_name ("d:prop").get_element (0);
-    //         string data = prop.get_elements_by_tag_name ("cal:calendar-data").get_element (0).text_content;
+    //         GXml.DomElement propstat = element.get_elements_by_tag_name
+    // ("d:propstat").get_element (0);         GXml.DomElement prop =
+    // propstat.get_elements_by_tag_name ("d:prop").get_element (0);         string data =
+    // prop.get_elements_by_tag_name ("cal:calendar-data").get_element (0).text_content;
     //         return Util.find_string_value ("RELATED-TO", data);
     //     }
 
@@ -730,8 +716,8 @@ impl Util {
     //         return generator.to_data (null);
     //     }
 
-    //     public async void move_backend_type_item (Objects.Item item, Objects.Project target_project, string parent_id = "") {
-    //         var new_item = item.duplicate ();
+    //     public async void move_backend_type_item (Objects.Item item, Objects.Project
+    // target_project, string parent_id = "") {         var new_item = item.duplicate ();
     //         new_item.project_id = target_project.id;
     //         new_item.parent_id = parent_id;
 
@@ -751,8 +737,8 @@ impl Util {
     //             }
     //         } else if (target_project.source_type == SourceType.CALDAV) {
     //             new_item.id = Util.get_default ().generate_id (new_item);
-    //             HttpResponse response = yield Services.CalDAV.Core.get_default ().add_task (new_item);
-    //             item.loading = false;
+    //             HttpResponse response = yield Services.CalDAV.Core.get_default ().add_task
+    // (new_item);             item.loading = false;
 
     //             if (response.status) {
     //                 yield add_final_duplicate_item (new_item, item);
@@ -788,9 +774,9 @@ impl Util {
     //         item.delete_item ();
     //     }
 
-    //     public async void duplicate_item (Objects.Item item, string project_id, string section_id = "", string parent_id = "", bool notify = true) {
-    //         var new_item = item.duplicate ();
-    //         new_item.project_id = project_id;
+    //     public async void duplicate_item (Objects.Item item, string project_id, string section_id
+    // = "", string parent_id = "", bool notify = true) {         var new_item = item.duplicate
+    // ();         new_item.project_id = project_id;
     //         new_item.section_id = section_id;
     //         new_item.parent_id = parent_id;
 
@@ -816,7 +802,8 @@ impl Util {
     //             }
     //         } else if (item.project.source_type == SourceType.CALDAV) {
     //             new_item.id = Util.get_default ().generate_id (new_item);
-    //             HttpResponse response = yield Services.CalDAV.Core.get_default ().add_task (new_item);
+    //             HttpResponse response = yield Services.CalDAV.Core.get_default ().add_task
+    // (new_item);
 
     //             item.loading = false;
     //             item.sensitive = true;
@@ -827,8 +814,8 @@ impl Util {
     //         }
     //     }
 
-    //     private async void insert_duplicate_item (Objects.Item new_item, Objects.Item item, bool notify = true) {
-    //         if (new_item.has_parent) {
+    //     private async void insert_duplicate_item (Objects.Item new_item, Objects.Item item, bool
+    // notify = true) {         if (new_item.has_parent) {
     // 			new_item.parent.add_item_if_not_exists (new_item);
     // 		} else {
     //             if (new_item.section_id != "") {
@@ -838,7 +825,8 @@ impl Util {
     //             }
     //         }
 
-    //         Services.EventBus.get_default ().update_section_sort_func (new_item.project_id, new_item.section_id, false);
+    //         Services.EventBus.get_default ().update_section_sort_func (new_item.project_id,
+    // new_item.section_id, false);
 
     //         foreach (Objects.Reminder reminder in item.reminders) {
     //             var _reminder = reminder.duplicate ();
@@ -855,8 +843,8 @@ impl Util {
     //         }
 
     //         foreach (Objects.Item subitem in item.items) {
-    //             yield duplicate_item (subitem, new_item.project_id, new_item.section_id, new_item.id, notify);
-    //         }
+    //             yield duplicate_item (subitem, new_item.project_id, new_item.section_id,
+    // new_item.id, notify);         }
 
     //         if (notify) {
     //             Services.EventBus.get_default ().send_toast (
@@ -865,8 +853,8 @@ impl Util {
     //         }
     //     }
 
-    //     public async void duplicate_section (Objects.Section section, string project_id, bool notify = true) {
-    //         var new_section = section.duplicate ();
+    //     public async void duplicate_section (Objects.Section section, string project_id, bool
+    // notify = true) {         var new_section = section.duplicate ();
     //         new_section.project_id = project_id;
 
     //         section.loading = true;
@@ -884,12 +872,13 @@ impl Util {
     //         }
     //     }
 
-    //     private async void insert_duplicate_section (Objects.Section new_section, Objects.Section section, bool notify = true) {
-    //         new_section.project.add_section_if_not_exists (new_section);
+    //     private async void insert_duplicate_section (Objects.Section new_section, Objects.Section
+    // section, bool notify = true) {         new_section.project.add_section_if_not_exists
+    // (new_section);
 
     //         foreach (Objects.Item item in section.items) {
-    //             yield duplicate_item (item, new_section.project_id, new_section.id, item.parent_id, false);
-    //         }
+    //             yield duplicate_item (item, new_section.project_id, new_section.id,
+    // item.parent_id, false);         }
 
     //         section.loading = false;
     //         section.sensitive = true;
@@ -912,8 +901,8 @@ impl Util {
     //             Services.Store.instance ().insert_project (new_project);
 
     //             foreach (Objects.Item item in project.items) {
-    //                 yield duplicate_item (item, new_project.id, item.section_id, item.parent_id, false);
-    //             }
+    //                 yield duplicate_item (item, new_project.id, item.section_id, item.parent_id,
+    // false);             }
 
     //             foreach (Objects.Section section in project.sections) {
     //                 yield duplicate_section (section, new_project.id, false);
@@ -935,7 +924,8 @@ impl Util {
     //         } else if (project.source_type == SourceType.CALDAV) {
     //             new_project.id = Util.get_default ().generate_id (new_project);
 
-    //             HttpResponse response = yield Services.CalDAV.Core.get_default ().add_tasklist (new_project);
+    //             HttpResponse response = yield Services.CalDAV.Core.get_default ().add_tasklist
+    // (new_project);
 
     //             if (response.status) {
     //                 Services.Store.instance ().insert_project (new_project);
@@ -957,18 +947,22 @@ impl Util {
     //         var text = escape_text (_text);
 
     //         try {
-    //             Regex mailto_regex = /(?P<mailto>[a-zA-Z0-9\._\%\+\-]+@[a-zA-Z0-9\-\.]+\.[a-zA-Z]+(\S*))/; // vala-lint=space-before-paren
-    //             Regex url_regex = /(?P<url>(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]+(\/\S*))/; // vala-lint=space-before-paren
-    //             Regex url_markdown = new Regex ("\\[([^\\]]+)\\]\\(([^\\)]+)\\)");
+    //             Regex mailto_regex =
+    // /(?P<mailto>[a-zA-Z0-9\._\%\+\-]+@[a-zA-Z0-9\-\.]+\.[a-zA-Z]+(\S*))/; //
+    // vala-lint=space-before-paren             Regex url_regex =
+    // /(?P<url>(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]+(\/\S*))/; //
+    // vala-lint=space-before-paren             Regex url_markdown = new Regex
+    // ("\\[([^\\]]+)\\]\\(([^\\)]+)\\)");
 
     //             Regex italic_bold_regex = /\*\*\*(.*?)\*\*\*/; // vala-lint=space-before-paren
     //             Regex bold_regex = /\*\*(.*?)\*\*/; // vala-lint=space-before-paren
     //             Regex italic_regex = /\*(.*?)\*/; // vala-lint=space-before-paren
     //             Regex underline_regex = /.*?)_/; // vala-lint=space-before-paren
 
-    //             Regex italic_bold_underline_regex = /\*\*\*[^*]+)_\*\*\*/; // vala-lint=space-before-paren
-    //             Regex bold_underline_regex = /\*\*[^*]+)_\*\*/; // vala-lint=space-before-paren
-    //             Regex italic_underline_regex = /\*.*?)_\*/; // vala-lint=space-before-paren
+    //             Regex italic_bold_underline_regex = /\*\*\*[^*]+)_\*\*\*/; //
+    // vala-lint=space-before-paren             Regex bold_underline_regex = /\*\*[^*]+)_\*\*/;
+    // // vala-lint=space-before-paren             Regex italic_underline_regex = /\*.*?)_\*/;
+    // // vala-lint=space-before-paren
 
     //             MatchInfo info;
 
@@ -983,8 +977,8 @@ impl Util {
     //             Gee.ArrayList<RegexMarkdown> markdown_urls = new Gee.ArrayList<RegexMarkdown> ();
     //             if (url_markdown.match (text, 0, out info)) {
     //                 do {
-    //                     markdown_urls.add (new RegexMarkdown (info.fetch (0), info.fetch (1), info.fetch (2)));
-    //                 } while (info.next ());
+    //                     markdown_urls.add (new RegexMarkdown (info.fetch (0), info.fetch (1),
+    // info.fetch (2)));                 } while (info.next ());
     //             }
 
     //             List<string> urls = new List<string> ();
@@ -1019,25 +1013,25 @@ impl Util {
     //                 } while (info.next ());
     //             }
 
-    //             Gee.ArrayList<RegexMarkdown> italic_bold_underline = new Gee.ArrayList<RegexMarkdown> ();
-    //             if (italic_bold_underline_regex.match (text, 0, out info)) {
-    //                 do {
-    //                     italic_bold_underline.add (new RegexMarkdown (info.fetch (0), info.fetch (1)));
-    //                 } while (info.next ());
+    //             Gee.ArrayList<RegexMarkdown> italic_bold_underline = new
+    // Gee.ArrayList<RegexMarkdown> ();             if (italic_bold_underline_regex.match (text,
+    // 0, out info)) {                 do {
+    //                     italic_bold_underline.add (new RegexMarkdown (info.fetch (0), info.fetch
+    // (1)));                 } while (info.next ());
     //             }
 
-    //             Gee.ArrayList<RegexMarkdown> bold_underline = new Gee.ArrayList<RegexMarkdown> ();
-    //             if (bold_underline_regex.match (text, 0, out info)) {
+    //             Gee.ArrayList<RegexMarkdown> bold_underline = new Gee.ArrayList<RegexMarkdown>
+    // ();             if (bold_underline_regex.match (text, 0, out info)) {
     //                 do {
     //                     bold_underline.add (new RegexMarkdown (info.fetch (0), info.fetch (1)));
     //                 } while (info.next ());
     //             }
 
-    //             Gee.ArrayList<RegexMarkdown> italic_underline = new Gee.ArrayList<RegexMarkdown> ();
-    //             if (italic_underline_regex.match (text, 0, out info)) {
+    //             Gee.ArrayList<RegexMarkdown> italic_underline = new Gee.ArrayList<RegexMarkdown>
+    // ();             if (italic_underline_regex.match (text, 0, out info)) {
     //                 do {
-    //                     italic_underline.add (new RegexMarkdown (info.fetch (0), info.fetch (1)));
-    //                 } while (info.next ());
+    //                     italic_underline.add (new RegexMarkdown (info.fetch (0), info.fetch
+    // (1)));                 } while (info.next ());
     //             }
 
     //             Gee.ArrayList<RegexMarkdown> underlines = new Gee.ArrayList<RegexMarkdown> ();
@@ -1062,12 +1056,12 @@ impl Util {
     //             });
 
     //             emails.foreach ((email) => {
-    //                 converted = converted.replace (email, @"<a href=\"mailto:$email\">$email</a>");
-    //             });
+    //                 converted = converted.replace (email, @"<a
+    // href=\"mailto:$email\">$email</a>");             });
 
     //             foreach (RegexMarkdown m in italic_bold_underline) {
-    //                 converted = converted.replace (m.match, "<i><b><u>" + m.text + "</u></b></i>");
-    //             }
+    //                 converted = converted.replace (m.match, "<i><b><u>" + m.text +
+    // "</u></b></i>");             }
 
     //             foreach (RegexMarkdown m in bold_underline) {
     //                 converted = converted.replace (m.match, "<b><u>" + m.text + "</u></b>");
@@ -1154,18 +1148,14 @@ pub struct RegexMarkdown {
 }
 impl RegexMarkdown {
     pub fn new(matchs: String, text: String, extra: String) -> RegexMarkdown {
-        Self {
-            matchs,
-            text,
-            extra,
-        }
+        Self { matchs, text, extra }
     }
 }
 
-use std::env;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 // Truncates an str and adds ellipsis if needed
 pub fn truncate_at(input: &str, max: i32) -> String {
     let max_len: usize = max as usize;
@@ -1211,7 +1201,7 @@ fn get_home() -> String {
             } else {
                 panic!("Could not determine the user's home directory.");
             }
-        }
+        },
     };
 
     // Convert the PathBuf to a &str

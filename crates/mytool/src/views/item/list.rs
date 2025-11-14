@@ -1,18 +1,17 @@
-use gpui::prelude::FluentBuilder;
+use std::rc::Rc;
+
 use gpui::{
     App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, div, px,
+    RenderOnce, SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
-use gpui_component::button::ButtonVariants;
-use gpui_component::checkbox::Checkbox;
-use gpui_component::label::Label;
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
-    button::Button,
+    button::{Button, ButtonVariants},
+    checkbox::Checkbox,
     h_flex,
+    label::Label,
     list::{ListDelegate, ListItem, ListState},
 };
-use std::rc::Rc;
 use todos::entity::ItemModel;
 
 actions!(item, [SelectedItem]);
@@ -38,12 +37,7 @@ impl ItemListItem {
         ix: IndexPath,
         selected: bool,
     ) -> Self {
-        ItemListItem {
-            item,
-            ix,
-            base: ListItem::new(id),
-            selected,
-        }
+        ItemListItem { item, ix, base: ListItem::new(id), selected }
     }
 }
 
@@ -60,11 +54,8 @@ impl Selectable for ItemListItem {
 
 impl RenderOnce for ItemListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let text_color = if self.selected {
-            cx.theme().accent_foreground
-        } else {
-            cx.theme().foreground
-        };
+        let text_color =
+            if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         let bg_color = if self.selected {
             cx.theme().list_active
@@ -81,9 +72,7 @@ impl RenderOnce for ItemListItem {
             .bg(bg_color)
             .border_1()
             .border_color(bg_color)
-            .when(self.selected, |this| {
-                this.border_color(cx.theme().list_active_border)
-            })
+            .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(
                 h_flex()
@@ -98,15 +87,9 @@ impl RenderOnce for ItemListItem {
                             .items_center()
                             .justify_end()
                             .child(div().w(px(120.)).child(self.item.content.clone()))
-                            .child(
-                                div().w(px(315.)).child(
-                                    self.item
-                                        .description
-                                        .clone()
-                                        .unwrap_or_default()
-                                        .to_string(),
-                                ),
-                            )
+                            .child(div().w(px(315.)).child(
+                                self.item.description.clone().unwrap_or_default().to_string(),
+                            ))
                             .child(
                                 div().w(px(315.)).child(
                                     self.item.priority.unwrap_or_default().to_string().clone(),
@@ -166,16 +149,13 @@ impl ItemListDelegate {
             query: "".into(),
         }
     }
+
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
         let items: Vec<Rc<ItemModel>> = self
             ._items
             .iter()
-            .filter(|item| {
-                item.content
-                    .to_lowercase()
-                    .contains(&self.query.to_lowercase())
-            })
+            .filter(|item| item.content.to_lowercase().contains(&self.query.to_lowercase()))
             .cloned()
             .collect();
         for item in items.into_iter() {
@@ -190,16 +170,15 @@ impl ItemListDelegate {
             self.selected_index = Some(IndexPath::default());
         }
     }
+
     pub fn selected_item(&self) -> Option<Rc<ItemModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };
 
-        self.matched_items
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
+        self.matched_items.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
+
     // open_sheet_at_item: 点击任务，靠右显示任务详情
     fn open_sheet_at_item(
         &mut self,
@@ -213,13 +192,11 @@ impl ItemListDelegate {
                 .size(px(400.))
                 .title(item.content.clone())
                 .gap_4()
-                .child(
-                    Button::new("send-notification")
-                        .child("Test Notification")
-                        .on_click(|_, window, cx| {
-                            window.push_notification("Hello this is message from Drawer.", cx)
-                        }),
-                )
+                .child(Button::new("send-notification").child("Test Notification").on_click(
+                    |_, window, cx| {
+                        window.push_notification("Hello this is message from Drawer.", cx)
+                    },
+                ))
                 .child(Label::new(item.content.clone()))
                 .footer(
                     h_flex()
@@ -230,13 +207,9 @@ impl ItemListDelegate {
                                 window.close_sheet(cx);
                             },
                         ))
-                        .child(
-                            Button::new("cancel")
-                                .label("取消")
-                                .on_click(|_, window, cx| {
-                                    window.close_sheet(cx);
-                                }),
-                        ),
+                        .child(Button::new("cancel").label("取消").on_click(|_, window, cx| {
+                            window.close_sheet(cx);
+                        })),
                 )
         });
     }

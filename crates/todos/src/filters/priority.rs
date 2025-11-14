@@ -7,24 +7,16 @@ pub struct Priority {
 impl Priority {
     pub fn default(priority: i32) -> Priority {
         let name = Util::get_default().get_priority_title(priority);
-        let keywords = format!(
-            "{};{}",
-            Util::get_default().get_priority_keywords(priority),
-            "filters"
-        );
+        let keywords =
+            format!("{};{}", Util::get_default().get_priority_keywords(priority), "filters");
         let view_id = format!("priority-{priority}");
-        Self {
-            base: BaseObject::new(name, keywords, "".to_string(), view_id),
-            count: 0,
-            priority,
-        }
+        Self { base: BaseObject::new(name, keywords, "".to_string(), view_id), count: 0, priority }
     }
+
     pub async fn count(&self, store: Store) -> usize {
-        store
-            .get_items_by_priority(self.priority, false)
-            .await
-            .len()
+        store.get_items_by_priority(self.priority, false).await.len()
     }
+
     pub fn count_updated(&self) {
 
         // Store::instance().item_added.connect (() => {

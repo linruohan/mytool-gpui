@@ -2,10 +2,14 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
     MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
+use gpui_component::{
+    ActiveTheme, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    dock::PanelControl,
+    h_flex, v_flex,
+};
 
 use crate::{Board, LabelEvent, LabelsPanel};
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme, IconName, Sizable, dock::PanelControl, h_flex, v_flex};
 
 pub struct LabelsBoard {
     _subscriptions: Vec<Subscription>,
@@ -21,18 +25,12 @@ impl LabelsBoard {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let labels_panel = LabelsPanel::view(window, cx);
         let _subscriptions =
-            vec![
-                cx.subscribe(&labels_panel, |this, _, event: &LabelEvent, cx| {
-                    this.labels_panel.update(cx, |panel, cx| {
-                        panel.handle_label_event(event, cx);
-                    });
-                }),
-            ];
-        Self {
-            focus_handle: cx.focus_handle(),
-            _subscriptions,
-            labels_panel,
-        }
+            vec![cx.subscribe(&labels_panel, |this, _, event: &LabelEvent, cx| {
+                this.labels_panel.update(cx, |panel, cx| {
+                    panel.handle_label_event(event, cx);
+                });
+            })];
+        Self { focus_handle: cx.focus_handle(), _subscriptions, labels_panel }
     }
 }
 impl Board for LabelsBoard {
@@ -47,6 +45,7 @@ impl Board for LabelsBoard {
     fn count() -> usize {
         1
     }
+
     fn title() -> &'static str {
         "Labels"
     }

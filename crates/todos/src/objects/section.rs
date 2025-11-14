@@ -1,12 +1,13 @@
-use crate::objects::{BaseTrait, Project};
-use crate::{BaseObject, Store};
-
-use crate::entity::prelude::SectionEntity;
-use crate::entity::{ItemModel, ProjectModel, SectionModel, SourceModel};
-use crate::error::TodoError;
-use crate::utils::Util;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
+
+use crate::{
+    BaseObject, Store,
+    entity::{ItemModel, ProjectModel, SectionModel, SourceModel, prelude::SectionEntity},
+    error::TodoError,
+    objects::{BaseTrait, Project},
+    utils::Util,
+};
 
 #[derive(Clone, Debug)]
 pub struct Section {
@@ -19,20 +20,13 @@ pub struct Section {
 impl Section {
     pub fn new(db: DatabaseConnection, model: SectionModel) -> Self {
         let base = BaseObject::default();
-        Self {
-            model,
-            base,
-            db,
-            store: OnceCell::new(),
-            activate_name_editable: false,
-        }
+        Self { model, base, db, store: OnceCell::new(), activate_name_editable: false }
     }
 
     pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async { Store::new(self.db.clone()).await })
-            .await
+        self.store.get_or_init(|| async { Store::new(self.db.clone()).await }).await
     }
+
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = SectionEntity::find_by_id(item_id)
             .one(&db)
@@ -41,27 +35,24 @@ impl Section {
 
         Ok(Self::new(db, item))
     }
+
     pub fn short_name(&self) -> String {
         Util::default().get_short_name(&self.model.name, 0)
     }
+
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store()
-            .await
-            .get_project(self.model.project_id.as_ref()?)
-            .await // Assuming Store has a method to get project by ID
+        self.store().await.get_project(self.model.project_id.as_ref()?).await // Assuming Store has a method to get project by ID
     }
+
     pub async fn items(&self) -> Vec<ItemModel> {
         let mut items = self.store().await.items().await;
         items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
         items
     }
+
     pub async fn section_count(&self) -> usize {
         let mut result = 0;
-        let items = self
-            .store()
-            .await
-            .get_items_by_section(&self.model.id)
-            .await;
+        let items = self.store().await.get_items_by_section(&self.model.id).await;
         result += items.len();
         for item in &items {
             let subitems = self.store().await.get_subitems(&item.id).await;
@@ -69,6 +60,7 @@ impl Section {
         }
         result
     }
+
     pub async fn add_item_if_not_exist(
         &self,
         item_model: &mut ItemModel,
@@ -77,17 +69,15 @@ impl Section {
             Some(item) => Ok(item),
             None => {
                 item_model.section_id = Some(self.model.id.clone());
-                self.store()
-                    .await
-                    .insert_item(item_model.clone(), true)
-                    .await
-            }
+                self.store().await.insert_item(item_model.clone(), true).await
+            },
         }
     }
 
     pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
         self.store().await.get_item(item_id).await
     }
+
     pub async fn get_subitem_size(&self, item_id: &str) -> usize {
         let mut count = 0;
         Box::pin(async move {
@@ -106,6 +96,7 @@ impl Section {
         .await;
         count
     }
+
     pub fn duplicate(&self) -> SectionModel {
         SectionModel {
             name: self.model.name.clone(),
@@ -114,6 +105,7 @@ impl Section {
             ..Default::default()
         }
     }
+
     pub async fn delete_section(&self) -> Result<(), TodoError> {
         self.store().await.delete_section(self.id()).await
     }
@@ -121,6 +113,7 @@ impl Section {
     pub async fn archive_section(&self) -> Result<(), TodoError> {
         self.store().await.archive_section(self.id(), true).await
     }
+
     pub async fn unarchive_section(&self) -> Result<(), TodoError> {
         self.store().await.archive_section(self.id(), true).await
     }
@@ -131,6 +124,7 @@ impl Section {
         };
         false
     }
+
     pub async fn source(&self) -> Option<SourceModel> {
         let Some(project_model) = self.project().await else {
             return None;

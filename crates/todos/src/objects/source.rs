@@ -1,12 +1,14 @@
-use crate::BaseObject;
-use crate::entity::SourceModel;
-use crate::entity::prelude::SourceEntity;
-use crate::enums::SourceType;
-use crate::error::TodoError;
-use crate::objects::BaseTrait;
-use crate::services::Store;
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
+
+use crate::{
+    BaseObject,
+    entity::{SourceModel, prelude::SourceEntity},
+    enums::SourceType,
+    error::TodoError,
+    objects::BaseTrait,
+    services::Store,
+};
 
 #[derive(Clone, Debug)]
 pub struct Source {
@@ -19,19 +21,13 @@ pub struct Source {
 impl Source {
     pub fn new(db: DatabaseConnection, model: SourceModel) -> Self {
         let base = BaseObject::default();
-        Self {
-            model,
-            base,
-            db,
-            store: OnceCell::new(),
-        }
+        Self { model, base, db, store: OnceCell::new() }
     }
 
     pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async { Store::new(self.db.clone()).await })
-            .await
+        self.store.get_or_init(|| async { Store::new(self.db.clone()).await }).await
     }
+
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
         let item = SourceEntity::find_by_id(item_id)
             .one(&db)
@@ -40,12 +36,15 @@ impl Source {
 
         Ok(Self::new(db, item))
     }
+
     pub fn source_type(&self) -> SourceType {
         SourceType::parse(&self.model.source_type)
     }
+
     pub fn header_text(&self) -> String {
         self.model.display_name.clone().unwrap_or_default()
     }
+
     pub fn sub_header_text(&self) -> &str {
         match self.source_type() {
             SourceType::LOCAL => "Tasks",
@@ -55,6 +54,7 @@ impl Source {
             _ => "",
         }
     }
+
     pub fn avatar_path(&self) -> &str {
         match self.source_type() {
             SourceType::LOCAL => "assets/images/local.png",
@@ -64,6 +64,7 @@ impl Source {
             _ => "assets/images/default.png",
         }
     }
+
     pub fn user_displayname(&self) -> &str {
         match self.source_type() {
             SourceType::TODOIST => "Todoist",
@@ -71,6 +72,7 @@ impl Source {
             _ => "",
         }
     }
+
     pub fn user_email(&self) -> &str {
         match self.source_type() {
             SourceType::TODOIST => "todoist@126.com",
@@ -78,24 +80,27 @@ impl Source {
             _ => "",
         }
     }
+
     pub fn run_server(&self) -> Result<(), TodoError> {
         match self.source_type() {
             SourceType::CALDAV => {
                 // Services.CalDAV.Core.get_default ().sync.begin (this);
                 Ok(())
-            }
+            },
             SourceType::TODOIST => {
                 // Services.Todoist.get_default ().sync.begin (this);
                 Ok(())
-            }
+            },
             _ => Ok(()),
         }
     }
+
     pub fn save(&self) -> Result<(), TodoError> {
         // updated_at = new GLib.DateTime.now_local ().to_string ();
         // Services.Store.instance ().update_source (this);
         Ok(())
     }
+
     pub async fn delete_source(&self) -> Result<u64, TodoError> {
         self.store().await.delete_source(&self.model.id).await
     }

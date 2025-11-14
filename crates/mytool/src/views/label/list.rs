@@ -1,13 +1,13 @@
-use gpui::prelude::FluentBuilder;
+use std::rc::Rc;
+
 use gpui::{
     App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, div, px,
+    Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
-use std::rc::Rc;
 use todos::entity::LabelModel;
 
 actions!(label, [SelectedLabel]);
@@ -33,12 +33,7 @@ impl LabelListItem {
         ix: IndexPath,
         selected: bool,
     ) -> Self {
-        LabelListItem {
-            label,
-            ix,
-            base: ListItem::new(id),
-            selected,
-        }
+        LabelListItem { label, ix, base: ListItem::new(id), selected }
     }
 }
 
@@ -55,11 +50,8 @@ impl Selectable for LabelListItem {
 
 impl RenderOnce for LabelListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let text_color = if self.selected {
-            cx.theme().accent_foreground
-        } else {
-            cx.theme().foreground
-        };
+        let text_color =
+            if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         let bg_color = if self.selected {
             cx.theme().list_active
@@ -76,25 +68,18 @@ impl RenderOnce for LabelListItem {
             .bg(bg_color)
             .border_1()
             .border_color(bg_color)
-            .when(self.selected, |this| {
-                this.border_color(cx.theme().list_active_border)
-            })
+            .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .text_color(text_color)
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .justify_end()
-                            .child(div().w(px(15.)).child(self.label.id.clone()))
-                            .child(div().w(px(120.)).child(self.label.name.clone()))
-                            .child(div().w(px(115.)).child(self.label.color.clone())),
-                    ),
+                h_flex().items_center().justify_between().gap_2().text_color(text_color).child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .justify_end()
+                        .child(div().w(px(15.)).child(self.label.id.clone()))
+                        .child(div().w(px(120.)).child(self.label.name.clone()))
+                        .child(div().w(px(115.)).child(self.label.color.clone())),
+                ),
             )
     }
 }
@@ -117,17 +102,13 @@ impl LabelListDelegate {
             query: "".into(),
         }
     }
+
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
         let labels: Vec<Rc<LabelModel>> = self
             ._labels
             .iter()
-            .filter(|label| {
-                label
-                    .name
-                    .to_lowercase()
-                    .contains(&self.query.to_lowercase())
-            })
+            .filter(|label| label.name.to_lowercase().contains(&self.query.to_lowercase()))
             .cloned()
             .collect();
         for label in labels.into_iter() {
@@ -142,15 +123,13 @@ impl LabelListDelegate {
             self.selected_index = Some(IndexPath::default());
         }
     }
+
     pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
         let Some(ix) = self.selected_index else {
             return None;
         };
 
-        self.matched_labels
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
+        self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 }
 impl ListDelegate for LabelListDelegate {

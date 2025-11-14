@@ -1,0 +1,28 @@
+format_code_in_doc_comments = true
+match_block_trailing_comma = true
+condense_wildcard_suffixes = true
+use_field_init_shorthand = true
+normalize_doc_attributes = true
+overflow_delimited_expr = true
+
+use_small_heuristics = "Max"
+normalize_comments = true
+reorder_impl_items = true
+use_try_shorthand = true
+format_strings = true
+wrap_comments = true
+comment_width = 100
+# 导入分组设置
+imports_granularity = "Crate"
+# imports_granularity = "Module"
+# 分组方式：StdExternalCrate | Preserve | One
+group_imports = "StdExternalCrate"
+
+# 其他格式化选项
+reorder_imports = true
+reorder_modules = true
+# 其他常用设置
+# edition = "2021"
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"

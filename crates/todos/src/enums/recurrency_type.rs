@@ -25,7 +25,7 @@ impl RecurrencyType {
                 } else {
                     format!("Every {s}  Every {interval} {s}s")
                 }
-            }
+            },
         }
     }
 }

@@ -15,6 +15,7 @@ impl ProjectIconStyle {
             _ => ProjectIconStyle::PROGRESS,
         }
     }
+
     pub fn to_lowercase(&self) -> &str {
         match self {
             ProjectIconStyle::PROGRESS => "process",

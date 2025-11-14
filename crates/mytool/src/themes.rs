@@ -14,10 +14,7 @@ struct State {
 
 impl Default for State {
     fn default() -> Self {
-        Self {
-            theme: "Default Light".into(),
-            scrollbar_show: None,
-        }
+        Self { theme: "Default Light".into(), scrollbar_show: None }
     }
 }
 
@@ -27,11 +24,7 @@ pub fn init(cx: &mut App) {
     tracing::info!("Load themes...");
     let state = serde_json::from_str::<State>(&json).unwrap_or_default();
     if let Err(err) = ThemeRegistry::watch_dir(PathBuf::from("./themes"), cx, move |cx| {
-        if let Some(theme) = ThemeRegistry::global(cx)
-            .themes()
-            .get(&state.theme)
-            .cloned()
-        {
+        if let Some(theme) = ThemeRegistry::global(cx).themes().get(&state.theme).cloned() {
             Theme::global_mut(cx).apply_config(&theme);
         }
     }) {

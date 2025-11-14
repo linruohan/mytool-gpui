@@ -23,6 +23,7 @@ impl SourceType {
             _ => SourceType::NONE, // 默认返回 NONE
         }
     }
+
     pub fn to_lowercase(&self) -> String {
         match self {
             SourceType::NONE => "none".to_string(),
