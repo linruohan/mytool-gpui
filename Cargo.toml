@@ -14,6 +14,7 @@ mytool = { path = "crates/mytool" }
 # gpui
 gpui = "0.2.2"
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
+gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
 anyhow = "1.0.98"
 rand = "0.8.5"

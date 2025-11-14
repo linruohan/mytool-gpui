@@ -1,5 +1,4 @@
 mod app_menus;
-mod assets;
 mod calendar_story;
 // mod components; // 我的组件库
 mod crypto; // 加解密
@@ -7,7 +6,6 @@ mod gallery;
 mod list_story;
 mod service;
 mod themes;
-mod tiles;
 mod title_bar;
 mod todo_story;
 mod utils;
@@ -15,7 +13,6 @@ mod views; // 任务管理视图
 mod welcome_story;
 
 // 获取todoist数据
-pub use assets::Assets;
 pub use calendar_story::CalendarStory;
 pub use gallery::Gallery;
 use gpui::{
@@ -28,7 +25,6 @@ use gpui::{
 pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
 pub use service::*;
-pub use tiles::*;
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
@@ -150,7 +146,7 @@ pub fn create_new_window_with_size<F, E>(
                 let view = crate_view_fn(window, cx);
                 let root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
 
-                cx.new(|cx| Root::new(root.into(), window, cx).text_base())
+                cx.new(|cx| Root::new(root, window, cx))
             })
             .expect("failed to open window");
 
@@ -187,13 +183,22 @@ impl StoryRoot {
 }
 
 impl Render for StoryRoot {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        div().size_full().child(
-            v_flex()
-                .size_full()
-                .child(self.title_bar.clone())
-                .child(div().flex_1().overflow_hidden().child(self.view.clone())),
-        )
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let sheet_layer = Root::render_sheet_layer(window, cx);
+        let dialog_layer = Root::render_dialog_layer(window, cx);
+        let notification_layer = Root::render_notification_layer(window, cx);
+
+        div()
+            .size_full()
+            .child(
+                v_flex()
+                    .size_full()
+                    .child(self.title_bar.clone())
+                    .child(div().flex_1().overflow_hidden().child(self.view.clone())),
+            )
+            .children(sheet_layer)
+            .children(dialog_layer)
+            .children(notification_layer)
     }
 }
 
