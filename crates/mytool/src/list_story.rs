@@ -1,20 +1,20 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
+    actions, px, App, AppContext, Context, Entity, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Sizable,
-    button::Button,
-    checkbox::Checkbox,
-    h_flex,
+    button::Button, checkbox::Checkbox, h_flex,
     list::{List, ListDelegate, ListEvent, ListState},
     v_flex,
+    ActiveTheme,
+    IndexPath,
+    Sizable,
 };
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemListDelegate, load_items};
+use crate::{load_items, section, DBState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate};
 
 actions!(list_story, [SelectedCompany]);
 
@@ -25,6 +25,8 @@ pub struct ListStory {
     selectable: bool,
     searchable: bool,
     _subscriptions: Vec<Subscription>,
+    item_info: Entity<ItemInfoState>,
+    item: Rc<ItemModel>,
 }
 
 impl super::Mytool for ListStory {
@@ -50,8 +52,17 @@ impl ListStory {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
-        let _subscriptions =
-            vec![cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
+        let item_info = cx.new(|cx| {
+            let picker = ItemInfoState::new(window, cx);
+            picker
+        });
+        let _subscriptions = vec![
+            cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
+                this.item_info.update(cx, |item_info, cx| {
+                    item_info.handel_item_info_event(event, cx);
+                });
+            }),
+            cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
                 ListEvent::Select(ix) => {
                     println!("List Selected: {:?}", ix);
                 },
@@ -61,7 +72,8 @@ impl ListStory {
                 ListEvent::Cancel => {
                     println!("List Cancelled");
                 },
-            })];
+            }),
+        ];
         let company_list_clone = company_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
@@ -86,6 +98,8 @@ impl ListStory {
             company_list,
             selected_company: None,
             _subscriptions,
+            item_info,
+            item: Rc::new(ItemModel::default()),
         }
     }
 
@@ -118,7 +132,7 @@ impl Focusable for ListStory {
 }
 
 impl Render for ListStory {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_company))
@@ -210,7 +224,22 @@ impl Render for ListStory {
                             .on_click(cx.listener(|this, check: &bool, window, cx| {
                                 this.toggle_searchable(*check, window, cx)
                             })),
+                    )
+                    .child(
+                        Checkbox::new("item-info")
+                            .label("iteminfo")
+                            .checked(self.searchable)
+                            .on_click(cx.listener(|this, check: &bool, window, cx| {
+                                this.item_info.update(cx, |item, cx| {
+                                    println!("item: {:?}", item.item());
+                                })
+                            })),
                     ),
+            )
+            .child(
+                section("item_info")
+                    .max_w_128()
+                    .child(ItemInfo::new(&self.item_info).cleanable(true)),
             )
             .child(
                 List::new(&self.company_list)

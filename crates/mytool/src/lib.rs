@@ -1,6 +1,7 @@
 mod app_menus;
 mod calendar_story;
 // mod components; // 我的组件库
+mod components;
 mod crypto; // 加解密
 mod gallery;
 mod list_story;
@@ -14,6 +15,7 @@ mod welcome_story;
 
 // 获取todoist数据
 pub use calendar_story::CalendarStory;
+pub use components::*;
 pub use gallery::Gallery;
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
@@ -72,6 +74,7 @@ actions!(mytool, [
 ]);
 
 const PANEL_NAME: &str = "StoryContainer";
+rust_i18n::i18n!("locales", fallback = "en");
 
 pub struct AppState {
     pub invisible_panels: Entity<Vec<SharedString>>,

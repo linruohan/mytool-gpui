@@ -43,14 +43,10 @@ impl ColorPickerStory {
             ColorPickerEvent::Change(color) => {
                 this.selected_color = *color;
                 println!("Color changed to: {:?}", color);
-            }
+            },
         })];
 
-        Self {
-            color,
-            selected_color: Some(cx.theme().primary),
-            _subscriptions,
-        }
+        Self { color, selected_color: Some(cx.theme().primary), _subscriptions }
     }
 }
 
@@ -66,9 +62,7 @@ impl Render for ColorPickerStory {
             section("Normal")
                 .max_w_md()
                 .child(ColorPicker::new(&self.color).small())
-                .when_some(self.selected_color, |this, color| {
-                    this.child(color.to_hex())
-                }),
+                .when_some(self.selected_color, |this, color| this.child(color.to_hex())),
         )
     }
 }
