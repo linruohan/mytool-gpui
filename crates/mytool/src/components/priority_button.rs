@@ -1,10 +1,10 @@
 use gpui::{
-    Action, App, Context, Corner, ElementId, Entity, FocusHandle, Focusable,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce, SharedString,
-    StyleRefinement, Styled, Window, div, px,
+    Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
+    SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _, button::Button,
+    ActiveTheme, Icon, IconName, Sizable, Size, StyleSized, StyledExt as _, button::Button,
     menu::DropdownMenu, v_flex,
 };
 use serde::Deserialize;
@@ -13,15 +13,15 @@ use todos::enums::item_priority::ItemPriority;
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = priority, no_json)]
 struct Info(i32);
-#[derive(Clone)]
+
 pub enum PriorityEvent {
-    Changed(i32),
+    Selected(i32),
 }
 pub struct PriorityState {
     focus_handle: FocusHandle,
-    priority: ItemPriority,
+    pub priority: ItemPriority,
 }
-
+impl EventEmitter<PriorityEvent> for PriorityState {}
 impl Focusable for PriorityState {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
@@ -37,8 +37,21 @@ impl PriorityState {
         self.priority.clone()
     }
 
-    fn on_action_info(&mut self, info: &Info, _: &mut Window, _cx: &mut Context<Self>) {
+    pub fn set_priority(
+        &mut self,
+        date: impl Into<ItemPriority>,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.priority = date.into();
+        cx.notify()
+    }
+
+    fn on_action_info(&mut self, info: &Info, _window: &mut Window, cx: &mut Context<Self>) {
         self.priority = ItemPriority::from_i32(info.0);
+        cx.emit(PriorityEvent::Selected(info.0));
+        cx.notify();
+        println!("priority: {:?}", self.priority);
     }
 }
 

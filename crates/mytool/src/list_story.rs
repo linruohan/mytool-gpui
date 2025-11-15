@@ -14,7 +14,9 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{load_items, section, DBState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate};
+use crate::{
+    load_items, section, DBState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+};
 
 actions!(list_story, [SelectedCompany]);
 
@@ -229,18 +231,14 @@ impl Render for ListStory {
                         Checkbox::new("item-info")
                             .label("iteminfo")
                             .checked(self.searchable)
-                            .on_click(cx.listener(|this, check: &bool, window, cx| {
-                                this.item_info.update(cx, |item, cx| {
-                                    println!("item: {:?}", item.item());
+                            .on_click(cx.listener(|this, _check: &bool, _window, cx| {
+                                this.item_info.update(cx, |item, _cx| {
+                                    println!("item: {:?}", item.item.clone());
                                 })
                             })),
                     ),
             )
-            .child(
-                section("item_info")
-                    .max_w_128()
-                    .child(ItemInfo::new(&self.item_info).cleanable(true)),
-            )
+            .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(
                 List::new(&self.company_list)
                     .p(px(8.))
