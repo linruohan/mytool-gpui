@@ -51,7 +51,7 @@ impl PriorityState {
         self.priority = ItemPriority::from_i32(info.0);
         cx.emit(PriorityEvent::Selected(info.0));
         cx.notify();
-        println!("priority: {:?}", self.priority);
+        // println!("priority: {:?}", self.priority);
     }
 }
 

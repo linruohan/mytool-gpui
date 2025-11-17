@@ -5,7 +5,9 @@ use gpui::{
     Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable, h_flex,
+    ActiveTheme, Icon, IconName, IndexPath, Selectable,
+    button::Button,
+    h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
@@ -76,7 +78,9 @@ impl RenderOnce for LabelListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(div().w(px(15.)).child(self.label.id.clone()))
+                        .child(Button::new("tag").icon(
+                            Icon::build(IconName::TagOutlineSymbolic).text_color(self.label.color),
+                        ))
                         .child(div().w(px(120.)).child(self.label.name.clone()))
                         .child(div().w(px(115.)).child(self.label.color.clone())),
                 ),

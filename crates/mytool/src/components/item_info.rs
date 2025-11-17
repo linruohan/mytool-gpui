@@ -98,11 +98,6 @@ impl ItemInfoState {
         self.item = item;
     }
 
-    fn on_action_info(&mut self, info: &Info, _: &mut Window, _cx: &mut Context<Self>) {
-        println!("info:{}", info.0);
-        println!("item:{:?}", self.item);
-    }
-
     pub fn handel_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
         match event {
             ItemInfoEvent::Add(item) => {
@@ -125,7 +120,6 @@ impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
         v_flex()
-            .on_action(cx.listener(Self::on_action_info))
             .child(
                 Checkbox::new("item-is-finish")
                     .checked(self.checked)
@@ -149,7 +143,6 @@ impl Render for ItemInfoState {
                             priority: Some(view.priority_state.read(cx).priority() as i32),
                             ..Default::default()
                         };
-                        println!("emit ItemInfoEvent before:{:?}", item.clone());
                         cx.emit(ItemInfoEvent::Update(item.into()));
                         cx.notify();
                     });
