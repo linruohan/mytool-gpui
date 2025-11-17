@@ -110,10 +110,7 @@ impl ProjectsPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
-        let _input2 = cx.new(|cx| -> InputState {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
         let now = chrono::Local::now().naive_local().date();
         let project_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
@@ -136,12 +133,12 @@ impl ProjectsPanel {
                 .child(
                     v_flex()
                         .gap_3()
-                        .child(Input::new(&input1))
+                        .child(Input::new(&name_input))
                         .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
                 )
                 .footer({
                     let view = view.clone();
-                    let input1 = input1.clone();
+                    let input1 = name_input.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("add").primary().label("Add").on_click({

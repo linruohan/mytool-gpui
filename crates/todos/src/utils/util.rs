@@ -3,13 +3,13 @@ use std::{borrow::Cow, collections::HashMap, fmt::Error};
 use rand::Rng;
 use uuid::Uuid;
 
-use crate::{constants, objects::Color, settings::AppConfig};
+use crate::{constants, objects::Color};
 pub struct Util {
     pub colors: HashMap<String, Color>,
 }
 
 impl Util {
-    pub(crate) fn default() -> Util {
+    pub fn default() -> Util {
         Util { colors: HashMap::new() }
     }
 }
@@ -58,6 +58,24 @@ impl Util {
             return color.hexadecimal.clone();
         }
         key
+    }
+
+    // get_color_u32: return u32 for gpui with rgb to Hsla
+    pub fn get_color_u32(&self, key: String) -> u32 {
+        self.get_colors()
+            .get(&key)
+            .and_then(|color| {
+                let color_str = color.hexadecimal.trim();
+
+                if color_str.starts_with("0x") {
+                    u32::from_str_radix(&color_str[2..], 16).ok()
+                } else if color_str.starts_with('#') {
+                    u32::from_str_radix(&color_str[1..], 16).ok()
+                } else {
+                    color_str.parse::<u32>().ok()
+                }
+            })
+            .unwrap_or(0x000000) // 默认黑色
     }
 
     pub fn get_random_color(&self) -> String {

@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, div, prelude::FluentBuilder, px,
+    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
+    Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath, Selectable,
@@ -10,8 +10,7 @@ use gpui_component::{
     h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
-use todos::entity::LabelModel;
-
+use todos::{entity::LabelModel, utils::Util};
 actions!(label, [SelectedLabel]);
 pub enum LabelEvent {
     Loaded,
@@ -79,7 +78,9 @@ impl RenderOnce for LabelListItem {
                         .items_center()
                         .justify_end()
                         .child(Button::new("tag").icon(
-                            Icon::build(IconName::TagOutlineSymbolic).text_color(self.label.color),
+                            Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
+                                gpui::rgb(Util::default().get_color_u32(self.label.color.clone())),
+                            )),
                         ))
                         .child(div().w(px(120.)).child(self.label.name.clone()))
                         .child(div().w(px(115.)).child(self.label.color.clone())),

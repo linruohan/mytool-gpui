@@ -1,21 +1,24 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions, px,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Sizable,
+    ActiveTheme, Colorize, IndexPath, Sizable,
     button::Button,
     checkbox::Checkbox,
     h_flex,
     list::{List, ListDelegate, ListEvent, ListState},
     v_flex,
 };
-use todos::entity::ItemModel;
+use itertools::Itertools;
+use todos::{entity::ItemModel, utils::Util};
 
 use crate::{
-    DBState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, load_items, section,
+    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
+    ItemListDelegate, load_items, section,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -29,6 +32,8 @@ pub struct ListStory {
     _subscriptions: Vec<Subscription>,
     item_info: Entity<ItemInfoState>,
     item: Rc<ItemModel>,
+    color: Entity<ColorGroupState>,
+    selected_color: Option<Hsla>,
 }
 
 impl super::Mytool for ListStory {
@@ -53,12 +58,19 @@ impl ListStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
+        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
 
         let item_info = cx.new(|cx| {
             let picker = ItemInfoState::new(window, cx);
             picker
         });
         let _subscriptions = vec![
+            cx.subscribe(&color, |this, _, ev, _| match ev {
+                ColorGroupEvent::Change(color) => {
+                    this.selected_color = *color;
+                    println!("Color changed to: {:?}", color);
+                },
+            }),
             cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
                 this.item_info.update(cx, |item_info, cx| {
                     item_info.handel_item_info_event(event, cx);
@@ -94,6 +106,8 @@ impl ListStory {
         .detach();
 
         Self {
+            color,
+            selected_color: Some(cx.theme().primary),
             focus_handle: cx.focus_handle(),
             searchable: true,
             selectable: true,
@@ -128,11 +142,19 @@ impl ListStory {
 }
 
 impl Focusable for ListStory {
-    fn focus_handle(&self, _cx: &gpui::App) -> FocusHandle {
-        self.focus_handle.clone()
+    fn focus_handle(&self, cx: &gpui::App) -> FocusHandle {
+        self.color.read(cx).focus_handle(cx)
+        // self.focus_handle.clone()
     }
 }
-
+fn color_palettes() -> Vec<Hsla> {
+    let colors = Util::default().get_colors();
+    colors
+        .keys()
+        .sorted()
+        .map(|k| Hsla::from(gpui::rgb(Util::default().get_color_u32(k.to_string()))))
+        .collect::<Vec<_>>()
+}
 impl Render for ListStory {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
@@ -239,6 +261,8 @@ impl Render for ListStory {
                     ),
             )
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
+            .child(ColorGroup::new(&self.color).small())
+            .when_some(self.selected_color, |this, color| this.child(color.to_hex()))
             .child(
                 List::new(&self.company_list)
                     .p(px(8.))

@@ -4503,6 +4503,7 @@ dependencies = [
  "gpui",
  "gpui-component",
  "gpui-component-assets",
+ "itertools 0.14.0",
  "naga",
  "password-hash",
  "pbkdf2",
