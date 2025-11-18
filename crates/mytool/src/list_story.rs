@@ -1,24 +1,13 @@
 use std::rc::Rc;
 
-use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window, actions,
-    prelude::FluentBuilder, px,
-};
-use gpui_component::{
-    ActiveTheme, Colorize, IndexPath, Sizable,
-    button::Button,
-    checkbox::Checkbox,
-    h_flex,
-    list::{List, ListDelegate, ListEvent, ListState},
-    v_flex,
-};
+use gpui::{actions, div, prelude::FluentBuilder, px, red, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window};
+use gpui_component::{button::Button, checkbox::Checkbox, h_flex, list::{List, ListDelegate, ListEvent, ListState}, v_flex, ActiveTheme, Colorize, IndexPath, Sizable};
 use itertools::Itertools;
 use todos::{entity::ItemModel, utils::Util};
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
-    ItemListDelegate, load_items, section,
+    load_items, section, ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo,
+    ItemInfoEvent, ItemInfoState, ItemListDelegate,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -261,8 +250,10 @@ impl Render for ListStory {
                     ),
             )
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
-            .child(ColorGroup::new(&self.color).small())
-            .when_some(self.selected_color, |this, color| this.child(color.to_hex()))
+            .child(ColorGroup::new(&self.color).large())
+            .when_some(self.selected_color, |this, color| {
+                this.child(div().border_color(red()).bg(color).child(color.to_hex()))
+            })
             .child(
                 List::new(&self.company_list)
                     .p(px(8.))

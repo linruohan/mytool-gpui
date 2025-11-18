@@ -1,11 +1,15 @@
 use gpui::{
-    actions, div, prelude::FluentBuilder as _, Action, App,
-    AppContext, Bounds, ClickEvent, Context, Corner, ElementId, Entity,
-    EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement
-    , ParentElement, Pixels, Point, Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement,
-    Styled, Subscription, Window,
+    actions, div, prelude::FluentBuilder as _, Action, App, AppContext, Bounds, ClickEvent, Context, Corner,
+    ElementId, Entity, EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement as _,
+    IntoElement, ParentElement, Pixels, Point, Render, RenderOnce,
+    SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
 };
-use gpui_component::{h_flex, input::{InputEvent, InputState}, v_flex, ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyledExt};
+use gpui_component::{
+    h_flex, input::{InputEvent, InputState}, tooltip::Tooltip, v_flex, ActiveTheme as _, Colorize as _, Icon,
+    Sizable,
+    Size,
+    StyleSized,
+};
 use serde::Deserialize;
 
 #[derive(Clone, Action, PartialEq, Eq, Deserialize)]
@@ -19,6 +23,8 @@ actions!(color_group, [Cancel, SelectUp, SelectDown, SelectLeft, SelectRight]);
 const CONTEXT: &'static str = "ColorPickerGroup";
 use todos::utils::Util;
 
+use crate::section;
+
 /// Events emitted by the [`ColorGroup`].
 #[derive(Clone)]
 pub enum ColorGroupEvent {
@@ -28,14 +34,12 @@ pub enum ColorGroupEvent {
 fn color_palettes() -> Vec<Vec<Hsla>> {
     use itertools::Itertools as _;
     let colors = Util::default().get_colors();
-    colors
+    let color_list = colors
         .keys()
         .sorted()
         .map(|k| Hsla::from(gpui::rgb(Util::default().get_color_u32(k.to_string()))))
         .collect::<Vec<_>>();
-    colors.into_iter().chunks(10)
-          .map(|chunk| chunk.to_vec())
-          .collect()
+    color_list.chunks(10).map(|chunk| chunk.to_vec()).collect()
 }
 
 /// State of the [`ColorGroup`].
@@ -282,10 +286,9 @@ impl ColorGroup {
 
         let state = self.state.clone();
 
-        v_flex()
-            .gap_3()
-            .child(
-                h_flex().gap_1().children(color_palettes().iter().map(|color| {
+        v_flex().gap_3().items_center().child(v_flex().gap_1().children(
+            color_palettes().iter().map(|sub_colors| {
+                h_flex().gap_1().children(sub_colors.iter().rev().map(|color| {
                     // self.render_item(*color, true, window, cx)
                     let color = *color;
                     div()
@@ -295,29 +298,29 @@ impl ColorGroup {
                         .bg(color)
                         .border_1()
                         .border_color(color.darken(0.1))
-                        .on_click(window.listener_for(&state, move |state, _, window, cx| {
-                            state.update_value(Some(color), true, window, cx);
-                            state.open = false;
-                            cx.notify();
-                        }))
-                })))
-            .child(
-                h_flex().gap_1().children(color_palettes().iter().map(|color| {
-                    // self.render_item(*color, true, window, cx)
-                    let color = *color;
-                    div()
-                        .id(SharedString::from(format!("color-{}", color.to_hex())))
-                        .h_5()
-                        .w_5()
-                        .bg(color)
-                        .border_1()
-                        .border_color(color.darken(0.1))
-                        .on_click(window.listener_for(&state, move |state, _, window, cx| {
-                            state.update_value(Some(color), true, window, cx);
-                            state.open = false;
-                            cx.notify();
-                        }))
-                })))
+                        .when(true, |this| {
+                            this.hover(|this| {
+                                this.border_color(color.darken(0.3))
+                                    .bg(color.lighten(0.1))
+                                    .shadow_xs()
+                            })
+                                .active(|this| {
+                                    this.border_color(color.darken(0.5))
+                                        .bg(color.darken(0.2))
+                                        .border_4()
+                                })
+                                .on_click(window.listener_for(
+                                    &state,
+                                    move |state, _, window, cx| {
+                                        state.update_value(Some(color), true, window, cx);
+                                        state.open = false;
+                                        cx.notify();
+                                    },
+                                ))
+                        })
+                }))
+            }),
+        ))
     }
 
     fn resolved_corner(&self, bounds: Bounds<Pixels>) -> Point<Pixels> {
@@ -352,7 +355,7 @@ impl Styled for ColorGroup {
 impl RenderOnce for ColorGroup {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = self.state.read(cx);
-        let bounds = state.bounds;
+        let _bounds = state.bounds;
         let display_title: SharedString =
             if let Some(value) = state.value { value.to_hex() } else { "".to_string() }.into();
 
@@ -364,6 +367,32 @@ impl RenderOnce for ColorGroup {
             .key_context(CONTEXT)
             .track_focus(&focus_handle)
             .on_action(window.listener_for(&self.state, ColorGroupState::on_confirm))
-            .child(self.render_colors(window, cx))
+            .child(
+                section("")
+                    .child(
+                        div()
+                            .id("color-picker-square")
+                            .bg(cx.theme().background)
+                            .border_1()
+                            .m_1()
+                            .border_color(cx.theme().input)
+                            .rounded(cx.theme().radius)
+                            .shadow_xs()
+                            .rounded(cx.theme().radius)
+                            .overflow_hidden()
+                            .size_with(self.size)
+                            .when_some(state.value, |this, value| {
+                                this.bg(value)
+                                    .border_color(value.darken(0.3))
+                                    .when(state.open, |this| this.border_2())
+                            })
+                            .when(!display_title.is_empty(), |this| {
+                                this.tooltip(move |_, cx| {
+                                    cx.new(|_| Tooltip::new(display_title.clone())).into()
+                                })
+                            }),
+                    )
+                    .child(self.render_colors(window, cx)),
+            )
     }
 }
