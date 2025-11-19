@@ -1,22 +1,25 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
+    Render, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    IconName, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    input::{Input, InputState},
-    list::{ListEvent, ListState},
-    menu::{DropdownMenu, PopupMenuItem},
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState}, list::{ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
+    ActiveTheme,
+    Colorize,
+    IconName,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::ProjectModel;
 
-use crate::{DBState, ProjectEvent, ProjectListDelegate, load_projects, play_ogg_file};
+use crate::{
+    load_projects, play_ogg_file, ColorGroup, ColorGroupEvent, ColorGroupState, DBState,
+    ProjectEvent, ProjectListDelegate,
+};
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
 pub struct ProjectsPanel {
@@ -24,6 +27,8 @@ pub struct ProjectsPanel {
     pub project_list: Entity<ListState<ProjectListDelegate>>,
     is_loading: bool,
     project_due: Option<String>,
+    color: Entity<ColorGroupState>,
+    selected_color: Option<Hsla>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
@@ -34,9 +39,15 @@ impl ProjectsPanel {
             cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
 
         let project_list = cx.new(|cx| ListState::new(ProjectListDelegate::new(), window, cx));
-
-        let _subscriptions =
-            vec![cx.subscribe_in(&project_list, window, |this, _, ev: &ListEvent, window, cx| {
+        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let _subscriptions = vec![
+            cx.subscribe(&color, |this, _, ev, _| match ev {
+                ColorGroupEvent::Change(color) => {
+                    this.selected_color = *color;
+                    println!("project Color changed to: {:?}", color.unwrap().to_hex());
+                },
+            }),
+            cx.subscribe_in(&project_list, window, |this, _, ev: &ListEvent, window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(conn) = this.get_selected_project(*ix, cx)
                 {
@@ -45,7 +56,8 @@ impl ProjectsPanel {
                         cx.notify();
                     })
                 }
-            })];
+            }),
+        ];
 
         let project_list_clone = project_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -68,6 +80,8 @@ impl ProjectsPanel {
             project_list,
             active_index: Some(0),
             project_due: None,
+            color,
+            selected_color: None,
             _subscriptions,
         }
     }
@@ -117,11 +131,14 @@ impl ProjectsPanel {
             picker.set_date(now, window, cx);
             picker
         });
+        let color = self.color.clone();
+
         let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
             },
         });
+
         let view = cx.entity().clone();
 
         window.open_dialog(cx, move |modal, _, _| {
@@ -134,6 +151,7 @@ impl ProjectsPanel {
                     v_flex()
                         .gap_3()
                         .child(Input::new(&name_input))
+                        .child(ColorGroup::new(&color))
                         .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
                 )
                 .footer({
@@ -150,6 +168,9 @@ impl ProjectsPanel {
                                         let project = ProjectModel {
                                             name: input1.read(cx).value().to_string(),
                                             due_date: view.project_due.clone(),
+                                            color: Some(
+                                                view.selected_color.unwrap_or_default().to_hex(),
+                                            ),
                                             ..Default::default()
                                         };
                                         cx.emit(ProjectEvent::Added(project.into()));

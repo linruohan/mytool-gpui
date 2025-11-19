@@ -1,13 +1,21 @@
 use std::rc::Rc;
 
-use gpui::{actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window};
-use gpui_component::{h_flex, list::{List, ListEvent, ListState}, v_flex, ActiveTheme, Colorize, Sizable};
+use gpui::{
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, actions, div,
+    prelude::FluentBuilder, px,
+};
+use gpui_component::{
+    ActiveTheme, Colorize, Sizable, h_flex,
+    list::{List, ListEvent, ListState},
+    v_flex,
+};
 use itertools::Itertools;
 use todos::entity::ItemModel;
 
 use crate::{
-    load_items, section, ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo,
-    ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
+    ItemListDelegate, load_items, section,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -147,14 +155,18 @@ impl Render for ListStory {
             .child(ColorGroup::new(&self.color).large())
             .when_some(self.selected_color, |this, color| {
                 this.child(
-                    h_flex().gap_4().child(div()
-                        .id(SharedString::from(format!("color-{}", color.to_hex())))
-                        .h_5()
-                        .w_5()
-                        .bg(color)
-                        .border_1()
-                        .border_color(color.darken(0.1)))
-                            .child(color.to_hex())
+                    h_flex()
+                        .gap_4()
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("color-{}", color.to_hex())))
+                                .h_5()
+                                .w_5()
+                                .bg(color)
+                                .border_1()
+                                .border_color(color.darken(0.1)),
+                        )
+                        .child(color.to_hex()),
                 )
             })
             .child(

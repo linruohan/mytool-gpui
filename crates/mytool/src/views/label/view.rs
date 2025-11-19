@@ -1,20 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
+    Render, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    input::{Input, InputState},
-    list::{List, ListEvent, ListState},
-    v_flex,
+    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState}, v_flex,
+    ActiveTheme,
+    Colorize,
+    IndexPath,
+    WindowExt,
 };
+use itertools::Itertools;
 use todos::entity::LabelModel;
 
 use super::LabelEvent;
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{
+    load_labels, ColorGroup, ColorGroupEvent, ColorGroupState, DBState, LabelListDelegate,
+};
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
 pub struct LabelsPanel {
@@ -23,6 +26,8 @@ pub struct LabelsPanel {
     is_loading: bool,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
+    color: Entity<ColorGroupState>,
+    selected_color: Option<Hsla>,
 }
 
 impl LabelsPanel {
@@ -32,9 +37,15 @@ impl LabelsPanel {
 
         let label_list =
             cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
-
-        let _subscriptions =
-            vec![cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| {
+        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let _subscriptions = vec![
+            cx.subscribe(&color, |this, _, ev, _| match ev {
+                ColorGroupEvent::Change(color) => {
+                    this.selected_color = *color;
+                    println!("label Color changed to: {:?}", color.unwrap().to_hex());
+                },
+            }),
+            cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(conn) = this.get_selected_label(*ix, cx)
                 {
@@ -44,7 +55,8 @@ impl LabelsPanel {
                         cx.notify();
                     })
                 }
-            })];
+            }),
+        ];
 
         let label_list_clone = label_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -62,7 +74,15 @@ impl LabelsPanel {
                 .ok();
         })
         .detach();
-        Self { input_esc, is_loading: false, label_list, active_index: Some(0), _subscriptions }
+        Self {
+            input_esc,
+            is_loading: false,
+            label_list,
+            active_index: Some(0),
+            _subscriptions,
+            color,
+            selected_color: None,
+        }
     }
 
     fn get_selected_label(&self, ix: IndexPath, cx: &App) -> Option<Rc<LabelModel>> {
@@ -98,6 +118,20 @@ impl LabelsPanel {
         }
     }
 
+    fn initialize_label_model(&self, is_edit: bool, _: &mut Window, cx: &mut App) -> LabelModel {
+        self.active_index
+            .filter(|_| is_edit)
+            .and_then(|index| {
+                println!("show_label_dialog: active index: {}", index);
+                self.get_selected_label(IndexPath::new(index), &cx)
+            })
+            .map(|label| {
+                let label_ref = label.as_ref();
+                LabelModel { ..label_ref.clone() }
+            })
+            .unwrap_or_default()
+    }
+
     pub fn show_label_dialog(
         &mut self,
         window: &mut Window,
@@ -105,52 +139,51 @@ impl LabelsPanel {
         is_edit: bool,
     ) {
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Label Name"));
-
-        // 如果是编辑模式，预填充当前标签名
+        let ori_label = self.initialize_label_model(is_edit, window, cx);
         if is_edit {
-            if let Some(active_index) = self.active_index {
-                println!("show_label_dialog: active index: {}", active_index);
-                let label_some = self.get_selected_label(IndexPath::new(active_index), &cx);
-                if let Some(label) = label_some {
-                    name_input.update(cx, |is, cx| {
-                        is.set_value(label.name.clone(), window, cx);
-                        cx.notify();
-                    })
-                }
-            }
-        }
+            name_input.update(cx, |is, cx| {
+                is.set_value(ori_label.name.clone(), window, cx);
+                cx.notify();
+            })
+        };
 
         let view = cx.entity().clone();
         let dialog_title = if is_edit { "Edit Label" } else { "Add Label" };
         let button_label = if is_edit { "Save" } else { "Add" };
-
+        let color = self.color.clone();
         window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title(dialog_title)
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(v_flex().gap_3().child(Input::new(&name_input)))
+                .child(
+                    v_flex().gap_3().child(Input::new(&name_input)).child(ColorGroup::new(&color)),
+                )
                 .footer({
                     let view = view.clone();
+                    let ori_label = ori_label.clone();
                     let name_input_clone = name_input.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("save").primary().label(button_label).on_click({
                                 let view = view.clone();
+                                let ori_label = ori_label.clone();
                                 let name_input_clone1 = name_input_clone.clone();
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
-                                    view.update(cx, |_view, cx| {
-                                        let label = LabelModel {
+                                    view.update(cx, |view, cx| {
+                                        let label = Rc::new(LabelModel {
                                             name: name_input_clone1.read(cx).value().to_string(),
-                                            ..Default::default()
-                                        };
+                                            color: view.selected_color.unwrap_or_default().to_hex(),
+                                            ..ori_label.clone()
+                                        });
+                                        println!("show_label_dialog: label: {:?}", label.clone());
                                         // 根据模式发射不同事件
                                         if is_edit {
-                                            cx.emit(LabelEvent::Modified(label.into()));
+                                            cx.emit(LabelEvent::Modified(label));
                                         } else {
-                                            cx.emit(LabelEvent::Added(label.into()));
+                                            cx.emit(LabelEvent::Added(label));
                                         }
                                         cx.notify();
                                     });
@@ -254,6 +287,7 @@ impl LabelsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<LabelsPanel>, cx| {
             let db = db.lock().await;
+            println!("mod_label before: {:?}", label.clone());
             let ret = crate::service::mod_label(label.clone(), db.clone()).await;
             println!("mod_label {:?}", ret);
             this.update(cx, |this, cx| {

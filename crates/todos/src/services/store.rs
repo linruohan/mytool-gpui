@@ -1,17 +1,14 @@
 use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    Set, prelude::Expr,
-};
+use sea_orm::{prelude::Expr, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set, TryIntoModel};
 
 use crate::{
     constants,
     entity::{
-        AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
-        LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
-        SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items,
-        labels, prelude::*, projects, reminders, sections,
+        attachments, items, labels, prelude::*, projects,
+        reminders, sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel,
+        ItemModel, LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel,
+        ReminderModel, SectionActiveModel, SectionModel, SourceActiveModel, SourceModel,
     },
     error::TodoError,
     objects::{BaseTrait, Item, Section},
@@ -997,8 +994,13 @@ impl Store {
     }
 
     pub async fn update_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
-        let mut active_label: LabelActiveModel = label.into();
-        Ok(active_label.update(&self.db).await?)
+        let existing_label = LabelEntity::find_by_id(label.id.clone())
+            .one(&self.db)
+            .await?.ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+        let mut active_label: LabelActiveModel = existing_label.into();
+        active_label.name = Set(label.name);
+        active_label.color = Set(label.color);
+        Ok(active_label.save(&self.db).await?.try_into_model()?)
     }
 
     pub async fn delete_label(&self, id: &str) -> Result<u64, TodoError> {
