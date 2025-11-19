@@ -137,12 +137,27 @@ impl ItemsPanel {
         self.is_checked = *selectable;
     }
 
+    fn initialize_item_model(&self, is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+        self.active_index
+            .filter(|_| is_edit)
+            .and_then(|index| {
+                println!("show_label_dialog: active index: {}", index);
+                self.get_selected_item(IndexPath::new(index), &cx)
+            })
+            .map(|label| {
+                let item_ref = label.as_ref();
+                ItemModel { ..item_ref.clone() }
+            })
+            .unwrap_or_default()
+    }
+
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
         let name_input = self.name_input.clone();
         let desc_input = self.desc_input.clone();
         let _priority_select = self.priority_select.clone();
         let color_state = self.color_state.clone();
         let _is_checked = self.is_checked;
+        let ori_item = self.initialize_item_model(is_edit, window, cx);
         let now = chrono::Local::now().naive_local().date();
         let item_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
@@ -155,20 +170,14 @@ impl ItemsPanel {
             },
         });
         if is_edit {
-            if let Some(active_index) = self.active_index {
-                println!("show_item_dialog: active_index: {:?}", self.active_index);
-                let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
-                if let Some(item) = item_some {
-                    name_input.update(cx, |is, cx| {
-                        is.set_value(item.content.clone(), window, cx);
-                        cx.notify();
-                    });
-                    desc_input.update(cx, |is, cx| {
-                        is.set_value(item.description.clone().unwrap_or_default(), window, cx);
-                        cx.notify();
-                    })
-                }
-            }
+            name_input.update(cx, |is, cx| {
+                is.set_value(ori_item.content.clone(), window, cx);
+                cx.notify();
+            });
+            desc_input.update(cx, |is, cx| {
+                is.set_value(ori_item.description.clone().unwrap_or_default(), window, cx);
+                cx.notify();
+            })
         }
 
         let view = cx.entity().clone();
@@ -216,18 +225,20 @@ impl ItemsPanel {
                 )
                 .footer({
                     let view = view.clone();
+                    let ori_item = ori_item.clone();
                     let name_input_clone = name_input.clone();
                     let des_input_clone = desc_input.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("save").primary().label(button_item).on_click({
                                 let view = view.clone();
+                                let ori_item = ori_item.clone();
                                 let name_input_clone1 = name_input_clone.clone();
                                 let des_input_clone1 = des_input_clone.clone();
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |view, cx| {
-                                        let item = ItemModel {
+                                        let item = Rc::new(ItemModel {
                                             content: name_input_clone1.read(cx).value().to_string(),
                                             description: Some(
                                                 des_input_clone1.read(cx).value().to_string(),
@@ -235,13 +246,13 @@ impl ItemsPanel {
                                             checked: view.is_checked,
                                             priority: Some(0),
                                             item_type: view.item_due.clone(),
-                                            ..Default::default()
-                                        };
+                                            ..ori_item.clone()
+                                        });
                                         // 根据模式发射不同事件
                                         if is_edit {
-                                            cx.emit(ItemEvent::Modified(item.into()));
+                                            cx.emit(ItemEvent::Modified(item));
                                         } else {
-                                            cx.emit(ItemEvent::Added(item.into()));
+                                            cx.emit(ItemEvent::Added(item));
                                         }
                                         cx.notify();
                                     });

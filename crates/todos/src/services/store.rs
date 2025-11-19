@@ -1,14 +1,17 @@
 use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
-use sea_orm::{prelude::Expr, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set, TryIntoModel};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    Set, TryIntoModel, prelude::Expr,
+};
 
 use crate::{
     constants,
     entity::{
-        attachments, items, labels, prelude::*, projects,
-        reminders, sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel,
-        ItemModel, LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel,
-        ReminderModel, SectionActiveModel, SectionModel, SourceActiveModel, SourceModel,
+        AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
+        LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
+        SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items,
+        labels, prelude::*, projects, reminders, sections,
     },
     error::TodoError,
     objects::{BaseTrait, Item, Section},
@@ -372,6 +375,7 @@ impl Store {
         update_id: &str,
     ) -> Result<ItemModel, TodoError> {
         let mut active_model: ItemActiveModel = item.into();
+        // TODO : 估计修改不了
         Ok(active_model.update(&self.db).await?)
     }
 
@@ -996,7 +1000,8 @@ impl Store {
     pub async fn update_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
         let existing_label = LabelEntity::find_by_id(label.id.clone())
             .one(&self.db)
-            .await?.ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+            .await?
+            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
         let mut active_label: LabelActiveModel = existing_label.into();
         active_label.name = Set(label.name);
         active_label.color = Set(label.color);

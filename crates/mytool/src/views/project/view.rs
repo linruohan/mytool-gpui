@@ -5,20 +5,20 @@ use gpui::{
     Render, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState}, list::{ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
+    ActiveTheme, Colorize, IconName, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    input::{Input, InputState},
+    list::{ListEvent, ListState},
+    menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
-    ActiveTheme,
-    Colorize,
-    IconName,
-    IndexPath,
-    WindowExt,
 };
 use todos::entity::ProjectModel;
 
 use crate::{
-    load_projects, play_ogg_file, ColorGroup, ColorGroupEvent, ColorGroupState, DBState,
-    ProjectEvent, ProjectListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ProjectEvent, ProjectListDelegate,
+    load_projects, play_ogg_file,
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
@@ -118,6 +118,25 @@ impl ProjectsPanel {
         }
     }
 
+    fn initialize_project_model(
+        &self,
+        is_edit: bool,
+        _: &mut Window,
+        cx: &mut App,
+    ) -> ProjectModel {
+        self.active_index
+            .filter(|_| is_edit)
+            .and_then(|index| {
+                println!("show_label_dialog: active index: {}", index);
+                self.get_selected_project(IndexPath::new(index), &cx)
+            })
+            .map(|label| {
+                let item_ref = label.as_ref();
+                ProjectModel { ..item_ref.clone() }
+            })
+            .unwrap_or_default()
+    }
+
     pub fn open_project_dialog(
         &mut self,
         _model: Rc<ProjectModel>,
@@ -132,7 +151,8 @@ impl ProjectsPanel {
             picker
         });
         let color = self.color.clone();
-
+        let is_edit = false;
+        let ori_project = self.initialize_project_model(is_edit, window, cx);
         let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
@@ -156,24 +176,26 @@ impl ProjectsPanel {
                 )
                 .footer({
                     let view = view.clone();
+                    let ori_project = ori_project.clone();
                     let input1 = name_input.clone();
                     move |_, _, _, _cx| {
                         vec![
                             Button::new("add").primary().label("Add").on_click({
                                 let view = view.clone();
+                                let ori_project = ori_project.clone();
                                 let input1 = input1.clone();
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |view, cx| {
-                                        let project = ProjectModel {
+                                        let project = Rc::new(ProjectModel {
                                             name: input1.read(cx).value().to_string(),
                                             due_date: view.project_due.clone(),
                                             color: Some(
                                                 view.selected_color.unwrap_or_default().to_hex(),
                                             ),
-                                            ..Default::default()
-                                        };
-                                        cx.emit(ProjectEvent::Added(project.into()));
+                                            ..ori_project.clone()
+                                        });
+                                        cx.emit(ProjectEvent::Added(project));
                                         cx.notify();
                                     });
                                 }
