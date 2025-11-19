@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use gpui::{actions, div, prelude::FluentBuilder, px, red, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, Styled, Subscription, Window};
+use gpui::{actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, StatefulInteractiveElement, Styled, Subscription, Window};
 use gpui_component::{button::Button, checkbox::Checkbox, h_flex, list::{List, ListDelegate, ListEvent, ListState}, v_flex, ActiveTheme, Colorize, IndexPath, Sizable};
 use itertools::Itertools;
 use todos::{entity::ItemModel, utils::Util};
@@ -252,7 +252,17 @@ impl Render for ListStory {
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(ColorGroup::new(&self.color).large())
             .when_some(self.selected_color, |this, color| {
-                this.child(div().border_color(red()).bg(color).child(color.to_hex()))
+                this.child(
+                    div()
+                        .border_1()
+                        .m_1()
+                        .shadow_xs()
+                        .rounded(cx.theme().radius)
+                        .overflow_hidden()
+                        .bg(color)
+                        .border_color(color.darken(0.3))
+                        .border_2()
+                ).child(color.to_hex())
             })
             .child(
                 List::new(&self.company_list)

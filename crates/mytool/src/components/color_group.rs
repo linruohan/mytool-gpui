@@ -1,14 +1,14 @@
 use gpui::{
-    actions, div, prelude::FluentBuilder as _, Action, App, AppContext, Bounds, ClickEvent, Context, Corner,
-    ElementId, Entity, EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement as _,
-    IntoElement, ParentElement, Pixels, Point, Render, RenderOnce,
-    SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
+    Action, App, AppContext, Bounds, ClickEvent, Context, Corner, ElementId, Entity, EventEmitter,
+    FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels,
+    Point, Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement,
+    Styled, Subscription, Window, actions, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    h_flex, input::{InputEvent, InputState}, tooltip::Tooltip, v_flex, ActiveTheme as _, Colorize as _, Icon,
-    Sizable,
-    Size,
-    StyleSized,
+    ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyleSized, h_flex,
+    input::{InputEvent, InputState},
+    tooltip::Tooltip,
+    v_flex,
 };
 use serde::Deserialize;
 
@@ -249,22 +249,22 @@ impl ColorGroup {
                 this.hover(|this| {
                     this.border_color(color.darken(0.3)).bg(color.lighten(0.1)).shadow_xs()
                 })
-                    .active(|this| this.border_color(color.darken(0.5)).bg(color.darken(0.2)))
-                    .on_mouse_move(window.listener_for(&state, move |state, _, window, cx| {
-                        state.hovered_color = Some(color);
-                        state.state.update(cx, |input, cx| {
-                            input.set_value(color.to_hex(), window, cx);
-                        });
+                .active(|this| this.border_color(color.darken(0.5)).bg(color.darken(0.2)))
+                .on_mouse_move(window.listener_for(&state, move |state, _, window, cx| {
+                    state.hovered_color = Some(color);
+                    state.state.update(cx, |input, cx| {
+                        input.set_value(color.to_hex(), window, cx);
+                    });
+                    cx.notify();
+                }))
+                .on_click(window.listener_for(
+                    &state,
+                    move |state, _, window, cx| {
+                        state.update_value(Some(color), true, window, cx);
+                        state.open = false;
                         cx.notify();
-                    }))
-                    .on_click(window.listener_for(
-                        &state,
-                        move |state, _, window, cx| {
-                            state.update_value(Some(color), true, window, cx);
-                            state.open = false;
-                            cx.notify();
-                        },
-                    ))
+                    },
+                ))
             })
     }
 
@@ -304,19 +304,19 @@ impl ColorGroup {
                                     .bg(color.lighten(0.1))
                                     .shadow_xs()
                             })
-                                .active(|this| {
-                                    this.border_color(color.darken(0.5))
-                                        .bg(color.darken(0.2))
-                                        .border_4()
-                                })
-                                .on_click(window.listener_for(
-                                    &state,
-                                    move |state, _, window, cx| {
-                                        state.update_value(Some(color), true, window, cx);
-                                        state.open = false;
-                                        cx.notify();
-                                    },
-                                ))
+                            .active(|this| {
+                                this.border_color(color.darken(0.5))
+                                    .bg(color.darken(0.2))
+                                    .border_4()
+                            })
+                            .on_click(window.listener_for(
+                                &state,
+                                move |state, _, window, cx| {
+                                    state.update_value(Some(color), true, window, cx);
+                                    state.open = false;
+                                    cx.notify();
+                                },
+                            ))
                         })
                 }))
             }),

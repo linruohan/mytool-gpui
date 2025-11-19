@@ -2,8 +2,10 @@ use std::{option::Option, rc::Rc};
 
 use gpui::{prelude::*, *};
 use gpui_component::{
+    Side, h_flex,
     resizable::{h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
+    switch::Switch,
     v_flex,
 };
 use serde::Deserialize;
@@ -19,6 +21,8 @@ pub struct SelectTodo(SharedString);
 
 pub struct TodoStory {
     collapsed: bool,
+    click_to_open_submenu: bool,
+    side: Side,
     focus_handle: gpui::FocusHandle,
     active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
@@ -76,7 +80,34 @@ impl TodoStory {
             board_panel,
             project_panel,
             project_items_panel,
+            click_to_open_submenu: false,
+            side: Side::Left,
         }
+    }
+
+    fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        v_flex().gap_3().child(
+            h_flex()
+                .gap_3()
+                .child(
+                    Switch::new("side")
+                        .label("Placement Right")
+                        .checked(self.side.is_right())
+                        .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                            this.side = if *checked { Side::Right } else { Side::Left };
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    Switch::new("click-to-open")
+                        .checked(self.click_to_open_submenu)
+                        .label("Click to open submenu")
+                        .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                            this.click_to_open_submenu = *checked;
+                            cx.notify();
+                        })),
+                ),
+        )
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
