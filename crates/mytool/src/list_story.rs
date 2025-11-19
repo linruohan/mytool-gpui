@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
-use gpui::{actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, StatefulInteractiveElement, Styled, Subscription, Window};
-use gpui_component::{button::Button, checkbox::Checkbox, h_flex, list::{List, ListDelegate, ListEvent, ListState}, v_flex, ActiveTheme, Colorize, IndexPath, Sizable};
+use gpui::{actions, div, prelude::FluentBuilder, px, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window};
+use gpui_component::{h_flex, list::{List, ListEvent, ListState}, v_flex, ActiveTheme, Colorize, Sizable};
 use itertools::Itertools;
-use todos::{entity::ItemModel, utils::Util};
+use todos::entity::ItemModel;
 
 use crate::{
     load_items, section, ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo,
@@ -136,14 +136,6 @@ impl Focusable for ListStory {
         // self.focus_handle.clone()
     }
 }
-fn color_palettes() -> Vec<Hsla> {
-    let colors = Util::default().get_colors();
-    colors
-        .keys()
-        .sorted()
-        .map(|k| Hsla::from(gpui::rgb(Util::default().get_color_u32(k.to_string()))))
-        .collect::<Vec<_>>()
-}
 impl Render for ListStory {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
@@ -151,118 +143,19 @@ impl Render for ListStory {
             .on_action(cx.listener(Self::selected_company))
             .size_full()
             .gap_4()
-            .child(
-                h_flex()
-                    .gap_2()
-                    .flex_wrap()
-                    .child(
-                        Button::new("scroll-top")
-                            .outline()
-                            .child("Scroll to Top")
-                            .small()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
-                                    list.scroll_to_item(
-                                        IndexPath::default(),
-                                        ScrollStrategy::Top,
-                                        window,
-                                        cx,
-                                    );
-                                    cx.notify();
-                                })
-                            })),
-                    )
-                    .child(
-                        Button::new("scroll-selected")
-                            .outline()
-                            .child("Scroll to selected")
-                            .small()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
-                                    list.scroll_to_selected_item(window, cx);
-                                })
-                            })),
-                    )
-                    .child(
-                        Button::new("scroll-to-item")
-                            .outline()
-                            .child("Scroll to (5, 1)")
-                            .small()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
-                                    list.scroll_to_item(
-                                        IndexPath::new(1).section(5),
-                                        ScrollStrategy::Center,
-                                        window,
-                                        cx,
-                                    );
-                                })
-                            })),
-                    )
-                    .child(
-                        Button::new("scroll-bottom")
-                            .outline()
-                            .child("Scroll to Bottom")
-                            .small()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.company_list.update(cx, |list, cx| {
-                                    let last_section =
-                                        list.delegate().sections_count(cx).saturating_sub(1);
-
-                                    list.scroll_to_item(
-                                        IndexPath::default().section(last_section).row(
-                                            list.delegate()
-                                                .items_count(last_section, cx)
-                                                .saturating_sub(1),
-                                        ),
-                                        ScrollStrategy::Top,
-                                        window,
-                                        cx,
-                                    );
-                                })
-                            })),
-                    )
-                    .child(
-                        Checkbox::new("selectable")
-                            .label("Selectable")
-                            .checked(self.selectable)
-                            .on_click(cx.listener(|this, check: &bool, window, cx| {
-                                this.toggle_selectable(*check, window, cx)
-                            })),
-                    )
-                    .child(
-                        Checkbox::new("searchable")
-                            .label("Searchable")
-                            .checked(self.searchable)
-                            .on_click(cx.listener(|this, check: &bool, window, cx| {
-                                this.toggle_searchable(*check, window, cx)
-                            })),
-                    )
-                    .child(
-                        Checkbox::new("item-info")
-                            .label("iteminfo")
-                            .checked(self.searchable)
-                            .on_click(cx.listener(|this, _check: &bool, _window, cx| {
-                                this.item_info.update(cx, |item, _cx| {
-                                    println!("item: {:?}", item.item.clone());
-                                })
-                            })),
-                    ),
-            )
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(ColorGroup::new(&self.color).large())
             .when_some(self.selected_color, |this, color| {
                 this.child(
-                    div()
-                        .border_1()
-                        .m_1()
-                        .shadow_xs()
-                        .rounded(cx.theme().radius)
-                        .overflow_hidden()
+                    h_flex().gap_4().child(div()
+                        .id(SharedString::from(format!("color-{}", color.to_hex())))
+                        .h_5()
+                        .w_5()
                         .bg(color)
-                        .border_color(color.darken(0.3))
-                        .border_2()
-                ).child(color.to_hex())
+                        .border_1()
+                        .border_color(color.darken(0.1)))
+                            .child(color.to_hex())
+                )
             })
             .child(
                 List::new(&self.company_list)
