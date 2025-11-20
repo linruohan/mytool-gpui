@@ -10,7 +10,6 @@ use gpui_component::{
     list::{List, ListEvent, ListState},
     v_flex,
 };
-use itertools::Itertools;
 use todos::entity::ItemModel;
 
 use crate::{
@@ -121,20 +120,6 @@ impl ListStory {
         if let Some(company) = picker.delegate().selected_item() {
             self.selected_company = Some(company);
         }
-    }
-
-    fn toggle_selectable(&mut self, selectable: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.selectable = selectable;
-        self.company_list.update(cx, |list, cx| {
-            list.set_selectable(self.selectable, cx);
-        })
-    }
-
-    fn toggle_searchable(&mut self, searchable: bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.searchable = searchable;
-        self.company_list.update(cx, |list, cx| {
-            list.set_searchable(self.searchable, cx);
-        })
     }
 }
 

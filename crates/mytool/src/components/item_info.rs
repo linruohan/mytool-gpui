@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
-    StatefulInteractiveElement, StyleRefinement, Styled, Subscription, Window, div,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
+    Styled, Subscription, Window, div,
 };
 use gpui_component::{
     Sizable, Size, StyledExt as _, WindowExt,
@@ -16,7 +16,7 @@ use gpui_component::{
 use serde::Deserialize;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 
-use crate::components::priority_button::{PriorityButton, PriorityEvent, PriorityState};
+use super::{PriorityButton, PriorityEvent, PriorityState};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]

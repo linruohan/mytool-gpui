@@ -85,6 +85,7 @@ impl TodoStory {
         }
     }
 
+    #[allow(unused)]
     fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex().gap_3().child(
             h_flex()

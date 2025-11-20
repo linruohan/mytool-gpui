@@ -11,7 +11,6 @@ use gpui_component::{
     list::{List, ListEvent, ListState},
     v_flex,
 };
-use itertools::Itertools;
 use todos::entity::LabelModel;
 
 use super::LabelEvent;

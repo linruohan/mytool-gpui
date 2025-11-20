@@ -1,7 +1,7 @@
 use gpui::{
-    Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
-    SharedString, StyleRefinement, Styled, Window, div, px,
+    Action, App, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, SharedString,
+    StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, Sizable, Size, StyleSized, StyledExt as _, button::Button,

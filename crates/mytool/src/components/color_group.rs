@@ -1,8 +1,8 @@
 use gpui::{
-    Action, App, AppContext, Bounds, ClickEvent, Context, Corner, ElementId, Entity, EventEmitter,
-    FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels,
-    Point, Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement,
-    Styled, Subscription, Window, actions, div, prelude::FluentBuilder as _,
+    Action, App, AppContext, Bounds, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render,
+    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Subscription, Window, actions, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
     ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyleSized, h_flex,
@@ -112,21 +112,7 @@ impl ColorGroupState {
         self.value
     }
 
-    fn on_escape(&mut self, _: &Cancel, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.open {
-            cx.propagate();
-        }
-
-        self.open = false;
-        cx.notify();
-    }
-
     fn on_confirm(&mut self, _: &Confirm, _: &mut Window, cx: &mut Context<Self>) {
-        self.open = !self.open;
-        cx.notify();
-    }
-
-    fn toggle_picker(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         self.open = !self.open;
         cx.notify();
     }
@@ -230,44 +216,6 @@ impl ColorGroup {
         self
     }
 
-    fn render_item(
-        &self,
-        color: Hsla,
-        clickable: bool,
-        window: &mut Window,
-        _: &mut App,
-    ) -> impl IntoElement {
-        let state = self.state.clone();
-        div()
-            .id(SharedString::from(format!("color-{}", color.to_hex())))
-            .h_5()
-            .w_5()
-            .bg(color)
-            .border_1()
-            .border_color(color.darken(0.1))
-            .when(clickable, |this| {
-                this.hover(|this| {
-                    this.border_color(color.darken(0.3)).bg(color.lighten(0.1)).shadow_xs()
-                })
-                .active(|this| this.border_color(color.darken(0.5)).bg(color.darken(0.2)))
-                .on_mouse_move(window.listener_for(&state, move |state, _, window, cx| {
-                    state.hovered_color = Some(color);
-                    state.state.update(cx, |input, cx| {
-                        input.set_value(color.to_hex(), window, cx);
-                    });
-                    cx.notify();
-                }))
-                .on_click(window.listener_for(
-                    &state,
-                    move |state, _, window, cx| {
-                        state.update_value(Some(color), true, window, cx);
-                        state.open = false;
-                        cx.notify();
-                    },
-                ))
-            })
-    }
-
     fn render_colors(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let _featured_colors = self.featured_colors.clone().unwrap_or(vec![
             cx.theme().red,
@@ -321,15 +269,6 @@ impl ColorGroup {
                 }))
             }),
         ))
-    }
-
-    fn resolved_corner(&self, bounds: Bounds<Pixels>) -> Point<Pixels> {
-        bounds.corner(match self.anchor {
-            Corner::TopLeft => Corner::BottomLeft,
-            Corner::TopRight => Corner::BottomRight,
-            Corner::BottomLeft => Corner::TopLeft,
-            Corner::BottomRight => Corner::TopRight,
-        })
     }
 }
 

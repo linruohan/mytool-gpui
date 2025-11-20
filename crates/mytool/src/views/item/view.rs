@@ -133,6 +133,7 @@ impl ItemsPanel {
         }
     }
 
+    #[allow(unused)]
     fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
         self.is_checked = *selectable;
     }
