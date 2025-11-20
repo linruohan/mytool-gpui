@@ -2,7 +2,7 @@ use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    Set, TryIntoModel, prelude::Expr,
+    Set, prelude::Expr,
 };
 
 use crate::{
@@ -78,7 +78,8 @@ impl Store {
     }
 
     pub async fn update_source(&self, source: SourceModel) -> Result<SourceModel, TodoError> {
-        let mut active_source: SourceActiveModel = source.into();
+        let mut active_source: SourceActiveModel =
+            <SourceModel as Into<SourceActiveModel>>::into(source).reset_all();
         Ok(active_source.update(&self.db).await?)
     }
 
@@ -105,7 +106,8 @@ impl Store {
     }
 
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
-        let mut active_project: ProjectActiveModel = project.into();
+        let mut active_project: ProjectActiveModel =
+            <ProjectModel as Into<ProjectActiveModel>>::into(project).reset_all();
         Ok(active_project.update(&self.db).await?)
     }
 
@@ -275,7 +277,8 @@ impl Store {
     }
 
     pub async fn update_section(&self, section: SectionModel) -> Result<SectionModel, TodoError> {
-        let mut active_section: SectionActiveModel = section.into();
+        let mut active_section: SectionActiveModel =
+            <SectionModel as Into<SectionActiveModel>>::into(section).reset_all();
         Ok(active_section.update(&self.db).await?)
     }
 
@@ -374,8 +377,8 @@ impl Store {
         item: ItemModel,
         update_id: &str,
     ) -> Result<ItemModel, TodoError> {
-        let mut active_model: ItemActiveModel = item.into();
-        // TODO : 估计修改不了
+        let mut active_model: ItemActiveModel =
+            <ItemModel as Into<ItemActiveModel>>::into(item).reset_all();
         Ok(active_model.update(&self.db).await?)
     }
 
@@ -998,14 +1001,9 @@ impl Store {
     }
 
     pub async fn update_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
-        let existing_label = LabelEntity::find_by_id(label.id.clone())
-            .one(&self.db)
-            .await?
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
-        let mut active_label: LabelActiveModel = existing_label.into();
-        active_label.name = Set(label.name);
-        active_label.color = Set(label.color);
-        Ok(active_label.save(&self.db).await?.try_into_model()?)
+        let mut active_label: LabelActiveModel =
+            <LabelModel as Into<LabelActiveModel>>::into(label).reset_all();
+        Ok(active_label.update(&self.db).await?)
     }
 
     pub async fn delete_label(&self, id: &str) -> Result<u64, TodoError> {
