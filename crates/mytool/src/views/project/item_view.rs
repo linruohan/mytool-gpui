@@ -25,7 +25,6 @@ pub enum ProjectItemEvent {
 }
 impl EventEmitter<ProjectItemEvent> for ProjectItemsPanel {}
 pub struct ProjectItemsPanel {
-    input_esc: Entity<InputState>,
     pub item_list: Entity<ListState<ItemListDelegate>>,
     project: Rc<ProjectModel>,
     is_loading: bool,
@@ -36,9 +35,6 @@ pub struct ProjectItemsPanel {
 
 impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let input_esc =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
-        // let project_clone = project.clone();
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
 
@@ -71,7 +67,6 @@ impl ProjectItemsPanel {
         // })
         // .detach();
         Self {
-            input_esc,
             item_due: None,
             is_loading: true,
             item_list,

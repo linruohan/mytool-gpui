@@ -37,7 +37,7 @@ fn color_palettes() -> Vec<Vec<Hsla>> {
     let color_list = colors
         .keys()
         .sorted()
-        .map(|k| Hsla::from(gpui::rgb(Util::default().get_color_u32(k.to_string()))))
+        .map(|k| Hsla::from(gpui::rgb(Util::default().get_color_u32_by_key(k.to_string()))))
         .collect::<Vec<_>>();
     color_list.chunks(10).map(|chunk| chunk.to_vec()).collect()
 }

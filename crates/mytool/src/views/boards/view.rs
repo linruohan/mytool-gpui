@@ -84,11 +84,18 @@ impl Render for BoardPanel {
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(Input::new(&self.search_input).appearance(false).cleanable(true))
                             .child(
-                                Button::new("add-label")
+                                Button::new("add-section")
                                     .small()
                                     .ghost()
                                     .compact()
                                     .icon(IconName::EditFindSymbolic),
+                            )
+                            .child(
+                                Button::new("edit-section")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::MenuLargeSymbolic),
                             )
                             .child(
                                 Button::new("edit-item")

@@ -20,7 +20,6 @@ impl EventEmitter<ItemCompletedEvent> for ItemsCompletedPanel {}
 pub struct ItemsCompletedPanel {
     input_esc: Entity<InputState>,
     pub item_list: Entity<ListState<ItemListDelegate>>,
-    item_due: Option<String>,
     is_loading: bool,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
@@ -63,14 +62,7 @@ impl ItemsCompletedPanel {
                 .ok();
         })
         .detach();
-        Self {
-            input_esc,
-            item_due: None,
-            is_loading: false,
-            item_list,
-            active_index: Some(0),
-            _subscriptions,
-        }
+        Self { input_esc, is_loading: false, item_list, active_index: Some(0), _subscriptions }
     }
 
     fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {

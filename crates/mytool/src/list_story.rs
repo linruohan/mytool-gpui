@@ -23,11 +23,8 @@ pub struct ListStory {
     focus_handle: FocusHandle,
     company_list: Entity<ListState<ItemListDelegate>>,
     selected_company: Option<Rc<ItemModel>>,
-    selectable: bool,
-    searchable: bool,
     _subscriptions: Vec<Subscription>,
     item_info: Entity<ItemInfoState>,
-    item: Rc<ItemModel>,
     color: Entity<ColorGroupState>,
     selected_color: Option<Hsla>,
 }
@@ -105,13 +102,10 @@ impl ListStory {
             color,
             selected_color: Some(cx.theme().primary),
             focus_handle: cx.focus_handle(),
-            searchable: true,
-            selectable: true,
             company_list,
             selected_company: None,
             _subscriptions,
             item_info,
-            item: Rc::new(ItemModel::default()),
         }
     }
 
@@ -154,14 +148,14 @@ impl Render for ListStory {
                         .child(color.to_hex()),
                 )
             })
-            .child(
-                List::new(&self.company_list)
-                    .p(px(8.))
-                    .flex_1()
-                    .w_full()
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .rounded(cx.theme().radius),
-            )
+        // .child(
+        //     List::new(&self.company_list)
+        //         .p(px(8.))
+        //         .flex_1()
+        //         .w_full()
+        //         .border_1()
+        //         .border_color(cx.theme().border)
+        //         .rounded(cx.theme().radius),
+        // )
     }
 }

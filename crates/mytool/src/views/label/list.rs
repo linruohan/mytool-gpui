@@ -5,12 +5,10 @@ use gpui::{
     Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable,
-    button::Button,
-    h_flex,
+    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
-use todos::{entity::LabelModel, utils::Util};
+use todos::entity::LabelModel;
 actions!(label, [SelectedLabel]);
 pub enum LabelEvent {
     Loaded,
@@ -77,13 +75,16 @@ impl RenderOnce for LabelListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(Button::new("tag").icon(
+                        .child(
                             Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
-                                gpui::rgb(Util::default().get_color_u32(self.label.color.clone())),
+                                gpui::rgb(
+                                    u32::from_str_radix(&self.label.color[1..], 16)
+                                        .ok()
+                                        .unwrap_or_default(),
+                                ),
                             )),
-                        ))
-                        .child(div().w(px(120.)).child(self.label.name.clone()))
-                        .child(div().w(px(115.)).child(self.label.color.clone())),
+                        )
+                        .child(div().w(px(120.)).child(self.label.name.clone())),
                 ),
             )
     }
