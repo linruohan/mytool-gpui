@@ -147,12 +147,13 @@ impl LabelsPanel {
         };
 
         let view = cx.entity().clone();
-        let dialog_title = if is_edit { "Edit Label" } else { "Add Label" };
+        let dialog_title = if is_edit { "Edit Label" } else { "New Label" };
         let button_label = if is_edit { "Save" } else { "Add" };
         let color = self.color.clone();
         window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title(dialog_title)
+                .items_center()
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)

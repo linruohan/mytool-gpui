@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, Styled, Window, px,
+    ParentElement, Render, Styled, Window, px,
 };
 use gpui_component::{
     button::Button,
@@ -124,13 +124,17 @@ impl Focusable for PopoverList {
     }
 }
 const CONTEXT: &str = "popover-list";
-impl RenderOnce for PopoverList {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+impl Render for PopoverList {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex().key_context(CONTEXT).track_focus(&self.focus_handle).size_full().gap_6().child(
             Popover::new("popover-list")
                 .p_0()
                 .text_sm()
                 .open(self.list_popover_open)
+                .on_open_change(cx.listener(move |this, open, _, cx| {
+                    this.list_popover_open = *open;
+                    cx.notify();
+                }))
                 .trigger(Button::new("pop").outline().label("Popup List"))
                 .track_focus(&self.list.focus_handle(cx))
                 .child(List::new(&self.list))

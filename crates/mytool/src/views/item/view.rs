@@ -182,12 +182,13 @@ impl ItemsPanel {
         }
 
         let view = cx.entity().clone();
-        let dialog_title = if is_edit { "Edit Item" } else { "Add Item" };
+        let dialog_title = if is_edit { "Edit Item" } else { "New Item" };
         let button_item = if is_edit { "Save" } else { "Add" };
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title(dialog_title)
+                .items_center()
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)

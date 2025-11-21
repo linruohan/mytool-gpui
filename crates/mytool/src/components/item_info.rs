@@ -1,16 +1,18 @@
 use std::rc::Rc;
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div,
+    Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
+    SharedString, StyleRefinement, Styled, Subscription, Window, div, px,
 };
 use gpui_component::{
     Sizable, Size, StyledExt as _, WindowExt,
     button::Button,
     checkbox::Checkbox,
     date_picker::{DatePicker, DatePickerState},
+    h_flex,
     input::{Input, InputState},
+    menu::DropdownMenu,
     v_flex,
 };
 use serde::Deserialize;
@@ -127,7 +129,26 @@ impl Render for ItemInfoState {
             )
             .child(Input::new(&self.name_input))
             .child(Input::new(&self.desc_input))
-            .child(PriorityButton::new(&self.priority_state))
+            .child(
+                h_flex().child(PriorityButton::new(&self.priority_state)).child(
+                    Button::new("dropdown-menu-scrollable-2")
+                        .outline()
+                        .label("Scrollable Menu (5 items)")
+                        .dropdown_menu_with_anchor(Corner::TopLeft, move |this, _, _| {
+                            let mut this = this
+                                .scrollable(true)
+                                .max_h(px(300.))
+                                .label(format!("Total {} items", 100));
+                            for i in 0..5 {
+                                this = this.menu(
+                                    SharedString::from(format!("Item {}", i)),
+                                    Box::new(Info(i)),
+                                )
+                            }
+                            this.min_w(px(100.))
+                        }),
+                ),
+            )
             .child(DatePicker::new(&self.date).placeholder("Date of Birth"))
             .child(Button::new("12").label("获取item").on_click({
                 let view = view.clone();

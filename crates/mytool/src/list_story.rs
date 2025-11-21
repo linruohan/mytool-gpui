@@ -3,18 +3,18 @@ use std::rc::Rc;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
     IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, actions, div,
-    prelude::FluentBuilder, px,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Colorize, Sizable, h_flex,
-    list::{List, ListEvent, ListState},
+    list::{ListEvent, ListState},
     v_flex,
 };
 use todos::entity::ItemModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
-    ItemListDelegate, load_items, section,
+    ItemListDelegate, PopoverList, load_items, section,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -27,6 +27,7 @@ pub struct ListStory {
     item_info: Entity<ItemInfoState>,
     color: Entity<ColorGroupState>,
     selected_color: Option<Hsla>,
+    pub popover_list: Entity<PopoverList>,
 }
 
 impl super::Mytool for ListStory {
@@ -52,7 +53,7 @@ impl ListStory {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
-
+        let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let item_info = cx.new(|cx| {
             let picker = ItemInfoState::new(window, cx);
             picker
@@ -106,6 +107,7 @@ impl ListStory {
             selected_company: None,
             _subscriptions,
             item_info,
+            popover_list,
         }
     }
 
@@ -131,6 +133,7 @@ impl Render for ListStory {
             .size_full()
             .gap_4()
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
+            .child(section("popover_list").child(self.popover_list.clone()))
             .child(ColorGroup::new(&self.color).large())
             .when_some(self.selected_color, |this, color| {
                 this.child(

@@ -163,7 +163,8 @@ impl ProjectsPanel {
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("Add Project")
+                .title("New Project")
+                .items_center()
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
