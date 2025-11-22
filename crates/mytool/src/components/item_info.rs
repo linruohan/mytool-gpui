@@ -12,13 +12,18 @@ use gpui_component::{
     divider::Divider,
     h_flex,
     input::{Input, InputState},
+    list::ListState,
     menu::DropdownMenu,
     v_flex,
 };
 use serde::Deserialize;
-use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
+use todos::{
+    entity::{ItemModel, LabelModel},
+    enums::item_priority::ItemPriority,
+};
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
+use crate::{DBState, LabelListDelegate, LabelsButton, LabelsState, load_labels};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
@@ -32,6 +37,7 @@ pub enum ItemInfoEvent {
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
     pub item: Rc<ItemModel>,
+    pub label_list: Entity<ListState<LabelListDelegate>>,
     _subscriptions: Vec<Subscription>,
     // item view
     checked: bool,
@@ -39,6 +45,7 @@ pub struct ItemInfoState {
     desc_input: Entity<InputState>,
     date: Entity<DatePickerState>,
     priority_state: Entity<PriorityState>,
+    labels_state: Entity<LabelsState>,
 }
 
 impl Focusable for ItemInfoState {
@@ -51,13 +58,16 @@ impl EventEmitter<ItemInfoEvent> for ItemInfoState {}
 impl ItemInfoState {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
+
+        let label_list =
+            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("To-do Name"));
         let desc_input = cx.new(|cx| {
             InputState::new(window, cx).auto_grow(5, 20).placeholder("Add a description ...")
         });
         let date = cx.new(|cx| DatePickerState::new(window, cx));
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
-
+        let labels_state = cx.new(|cx| LabelsState::new(window, cx));
         let _subscriptions = vec![cx.subscribe_in(
             &priority_state,
             window,
@@ -68,16 +78,57 @@ impl ItemInfoState {
             },
         )];
 
+        let label_list_clone = label_list.clone();
+        let db = cx.global::<DBState>().conn.clone();
+        cx.spawn(async move |_view, cx| {
+            let db = db.lock().await;
+            let labels = load_labels(db.clone()).await;
+            let rc_labels: Vec<Rc<LabelModel>> =
+                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
+            println!("label_panel: len labels: {}", labels.len());
+            let _ = cx
+                .update_entity(&label_list_clone, |list, cx| {
+                    list.delegate_mut().update_labels(rc_labels);
+                    cx.notify();
+                })
+                .ok();
+        })
+        .detach();
+
         Self {
             focus_handle: cx.focus_handle(),
             item,
+            label_list,
             _subscriptions,
             name_input,
             desc_input,
             checked: false,
             date,
             priority_state,
+            labels_state,
         }
+    }
+
+    pub fn selected_labels(
+        &self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Vec<Rc<LabelModel>> {
+        let Some(label_ids) = &self.item.labels else {
+            return Vec::new();
+        };
+        let all_labels = self.label_list.read(cx).delegate()._labels.clone();
+        label_ids
+            .to_string()
+            .split(';')
+            .filter_map(|label_id| {
+                let trimmed_id = label_id.trim();
+                if trimmed_id.is_empty() {
+                    return None;
+                }
+                all_labels.iter().find(|label| label.id == trimmed_id).map(Rc::clone)
+            })
+            .collect()
     }
 
     pub fn priority(&self) -> Option<ItemPriority> {
@@ -219,6 +270,7 @@ impl Render for ItemInfoState {
                                     }),
                             )
                             .child(PriorityButton::new(&self.priority_state))
+                            .child(LabelsButton::new(&self.labels_state))
                             .child(
                                 Button::new("item-reminder")
                                     .small()

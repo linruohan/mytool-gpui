@@ -1,7 +1,6 @@
 mod boards;
 mod item;
 mod label;
-mod priority_list;
 mod project;
 
 use std::sync::Arc;
@@ -21,7 +20,6 @@ pub use label::*;
 pub use project::*;
 use sea_orm::DatabaseConnection;
 use tokio::sync::Mutex;
-
 pub struct DBState {
     pub conn: Arc<Mutex<DatabaseConnection>>,
 }

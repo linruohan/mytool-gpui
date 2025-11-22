@@ -23,3 +23,6 @@ pub async fn mod_label(
 pub async fn del_label(label: Rc<LabelModel>, db: DatabaseConnection) -> Result<u64, TodoError> {
     Store::new(db).await.delete_label(&label.id).await
 }
+pub async fn get_label_by_id(label_id: &str, db: DatabaseConnection) -> Option<LabelModel> {
+    Store::new(db).await.get_label(&label_id).await
+}

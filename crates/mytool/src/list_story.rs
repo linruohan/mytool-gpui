@@ -3,22 +3,20 @@ use std::rc::Rc;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
     IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, actions, div,
-    prelude::FluentBuilder, px,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, IconName, Sizable,
-    button::{Button, ButtonVariants},
+    ActiveTheme, Colorize, Sizable,
     divider::Divider,
     h_flex,
-    label::Label,
     list::{ListEvent, ListState},
     v_flex,
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    Board, ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent,
-    ItemInfoState, ItemListDelegate, load_items, popover_list::PopoverList, section,
+    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
+    ItemListDelegate, load_items, popover_list::PopoverList, section,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -155,68 +153,6 @@ impl Render for ListStory {
                         .child(color.to_hex()),
                 )
             })
-            .child(
-                div()
-                    .px_2()
-                    .py_1()
-                    .overflow_x_hidden()
-                    .border_1()
-                    .rounded(cx.theme().radius)
-                    .child(
-                        h_flex()
-                            .items_center()
-                            .justify_between()
-                            .gap_2()
-                            .child(
-                                h_flex().gap_2().child(
-                                    v_flex()
-                                        .gap_1()
-                                        .max_w(px(500.))
-                                        .overflow_x_hidden()
-                                        .flex_nowrap()
-                                        .child(Label::new("name").whitespace_nowrap())
-                                        .child(
-                                            div()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child("详细描述是多少啊大法师的"),
-                                        ),
-                                ),
-                            )
-                            .child(
-                                h_flex()
-                                    .gap_2()
-                                    .items_center()
-                                    .justify_end()
-                                    .child(
-                                        Button::new("finish-label")
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::CheckmarkSmallSymbolic),
-                                    )
-                                    .child(
-                                        Button::new("add-label")
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::PlusLargeSymbolic),
-                                    )
-                                    .child(
-                                        Button::new("edit-item")
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::EditSymbolic),
-                                    )
-                                    .child(
-                                        Button::new("delete-item")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .small()
-                                            .ghost(),
-                                    ),
-                            ),
-                    ),
-            )
             .child(Divider::horizontal())
         // .child(
         //     List::new(&self.company_list)

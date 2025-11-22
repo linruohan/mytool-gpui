@@ -12,7 +12,7 @@ use todos::enums::item_priority::ItemPriority;
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = priority, no_json)]
-struct Info(i32);
+struct PriorityInfo(i32);
 
 pub enum PriorityEvent {
     Selected(i32),
@@ -47,7 +47,12 @@ impl PriorityState {
         cx.notify()
     }
 
-    fn on_action_info(&mut self, info: &Info, _window: &mut Window, cx: &mut Context<Self>) {
+    fn on_action_info(
+        &mut self,
+        info: &PriorityInfo,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.priority = ItemPriority::from_i32(info.0);
         cx.emit(PriorityEvent::Selected(info.0));
         cx.notify();
@@ -97,7 +102,8 @@ impl Render for PriorityState {
                     let mut this = this.scrollable(true).max_h(px(400.));
                     for p in ItemPriority::all() {
                         let p1 = p.clone() as i32;
-                        this = this.menu(SharedString::from(p.display_name()), Box::new(Info(p1)))
+                        this = this
+                            .menu(SharedString::from(p.display_name()), Box::new(PriorityInfo(p1)))
                     }
                     this.min_w(px(100.))
                 }),
@@ -109,7 +115,7 @@ impl PriorityButton {
     /// Create a new DatePicker with the given [`PriorityState`].
     pub fn new(state: &Entity<PriorityState>) -> Self {
         Self {
-            id: ("item-info", state.entity_id()).into(),
+            id: ("item-priority", state.entity_id()).into(),
             state: state.clone(),
             size: Size::default(),
             style: StyleRefinement::default(),
