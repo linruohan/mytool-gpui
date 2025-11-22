@@ -12,7 +12,9 @@ use gpui_component::{
     v_flex,
 };
 use todos::enums::item_priority::ItemPriority;
-
+pub enum PriorityPopoverEvent {
+    Selected(i32),
+}
 struct DropdownListDelegate {
     parent: Entity<PopoverList>,
     confirmed_index: Option<usize>,
@@ -93,7 +95,7 @@ impl PopoverList {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let items: Vec<Arc<i32>> =
             ItemPriority::all().iter().map(|item| Arc::new(item.clone() as i32)).collect();
         let parent = cx.entity();

@@ -1,7 +1,6 @@
 mod app_menus;
 mod calendar_story;
-// mod components; // 我的组件库
-mod components;
+mod components; // 我的组件库
 mod crypto; // 加解密
 mod gallery;
 mod list_story;
@@ -12,6 +11,7 @@ mod todo_story;
 mod utils;
 mod views; // 任务管理视图
 mod welcome_story;
+mod widgets; // 部件库
 
 // 获取todoist数据
 pub use calendar_story::CalendarStory;
@@ -44,6 +44,7 @@ use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _
 pub use utils::play_ogg_file;
 pub use views::*;
 pub use welcome_story::WelcomeStory;
+pub use widgets::*;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]

@@ -2,14 +2,14 @@ use std::rc::Rc;
 
 use gpui::{
     Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
+    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
     SharedString, StyleRefinement, Styled, Subscription, Window, div, px,
 };
 use gpui_component::{
-    Sizable, Size, StyledExt as _, WindowExt,
-    button::Button,
-    checkbox::Checkbox,
-    date_picker::{DatePicker, DatePickerState},
+    IconName, Sizable, Size, StyledExt as _, WindowExt,
+    button::{Button, ButtonVariants},
+    date_picker::DatePickerState,
+    divider::Divider,
     h_flex,
     input::{Input, InputState},
     menu::DropdownMenu,
@@ -122,34 +122,201 @@ impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
         v_flex()
+            .border_3()
+            .child(Input::new(&self.name_input).focus_bordered(false))
+            .child(Input::new(&self.desc_input).bordered(false))
             .child(
-                Checkbox::new("item-is-finish")
-                    .checked(self.checked)
-                    .on_click(cx.listener(Self::toggle_finished)),
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .child(
+                        h_flex().gap_2().child(
+                            v_flex()
+                                .gap_1()
+                                .max_w(px(500.))
+                                .overflow_x_hidden()
+                                .flex_nowrap()
+                                .child(
+                                    Button::new("finish-label")
+                                        .label("Schedule")
+                                        .small()
+                                        .icon(IconName::MonthSymbolic)
+                                        .ghost()
+                                        .compact()
+                                        .on_click({
+                                            // let items_panel = self.items_panel.clone();
+                                            move |_event, _window, _cx| {
+                                                // let items_panel_clone = items_panel.clone();
+                                                // items_panel_clone.update(cx, |items_panel,
+                                                // cx| {
+                                                //     items_panel.
+                                                // show_finish_item_dialog(window,
+                                                // cx);
+                                                //     cx.notify();
+                                                // })
+                                            }
+                                        }),
+                                ),
+                        ),
+                    )
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .justify_end()
+                            // .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(
+                                Button::new("dropdown-menu-scrollable-2")
+                                    .outline()
+                                    .label("Scrollable Menu (5 items)")
+                                    .dropdown_menu_with_anchor(Corner::TopLeft, move |this, _, _| {
+                                        let mut this = this
+                                            .scrollable(true)
+                                            .max_h(px(300.))
+                                            .label(format!("Total {} items", 100));
+                                        for i in 0..5 {
+                                            this = this.menu(
+                                                SharedString::from(format!("Item {}", i)),
+                                                Box::new(Info(i)),
+                                            )
+                                        }
+                                        this.min_w(px(100.))
+                                    }),
+                            )
+                            .child(
+                                Button::new("item-add")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PlusLargeSymbolic)
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {
+                                            // let items_panel_clone = items_panel.clone();
+                                            // items_panel_clone.update(cx, |items_panel, cx| {
+                                            //     items_panel.show_finish_item_dialog(window, cx);
+                                            //     cx.notify();
+                                            // })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("item-tags")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::TagOutlineSymbolic)
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {
+                                            // let items_panel_clone = items_panel.clone();
+                                            // items_panel_clone.update(cx, |items_panel, cx| {
+                                            //     items_panel.show_finish_item_dialog(window, cx);
+                                            //     cx.notify();
+                                            // })
+                                        }
+                                    }),
+                            )
+                            .child(PriorityButton::new(&self.priority_state))
+                            .child(
+                                Button::new("item-reminder")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::AlarmSymbolic)
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {
+                                            // let items_panel_clone = items_panel.clone();
+                                            // items_panel_clone.update(cx, |items_panel, cx| {
+                                            //     items_panel.show_item_dialog(window, cx, false);
+                                            //     cx.notify();
+                                            // })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("item-pin")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PinSymbolic)
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {
+                                            // let items_panel_clone = items_panel.clone();
+                                            // items_panel_clone.update(cx, |items_panel, cx| {
+                                            //     items_panel.show_item_dialog(window, cx, true);
+                                            //     cx.notify();
+                                            // })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("item-more")
+                                    .icon(IconName::ViewMoreSymbolic)
+                                    .small()
+                                    .ghost()
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {
+                                            // let items_panel_clone = items_panel.clone();
+                                            // items_panel_clone.update(cx, |items_panel, cx| {
+                                            //     items_panel.show_item_delete_dialog(window, cx);
+                                            //     cx.notify();
+                                            // })
+                                        }
+                                    }),
+                            ),
+                    ),
             )
-            .child(Input::new(&self.name_input))
-            .child(Input::new(&self.desc_input))
+            .child(Divider::horizontal().p_2())
             .child(
-                h_flex().child(PriorityButton::new(&self.priority_state)).child(
-                    Button::new("dropdown-menu-scrollable-2")
-                        .outline()
-                        .label("Scrollable Menu (5 items)")
-                        .dropdown_menu_with_anchor(Corner::TopLeft, move |this, _, _| {
-                            let mut this = this
-                                .scrollable(true)
-                                .max_h(px(300.))
-                                .label(format!("Total {} items", 100));
-                            for i in 0..5 {
-                                this = this.menu(
-                                    SharedString::from(format!("Item {}", i)),
-                                    Box::new(Info(i)),
-                                )
-                            }
-                            this.min_w(px(100.))
-                        }),
-                ),
+                h_flex()
+                    .child(
+                        Button::new("item-project")
+                            .label("Inbox")
+                            .small()
+                            .icon(IconName::Inbox)
+                            .ghost()
+                            .compact()
+                            .on_click({
+                                // let items_panel = self.items_panel.clone();
+                                move |_event, _window, _cx| {
+                                    // let items_panel_clone = items_panel.clone();
+                                    // items_panel_clone.update(cx, |items_panel,
+                                    // cx| {
+                                    //     items_panel.
+                                    // show_finish_item_dialog(window,
+                                    // cx);
+                                    //     cx.notify();
+                                    // })
+                                }
+                            }),
+                    )
+                    .child("——>")
+                    .child(
+                        Button::new("item-section")
+                            .label("Section")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .on_click({
+                                // let items_panel = self.items_panel.clone();
+                                move |_event, _window, _cx| {
+                                    // let items_panel_clone = items_panel.clone();
+                                    // items_panel_clone.update(cx, |items_panel,
+                                    // cx| {
+                                    //     items_panel.
+                                    // show_finish_item_dialog(window,
+                                    // cx);
+                                    //     cx.notify();
+                                    // })
+                                }
+                            }),
+                    ),
             )
-            .child(DatePicker::new(&self.date).placeholder("Date of Birth"))
             .child(Button::new("12").label("获取item").on_click({
                 let view = view.clone();
                 let name_input_clone1 = self.name_input.clone();

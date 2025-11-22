@@ -51,7 +51,6 @@ impl PriorityState {
         self.priority = ItemPriority::from_i32(info.0);
         cx.emit(PriorityEvent::Selected(info.0));
         cx.notify();
-        // println!("priority: {:?}", self.priority);
     }
 }
 
@@ -124,7 +123,6 @@ impl RenderOnce for PriorityButton {
             .id(self.id.clone())
             .track_focus(&self.focus_handle(cx).tab_stop(true))
             .flex_none()
-            .w_full()
             .relative()
             .input_text_size(self.size)
             .refine_style(&self.style)
