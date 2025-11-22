@@ -88,9 +88,14 @@ impl Render for LabelsBoard {
                     .items_start()
                     .child(
                         v_flex()
-                            .child(div().text_xl().child(<LabelsBoard as Board>::title()))
+                            .child(
+                                h_flex().gap_2().child(<LabelsBoard as Board>::icon()).child(
+                                    div().text_base().child(<LabelsBoard as Board>::title()),
+                                ),
+                            )
                             .child(
                                 div()
+                                    .text_sm()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<LabelsBoard as Board>::description()),
                             ),

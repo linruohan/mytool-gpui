@@ -94,9 +94,15 @@ impl Render for InboxBoard {
                     .items_start()
                     .child(
                         v_flex()
-                            .child(div().text_xl().child(<InboxBoard as Board>::title()))
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(<InboxBoard as Board>::icon())
+                                    .child(div().text_base().child(<InboxBoard as Board>::title())),
+                            )
                             .child(
                                 div()
+                                    .text_sm()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<InboxBoard as Board>::description()),
                             ),

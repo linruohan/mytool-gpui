@@ -88,9 +88,14 @@ impl Render for CompletedBoard {
                     .items_start()
                     .child(
                         v_flex()
-                            .child(div().text_xl().child(<CompletedBoard as Board>::title()))
+                            .child(
+                                h_flex().gap_2().child(<CompletedBoard as Board>::icon()).child(
+                                    div().text_base().child(<CompletedBoard as Board>::title()),
+                                ),
+                            )
                             .child(
                                 div()
+                                    .text_sm()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<CompletedBoard as Board>::description()),
                             ),

@@ -2,8 +2,7 @@ use std::{option::Option, rc::Rc};
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    Side, h_flex,
-    resizable::{h_resizable, resizable_panel},
+    ActiveTheme, Side, h_flex,
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     switch::Switch,
     v_flex,
@@ -133,18 +132,22 @@ impl Render for TodoStory {
         let project_list = project_panel.project_list.read(cx).delegate()._projects.clone();
         let _view = cx.entity();
         let project_avtive_index = project_panel.active_index;
-        h_resizable("todos-container")
+
+        h_flex()
+            .rounded(cx.theme().radius)
+            .border_1()
+            .border_color(cx.theme().border)
+            .h_full()
             .child(
-                resizable_panel().size(px(255.)).size_range(px(200.)..px(320.)).child(
-                    Sidebar::left()
-                            .width(relative(1.))
-                            .border_width(px(0.))
+                Sidebar::new(self.side)
                             .collapsed(self.collapsed)
+                            .w(px(220.))
+                            .gap_0()
                             .board(self.board_panel.clone()) // .child(self.project_panel.clone()),
                             .child(
                                 // 添加项目按钮：
                                 SidebarMenu::new().child(
-                                    SidebarMenuItem::new("On This Computer       ➕")
+                                    SidebarMenuItem::new("On This Computer   ➕")
                                         .on_click(cx.listener(Self::add_project)),
                                 ),
                             )
@@ -174,31 +177,25 @@ impl Render for TodoStory {
                                         })
                                 }),
                             )),
-                ),
             )
             .child(
-                v_flex()
-                    .flex_1()
-                    .h_full()
-                    .overflow_x_hidden()
-                    .child(
-                        div()
-                            .id("todos")
-                            .flex_1()
-                            .overflow_y_scroll()
-                            .when(board_active_index.is_some(), |this| {
-                                let board_some = boards.get(board_active_index.unwrap());
-                                if let Some(board) = board_some {
-                                    this.child(board.clone())
-                                } else {
-                                    this.child(Empty)
-                                }
-                            })
-                            .when(!self.is_board_active, |this| {
-                                this.child(self.project_items_panel.clone())
-                            }),
-                    )
-                    .into_any_element(),
+                v_flex().flex_1().h_full().overflow_x_hidden().child(
+                    div()
+                        .id("todos")
+                        .flex_1()
+                        .overflow_y_scroll()
+                        .when(board_active_index.is_some(), |this| {
+                            let board_some = boards.get(board_active_index.unwrap());
+                            if let Some(board) = board_some {
+                                this.child(board.clone())
+                            } else {
+                                this.child(Empty)
+                            }
+                        })
+                        .when(!self.is_board_active, |this| {
+                            this.child(self.project_items_panel.clone())
+                        }),
+                ),
             )
     }
 }

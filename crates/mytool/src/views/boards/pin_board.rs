@@ -87,9 +87,15 @@ impl Render for PinBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<PinBoard as Board>::title()))
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(<PinBoard as Board>::icon())
+                                    .child(div().text_base().child(<PinBoard as Board>::title())),
+                            )
                             .child(
                                 div()
+                                    .text_sm()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<PinBoard as Board>::description()),
                             ),

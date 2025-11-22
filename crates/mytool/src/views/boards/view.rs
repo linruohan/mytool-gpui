@@ -96,13 +96,6 @@ impl Render for BoardPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::MenuLargeSymbolic),
-                            )
-                            .child(
-                                Button::new("edit-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::MenuLargeSymbolic),
                             ),
                     ),
             )
@@ -138,7 +131,7 @@ impl Render for BoardPanel {
                     .px_1()
                     .flex_1()
                     .justify_between()
-                    .mt(px(35.0)),
+                    .mt(px(30.0)),
             )
     }
 }

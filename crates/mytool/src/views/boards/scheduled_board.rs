@@ -90,9 +90,14 @@ impl Render for ScheduledBoard {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().text_xl().child(<ScheduledBoard as Board>::title()))
+                            .child(
+                                h_flex().gap_2().child(<ScheduledBoard as Board>::icon()).child(
+                                    div().text_base().child(<ScheduledBoard as Board>::title()),
+                                ),
+                            )
                             .child(
                                 div()
+                                    .text_sm()
                                     .text_color(cx.theme().muted_foreground)
                                     .child(<ScheduledBoard as Board>::description()),
                             ),

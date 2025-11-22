@@ -1,6 +1,7 @@
 mod boards;
 mod item;
 mod label;
+mod priority_list;
 mod project;
 
 use std::sync::Arc;
