@@ -23,7 +23,7 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{DBState, LabelListDelegate, LabelsButton, LabelsState, load_labels};
+use crate::{DBState, LabelListDelegate, load_labels};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
@@ -45,7 +45,6 @@ pub struct ItemInfoState {
     desc_input: Entity<InputState>,
     date: Entity<DatePickerState>,
     priority_state: Entity<PriorityState>,
-    labels_state: Entity<LabelsState>,
 }
 
 impl Focusable for ItemInfoState {
@@ -67,7 +66,6 @@ impl ItemInfoState {
         });
         let date = cx.new(|cx| DatePickerState::new(window, cx));
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
-        let labels_state = cx.new(|cx| LabelsState::new(window, cx));
         let _subscriptions = vec![cx.subscribe_in(
             &priority_state,
             window,
@@ -105,7 +103,6 @@ impl ItemInfoState {
             checked: false,
             date,
             priority_state,
-            labels_state,
         }
     }
 
@@ -270,7 +267,6 @@ impl Render for ItemInfoState {
                                     }),
                             )
                             .child(PriorityButton::new(&self.priority_state))
-                            .child(LabelsButton::new(&self.labels_state))
                             .child(
                                 Button::new("item-reminder")
                                     .small()

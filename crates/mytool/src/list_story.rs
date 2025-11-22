@@ -16,7 +16,8 @@ use todos::entity::ItemModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
-    ItemListDelegate, load_items, popover_list::PopoverList, section,
+    ItemListDelegate, LabelsPicker, LabelsPickerEvent, LabelsPickerState, load_items,
+    popover_list::PopoverList, section,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -30,6 +31,7 @@ pub struct ListStory {
     color: Entity<ColorGroupState>,
     selected_color: Option<Hsla>,
     pub popover_list: Entity<PopoverList>,
+    label_picker: Entity<LabelsPickerState>,
 }
 
 impl super::Mytool for ListStory {
@@ -55,12 +57,21 @@ impl ListStory {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let label_picker = cx.new(|cx| LabelsPickerState::new(window, cx));
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let item_info = cx.new(|cx| {
             let picker = ItemInfoState::new(window, cx);
             picker
         });
         let _subscriptions = vec![
+            cx.subscribe(&label_picker, |_this, _, ev, _| match ev {
+                LabelsPickerEvent::Selected(label) => {
+                    println!("label picker selected: {:?}", label.clone());
+                },
+                LabelsPickerEvent::DeSelected(label) => {
+                    println!("label picker deselected: {:?}", label.clone());
+                },
+            }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
@@ -110,6 +121,7 @@ impl ListStory {
             _subscriptions,
             item_info,
             popover_list,
+            label_picker,
         }
     }
 
@@ -135,6 +147,10 @@ impl Render for ListStory {
             .size_full()
             .gap_4()
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
+            .child(
+                section("label picker")
+                    .child(LabelsPicker::new(&self.label_picker).cleanable(true)),
+            )
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(ColorGroup::new(&self.color).large())
             .when_some(self.selected_color, |this, color| {

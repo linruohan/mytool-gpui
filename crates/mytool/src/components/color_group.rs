@@ -14,12 +14,12 @@ use serde::Deserialize;
 
 #[derive(Clone, Action, PartialEq, Eq, Deserialize)]
 #[action(namespace = color_group, no_json)]
-pub struct Confirm {
+pub struct ColorGroupConfirm {
     /// Is confirm with secondary.
     pub secondary: bool,
 }
 
-actions!(color_group, [Cancel, SelectUp, SelectDown, SelectLeft, SelectRight]);
+actions!(color_group, [ColorGroupCancel, SelectUp, SelectDown, SelectLeft, SelectRight]);
 const CONTEXT: &'static str = "ColorPickerGroup";
 use todos::utils::Util;
 
@@ -112,7 +112,7 @@ impl ColorGroupState {
         self.value
     }
 
-    fn on_confirm(&mut self, _: &Confirm, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_confirm(&mut self, _: &ColorGroupConfirm, _: &mut Window, cx: &mut Context<Self>) {
         self.open = !self.open;
         cx.notify();
     }
