@@ -16,8 +16,8 @@ use todos::entity::ItemModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
-    ItemListDelegate, LabelsPicker, LabelsPickerEvent, LabelsPickerState, load_items,
-    popover_list::PopoverList, section,
+    ItemListDelegate, LabelsPicker, LabelsPickerEvent, LabelsPickerState, LabelsPopoverEvent,
+    LabelsPopoverList, load_items, popover_list::PopoverList, section,
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -31,6 +31,7 @@ pub struct ListStory {
     color: Entity<ColorGroupState>,
     selected_color: Option<Hsla>,
     pub popover_list: Entity<PopoverList>,
+    pub label_popover_list: Entity<LabelsPopoverList>,
     label_picker: Entity<LabelsPickerState>,
 }
 
@@ -59,6 +60,7 @@ impl ListStory {
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
         let label_picker = cx.new(|cx| LabelsPickerState::new(window, cx));
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
+        let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
         let item_info = cx.new(|cx| {
             let picker = ItemInfoState::new(window, cx);
             picker
@@ -76,6 +78,11 @@ impl ListStory {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
                     println!("Color changed to: {:?}", color);
+                },
+            }),
+            cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
+                LabelsPopoverEvent::Selected(label) => {
+                    println!("label_popover_list select: {:?}", label);
                 },
             }),
             cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
@@ -121,6 +128,7 @@ impl ListStory {
             _subscriptions,
             item_info,
             popover_list,
+            label_popover_list,
             label_picker,
         }
     }
@@ -152,6 +160,7 @@ impl Render for ListStory {
                     .child(LabelsPicker::new(&self.label_picker).cleanable(true)),
             )
             .child(section("popover_list").child(self.popover_list.clone()))
+            .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(ColorGroup::new(&self.color).large())
             .when_some(self.selected_color, |this, color| {
                 this.child(

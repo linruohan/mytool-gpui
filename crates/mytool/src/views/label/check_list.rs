@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
-    Task, Window, actions, div, prelude::FluentBuilder, px,
+    App, Context, ElementId, Entity, Hsla, IntoElement, ParentElement, RenderOnce, SharedString,
+    Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath, Selectable,
@@ -11,6 +11,8 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
+
+use crate::LabelsPopoverList;
 
 actions!(label, [SelectedCheckLabel]);
 pub enum LabelCheckEvent {
@@ -59,7 +61,6 @@ impl RenderOnce for LabelCheckListItem {
         } else {
             cx.theme().list_even
         };
-
         self.base
             .px_2()
             .py_1()
@@ -92,8 +93,9 @@ impl RenderOnce for LabelCheckListItem {
 }
 
 pub struct LabelCheckListDelegate {
+    parent: Entity<LabelsPopoverList>,
     pub _labels: Vec<Rc<LabelModel>>,
-    pub selected_labels: Vec<Rc<LabelModel>>,
+    pub checked_list: Vec<Rc<LabelModel>>,
     pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
@@ -101,10 +103,11 @@ pub struct LabelCheckListDelegate {
 }
 
 impl LabelCheckListDelegate {
-    pub fn new() -> Self {
+    pub fn new(parent: Entity<LabelsPopoverList>) -> Self {
         Self {
+            parent,
             _labels: vec![],
-            selected_labels: vec![],
+            checked_list: vec![],
             matched_labels: vec![],
             selected_index: None,
             confirmed_index: None,
@@ -137,8 +140,25 @@ impl LabelCheckListDelegate {
         let Some(ix) = self.selected_index else {
             return None;
         };
-
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
+    }
+
+    fn confirm(&mut self, _select: bool, _: &mut Window, cx: &mut Context<ListState<Self>>) {
+        if let Some(label) = self.selected_label() {
+            self.checked_list.push(label.clone());
+        }
+        self.parent.update(cx, |this, cx| {
+            this.list_popover_open = false;
+            cx.notify();
+        })
+    }
+
+    fn cancel(&mut self, _: &mut Window, cx: &mut Context<ListState<Self>>) {
+        self.parent.update(cx, |this, cx| {
+            this.list_popover_open = false;
+
+            cx.notify();
+        })
     }
 }
 impl ListDelegate for LabelCheckListDelegate {
@@ -160,6 +180,8 @@ impl ListDelegate for LabelCheckListDelegate {
 
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
+        let _checked =
+            self.selected_label().map(|label| self.checked_list.contains(&label)).unwrap_or(false);
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
             return Some(LabelCheckListItem::new(ix, label.clone(), ix, selected));
         }
@@ -179,9 +201,6 @@ impl ListDelegate for LabelCheckListDelegate {
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
         println!("Confirmed with secondary: {}", secondary);
-        if let Some(label) = self.selected_label() {
-            self.selected_labels.push(label.clone());
-        }
         window.dispatch_action(Box::new(SelectedCheckLabel), cx);
     }
 }
