@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, Entity, Hsla, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
+    App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath, Selectable,
@@ -19,12 +19,14 @@ pub enum LabelCheckEvent {
     Checked(Rc<LabelModel>),
 }
 
+impl EventEmitter<LabelCheckEvent> for LabelCheckListItem {}
 #[derive(IntoElement)]
 pub struct LabelCheckListItem {
     base: ListItem,
     ix: IndexPath,
     label: Rc<LabelModel>,
     selected: bool,
+    checked: bool,
 }
 
 impl LabelCheckListItem {
@@ -33,8 +35,9 @@ impl LabelCheckListItem {
         label: Rc<LabelModel>,
         ix: IndexPath,
         selected: bool,
+        checked: bool,
     ) -> Self {
-        LabelCheckListItem { label, ix, base: ListItem::new(id), selected }
+        LabelCheckListItem { label, ix, base: ListItem::new(id), selected, checked }
     }
 }
 
@@ -76,7 +79,7 @@ impl RenderOnce for LabelCheckListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(Checkbox::new("label-checked").checked(self.selected))
+                        .child(Checkbox::new("label-checked").checked(self.checked))
                         .child(
                             Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
                                 gpui::rgb(
@@ -97,6 +100,7 @@ pub struct LabelCheckListDelegate {
     pub _labels: Vec<Rc<LabelModel>>,
     pub checked_list: Vec<Rc<LabelModel>>,
     pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
+    checked: bool,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -111,6 +115,7 @@ impl LabelCheckListDelegate {
             matched_labels: vec![],
             selected_index: None,
             confirmed_index: None,
+            checked: false,
             query: "".into(),
         }
     }
@@ -180,10 +185,10 @@ impl ListDelegate for LabelCheckListDelegate {
 
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        let _checked =
+        let checked =
             self.selected_label().map(|label| self.checked_list.contains(&label)).unwrap_or(false);
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
-            return Some(LabelCheckListItem::new(ix, label.clone(), ix, selected));
+            return Some(LabelCheckListItem::new(ix, label.clone(), ix, selected, checked));
         }
 
         None

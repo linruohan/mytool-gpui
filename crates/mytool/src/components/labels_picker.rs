@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
@@ -140,12 +140,7 @@ impl LabelsPickerState {
         }
     }
 
-    pub fn add_selected_label(
-        &mut self,
-        ix: IndexPath,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn add_selected_label(&mut self, ix: IndexPath, cx: &mut Context<Self>) {
         let _ = self
             .label_list
             .read(cx)
@@ -163,12 +158,7 @@ impl LabelsPickerState {
             });
     }
 
-    pub fn del_selected_label(
-        &mut self,
-        ix: IndexPath,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn del_selected_label(&mut self, ix: IndexPath, cx: &mut Context<Self>) {
         let _ = self
             .label_list
             .read(cx)
@@ -205,15 +195,15 @@ impl LabelsPickerState {
     fn on_check_toggle(
         &mut self,
         event: &(LabelsPickerCheck, bool),
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let (_, selectable) = event;
         let ix = IndexPath::new(self.active_index);
         if *selectable {
-            self.add_selected_label(ix, window, cx);
+            self.add_selected_label(ix, cx);
         } else {
-            self.del_selected_label(ix, window, cx);
+            self.del_selected_label(ix, cx);
         }
         cx.notify();
     }
@@ -252,6 +242,7 @@ pub struct LabelsPicker {
     state: Entity<LabelsPickerState>,
     cleanable: bool,
     placeholder: Option<SharedString>,
+    checked_list: HashSet<IndexPath>,
     size: Size,
     appearance: bool,
     disabled: bool,
@@ -300,6 +291,7 @@ impl LabelsPicker {
             style: StyleRefinement::default(),
             appearance: true,
             disabled: false,
+            checked_list: HashSet::new(),
         }
     }
 
@@ -319,6 +311,14 @@ impl LabelsPicker {
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.appearance = appearance;
         self
+    }
+
+    fn toggle_checked(&mut self, _checked: bool, _window: &mut Window, _cx: &mut App) {
+        // if checked {
+        //     self.add_selected_label(ix);
+        // } else {
+        //     self.del_selected_label(ix);
+        // }
     }
 }
 

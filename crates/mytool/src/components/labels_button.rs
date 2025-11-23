@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Window, px,
 };
 use gpui_component::{
     button::Button,
@@ -12,12 +12,11 @@ use gpui_component::{
 };
 use todos::entity::LabelModel;
 
-use crate::{load_labels, DBState, LabelCheckListDelegate, SelectedCheckLabel};
+use crate::{DBState, LabelCheckListDelegate, SelectedCheckLabel, load_labels};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),
 }
-
 pub struct LabelsPopoverList {
     focus_handle: FocusHandle,
     label_list: Entity<ListState<LabelCheckListDelegate>>,
