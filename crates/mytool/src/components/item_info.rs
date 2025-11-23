@@ -163,7 +163,7 @@ impl ItemInfoState {
     }
 
     // set item of item_info
-    fn item(&mut self, item: Rc<ItemModel>, _cx: &mut Context<Self>) {
+    pub fn item(&mut self, item: Rc<ItemModel>, _window: &mut Window, _cx: &mut Context<Self>) {
         self.item = item.clone();
     }
 }

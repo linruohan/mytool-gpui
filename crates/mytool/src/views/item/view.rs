@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Axis, Context, Entity, EventEmitter, Focusable, IntoElement, ParentElement,
-    Render, Styled, Subscription, WeakEntity, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Sizable, WindowExt,
-    button::{Button, ButtonVariants},
-    color_picker::{ColorPicker, ColorPickerState},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    form::{field, v_form},
-    input::{Input, InputState},
+    button::{Button, ButtonVariants}, color_picker::ColorPickerState, date_picker::DatePickerState,
+    input::InputState,
     list::{List, ListEvent, ListState},
     select::SelectState,
-    v_flex,
+    ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemEvent, ItemListDelegate, load_items};
+use crate::{
+    load_items, DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+};
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
 pub struct ItemsPanel {
@@ -32,6 +32,7 @@ pub struct ItemsPanel {
     // item_date: Entity<DatePickerState>,
     priority_select: Entity<SelectState<Vec<String>>>,
     is_checked: bool, // 任务完成状态
+    item_info: Entity<ItemInfoState>,
 }
 
 impl ItemsPanel {
@@ -43,7 +44,10 @@ impl ItemsPanel {
             InputState::new(window, cx).auto_grow(5, 20).placeholder("task description here...")
         });
         let _date = cx.new(|cx| DatePickerState::new(window, cx));
-
+        let item_info = cx.new(|cx| {
+            let picker = ItemInfoState::new(window, cx);
+            picker
+        });
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
         let priority_select = cx.new(|cx| {
@@ -60,8 +64,18 @@ impl ItemsPanel {
                 cx,
             )
         });
-        let _subscriptions =
-            vec![cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
+        let _subscriptions = vec![
+            cx.subscribe(&item_info, |_this, _, event: &ItemInfoEvent, cx| match event {
+                ItemInfoEvent::Update(item) => {
+                    cx.emit(ItemEvent::Added(item.clone()));
+                    cx.notify();
+                },
+                ItemInfoEvent::Add(item) => {
+                    cx.emit(ItemEvent::Modified(item.clone()));
+                    cx.notify();
+                },
+            }),
+            cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(_conn) = this.get_selected_item(*ix, cx)
                 {
@@ -71,7 +85,8 @@ impl ItemsPanel {
                     //     cx.notify();
                     // })
                 }
-            })];
+            }),
+        ];
 
         let item_list_clone = item_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -94,6 +109,7 @@ impl ItemsPanel {
             is_loading: false,
             is_checked: false,
             item_list,
+            item_info,
             priority_select,
             active_index: Some(0),
             _subscriptions,
@@ -153,122 +169,55 @@ impl ItemsPanel {
     }
 
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
-        let name_input = self.name_input.clone();
-        let desc_input = self.desc_input.clone();
-        let _priority_select = self.priority_select.clone();
-        let color_state = self.color_state.clone();
-        let _is_checked = self.is_checked;
+        let item_info = self.item_info.clone();
         let ori_item = self.initialize_item_model(is_edit, window, cx);
-        let now = chrono::Local::now().naive_local().date();
-        let item_due = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
-            picker.set_date(now, window, cx);
-            picker
-        });
-        let _ = cx.subscribe(&item_due, |this, _, ev, _| match ev {
-            DatePickerEvent::Change(date) => {
-                this.item_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            },
-        });
         if is_edit {
-            name_input.update(cx, |is, cx| {
-                is.set_value(ori_item.content.clone(), window, cx);
+            item_info.update(cx, |item_info, cx| {
+                item_info.item(Rc::from(ori_item.clone()), window, cx);
                 cx.notify();
             });
-            desc_input.update(cx, |is, cx| {
-                is.set_value(ori_item.description.clone().unwrap_or_default(), window, cx);
-                cx.notify();
-            })
         }
-
         let view = cx.entity().clone();
         let dialog_title = if is_edit { "Edit Item" } else { "New Item" };
-        let button_item = if is_edit { "Save" } else { "Add" };
+        let button_text = if is_edit { "Save" } else { "Add" };
 
         window.open_dialog(cx, move |modal, _, _| {
+            let item_info_clone = item_info.clone();
+            let view_clone = view.clone();
+
             modal
                 .title(dialog_title)
                 .items_center()
+                .size_full()
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(
-                    v_flex().gap_3().child(
-                        v_form()
-                            .layout(Axis::Vertical)
-                            .columns(1)
-                            .label_width(px(140.))
-                            .child(field().child(Input::new(&name_input)).required(true))
-                            .child(field().child(Input::new(&desc_input)))
-                            // .child(
-                            //     field().child(
-                            //         h_flex()
-                            //             .gap_2()
-                            //             .border_1()
-                            //             .border_color(cx.theme().border)
-                            //             .rounded(cx.theme().radius)
-                            //             .child(
-                            //                 Select::new(&priority_select).pr_0().appearance(false),
-                            //             )
-                            //             .child(
-                            //                 Checkbox::new("item-finish")
-                            //                     .label("toggle-finish")
-                            //                     .checked(is_checked),
-                            //             ),
-                            //     ),
-                            // )
-                            .child(
-                                field().child(
-                                    ColorPicker::new(&color_state).small().label("Item color"),
-                                ),
-                            )
-                            .child(field().label("date").child(DatePicker::new(&item_due))),
-                    ),
-                )
-                .footer({
-                    let view = view.clone();
-                    let ori_item = ori_item.clone();
-                    let name_input_clone = name_input.clone();
-                    let des_input_clone = desc_input.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("save").primary().label(button_item).on_click({
-                                let view = view.clone();
-                                let ori_item = ori_item.clone();
-                                let name_input_clone1 = name_input_clone.clone();
-                                let des_input_clone1 = des_input_clone.clone();
-                                move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                    view.update(cx, |view, cx| {
-                                        let item = Rc::new(ItemModel {
-                                            content: name_input_clone1.read(cx).value().to_string(),
-                                            description: Some(
-                                                des_input_clone1.read(cx).value().to_string(),
-                                            ),
-                                            checked: view.is_checked,
-                                            priority: Some(0),
-                                            item_type: view.item_due.clone(),
-                                            ..ori_item.clone()
-                                        });
-                                        // 根据模式发射不同事件
-                                        if is_edit {
-                                            cx.emit(ItemEvent::Modified(item));
-                                        } else {
-                                            cx.emit(ItemEvent::Added(item));
-                                        }
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                .child(ItemInfo::new(&item_info))
+                .footer(move |_, _, _, _| {
+                    vec![
+                        Button::new("save").primary().label(button_text).on_click({
+                            let view = view_clone.clone();
+                            let item_info = item_info_clone.clone();
+                            move |_, window, cx| {
                                 window.close_dialog(cx);
-                            }),
-                        ]
-                    }
+                                view.update(cx, |_view, cx| {
+                                    let item = item_info.read(cx).item.clone();
+                                    let event = if is_edit {
+                                        ItemEvent::Modified(item)
+                                    } else {
+                                        ItemEvent::Added(item)
+                                    };
+                                    cx.emit(event);
+                                    cx.notify();
+                                });
+                            }
+                        }),
+                        Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                            window.close_dialog(cx);
+                        }),
+                    ]
                 })
         });
-        self.name_input.focus_handle(cx).focus(window);
-        self.desc_input.focus_handle(cx).focus(window);
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
