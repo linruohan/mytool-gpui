@@ -85,9 +85,9 @@ impl ListStory {
                     println!("label_popover_list select: {:?}", label);
                 },
             }),
-            cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
-                this.item_info.update(cx, |item_info, cx| {
-                    item_info.handel_item_info_event(event, cx);
+            cx.subscribe(&item_info, |this, _, _event: &ItemInfoEvent, cx| {
+                this.item_info.update(cx, |_item_info, _cx| {
+                    // item_info.handel_item_info_event(event, cx);
                 });
             }),
             cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {

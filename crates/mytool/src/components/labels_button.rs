@@ -1,18 +1,19 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Window,
 };
 use gpui_component::{
-    button::Button,
-    list::{List, ListState},
+    button::{Button, ButtonVariants}, list::{List, ListState},
     popover::Popover,
     v_flex,
+    IconName,
+    Sizable,
 };
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelCheckListDelegate, SelectedCheckLabel, load_labels};
+use crate::{load_labels, DBState, LabelCheckListDelegate, SelectedCheckLabel};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),
@@ -20,7 +21,7 @@ pub enum LabelsPopoverEvent {
 pub struct LabelsPopoverList {
     focus_handle: FocusHandle,
     label_list: Entity<ListState<LabelCheckListDelegate>>,
-    selected_labels: Vec<Rc<LabelModel>>,
+    pub selected_labels: Vec<Rc<LabelModel>>,
     pub(crate) list_popover_open: bool,
 }
 impl EventEmitter<LabelsPopoverEvent> for LabelsPopoverList {}
@@ -103,8 +104,8 @@ impl Render for LabelsPopoverList {
         v_flex()
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
-            .size_full()
-            .gap_6()
+            .items_center()
+            .justify_end()
             .on_action(cx.listener(Self::selected_label))
             .child(
                 Popover::new("popover-list")
@@ -115,7 +116,13 @@ impl Render for LabelsPopoverList {
                         this.list_popover_open = *open;
                         cx.notify();
                     }))
-                    .trigger(Button::new("pop").outline().label("label popover List"))
+                    .trigger(
+                        Button::new("item-labels-button")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::TagOutlineSymbolic),
+                    )
                     .track_focus(&self.label_list.focus_handle(cx))
                     .child(List::new(&self.label_list))
                     .w_64()

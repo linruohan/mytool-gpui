@@ -23,7 +23,7 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{DBState, LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList, load_labels};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
@@ -45,6 +45,7 @@ pub struct ItemInfoState {
     desc_input: Entity<InputState>,
     date: Entity<DatePickerState>,
     priority_state: Entity<PriorityState>,
+    label_popover_list: Entity<LabelsPopoverList>,
 }
 
 impl Focusable for ItemInfoState {
@@ -53,7 +54,6 @@ impl Focusable for ItemInfoState {
     }
 }
 impl EventEmitter<ItemInfoEvent> for ItemInfoState {}
-
 impl ItemInfoState {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
@@ -64,17 +64,26 @@ impl ItemInfoState {
         let desc_input = cx.new(|cx| {
             InputState::new(window, cx).auto_grow(5, 20).placeholder("Add a description ...")
         });
+        let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
+
         let date = cx.new(|cx| DatePickerState::new(window, cx));
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
-        let _subscriptions = vec![cx.subscribe_in(
-            &priority_state,
-            window,
-            move |this, _, ev: &PriorityEvent, _window, _cx| match ev {
-                PriorityEvent::Selected(priority) => {
-                    this.set_priority(*priority);
+        let _subscriptions = vec![
+            cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
+                LabelsPopoverEvent::Selected(label) => {
+                    println!("label_popover_list select: {:?}", label);
                 },
-            },
-        )];
+            }),
+            cx.subscribe_in(
+                &priority_state,
+                window,
+                move |this, _, ev: &PriorityEvent, _window, _cx| match ev {
+                    PriorityEvent::Selected(priority) => {
+                        this.set_priority(*priority);
+                    },
+                },
+            ),
+        ];
 
         let label_list_clone = label_list.clone();
         let db = cx.global::<DBState>().conn.clone();
@@ -103,6 +112,7 @@ impl ItemInfoState {
             checked: false,
             date,
             priority_state,
+            label_popover_list,
         }
     }
 
@@ -148,20 +158,12 @@ impl ItemInfoState {
         self.item = item;
     }
 
-    pub fn handel_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
-        match event {
-            ItemInfoEvent::Add(item) => {
-                self.update_item(item.clone(), cx);
-            },
-            ItemInfoEvent::Update(item) => self.update_item(item.clone(), cx),
-        }
-    }
-
     fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
         self.checked = *selectable;
     }
 
-    fn update_item(&mut self, item: Rc<ItemModel>, _cx: &mut Context<Self>) {
+    // set item of item_info
+    fn item(&mut self, item: Rc<ItemModel>, _cx: &mut Context<Self>) {
         self.item = item.clone();
     }
 }
@@ -232,6 +234,7 @@ impl Render for ItemInfoState {
                                         this.min_w(px(100.))
                                     }),
                             )
+
                             .child(
                                 Button::new("item-add")
                                     .small()
@@ -249,23 +252,7 @@ impl Render for ItemInfoState {
                                         }
                                     }),
                             )
-                            .child(
-                                Button::new("item-tags")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::TagOutlineSymbolic)
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {
-                                            // let items_panel_clone = items_panel.clone();
-                                            // items_panel_clone.update(cx, |items_panel, cx| {
-                                            //     items_panel.show_finish_item_dialog(window, cx);
-                                            //     cx.notify();
-                                            // })
-                                        }
-                                    }),
-                            )
+                            .child(self.label_popover_list.clone())
                             .child(PriorityButton::new(&self.priority_state))
                             .child(
                                 Button::new("item-reminder")
@@ -363,27 +350,43 @@ impl Render for ItemInfoState {
                                     // })
                                 }
                             }),
-                    ),
+                    )
+                    .child(Button::new("12").items_end().justify_end().label("Save").on_click({
+                        let view = view.clone();
+                        let name_input_clone1 = self.name_input.clone();
+                        let des_input_clone1 = self.desc_input.clone();
+                        let label_popover_list_clone = self.label_popover_list.clone();
+                        move |_, window, cx| {
+                            window.close_dialog(cx);
+                            view.update(cx, |view, cx| {
+                                let label_ids = label_popover_list_clone
+                                    .read(cx)
+                                    .selected_labels
+                                    .iter()
+                                    .map(|label| label.id.clone())
+                                    .collect::<Vec<String>>()
+                                    .join(";");
+                                println!("label_ids: {}", label_ids);
+                                let item = ItemModel {
+                                    content: name_input_clone1.read(cx).value().to_string(),
+                                    description: Some(
+                                        des_input_clone1.read(cx).value().to_string(),
+                                    ),
+                                    checked: view.checked,
+                                    labels: if label_ids.is_empty() {
+                                        None
+                                    } else {
+                                        Some(label_ids.parse().unwrap_or_default())
+                                    },
+                                    priority: Some(view.priority_state.read(cx).priority() as i32),
+                                    ..Default::default()
+                                };
+                                cx.emit(ItemInfoEvent::Update(item.into()));
+                                cx.notify();
+                            });
+                        }
+                    })),
             )
-            .child(Button::new("12").label("获取item").on_click({
-                let view = view.clone();
-                let name_input_clone1 = self.name_input.clone();
-                let des_input_clone1 = self.desc_input.clone();
-                move |_, window, cx| {
-                    window.close_dialog(cx);
-                    view.update(cx, |view, cx| {
-                        let item = ItemModel {
-                            content: name_input_clone1.read(cx).value().to_string(),
-                            description: Some(des_input_clone1.read(cx).value().to_string()),
-                            checked: view.checked,
-                            priority: Some(view.priority_state.read(cx).priority() as i32),
-                            ..Default::default()
-                        };
-                        cx.emit(ItemInfoEvent::Update(item.into()));
-                        cx.notify();
-                    });
-                }
-            }))
     }
 }
 
