@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
+    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
@@ -11,6 +11,9 @@ use gpui_component::{
     h_flex,
     label::Label,
     list::{ListDelegate, ListItem, ListState},
+    red_400,
+    tag::Tag,
+    v_flex,
 };
 use todos::entity::ItemModel;
 
@@ -57,7 +60,7 @@ impl RenderOnce for ItemListItem {
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        let bg_color = if self.selected {
+        let _bg_color = if self.selected {
             cx.theme().list_active
         } else if self.ix.row.is_multiple_of(2) {
             cx.theme().list
@@ -69,62 +72,69 @@ impl RenderOnce for ItemListItem {
             .px_2()
             .py_1()
             .overflow_x_hidden()
-            .bg(bg_color)
             .border_1()
-            .border_color(bg_color)
+            .rounded(cx.theme().radius)
             .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(
                 h_flex()
                     .items_center()
-                    .justify_between()
+                    .justify_start()
                     .gap_2()
                     .text_color(text_color)
-                    .child(Checkbox::new("item-checked").checked(self.item.checked))
+                    .child(Checkbox::new("item-finished").checked(self.item.checked))
+                    .child(
+                        Label::new("Tomorrow").when(self.item.checked, |this| {
+                            this.line_through().text_color(red_400())
+                        }),
+                    )
+                    .child(
+                        v_flex()
+                            .gap_1()
+                            .overflow_x_hidden()
+                            .flex_nowrap()
+                            .child(
+                                Label::new(self.item.content.clone())
+                                    .whitespace_nowrap()
+                                    .when(self.item.checked, |this| this.line_through()),
+                            )
+                            .child(h_flex().gap_2().flex().px_2().children(vec![
+                                Tag::primary().child("Primary"),
+                                Tag::secondary().child("Secondary"),
+                                Tag::success().child("Success"),
+                                Tag::danger().child("Danger"),
+                                Tag::warning().child("Warning"),
+                                Tag::info().child("Info"),
+                            ])),
+                    )
+                    .child(self.item.priority.unwrap_or_default().to_string())
                     .child(
                         h_flex()
                             .gap_2()
                             .items_center()
                             .justify_end()
-                            .child(div().w(px(120.)).child(self.item.content.clone()))
-                            .child(div().w(px(315.)).child(
-                                self.item.description.clone().unwrap_or_default().to_string(),
-                            ))
+                            .flex()
+                            .px_2()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
-                                div().w(px(315.)).child(
-                                    self.item.priority.unwrap_or_default().to_string().clone(),
-                                ),
+                                Button::new("edit")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditSymbolic)
+                                    .on_click(move |_event, _window, _cx| {
+                                        let item = self.item.clone();
+                                        println!("edit item:{:?}", item);
+                                    }),
                             )
                             .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_end()
-                                    .px_2()
-                                    .gap_2()
-                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                        cx.stop_propagation()
-                                    })
-                                    .child(
-                                        Button::new("edit")
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::EditSymbolic)
-                                            .on_click(move |_event, _window, _cx| {
-                                                let item = self.item.clone();
-                                                println!("edit item:{:?}", item);
-                                            }),
-                                    )
-                                    .child(
-                                        Button::new("delete")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .small()
-                                            .ghost()
-                                            .on_click(|_, _, _cx| {
-                                                println!("delete item:");
-                                            }),
-                                    ),
+                                Button::new("delete")
+                                    .icon(IconName::UserTrashSymbolic)
+                                    .small()
+                                    .ghost()
+                                    .on_click(|_, _, _cx| {
+                                        println!("delete item:");
+                                    }),
                             ),
                     ),
             )

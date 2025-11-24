@@ -141,6 +141,16 @@ impl LabelCheckListDelegate {
         }
     }
 
+    // set_checked_labels:设置checked标签
+    pub fn set_item_checked_labels(
+        &mut self,
+        labels: Vec<Rc<LabelModel>>,
+        _window: &mut Window,
+        _cx: &mut Context<ListState<Self>>,
+    ) {
+        self.checked_list = labels.clone();
+    }
+
     pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
         let Some(ix) = self.selected_index else {
             return None;

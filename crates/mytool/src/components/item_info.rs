@@ -1,22 +1,21 @@
-use std::rc::Rc;
+use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
-    SharedString, StyleRefinement, Styled, Subscription, Window, div, px,
+    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
+    Styled, Subscription, Window, div,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _, WindowExt,
     button::{Button, ButtonVariants},
-    date_picker::DatePickerState,
     divider::Divider,
     h_flex,
-    input::{Input, InputState},
+    input::{Input, InputEvent, InputState},
     list::ListState,
-    menu::DropdownMenu,
     v_flex,
 };
 use serde::Deserialize;
+use serde_json::Value;
 use todos::{
     entity::{ItemModel, LabelModel},
     enums::item_priority::ItemPriority,
@@ -43,7 +42,6 @@ pub struct ItemInfoState {
     checked: bool,
     name_input: Entity<InputState>,
     desc_input: Entity<InputState>,
-    date: Entity<DatePickerState>,
     priority_state: Entity<PriorityState>,
     label_popover_list: Entity<LabelsPopoverList>,
 }
@@ -60,29 +58,20 @@ impl ItemInfoState {
 
         let label_list =
             cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
+
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("To-do Name"));
+
         let desc_input = cx.new(|cx| {
             InputState::new(window, cx).auto_grow(5, 20).placeholder("Add a description ...")
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
-        let date = cx.new(|cx| DatePickerState::new(window, cx));
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
         let _subscriptions = vec![
-            cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
-                LabelsPopoverEvent::Selected(label) => {
-                    println!("label_popover_list select: {:?}", label);
-                },
-            }),
-            cx.subscribe_in(
-                &priority_state,
-                window,
-                move |this, _, ev: &PriorityEvent, _window, _cx| match ev {
-                    PriorityEvent::Selected(priority) => {
-                        this.set_priority(*priority);
-                    },
-                },
-            ),
+            cx.subscribe_in(&name_input, window, Self::on_input_event),
+            cx.subscribe_in(&desc_input, window, Self::on_input_event),
+            cx.subscribe_in(&label_popover_list, window, Self::on_labels_event),
+            cx.subscribe_in(&priority_state, window, Self::on_priority_event),
         ];
 
         let label_list_clone = label_list.clone();
@@ -110,9 +99,109 @@ impl ItemInfoState {
             name_input,
             desc_input,
             checked: false,
-            date,
             priority_state,
             label_popover_list,
+        }
+    }
+
+    fn on_input_event(
+        &mut self,
+        state: &Entity<InputState>,
+        event: &InputEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            InputEvent::Change => {
+                let text = state.read(cx).value();
+                state.update(cx, |this, cx| {
+                    this.set_value(text, window, cx);
+                })
+            },
+            InputEvent::PressEnter { secondary } => {
+                let text = state.read(cx).value().to_string();
+                if *secondary {
+                    println!("Shift+Enter pressed - insert line break");
+                } else {
+                    println!("Enter pressed - could submit form");
+                }
+                let item = Rc::make_mut(&mut self.item);
+                if state == &self.name_input {
+                    item.content = text;
+                } else {
+                    item.description = Some(text);
+                }
+            },
+            _ => {},
+        };
+    }
+
+    pub fn on_labels_event(
+        &mut self,
+        _state: &Entity<LabelsPopoverList>,
+        event: &LabelsPopoverEvent,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        match event {
+            LabelsPopoverEvent::Selected(label) => {
+                self.add_checked_labels(label.clone());
+            },
+            LabelsPopoverEvent::DeSelected(label) => {
+                self.rm_checked_labels(label.clone());
+            },
+        }
+    }
+
+    pub fn on_priority_event(
+        &mut self,
+        _state: &Entity<PriorityState>,
+        event: &PriorityEvent,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        match event {
+            PriorityEvent::Selected(priority) => {
+                self.set_priority(*priority);
+            },
+        }
+    }
+
+    pub fn add_checked_labels(&mut self, label: Rc<LabelModel>) {
+        let item = Rc::make_mut(&mut self.item);
+        let mut labels_set = match &item.labels {
+            Some(Value::String(current)) => {
+                current.split(';').filter(|s: &&str| !s.is_empty()).collect::<HashSet<&str>>()
+            },
+            _ => HashSet::new(),
+        };
+
+        // 添加新标签（HashSet 自动去重）
+        labels_set.insert(&label.id);
+
+        // 重新拼接成字符串
+        let new_labels = labels_set.into_iter().collect::<Vec<&str>>().join(";");
+
+        item.labels = Some(Value::String(new_labels));
+    }
+
+    pub fn rm_checked_labels(&mut self, label: Rc<LabelModel>) {
+        let item = Rc::make_mut(&mut self.item);
+        if let Some(Value::String(current_labels)) = &item.labels {
+            if current_labels.is_empty() {
+                item.labels = None;
+                return;
+            }
+
+            // 使用正则表达式或更精确的字符串处理
+            let new_labels = current_labels
+                .split(';')
+                .filter(|id: &&str| *id != label.id && !id.is_empty())
+                .collect::<Vec<_>>()
+                .join(";");
+
+            item.labels =
+                if new_labels.is_empty() { None } else { Some(Value::String(new_labels)) };
         }
     }
 
@@ -147,24 +236,29 @@ impl ItemInfoState {
         item.priority = Some(priority);
     }
 
-    /// Set the date of the date picker.
-    pub fn set_item(
-        &mut self,
-        item: Rc<ItemModel>,
-        _emit: bool,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) {
-        self.item = item;
-    }
-
     fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
         self.checked = *selectable;
     }
 
     // set item of item_info
-    pub fn item(&mut self, item: Rc<ItemModel>, _window: &mut Window, _cx: &mut Context<Self>) {
+    pub fn set_item(&mut self, item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
         self.item = item.clone();
+        self.name_input.update(cx, |this, cx| {
+            this.set_value(&item.content.clone(), window, cx);
+        });
+        self.desc_input.update(cx, |this, cx| {
+            this.set_value(&item.description.clone().unwrap_or_default(), window, cx);
+        });
+        self.priority_state.update(cx, |this, cx| {
+            if let Some(priority) = item.priority {
+                this.set_priority(ItemPriority::from_i32(priority), window, cx);
+            }
+        });
+        self.label_popover_list.update(cx, |this, cx| {
+            if let Some(labels) = item.labels.clone() {
+                this.set_item_checked_label_id(labels, window, cx);
+            }
+        });
     }
 }
 
@@ -182,32 +276,27 @@ impl Render for ItemInfoState {
                     .gap_2()
                     .child(
                         h_flex().gap_2().child(
-                            v_flex()
-                                .gap_1()
-                                .max_w(px(500.))
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(
-                                    Button::new("finish-label")
-                                        .label("Schedule")
-                                        .small()
-                                        .icon(IconName::MonthSymbolic)
-                                        .ghost()
-                                        .compact()
-                                        .on_click({
-                                            // let items_panel = self.items_panel.clone();
-                                            move |_event, _window, _cx| {
-                                                // let items_panel_clone = items_panel.clone();
-                                                // items_panel_clone.update(cx, |items_panel,
-                                                // cx| {
-                                                //     items_panel.
-                                                // show_finish_item_dialog(window,
-                                                // cx);
-                                                //     cx.notify();
-                                                // })
-                                            }
-                                        }),
-                                ),
+                            v_flex().gap_1().overflow_x_hidden().flex_nowrap().child(
+                                Button::new("item-schedule")
+                                    .label("Schedule")
+                                    .small()
+                                    .icon(IconName::MonthSymbolic)
+                                    .ghost()
+                                    .compact()
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {
+                                            // let items_panel_clone = items_panel.clone();
+                                            // items_panel_clone.update(cx, |items_panel,
+                                            // cx| {
+                                            //     items_panel.
+                                            // show_finish_item_dialog(window,
+                                            // cx);
+                                            //     cx.notify();
+                                            // })
+                                        }
+                                    }),
+                            ),
                         ),
                     )
                     .child(
@@ -216,25 +305,6 @@ impl Render for ItemInfoState {
                             .items_center()
                             .justify_end()
                             // .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("dropdown-menu-scrollable-2")
-                                    .outline()
-                                    .label("Scrollable Menu (5 items)")
-                                    .dropdown_menu_with_anchor(Corner::TopLeft, move |this, _, _| {
-                                        let mut this = this
-                                            .scrollable(true)
-                                            .max_h(px(300.))
-                                            .label(format!("Total {} items", 100));
-                                        for i in 0..5 {
-                                            this = this.menu(
-                                                SharedString::from(format!("Item {}", i)),
-                                                Box::new(Info(i)),
-                                            )
-                                        }
-                                        this.min_w(px(100.))
-                                    }),
-                            )
-
                             .child(
                                 Button::new("item-add")
                                     .small()
@@ -252,7 +322,7 @@ impl Render for ItemInfoState {
                                         }
                                     }),
                             )
-                            .child(self.label_popover_list.clone())
+                            .child(self.label_popover_list.clone()) // tags
                             .child(PriorityButton::new(&self.priority_state))
                             .child(
                                 Button::new("item-reminder")
@@ -309,83 +379,99 @@ impl Render for ItemInfoState {
             .child(Divider::horizontal().p_2())
             .child(
                 h_flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
                     .child(
-                        Button::new("item-project")
-                            .label("Inbox")
-                            .small()
-                            .icon(IconName::Inbox)
-                            .ghost()
-                            .compact()
-                            .on_click({
-                                // let items_panel = self.items_panel.clone();
-                                move |_event, _window, _cx| {
-                                    // let items_panel_clone = items_panel.clone();
-                                    // items_panel_clone.update(cx, |items_panel,
-                                    // cx| {
-                                    //     items_panel.
-                                    // show_finish_item_dialog(window,
-                                    // cx);
-                                    //     cx.notify();
-                                    // })
-                                }
-                            }),
+                        h_flex().gap_2().child(
+                            h_flex()
+                                .gap_1()
+                                .overflow_x_hidden()
+                                .flex_nowrap()
+                                .child(
+                                    Button::new("item-project")
+                                        .label("Inbox")
+                                        .small()
+                                        .icon(IconName::Inbox)
+                                        .ghost()
+                                        .compact()
+                                        .on_click({
+                                            // let items_panel = self.items_panel.clone();
+                                            move |_event, _window, _cx| {
+                                                // let items_panel_clone = items_panel.clone();
+                                                // items_panel_clone.update(cx, |items_panel,
+                                                // cx| {
+                                                //     items_panel.
+                                                // show_finish_item_dialog(window,
+                                                // cx);
+                                                //     cx.notify();
+                                                // })
+                                            }
+                                        }),
+                                )
+                                .child("——>")
+                                .child(
+                                    Button::new("item-section")
+                                        .label("Section")
+                                        .small()
+                                        .ghost()
+                                        .compact()
+                                        .on_click({
+                                            // let items_panel = self.items_panel.clone();
+                                            move |_event, _window, _cx| {
+                                                // let items_panel_clone = items_panel.clone();
+                                                // items_panel_clone.update(cx, |items_panel,
+                                                // cx| {
+                                                //     items_panel.
+                                                // show_finish_item_dialog(window,
+                                                // cx);
+                                                //     cx.notify();
+                                                // })
+                                            }
+                                        }),
+                                ),
+                        ),
                     )
-                    .child("——>")
-                    .child(
-                        Button::new("item-section")
-                            .label("Section")
-                            .small()
-                            .ghost()
-                            .compact()
-                            .on_click({
-                                // let items_panel = self.items_panel.clone();
-                                move |_event, _window, _cx| {
-                                    // let items_panel_clone = items_panel.clone();
-                                    // items_panel_clone.update(cx, |items_panel,
-                                    // cx| {
-                                    //     items_panel.
-                                    // show_finish_item_dialog(window,
-                                    // cx);
-                                    //     cx.notify();
-                                    // })
-                                }
-                            }),
-                    )
-                    .child(Button::new("12").items_end().justify_end().label("Save").on_click({
-                        let view = view.clone();
-                        let name_input_clone1 = self.name_input.clone();
-                        let des_input_clone1 = self.desc_input.clone();
-                        let label_popover_list_clone = self.label_popover_list.clone();
-                        move |_, window, cx| {
-                            window.close_dialog(cx);
-                            view.update(cx, |view, cx| {
-                                let label_ids = label_popover_list_clone
-                                    .read(cx)
-                                    .selected_labels
-                                    .iter()
-                                    .map(|label| label.id.clone())
-                                    .collect::<Vec<String>>()
-                                    .join(";");
-                                println!("label_ids: {}", label_ids);
-                                let item = ItemModel {
-                                    content: name_input_clone1.read(cx).value().to_string(),
-                                    description: Some(
-                                        des_input_clone1.read(cx).value().to_string(),
-                                    ),
-                                    checked: view.checked,
-                                    labels: if label_ids.is_empty() {
-                                        None
-                                    } else {
-                                        Some(label_ids.parse().unwrap_or_default())
-                                    },
-                                    priority: Some(view.priority_state.read(cx).priority() as i32),
-                                    ..Default::default()
-                                };
-                                cx.emit(ItemInfoEvent::Update(item.into()));
-                                cx.notify();
-                            });
-                        }
-                    })),
+                    .child(h_flex().gap_2().items_center().justify_end().child(
+                        Button::new("save").label("Save").on_click({
+                            let view = view.clone();
+                            let name_input_clone1 = self.name_input.clone();
+                            let des_input_clone1 = self.desc_input.clone();
+                            let label_popover_list_clone = self.label_popover_list.clone();
+                            move |_, window, cx| {
+                                window.close_dialog(cx);
+                                view.update(cx, |view, cx| {
+                                    let label_ids = label_popover_list_clone
+                                        .read(cx)
+                                        .selected_labels
+                                        .iter()
+                                        .map(|label| label.id.clone())
+                                        .collect::<Vec<String>>()
+                                        .join(";");
+                                    println!("label_ids: {}", label_ids);
+                                    let item = Rc::new(ItemModel {
+                                        content: name_input_clone1.read(cx).value().to_string(),
+                                        description: Some(
+                                            des_input_clone1.read(cx).value().to_string(),
+                                        ),
+                                        checked: view.checked,
+                                        labels: if label_ids.is_empty() {
+                                            None
+                                        } else {
+                                            Some(label_ids.parse().unwrap_or_default())
+                                        },
+                                        priority: Some(
+                                            view.priority_state.read(cx).priority() as i32
+                                        ),
+                                        ..Default::default()
+                                    });
+                                    println!("item_info: before:{:?}", item.clone());
+                                    cx.emit(ItemInfoEvent::Update(item.clone()));
+                                    cx.notify();
+                                });
+                            }
+                        }),
+                    )),
             )
     }
 }

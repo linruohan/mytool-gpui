@@ -84,6 +84,7 @@ impl ListStory {
                 LabelsPopoverEvent::Selected(label) => {
                     println!("label_popover_list select: {:?}", label);
                 },
+                LabelsPopoverEvent::DeSelected(_model) => todo!(),
             }),
             cx.subscribe(&item_info, |this, _, _event: &ItemInfoEvent, cx| {
                 this.item_info.update(cx, |_item_info, _cx| {

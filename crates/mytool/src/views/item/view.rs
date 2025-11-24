@@ -67,11 +67,12 @@ impl ItemsPanel {
         let _subscriptions = vec![
             cx.subscribe(&item_info, |_this, _, event: &ItemInfoEvent, cx| match event {
                 ItemInfoEvent::Update(item) => {
-                    cx.emit(ItemEvent::Added(item.clone()));
+                    print!("iteminfo updated after:{:?}", item);
+                    cx.emit(ItemEvent::Modified(item.clone()));
                     cx.notify();
                 },
                 ItemInfoEvent::Add(item) => {
-                    cx.emit(ItemEvent::Modified(item.clone()));
+                    cx.emit(ItemEvent::Added(item.clone()));
                     cx.notify();
                 },
             }),
@@ -173,7 +174,7 @@ impl ItemsPanel {
         let ori_item = self.initialize_item_model(is_edit, window, cx);
         if is_edit {
             item_info.update(cx, |item_info, cx| {
-                item_info.item(Rc::from(ori_item.clone()), window, cx);
+                item_info.set_item(Rc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
         }
@@ -188,8 +189,8 @@ impl ItemsPanel {
             modal
                 .title(dialog_title)
                 .items_center()
-                .size_full()
-                .overlay(false)
+                .w_full()
+                .overlay(true)
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(ItemInfo::new(&item_info))
@@ -393,6 +394,7 @@ impl Render for ItemsPanel {
             .flex_1()
             .w_full()
             .border_1()
+            .gap_3()
             .border_color(cx.theme().border)
             .rounded(cx.theme().radius)
     }

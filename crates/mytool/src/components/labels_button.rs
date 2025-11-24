@@ -11,16 +11,19 @@ use gpui_component::{
     popover::Popover,
     v_flex,
 };
+use serde_json::Value;
 use todos::entity::LabelModel;
 
 use crate::{DBState, LabelCheckListDelegate, SelectedCheckLabel, load_labels};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),
+    DeSelected(Rc<LabelModel>),
 }
+
 pub struct LabelsPopoverList {
     focus_handle: FocusHandle,
-    label_list: Entity<ListState<LabelCheckListDelegate>>,
+    pub label_list: Entity<ListState<LabelCheckListDelegate>>,
     pub selected_labels: Vec<Rc<LabelModel>>,
     pub(crate) list_popover_open: bool,
 }
@@ -61,6 +64,29 @@ impl LabelsPopoverList {
             focus_handle: cx.focus_handle(),
             selected_labels: Vec::new(),
         }
+    }
+
+    pub fn set_item_checked_label_id(
+        &mut self,
+        label_ids: Value,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let all_labels = self.label_list.read(cx).delegate()._labels.clone();
+        self.selected_labels = label_ids
+            .to_string()
+            .split(';')
+            .filter_map(|label_id| {
+                let trimmed_id = label_id.trim();
+                if trimmed_id.is_empty() {
+                    return None;
+                }
+                all_labels.iter().find(|label| label.id == trimmed_id).map(Rc::clone)
+            })
+            .collect();
+        self.label_list.update(cx, |list, cx| {
+            list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), window, cx);
+        });
     }
 
     fn selected_label(&mut self, _: &SelectedCheckLabel, _: &mut Window, cx: &mut Context<Self>) {
