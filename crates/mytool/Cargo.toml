@@ -2,7 +2,7 @@
 edition = "2024"
 name = "mytool"
 publish = false
-version = "0.2.0"
+version = "0.2.1"
 [features]
 inspector = ["gpui-component/inspector"]
 [dependencies]

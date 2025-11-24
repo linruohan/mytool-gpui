@@ -1,22 +1,22 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, color_picker::ColorPickerState, date_picker::DatePickerState,
+    ActiveTheme, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    color_picker::ColorPickerState,
+    date_picker::DatePickerState,
     input::InputState,
     list::{List, ListEvent, ListState},
     select::SelectState,
-    ActiveTheme,
-    IndexPath,
-    WindowExt,
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    load_items, DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, load_items,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
