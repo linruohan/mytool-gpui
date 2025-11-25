@@ -32,7 +32,7 @@ whoami = { version = "1.4.1", default-features = false }
 winresource = "0.1.22"
 rodio = "0.21.1"
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 
 [workspace.lints.clippy]

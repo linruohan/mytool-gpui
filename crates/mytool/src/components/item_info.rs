@@ -108,15 +108,15 @@ impl ItemInfoState {
         &mut self,
         state: &Entity<InputState>,
         event: &InputEvent,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
             InputEvent::Change => {
-                let text = state.read(cx).value();
-                state.update(cx, |this, cx| {
-                    this.set_value(text, window, cx);
-                })
+                let _text = state.read(cx).value();
+                // state.update(cx, |this, cx| {
+                //     this.set_value(text, window, cx);
+                // })
             },
             InputEvent::PressEnter { secondary } => {
                 let text = state.read(cx).value().to_string();
