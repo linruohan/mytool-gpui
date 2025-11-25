@@ -113,23 +113,20 @@ impl ItemInfoState {
     ) {
         match event {
             InputEvent::Change => {
-                let _text = state.read(cx).value();
-                // state.update(cx, |this, cx| {
-                //     this.set_value(text, window, cx);
-                // })
-            },
-            InputEvent::PressEnter { secondary } => {
                 let text = state.read(cx).value().to_string();
-                if *secondary {
-                    println!("Shift+Enter pressed - insert line break");
-                } else {
-                    println!("Enter pressed - could submit form");
-                }
                 let item = Rc::make_mut(&mut self.item);
                 if state == &self.name_input {
                     item.content = text;
                 } else {
                     item.description = Some(text);
+                }
+            },
+            InputEvent::PressEnter { secondary } => {
+                let _text = state.read(cx).value().to_string();
+                if *secondary {
+                    println!("Shift+Enter pressed - insert line break");
+                } else {
+                    println!("Enter pressed - could submit form");
                 }
             },
             _ => {},

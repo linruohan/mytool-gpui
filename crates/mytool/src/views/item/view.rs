@@ -201,12 +201,17 @@ impl ItemsPanel {
                             let item_info = item_info_clone.clone();
                             move |_, window, cx| {
                                 window.close_dialog(cx);
+                                item_info.update(cx, |item_info, cx| {
+                                    cx.emit(ItemInfoEvent::Update(item_info.item.clone()));
+                                    cx.notify();
+                                });
                                 view.update(cx, |_view, cx| {
                                     let item = item_info.read(cx).item.clone();
+                                    print!("iteminfo dialog: {:?}", item.clone());
                                     let event = if is_edit {
-                                        ItemEvent::Modified(item)
+                                        ItemEvent::Modified(item.clone())
                                     } else {
-                                        ItemEvent::Added(item)
+                                        ItemEvent::Added(item.clone())
                                     };
                                     cx.emit(event);
                                     cx.notify();
