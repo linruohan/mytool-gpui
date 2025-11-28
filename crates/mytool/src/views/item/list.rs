@@ -1,9 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, ElementId, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder,
-    px,
+    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,

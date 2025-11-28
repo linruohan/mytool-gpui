@@ -20,9 +20,8 @@ pub use gallery::Gallery;
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Div, Entity, EventEmitter,
     Focusable, Global, Hsla, InteractiveElement, IntoElement, KeyBinding, ParentElement, Pixels,
-    Render, RenderOnce, SharedString, Size, StatefulInteractiveElement, StyleRefinement, Styled,
-    Window, WindowBounds, WindowKind, WindowOptions, actions, div, prelude::FluentBuilder as _, px,
-    rems, size,
+    Render, RenderOnce, SharedString, Size, StyleRefinement, Styled, Window, WindowBounds,
+    WindowKind, WindowOptions, actions, div, prelude::FluentBuilder as _, px, rems, size,
 };
 use gpui_component::{
     ActiveTheme, IconName, Root, TitleBar, WindowExt,
@@ -32,7 +31,7 @@ use gpui_component::{
     h_flex,
     menu::PopupMenu,
     notification::Notification,
-    scroll::ScrollbarShow,
+    scroll::{ScrollableElement as _, ScrollbarShow},
     v_flex,
 };
 pub use list_story::ListStory;
@@ -645,17 +644,14 @@ impl Focusable for StoryContainer {
 }
 impl Render for StoryContainer {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .id("mytool-container")
+        div()
+            .id("story-container")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
+            .p(self.paddings)
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::on_action_panel_info))
             .on_action(cx.listener(Self::on_action_toggle_search))
-            .when_some(self.mytool.clone(), |this, mytool| {
-                this.child(
-                    v_flex().id("story-children").w_full().flex_1().p(self.paddings).child(mytool),
-                )
-            })
+            .when_some(self.mytool.clone(), |this, story| this.child(story))
     }
 }
