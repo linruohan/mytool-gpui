@@ -30,7 +30,7 @@ use todos::entity::LabelModel;
 use crate::{DBState, LabelListDelegate, load_labels};
 
 const CONTEXT: &'static str = "LabelsPicker";
-pub(crate) fn init(cx: &mut App) {
+pub fn init(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("enter", LabelsPickerConfirm { secondary: false }, Some(CONTEXT)),
         KeyBinding::new("escape", LabelsPickerCancel, Some(CONTEXT)),

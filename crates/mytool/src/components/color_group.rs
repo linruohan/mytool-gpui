@@ -1,15 +1,10 @@
 use gpui::{
-    Action, App, AppContext, Bounds, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render,
-    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
-    Subscription, Window, actions, div, prelude::FluentBuilder as _,
+    actions, div, prelude::FluentBuilder as _, Action, App, AppContext, Bounds, Context, Corner, ElementId,
+    Entity, EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement,
+    ParentElement, Pixels, Render, RenderOnce, SharedString,
+    StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
 };
-use gpui_component::{
-    ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyleSized, h_flex,
-    input::{InputEvent, InputState},
-    tooltip::Tooltip,
-    v_flex,
-};
+use gpui_component::{h_flex, input::{InputEvent, InputState}, tooltip::Tooltip, v_flex, ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyleSized};
 use serde::Deserialize;
 
 #[derive(Clone, Action, PartialEq, Eq, Deserialize)]
@@ -160,6 +155,7 @@ pub struct ColorGroup {
     id: ElementId,
     style: StyleRefinement,
     state: Entity<ColorGroupState>,
+    active_index: Option<usize>,
     featured_colors: Option<Vec<Hsla>>,
     label: Option<SharedString>,
     icon: Option<Icon>,
@@ -175,7 +171,8 @@ impl ColorGroup {
             style: StyleRefinement::default(),
             state: state.clone(),
             featured_colors: None,
-            size: Size::Medium,
+            active_index: None,
+            size: Size::Small,
             label: None,
             icon: None,
             anchor: Corner::TopLeft,
@@ -236,36 +233,28 @@ impl ColorGroup {
 
         v_flex().gap_3().items_center().child(v_flex().gap_1().children(
             color_palettes().iter().map(|sub_colors| {
-                h_flex().gap_1().children(sub_colors.iter().rev().map(|color| {
+                h_flex().gap_1().children(sub_colors.iter().enumerate().map(|(_ix, color)| {
                     // self.render_item(*color, true, window, cx)
                     let color = *color;
                     div()
                         .id(SharedString::from(format!("color-{}", color.to_hex())))
                         .h_5()
                         .w_5()
+                        .rounded_full()
                         .bg(color)
                         .border_1()
                         .border_color(color.darken(0.1))
-                        .when(true, |this| {
-                            this.hover(|this| {
-                                this.border_color(color.darken(0.3))
-                                    .bg(color.lighten(0.1))
-                                    .shadow_xs()
-                            })
-                            .active(|this| {
-                                this.border_color(color.darken(0.5))
-                                    .bg(color.darken(0.2))
-                                    .border_4()
-                            })
-                            .on_click(window.listener_for(
-                                &state,
-                                move |state, _, window, cx| {
-                                    state.update_value(Some(color), true, window, cx);
-                                    state.open = false;
-                                    cx.notify();
-                                },
-                            ))
+                        .hover(|this| {
+                            this.border_color(color.darken(0.3)).bg(color.lighten(0.1)).shadow_xs()
                         })
+                        .active(|this| {
+                            this.border_color(color.lighten(0.5)).bg(color.darken(0.2)).border_2()
+                        })
+                        .on_click(window.listener_for(&state, move |state, _, window, cx| {
+                            state.update_value(Some(color), true, window, cx);
+                            state.open = false;
+                            cx.notify();
+                        }))
                 }))
             }),
         ))
@@ -313,11 +302,8 @@ impl RenderOnce for ColorGroup {
                             .id("color-picker-square")
                             .bg(cx.theme().background)
                             .border_1()
-                            .m_1()
-                            .border_color(cx.theme().input)
-                            .rounded(cx.theme().radius)
                             .shadow_xs()
-                            .rounded(cx.theme().radius)
+                            .rounded_full()
                             .overflow_hidden()
                             .size_with(self.size)
                             .when_some(state.value, |this, value| {
