@@ -1,12 +1,12 @@
 use gpui::{
-    div, App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla,
-    InteractiveElement, MouseButton, ParentElement, Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
+    MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, dock::PanelControl, h_flex,
-    v_flex,
-    ActiveTheme,
-    IconName, Sizable,
+    ActiveTheme, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    dock::PanelControl,
+    h_flex, v_flex,
 };
 
 use crate::{Board, ItemsTodayEvent, ItemsTodayPanel};

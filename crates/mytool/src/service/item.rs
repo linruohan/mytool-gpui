@@ -38,3 +38,9 @@ pub async fn get_items_today(db: DatabaseConnection) -> Vec<ItemModel> {
     let today = chrono::Local::now().naive_local();
     Store::new(db).await.get_items_by_date(&today, false).await
 }
+pub async fn get_items_pinned(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).await.get_items_pinned(false).await
+}
+pub async fn get_items_scheduled(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).await.get_items_by_scheduled(false).await
+}
