@@ -2,15 +2,17 @@ use std::rc::Rc;
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
-    Focusable, Hsla, InteractiveElement as _, IntoElement, KeyBinding, ParentElement as _, Render,
-    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
-    Subscription, Window, actions, div, prelude::FluentBuilder as _, px,
+    Focusable, Hsla, InteractiveElement as _, IntoElement, KeyBinding, MouseButton,
+    ParentElement as _, Render, RenderOnce, SharedString, StatefulInteractiveElement as _,
+    StyleRefinement, Styled, Subscription, Window, actions, anchored, deferred, div,
+    prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
     ActiveTheme, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
     checkbox::Checkbox,
     h_flex,
-    list::{List, ListEvent, ListState},
+    list::{ListEvent, ListState},
+    v_flex,
 };
 use serde::Deserialize;
 
@@ -149,8 +151,39 @@ impl LabelPickerState {
     }
 
     fn toggle_checked_labels(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        self.open = !self.open;
-        cx.notify();
+        println!("toggle_checked_labels: {}", checked);
+        let mut changed_label: Option<Rc<LabelModel>> = None;
+        self.label_list.update(cx, |list, _cx| {
+            if let Some(ix) = &list.delegate().selected_index {
+                if let Some(label) = list
+                    .delegate()
+                    .matched_labels
+                    .get(ix.section)
+                    .and_then(|c| c.get(ix.row))
+                    .cloned()
+                {
+                    changed_label = Some(label.clone());
+
+                    let exists = self.checked_labels.iter().any(|l| Rc::ptr_eq(l, &label));
+
+                    if *checked && !exists {
+                        self.checked_labels.push(label.clone());
+                    } else if !*checked && exists {
+                        self.checked_labels.retain(|l| !Rc::ptr_eq(l, &label));
+                    }
+                }
+            }
+        });
+
+        if let Some(label) = changed_label {
+            let event = if *checked {
+                LabelPickerEvent::Added(label)
+            } else {
+                LabelPickerEvent::Removed(label)
+            };
+            cx.emit(event);
+            cx.notify();
+        }
     }
 
     fn checked_preset(
@@ -283,37 +316,66 @@ impl RenderOnce for LabelPicker {
                     }),
             )
             .when(state.open, |this| {
-                this.children(label_list.iter().enumerate().map(|(ix, label)| {
-                    h_flex()
-                        .px_2()
-                        .py_1()
-                        // .overflow_x_hidden()
-                        .border_1()
-                        .rounded(cx.theme().radius)
-                        .child(
-                            h_flex().items_center().justify_between().gap_2().child(
-                                h_flex()
-                                    .gap_2()
-                                    .items_center()
-                                    .justify_end()
-                                    .child(
-                                        Checkbox::new("is-checked")
-                                        .checked(checked_labels.contains(&label))
-                                        .on_click(window.listener_for(&self.state, LabelPickerState::toggle_checked_labels))
-                                    )
-                                    .child(
-                                        Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
-                                            gpui::rgb(
-                                                u32::from_str_radix(&label.color[1..], 16)
-                                                    .ok()
-                                                    .unwrap_or_default(),
-                                            ),
-                                        )),
-                                    )
-                                    .child(div().w(px(120.)).child(label.name.clone())),
-                            ),
-                        )
-                }))
+                this.child(
+                    deferred(
+                        anchored().snap_to_window_with_margin(px(8.)).child(
+                            div()
+                                .occlude()
+                                .mt_1p5()
+                                .p_3()
+                                .border_1()
+                                .border_color(cx.theme().border)
+                                .shadow_lg()
+                                .rounded((cx.theme().radius * 2.).min(px(8.)))
+                                .bg(cx.theme().popover)
+                                .text_color(cx.theme().popover_foreground)
+                                .on_mouse_up_out(
+                                    MouseButton::Left,
+                                    window.listener_for(&self.state, |view, _, window, cx| {
+                                        view.on_escape(&LabelsPickerCancel, window, cx);
+                                    }),
+                                )
+                                .child(
+                                    v_flex()
+                                        .gap_3()
+                                        .h_full()
+                                        .items_start()
+                                        .children(label_list.iter().enumerate().map(|(_ix, label)| {
+                                            h_flex()
+                                                .px_2()
+                                                .py_1()
+                                                // .overflow_x_hidden()
+                                                .border_1()
+                                                .rounded(cx.theme().radius)
+                                                .child(
+                                                    h_flex().items_center().justify_between().gap_2().child(
+                                                        h_flex()
+                                                            .gap_2()
+                                                            .items_center()
+                                                            .justify_end()
+                                                            .child(
+                                                                Checkbox::new("is-checked")
+                                                                    .checked(checked_labels.contains(&label.clone()))
+                                                                    .on_click(window.listener_for(&self.state, LabelPickerState::toggle_checked_labels))
+                                                            )
+                                                            .child(
+                                                                Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
+                                                                    gpui::rgb(
+                                                                        u32::from_str_radix(&label.color[1..], 16)
+                                                                            .ok()
+                                                                            .unwrap_or_default(),
+                                                                    ),
+                                                                )),
+                                                            )
+                                                            .child(div().w(px(120.)).child(label.name.clone())),
+                                                    ),
+                                                )
+                                        }))
+                                ),
+                        ),
+                    )
+                        .with_priority(2),
+                )
             })
     }
 }

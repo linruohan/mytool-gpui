@@ -5,9 +5,7 @@ use gpui::{
     Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable,
-    checkbox::Checkbox,
-    h_flex,
+    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
@@ -92,7 +90,6 @@ impl RenderOnce for LabelListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child(Checkbox::new("is-checked").checked(self.checked))
                         .child(
                             Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
                                 gpui::rgb(
@@ -112,7 +109,7 @@ pub struct LabelListDelegate {
     pub _labels: Vec<Rc<LabelModel>>,
     pub checked_labels: Vec<Rc<LabelModel>>,
     pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
-    selected_index: Option<IndexPath>,
+    pub(crate) selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
 }
