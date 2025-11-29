@@ -92,9 +92,7 @@ impl RenderOnce for LabelListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
-                        .child( Checkbox::new("is-checked")
-                            .checked(self.checked)
-                            )
+                        .child(Checkbox::new("is-checked").checked(self.checked))
                         .child(
                             Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
                                 gpui::rgb(
