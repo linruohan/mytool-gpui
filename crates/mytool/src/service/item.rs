@@ -34,3 +34,7 @@ pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -
 pub async fn get_items_completed(db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).await.get_items_completed().await
 }
+pub async fn get_items_today(db: DatabaseConnection) -> Vec<ItemModel> {
+    let today = chrono::Local::now().naive_local();
+    Store::new(db).await.get_items_by_date(&today, false).await
+}
