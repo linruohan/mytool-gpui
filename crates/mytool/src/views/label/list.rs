@@ -9,8 +9,13 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
-actions!(label, [SelectedLabel]);
+
+use crate::UnSelectedCheckLabel;
+
+actions!(label, [SelectedLabel, UnSelectedLabel]);
 pub enum LabelEvent {
+    Checked(Rc<LabelModel>),
+    UnChecked(Rc<LabelModel>),
     Loaded,
     Added(Rc<LabelModel>),
     Modified(Rc<LabelModel>),
@@ -23,6 +28,7 @@ pub struct LabelListItem {
     ix: IndexPath,
     label: Rc<LabelModel>,
     selected: bool,
+    checked: bool,
 }
 
 impl LabelListItem {
@@ -31,19 +37,26 @@ impl LabelListItem {
         label: Rc<LabelModel>,
         ix: IndexPath,
         selected: bool,
+        checked: bool,
     ) -> Self {
-        LabelListItem { label, ix, base: ListItem::new(id), selected }
+        LabelListItem { label, ix, base: ListItem::new(id), selected, checked }
     }
 }
 
 impl Selectable for LabelListItem {
     fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
+        self.checked == selected; //左键选中，checked-true
         self
     }
 
     fn is_selected(&self) -> bool {
         self.selected
+    }
+
+    fn secondary_selected(self, secondary: bool) -> Self {
+        self.checked == !secondary; //右键选中，checked-false
+        self
     }
 }
 
@@ -92,6 +105,7 @@ impl RenderOnce for LabelListItem {
 
 pub struct LabelListDelegate {
     pub _labels: Vec<Rc<LabelModel>>,
+    pub checked_labels: Vec<Rc<LabelModel>>,
     pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
@@ -102,11 +116,30 @@ impl LabelListDelegate {
     pub fn new() -> Self {
         Self {
             _labels: vec![],
+            checked_labels: vec![],
             matched_labels: vec![],
             selected_index: None,
             confirmed_index: None,
             query: "".into(),
         }
+    }
+
+    // 获取已选中的标签
+    pub fn checked_labels(&mut self) -> Vec<Rc<LabelModel>> {
+        self.checked_labels.clone()
+    }
+
+    // 添加已选中的标签
+    pub fn add_selected_label(&mut self, label: Rc<LabelModel>) {
+        // 避免重复添加
+        if !self.checked_labels.contains(&label) {
+            self.checked_labels.push(label.clone());
+        }
+    }
+
+    // 删除已选中的标签
+    pub fn del_selected_label(&mut self, label: Rc<LabelModel>) {
+        self.checked_labels.retain(|l| l != &label);
     }
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
@@ -158,7 +191,8 @@ impl ListDelegate for LabelListDelegate {
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
-            return Some(LabelListItem::new(ix, label.clone(), ix, selected));
+            let checked = if self.checked_labels.contains(&label) { true } else { false };
+            return Some(LabelListItem::new(ix, label.clone(), ix, selected, checked));
         }
 
         None
@@ -175,7 +209,12 @@ impl ListDelegate for LabelListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
-        window.dispatch_action(Box::new(SelectedLabel), cx);
+        if let Some(label) = self.selected_label() {
+            self.checked_labels.push(label.clone());
+        }
+        window.dispatch_action(
+            if secondary { Box::new(UnSelectedCheckLabel) } else { Box::new(SelectedLabel) },
+            cx,
+        );
     }
 }

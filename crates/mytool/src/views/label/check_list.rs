@@ -14,7 +14,7 @@ use todos::entity::LabelModel;
 
 use crate::LabelsPopoverList;
 
-actions!(label, [SelectedCheckLabel]);
+actions!(label, [SelectedCheckLabel, UnSelectedCheckLabel]);
 pub enum LabelCheckEvent {
     Checked(Rc<LabelModel>),
 }
@@ -49,6 +49,11 @@ impl Selectable for LabelCheckListItem {
 
     fn is_selected(&self) -> bool {
         self.selected
+    }
+
+    fn secondary_selected(self, secondary: bool) -> Self {
+        self.checked == secondary;
+        self
     }
 }
 
@@ -216,6 +221,9 @@ impl ListDelegate for LabelCheckListDelegate {
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
         println!("Confirmed with secondary: {}", secondary);
+        if secondary {
+            window.dispatch_action(Box::new(UnSelectedCheckLabel), cx);
+        }
         window.dispatch_action(Box::new(SelectedCheckLabel), cx);
     }
 }

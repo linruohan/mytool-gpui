@@ -16,7 +16,7 @@ use todos::entity::ItemModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
-    ItemListDelegate, LabelsPicker, LabelsPickerEvent, LabelsPickerState, LabelsPopoverEvent,
+    ItemListDelegate, LabelPicker, LabelPickerEvent, LabelPickerState, LabelsPopoverEvent,
     LabelsPopoverList, load_items, popover_list::PopoverList, section,
 };
 
@@ -32,7 +32,7 @@ pub struct ListStory {
     selected_color: Option<Hsla>,
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
-    label_picker: Entity<LabelsPickerState>,
+    label_picker: Entity<LabelPickerState>,
 }
 
 impl super::Mytool for ListStory {
@@ -58,7 +58,7 @@ impl ListStory {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
-        let label_picker = cx.new(|cx| LabelsPickerState::new(window, cx));
+        let label_picker = cx.new(|cx| LabelPickerState::new_with_checked(Vec::new(), window, cx));
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
         let item_info = cx.new(|cx| {
@@ -67,10 +67,10 @@ impl ListStory {
         });
         let _subscriptions = vec![
             cx.subscribe(&label_picker, |_this, _, ev, _| match ev {
-                LabelsPickerEvent::Selected(label) => {
+                LabelPickerEvent::Added(label) => {
                     println!("label picker selected: {:?}", label.clone());
                 },
-                LabelsPickerEvent::DeSelected(label) => {
+                LabelPickerEvent::Removed(label) => {
                     println!("label picker deselected: {:?}", label.clone());
                 },
             }),
@@ -157,8 +157,7 @@ impl Render for ListStory {
             .gap_4()
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(
-                section("label picker")
-                    .child(LabelsPicker::new(&self.label_picker).cleanable(true)),
+                section("label picker").child(LabelPicker::new(&self.label_picker).cleanable(true)),
             )
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))

@@ -1,15 +1,13 @@
-use std::{collections::HashSet, rc::Rc};
+use std::rc::Rc;
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
+    actions, anchored, deferred, div, prelude::FluentBuilder as _, px, Action, App, AppContext,
+    Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _,
-    Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
-    Subscription, Window, actions, anchored, deferred, div, prelude::FluentBuilder as _, px,
+    Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
 };
-use gpui_component::{
-    ActiveTheme, Disableable, Icon, IconName, IndexPath, Sizable, Size, StyleSized, StyledExt,
-    calendar::Matcher, checkbox::Checkbox, h_flex, list::ListState, v_flex,
-};
+use gpui_component::list::List;
+use gpui_component::{h_flex, list::{ListEvent, ListState}, ActiveTheme, Disableable, Sizable, Size, StyleSized as _, StyledExt as _};
 use serde::Deserialize;
 
 actions!(labels_picker, [LabelsPickerCancel, LabelsPickerDelete,]);
@@ -27,9 +25,9 @@ pub struct LabelsPickerCheck {
 }
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{load_labels, DBState, LabelListDelegate};
 
-const CONTEXT: &'static str = "LabelsPicker";
+const CONTEXT: &'static str = "LabelPicker";
 pub fn init(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("enter", LabelsPickerConfirm { secondary: false }, Some(CONTEXT)),
@@ -38,81 +36,42 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("backspace", LabelsPickerDelete, Some(CONTEXT)),
     ])
 }
-/// The date of the calendar.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Label {
-    Single(Option<String>),
-    Range(Option<Vec<String>>),
-}
 
-/// Events emitted by the LabelPicker.
 #[derive(Clone)]
-pub enum LabelsPickerEvent {
-    Selected(Rc<LabelModel>),
-    DeSelected(Rc<LabelModel>),
-}
-
-/// Preset value for DateRangePreset.
-#[derive(Clone)]
-pub enum DateRangePresetValue {
-    Single(String),
-    Range(Vec<String>),
-}
-
-/// Preset for date range selection.
-#[derive(Clone)]
-pub struct DateRangePreset {
-    label: SharedString,
-    value: DateRangePresetValue,
-}
-
-impl DateRangePreset {
-    /// Creates a new DateRangePreset with a date.
-    pub fn single(label: impl Into<SharedString>, date: String) -> Self {
-        DateRangePreset { label: label.into(), value: DateRangePresetValue::Single(date) }
-    }
-
-    /// Creates a new DateRangePreset with a range of dates.
-    pub fn range(label: impl Into<SharedString>, labels: Vec<String>) -> Self {
-        DateRangePreset { label: label.into(), value: DateRangePresetValue::Range(labels) }
-    }
+pub enum LabelPickerEvent {
+    Added(Rc<LabelModel>),
+    Removed(Rc<LabelModel>),
 }
 
 /// Use to store the state of the date picker.
-pub struct LabelsPickerState {
+pub struct LabelPickerState {
     focus_handle: FocusHandle,
-    open: bool,
-    active_index: usize,
     label_list: Entity<ListState<LabelListDelegate>>,
-    selected_labels: Vec<Rc<LabelModel>>,
-    disabled_matcher: Option<Rc<Matcher>>,
+    checked_labels: Vec<Rc<LabelModel>>,
+    open: bool,
     _subscriptions: Vec<Subscription>,
 }
 
-impl Focusable for LabelsPickerState {
+impl Focusable for LabelPickerState {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
     }
 }
-impl EventEmitter<LabelsPickerEvent> for LabelsPickerState {}
+impl EventEmitter<LabelPickerEvent> for LabelPickerState {}
 
-impl LabelsPickerState {
-    /// Create a date state.
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+impl LabelPickerState {
+    pub(crate) fn new_with_checked(
+        checked_labels: Vec<Rc<LabelModel>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let label_list = cx.new(|cx| {
-            ListState::new(LabelListDelegate::new(), window, cx).searchable(true).selectable(true)
+            ListState::new(LabelListDelegate::new(), window, cx).searchable(true).selectable(false)
         });
-
-        let _subscriptions = vec![
-            // cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, _window, cx| {
-            //     if let ListEvent::Confirm(ix) = ev
-            //         && let Some(conn) = this.get_selected_label(*ix, cx)
-            //     {
-            //         // this.update_active_index(Some(ix.row));
-            //         println!("ix.row: {}; label:{:?}", ix.row, conn);
-            //     }
-            // })
-        ];
+        let _subscriptions = vec![cx.subscribe(&label_list, |this, _, ev, _| match ev {
+            ListEvent::Select(ix) => {},
+            _ => {},
+        })];
         let label_list_clone = label_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
@@ -132,46 +91,10 @@ impl LabelsPickerState {
         Self {
             focus_handle: cx.focus_handle(),
             label_list,
+            checked_labels,
             open: false,
-            disabled_matcher: None,
-            selected_labels: Vec::new(),
-            active_index: 0,
             _subscriptions,
         }
-    }
-
-    pub fn add_selected_label(&mut self, ix: IndexPath, cx: &mut Context<Self>) {
-        let _ = self
-            .label_list
-            .read(cx)
-            .delegate()
-            .matched_labels
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
-            .map(|label| {
-                // 避免重复添加
-                if !self.selected_labels.contains(&label) {
-                    self.selected_labels.push(label.clone());
-                    cx.emit(LabelsPickerEvent::Selected(label));
-                }
-            });
-    }
-
-    pub fn del_selected_label(&mut self, ix: IndexPath, cx: &mut Context<Self>) {
-        let _ = self
-            .label_list
-            .read(cx)
-            .delegate()
-            .matched_labels
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
-            .map(|label| {
-                // 从 selected_labels 中移除
-                self.selected_labels.retain(|l| l != &label);
-                cx.emit(LabelsPickerEvent::DeSelected(label));
-            });
     }
 
     fn on_escape(&mut self, _: &LabelsPickerCancel, window: &mut Window, cx: &mut Context<Self>) {
@@ -192,20 +115,8 @@ impl LabelsPickerState {
         }
     }
 
-    fn on_check_toggle(
-        &mut self,
-        event: &(LabelsPickerCheck, bool),
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let (_, selectable) = event;
-        let ix = IndexPath::new(self.active_index);
-        if *selectable {
-            self.add_selected_label(ix, cx);
-        } else {
-            self.del_selected_label(ix, cx);
-        }
-        cx.notify();
+    fn on_delete(&mut self, _: &LabelsPickerDelete, window: &mut Window, cx: &mut Context<Self>) {
+        // self.clean(&ClickEvent::default(), window, cx);
     }
 
     // To focus the Picker Input, if current focus in is on the container.
@@ -227,61 +138,73 @@ impl LabelsPickerState {
         }
     }
 
-    // 打开labels列表
+    // 显示label list
     fn toggle_labels(&mut self, _: &gpui::ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         self.open = !self.open;
         cx.notify();
     }
+
+    fn checked_preset(
+        &mut self,
+        checked_labels: Vec<Rc<LabelModel>>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.checked_labels = checked_labels;
+        self.label_list.update(cx, |state, cx| {
+            state.delegate_mut().checked_labels = self.checked_labels.clone();
+            cx.notify();
+        })
+    }
 }
 
-/// A LabelPicker element.
+/// A DatePicker element.
 #[derive(IntoElement)]
-pub struct LabelsPicker {
+pub struct LabelPicker {
     id: ElementId,
     style: StyleRefinement,
-    state: Entity<LabelsPickerState>,
+    state: Entity<LabelPickerState>,
     cleanable: bool,
     placeholder: Option<SharedString>,
-    checked_list: HashSet<IndexPath>,
     size: Size,
     appearance: bool,
     disabled: bool,
 }
 
-impl Sizable for LabelsPicker {
+impl Sizable for LabelPicker {
     fn with_size(mut self, size: impl Into<Size>) -> Self {
         self.size = size.into();
         self
     }
 }
-impl Focusable for LabelsPicker {
+impl Focusable for LabelPicker {
     fn focus_handle(&self, cx: &App) -> FocusHandle {
         self.state.focus_handle(cx)
     }
 }
 
-impl Styled for LabelsPicker {
+impl Styled for LabelPicker {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
     }
 }
 
-impl Disableable for LabelsPicker {
+impl Disableable for LabelPicker {
     fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
 }
 
-impl Render for LabelsPickerState {
+impl Render for LabelPickerState {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
         Empty
     }
 }
 
-impl LabelsPicker {
-    /// Create a new LabelPicker with the given [`LabelsPickerState`].
-    pub fn new(state: &Entity<LabelsPickerState>) -> Self {
+impl LabelPicker {
+    /// Create a new DatePicker with the given [`LabelPickerState`].
+    pub fn new(state: &Entity<LabelPickerState>) -> Self {
         Self {
             id: ("date-picker", state.entity_id()).into(),
             state: state.clone(),
@@ -291,7 +214,6 @@ impl LabelsPicker {
             style: StyleRefinement::default(),
             appearance: true,
             disabled: false,
-            checked_list: HashSet::new(),
         }
     }
 
@@ -312,37 +234,31 @@ impl LabelsPicker {
         self.appearance = appearance;
         self
     }
-
-    fn toggle_checked(&mut self, _checked: bool, _window: &mut Window, _cx: &mut App) {
-        // if checked {
-        //     self.add_selected_label(ix);
-        // } else {
-        //     self.del_selected_label(ix);
-        // }
-    }
 }
 
-impl RenderOnce for LabelsPicker {
+impl RenderOnce for LabelPicker {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let label_list = self.state.read(cx).label_list.read(cx).delegate()._labels.clone();
         // This for keep focus border style, when click on the popup.
         let is_focused = self.focus_handle(cx).contains_focused(window, cx);
         let state = self.state.read(cx);
+        let label_list = state.label_list.clone();
         div()
             .id(self.id.clone())
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle(cx).tab_stop(true))
-            .on_action(window.listener_for(&self.state, LabelsPickerState::on_enter))
+            .on_action(window.listener_for(&self.state, LabelPickerState::on_enter))
+            .on_action(window.listener_for(&self.state, LabelPickerState::on_delete))
             .when(state.open, |this| {
-                this.on_action(window.listener_for(&self.state, LabelsPickerState::on_escape))
+                this.on_action(window.listener_for(&self.state, LabelPickerState::on_escape))
             })
             .flex_none()
+            .w_full()
             .relative()
             .input_text_size(self.size)
             .refine_style(&self.style)
             .child(
                 div()
-                    .id("label-picker-btn")
+                    .id("date-picker-input")
                     .relative()
                     .flex()
                     .items_center()
@@ -359,14 +275,20 @@ impl RenderOnce for LabelsPicker {
                             })
                     })
                     .overflow_hidden()
+                    .input_text_size(self.size)
+                    .input_size(self.size)
                     .when(!state.open && !self.disabled, |this| {
                         this.on_click(
-                            window.listener_for(&self.state, LabelsPickerState::toggle_labels),
+                            window.listener_for(&self.state, LabelPickerState::toggle_labels),
                         )
                     })
                     .child(
-                        Icon::new(IconName::TagOutlineSymbolic)
-                            .text_color(cx.theme().muted_foreground),
+                        h_flex()
+                            .w_full()
+                            .items_center()
+                            .justify_between()
+                            .gap_1()
+                            .child(div().w_full().overflow_hidden().child("display_title")),
                     ),
             )
             .when(state.open, |this| {
@@ -381,28 +303,33 @@ impl RenderOnce for LabelsPicker {
                                 .border_color(cx.theme().border)
                                 .shadow_lg()
                                 .rounded((cx.theme().radius * 2.).min(px(8.)))
-                                .bg(cx.theme().background)
+                                .bg(cx.theme().popover)
+                                .text_color(cx.theme().popover_foreground)
                                 .on_mouse_up_out(
                                     MouseButton::Left,
                                     window.listener_for(&self.state, |view, _, window, cx| {
                                         view.on_escape(&LabelsPickerCancel, window, cx);
                                     }),
                                 )
-                                .child(v_flex().gap_3().h_full().items_start().children(
-                                    label_list.iter().enumerate().map(
-                                        |(_ix, label): (usize, &Rc<LabelModel>)| {
-                                            h_flex()
-                                                .gap_3()
-                                                .child(
-                                                    Checkbox::new("label-check-1").checked(false),
-                                                )
-                                                .child(label.name.clone())
-                                        },
-                                    ),
-                                )),
+                                .child(
+                                    div()
+                                        .gap_3()
+                                        .h_full()
+                                        .items_start()
+                                        .child("120 Labels")
+                                        .child(
+                                            List::new(&label_list)
+                                                .p(px(8.))
+                                                .flex_1()
+                                                .w_full()
+                                                .border_1()
+                                                .border_color(cx.theme().border)
+                                                .rounded(cx.theme().radius),
+                                        ),
+                                ),
                         ),
                     )
-                    .with_priority(2),
+                        .with_priority(2),
                 )
             })
     }
