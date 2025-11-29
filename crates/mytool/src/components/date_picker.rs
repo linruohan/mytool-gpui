@@ -23,7 +23,7 @@ pub struct DatePickerStory {
     _subscriptions: Vec<Subscription>,
 }
 
-impl crate::Mytool for DatePickerStory {
+impl super::Story for DatePickerStory {
     fn title() -> &'static str {
         "DatePicker"
     }
@@ -50,11 +50,17 @@ impl DatePickerStory {
             picker
         });
         let date_picker_large = cx.new(|cx| {
-            let mut picker =
-                DatePickerState::new(window, cx).date_format("%Y-%m-%d").disabled_matcher(
-                    calendar::Matcher::range(Some(now), now.checked_add_days(Days::new(7))),
-                );
-            picker.set_date(now.checked_sub_days(Days::new(1)).unwrap_or_default(), window, cx);
+            let mut picker = DatePickerState::new(window, cx)
+                .date_format("%Y-%m-%d")
+                .disabled_matcher(calendar::Matcher::range(
+                    Some(now),
+                    now.checked_add_days(Days::new(7)),
+                ));
+            picker.set_date(
+                now.checked_sub_days(Days::new(1)).unwrap_or_default(),
+                window,
+                cx,
+            );
             picker
         });
         let date_picker_small = cx.new(|cx| {
@@ -72,7 +78,11 @@ impl DatePickerStory {
         });
         let date_range_picker = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx);
-            picker.set_date((now, now.checked_add_days(Days::new(4)).unwrap()), window, cx);
+            picker.set_date(
+                (now, now.checked_add_days(Days::new(4)).unwrap()),
+                window,
+                cx,
+            );
             picker
         });
 
@@ -84,17 +94,17 @@ impl DatePickerStory {
             cx.subscribe(&date_picker, |this, _, ev, _| match ev {
                 DatePickerEvent::Change(date) => {
                     this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
-                },
+                }
             }),
             cx.subscribe(&date_range_picker, |this, _, ev, _| match ev {
                 DatePickerEvent::Change(date) => {
                     this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
-                },
+                }
             }),
             cx.subscribe(&default_range_mode_picker, |this, _, ev, _| match ev {
                 DatePickerEvent::Change(date) => {
                     this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
-                },
+                }
             }),
         ];
 
@@ -160,9 +170,11 @@ impl Render for DatePickerStory {
         v_flex()
             .gap_3()
             .child(
-                section("Normal")
-                    .max_w_128()
-                    .child(DatePicker::new(&self.date_picker).cleanable().presets(presets)),
+                section("Normal").max_w_128().child(
+                    DatePicker::new(&self.date_picker)
+                        .cleanable(true)
+                        .presets(presets),
+                ),
             )
             .child(
                 section("Small with 180px width")
@@ -183,7 +195,7 @@ impl Render for DatePickerStory {
                 section("Date Range").max_w_128().child(
                     DatePicker::new(&self.date_range_picker)
                         .number_of_months(2)
-                        .cleanable()
+                        .cleanable(true)
                         .presets(range_presets.clone()),
                 ),
             )
@@ -191,7 +203,7 @@ impl Render for DatePickerStory {
                 section("Default Range Mode").max_w_128().child(
                     DatePicker::new(&self.default_range_mode_picker)
                         .placeholder("Range mode picker")
-                        .cleanable()
+                        .cleanable(true)
                         .presets(range_presets.clone()),
                 ),
             )
@@ -205,7 +217,7 @@ impl Render for DatePickerStory {
                     div().w_full().bg(cx.theme().secondary).child(
                         DatePicker::new(&self.without_appearance_picker)
                             .appearance(false)
-                            .placeholder("Without appearance")
+                            .placeholder("Without appearance"),
                     ),
                 ),
             )
