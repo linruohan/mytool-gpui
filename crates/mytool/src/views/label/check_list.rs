@@ -52,7 +52,8 @@ impl Selectable for LabelCheckListItem {
     }
 
     fn secondary_selected(self, secondary: bool) -> Self {
-        self.checked == secondary;
+        self.checked;
+        secondary;
         self
     }
 }

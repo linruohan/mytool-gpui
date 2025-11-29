@@ -1,13 +1,17 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, anchored, deferred, div, prelude::FluentBuilder as _, px, Action, App, AppContext,
-    Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _,
-    Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
+    Action, App, AppContext, Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
+    Focusable, Hsla, InteractiveElement as _, IntoElement, KeyBinding, ParentElement as _, Render,
+    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Subscription, Window, actions, div, prelude::FluentBuilder as _, px,
 };
-use gpui_component::list::List;
-use gpui_component::{h_flex, list::{ListEvent, ListState}, ActiveTheme, Disableable, Sizable, Size, StyleSized as _, StyledExt as _};
+use gpui_component::{
+    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
+    checkbox::Checkbox,
+    h_flex,
+    list::{List, ListEvent, ListState},
+};
 use serde::Deserialize;
 
 actions!(labels_picker, [LabelsPickerCancel, LabelsPickerDelete,]);
@@ -25,7 +29,7 @@ pub struct LabelsPickerCheck {
 }
 use todos::entity::LabelModel;
 
-use crate::{load_labels, DBState, LabelListDelegate};
+use crate::{DBState, LabelListDelegate, load_labels};
 
 const CONTEXT: &'static str = "LabelPicker";
 pub fn init(cx: &mut App) {
@@ -68,8 +72,8 @@ impl LabelPickerState {
         let label_list = cx.new(|cx| {
             ListState::new(LabelListDelegate::new(), window, cx).searchable(true).selectable(false)
         });
-        let _subscriptions = vec![cx.subscribe(&label_list, |this, _, ev, _| match ev {
-            ListEvent::Select(ix) => {},
+        let _subscriptions = vec![cx.subscribe(&label_list, |_this, _, ev, _| match ev {
+            ListEvent::Select(_ix) => {},
             _ => {},
         })];
         let label_list_clone = label_list.clone();
@@ -115,7 +119,7 @@ impl LabelPickerState {
         }
     }
 
-    fn on_delete(&mut self, _: &LabelsPickerDelete, window: &mut Window, cx: &mut Context<Self>) {
+    fn on_delete(&mut self, _: &LabelsPickerDelete, _window: &mut Window, _cx: &mut Context<Self>) {
         // self.clean(&ClickEvent::default(), window, cx);
     }
 
@@ -140,6 +144,11 @@ impl LabelPickerState {
 
     // 显示label list
     fn toggle_labels(&mut self, _: &gpui::ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        self.open = !self.open;
+        cx.notify();
+    }
+
+    fn toggle_checked_labels(&mut self, checked: &bool, _: &mut Window, cx: &mut Context<Self>) {
         self.open = !self.open;
         cx.notify();
     }
@@ -239,9 +248,10 @@ impl LabelPicker {
 impl RenderOnce for LabelPicker {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         // This for keep focus border style, when click on the popup.
-        let is_focused = self.focus_handle(cx).contains_focused(window, cx);
+        let _is_focused = self.focus_handle(cx).contains_focused(window, cx);
         let state = self.state.read(cx);
-        let label_list = state.label_list.clone();
+        let checked_labels = state.checked_labels.clone();
+        let label_list = state.label_list.read(cx).delegate()._labels.clone();
         div()
             .id(self.id.clone())
             .key_context(CONTEXT)
@@ -251,29 +261,18 @@ impl RenderOnce for LabelPicker {
             .when(state.open, |this| {
                 this.on_action(window.listener_for(&self.state, LabelPickerState::on_escape))
             })
-            .flex_none()
+            .flex_1()
             .w_full()
             .relative()
             .input_text_size(self.size)
             .refine_style(&self.style)
             .child(
                 div()
-                    .id("date-picker-input")
+                    .id("label-picker-input")
                     .relative()
                     .flex()
                     .items_center()
                     .justify_between()
-                    .when(self.appearance, |this| {
-                        this.bg(cx.theme().background)
-                            .border_1()
-                            .border_color(cx.theme().input)
-                            .rounded(cx.theme().radius)
-                            .when(cx.theme().shadow, |this| this.shadow_xs())
-                            .when(is_focused, |this| this.focused_border(cx))
-                            .when(self.disabled, |this| {
-                                this.bg(cx.theme().muted).text_color(cx.theme().muted_foreground)
-                            })
-                    })
                     .overflow_hidden()
                     .input_text_size(self.size)
                     .input_size(self.size)
@@ -281,56 +280,40 @@ impl RenderOnce for LabelPicker {
                         this.on_click(
                             window.listener_for(&self.state, LabelPickerState::toggle_labels),
                         )
-                    })
-                    .child(
-                        h_flex()
-                            .w_full()
-                            .items_center()
-                            .justify_between()
-                            .gap_1()
-                            .child(div().w_full().overflow_hidden().child("display_title")),
-                    ),
+                    }),
             )
             .when(state.open, |this| {
-                this.child(
-                    deferred(
-                        anchored().snap_to_window_with_margin(px(8.)).child(
-                            div()
-                                .occlude()
-                                .mt_1p5()
-                                .p_3()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .shadow_lg()
-                                .rounded((cx.theme().radius * 2.).min(px(8.)))
-                                .bg(cx.theme().popover)
-                                .text_color(cx.theme().popover_foreground)
-                                .on_mouse_up_out(
-                                    MouseButton::Left,
-                                    window.listener_for(&self.state, |view, _, window, cx| {
-                                        view.on_escape(&LabelsPickerCancel, window, cx);
-                                    }),
-                                )
-                                .child(
-                                    div()
-                                        .gap_3()
-                                        .h_full()
-                                        .items_start()
-                                        .child("120 Labels")
-                                        .child(
-                                            List::new(&label_list)
-                                                .p(px(8.))
-                                                .flex_1()
-                                                .w_full()
-                                                .border_1()
-                                                .border_color(cx.theme().border)
-                                                .rounded(cx.theme().radius),
-                                        ),
-                                ),
-                        ),
-                    )
-                        .with_priority(2),
-                )
+                this.children(label_list.iter().enumerate().map(|(ix, label)| {
+                    h_flex()
+                        .px_2()
+                        .py_1()
+                        // .overflow_x_hidden()
+                        .border_1()
+                        .rounded(cx.theme().radius)
+                        .child(
+                            h_flex().items_center().justify_between().gap_2().child(
+                                h_flex()
+                                    .gap_2()
+                                    .items_center()
+                                    .justify_end()
+                                    .child(
+                                        Checkbox::new("is-checked")
+                                        .checked(checked_labels.contains(&label))
+                                        .on_click(window.listener_for(&self.state, LabelPickerState::toggle_checked_labels))
+                                    )
+                                    .child(
+                                        Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
+                                            gpui::rgb(
+                                                u32::from_str_radix(&label.color[1..], 16)
+                                                    .ok()
+                                                    .unwrap_or_default(),
+                                            ),
+                                        )),
+                                    )
+                                    .child(div().w(px(120.)).child(label.name.clone())),
+                            ),
+                        )
+                }))
             })
     }
 }

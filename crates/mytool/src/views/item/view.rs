@@ -1,22 +1,22 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, color_picker::ColorPickerState, date_picker::DatePickerState,
+    ActiveTheme, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    color_picker::ColorPickerState,
+    date_picker::DatePickerState,
     input::InputState,
     list::{List, ListEvent, ListState},
     select::SelectState,
-    ActiveTheme,
-    IndexPath,
-    WindowExt,
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    load_items, DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, load_items,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
@@ -155,7 +155,7 @@ impl ItemsPanel {
         self.is_checked = *selectable;
     }
 
-    fn initialize_item_model(&self, is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+    fn initialize_item_model(&self, _is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
         self.active_index
             .and_then(|index| {
                 println!("show_label_dialog: active index: {}", index);
@@ -177,7 +177,6 @@ impl ItemsPanel {
                 cx.notify();
             });
         } else {
-
         }
         let view = cx.entity().clone();
         let dialog_title = if is_edit { "Edit Item" } else { "New Item" };

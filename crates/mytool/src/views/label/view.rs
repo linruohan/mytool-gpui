@@ -1,21 +1,21 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
-    Render, Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState}, v_flex,
-    ActiveTheme,
-    Colorize,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, Colorize, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    input::{Input, InputState},
+    list::{List, ListEvent, ListState},
+    v_flex,
 };
 use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    load_labels, ColorGroup, ColorGroupEvent, ColorGroupState, DBState, LabelListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, LabelListDelegate, load_labels,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}

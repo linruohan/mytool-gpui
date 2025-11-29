@@ -5,7 +5,9 @@ use gpui::{
     Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
+    ActiveTheme, Icon, IconName, IndexPath, Selectable,
+    checkbox::Checkbox,
+    h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
@@ -46,7 +48,7 @@ impl LabelListItem {
 impl Selectable for LabelListItem {
     fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
-        self.checked == selected; //左键选中，checked-true
+        self.checked = selected;
         self
     }
 
@@ -54,8 +56,10 @@ impl Selectable for LabelListItem {
         self.selected
     }
 
-    fn secondary_selected(self, secondary: bool) -> Self {
-        self.checked == !secondary; //右键选中，checked-false
+    fn secondary_selected(mut self, secondary: bool) -> Self {
+        if secondary {
+            self.checked = !self.checked;
+        }
         self
     }
 }
@@ -76,7 +80,7 @@ impl RenderOnce for LabelListItem {
         self.base
             .px_2()
             .py_1()
-            .overflow_x_hidden()
+            // .overflow_x_hidden()
             .bg(bg_color)
             .border_1()
             .border_color(bg_color)
@@ -88,6 +92,9 @@ impl RenderOnce for LabelListItem {
                         .gap_2()
                         .items_center()
                         .justify_end()
+                        .child( Checkbox::new("is-checked")
+                            .checked(self.checked)
+                            )
                         .child(
                             Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
                                 gpui::rgb(
@@ -127,6 +134,12 @@ impl LabelListDelegate {
     // 获取已选中的标签
     pub fn checked_labels(&mut self) -> Vec<Rc<LabelModel>> {
         self.checked_labels.clone()
+    }
+
+    // 获取已选中的标签
+    pub fn set_checked_labels(mut self, labels: Vec<Rc<LabelModel>>) -> Self {
+        self.checked_labels = labels;
+        self
     }
 
     // 添加已选中的标签
@@ -191,10 +204,9 @@ impl ListDelegate for LabelListDelegate {
     fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
-            let checked = if self.checked_labels.contains(&label) { true } else { false };
+            let checked = self.checked_labels.contains(&label);
             return Some(LabelListItem::new(ix, label.clone(), ix, selected, checked));
         }
-
         None
     }
 
