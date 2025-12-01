@@ -38,4 +38,9 @@ impl ItemState {
         })
         .detach();
     }
+
+    pub fn set_items(&mut self, items: impl IntoIterator<Item = ItemModel>) {
+        self.items = items.into_iter().map(Rc::new).collect();
+        self.active_item = None;
+    }
 }

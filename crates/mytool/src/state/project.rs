@@ -7,13 +7,14 @@ use crate::{load_projects, state::DBState};
 
 pub struct ProjectState {
     pub projects: Vec<Rc<ProjectModel>>,
+    active_project: Option<Rc<ProjectModel>>,
 }
 
 impl Global for ProjectState {}
 
 impl ProjectState {
     pub fn init(cx: &mut App) {
-        let this = ProjectState { projects: vec![] };
+        let this = ProjectState { projects: vec![], active_project: None };
         cx.set_global(this);
         let conn = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
@@ -27,5 +28,10 @@ impl ProjectState {
             });
         })
         .detach();
+    }
+
+    pub fn set_projects(&mut self, projects: impl IntoIterator<Item = ProjectModel>) {
+        self.projects = projects.into_iter().map(Rc::new).collect();
+        self.active_project = None;
     }
 }
