@@ -140,11 +140,9 @@ impl ItemsPanel {
     }
 
     pub fn handle_item_event(&mut self, event: &ItemEvent, cx: &mut Context<Self>) {
+        println!("handle_item_event:");
         match event {
-            ItemEvent::Added(item) => {
-                println!("handle_item_event:");
-                add_item(item.clone(), cx);
-            },
+            ItemEvent::Added(item) => add_item(item.clone(), cx),
             ItemEvent::Modified(item) => update_item(item.clone(), cx),
             ItemEvent::Deleted(item) => delete_item(item.clone(), cx),
             ItemEvent::Finished(item) => self.finish_item(cx, item.clone()),
@@ -297,31 +295,6 @@ impl ItemsPanel {
                 });
             };
         }
-    }
-
-    // 更新items
-    fn get_items(&mut self, cx: &mut Context<Self>) {
-        if !self.is_loading {
-            return;
-        }
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this, cx| {
-            let db = db.lock().await;
-            let items = load_items(db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-
-            this.update(cx, |this, cx| {
-                this.item_list.update(cx, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                });
-
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
     }
 
     pub fn finish_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
