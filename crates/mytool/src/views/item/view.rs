@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    Subscription, Window, px,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
@@ -16,7 +16,8 @@ use gpui_component::{
 use todos::entity::ItemModel;
 
 use crate::{
-    DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, load_items,
+    DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, add_item,
+    delete_item, service::load_items, update_item,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
@@ -93,7 +94,7 @@ impl ItemsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let db = db.lock().await;
-            let items = load_items(db.clone()).await;
+            let items = crate::service::load_items(db.clone()).await;
             let rc_items: Vec<Rc<ItemModel>> =
                 items.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("all items: {}", items.len());
@@ -142,10 +143,10 @@ impl ItemsPanel {
         match event {
             ItemEvent::Added(item) => {
                 println!("handle_item_event:");
-                self.add_item(cx, item.clone())
+                add_item(item.clone(), cx);
             },
-            ItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
-            ItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
+            ItemEvent::Modified(item) => update_item(item.clone(), cx),
+            ItemEvent::Deleted(item) => delete_item(item.clone(), cx),
             ItemEvent::Finished(item) => self.finish_item(cx, item.clone()),
         }
     }
@@ -323,72 +324,11 @@ impl ItemsPanel {
         .detach();
     }
 
-    pub fn add_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ItemsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::add_item(item.clone(), db.clone()).await;
-            println!("add_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_items(cx);
-    }
-
-    pub fn mod_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ItemsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::mod_item(item.clone(), db.clone()).await;
-            println!("mod_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_items(cx);
-    }
-
     pub fn finish_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        let item = item.clone();
-        self.mod_item(cx, item);
-    }
-
-    pub fn del_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ItemsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::del_item(item.clone(), db.clone()).await;
-            println!("mod_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_items(cx);
+        let mut binding = item.clone();
+        let item = Rc::make_mut(&mut binding);
+        item.checked = true;
+        update_item(binding, cx);
     }
 }
 

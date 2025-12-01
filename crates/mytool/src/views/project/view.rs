@@ -18,7 +18,7 @@ use todos::entity::ProjectModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ProjectEvent, ProjectListDelegate,
-    load_projects, play_ogg_file,
+    play_ogg_file, service::load_projects,
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}

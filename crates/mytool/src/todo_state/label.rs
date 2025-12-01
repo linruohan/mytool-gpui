@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::LabelModel;
 
-use crate::{load_labels, state::DBState};
+use crate::{service::load_labels, todo_state::DBState};
 
 pub struct LabelState {
     pub labels: Vec<Rc<LabelModel>>,

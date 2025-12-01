@@ -31,7 +31,7 @@ pub struct LabelsPickerCheck {
 }
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelListDelegate, load_labels};
+use crate::{DBState, LabelListDelegate, service::load_labels};
 
 const CONTEXT: &'static str = "LabelPicker";
 pub fn init(cx: &mut App) {

@@ -12,7 +12,7 @@ async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {
     cx.update_global::<ItemState, _>(|state, _| {
         state.set_items(items);
     })
-      .ok();
+    .ok();
 }
 // 添加item
 pub fn add_item(item: Rc<ItemModel>, cx: &mut App) {
@@ -23,7 +23,7 @@ pub fn add_item(item: Rc<ItemModel>, cx: &mut App) {
             refresh_items(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }
 // 修改item
 pub fn update_item(item: Rc<ItemModel>, cx: &mut App) {
@@ -34,7 +34,7 @@ pub fn update_item(item: Rc<ItemModel>, cx: &mut App) {
             refresh_items(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }
 // 删除item
 pub fn delete_item(item: Rc<ItemModel>, cx: &mut App) {
@@ -45,5 +45,5 @@ pub fn delete_item(item: Rc<ItemModel>, cx: &mut App) {
             refresh_items(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::ProjectModel;
 
-use crate::{load_projects, state::DBState};
+use crate::{service::load_projects, todo_state::DBState};
 
 pub struct ProjectState {
     pub projects: Vec<Rc<ProjectModel>>,

@@ -12,7 +12,7 @@ async fn refresh_labels(cx: &mut AsyncApp, db: DatabaseConnection) {
     cx.update_global::<LabelState, _>(|state, _| {
         state.set_labels(labels);
     })
-      .ok();
+    .ok();
 }
 // 添加label
 pub fn add_label(label: Rc<LabelModel>, cx: &mut App) {
@@ -23,7 +23,7 @@ pub fn add_label(label: Rc<LabelModel>, cx: &mut App) {
             refresh_labels(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }
 // 修改label
 pub fn update_label(label: Rc<LabelModel>, cx: &mut App) {
@@ -34,7 +34,7 @@ pub fn update_label(label: Rc<LabelModel>, cx: &mut App) {
             refresh_labels(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }
 // 删除label
 pub fn delete_label(label: Rc<LabelModel>, cx: &mut App) {
@@ -45,5 +45,5 @@ pub fn delete_label(label: Rc<LabelModel>, cx: &mut App) {
             refresh_labels(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }

@@ -19,8 +19,8 @@ impl DBState {
     //     // Load saved connections on startup
     //     cx.spawn(async move |cx| {
     //         if let Ok(conn) = todos::init_db().await {
-    //             let _ = cx.update_global::<DBState, _>(|state, _cx| {
-    //                 state.conn = Arc::new(Mutex::new(conn));
+    //             let _ = cx.update_global::<DBState, _>(|todo_state, _cx| {
+    //                 todo_state.conn = Arc::new(Mutex::new(conn));
     //             });
     //         }
     //     })

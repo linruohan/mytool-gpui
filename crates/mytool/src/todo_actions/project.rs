@@ -12,7 +12,7 @@ async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
     cx.update_global::<ProjectState, _>(|state, _| {
         state.set_projects(projects);
     })
-      .ok();
+    .ok();
 }
 // 添加project
 pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
@@ -23,7 +23,7 @@ pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
             refresh_projects(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }
 // 修改project
 pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
@@ -34,7 +34,7 @@ pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
             refresh_projects(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }
 // 删除project
 pub fn delete_project(project: Rc<ProjectModel>, cx: &mut App) {
@@ -45,5 +45,5 @@ pub fn delete_project(project: Rc<ProjectModel>, cx: &mut App) {
             refresh_projects(cx, db.clone()).await;
         }
     })
-      .detach();
+    .detach();
 }

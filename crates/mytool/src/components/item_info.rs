@@ -22,7 +22,9 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{DBState, LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList, load_labels};
+use crate::{
+    DBState, LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList, service::load_labels,
+};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]

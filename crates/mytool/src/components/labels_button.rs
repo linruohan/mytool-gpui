@@ -14,7 +14,7 @@ use gpui_component::{
 use serde_json::Value;
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelCheckListDelegate, SelectedCheckLabel, load_labels};
+use crate::{DBState, LabelCheckListDelegate, SelectedCheckLabel, service::load_labels};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),

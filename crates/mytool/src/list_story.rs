@@ -17,7 +17,7 @@ use todos::entity::ItemModel;
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
     ItemListDelegate, LabelPicker, LabelPickerEvent, LabelPickerState, LabelsPopoverEvent,
-    LabelsPopoverList, load_items, popover_list::PopoverList, section,
+    LabelsPopoverList, popover_list::PopoverList, section, service::load_items,
 };
 
 actions!(list_story, [SelectedCompany]);

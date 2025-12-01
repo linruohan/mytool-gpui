@@ -1,4 +1,3 @@
-mod actions; // 数据库操作管理
 mod app_menus;
 mod calendar_story;
 mod components; // 我的组件库
@@ -6,9 +5,10 @@ mod crypto; // 加解密
 mod gallery;
 mod list_story;
 mod service;
-mod state; // 状态管理
 mod themes;
 mod title_bar;
+mod todo_actions; // 数据库操作管理
+mod todo_state; // 状态管理
 mod todo_story;
 mod utils;
 mod views; // 任务管理视图
@@ -38,11 +38,11 @@ use gpui_component::{
 };
 pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
-pub use service::*;
-pub use state::{
+pub use title_bar::AppTitleBar;
+pub use todo_actions::*;
+pub use todo_state::{
     DBState, ItemState, ItemStatus, LabelState, ProjectState, get_todo_conn, state_init,
 };
-pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use utils::play_ogg_file;
