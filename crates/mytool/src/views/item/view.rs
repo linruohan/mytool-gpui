@@ -16,8 +16,8 @@ use gpui_component::{
 use todos::entity::ItemModel;
 
 use crate::{
-    DBState, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, add_item,
-    delete_item, service::load_items, update_item,
+    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, ItemState, add_item,
+    delete_item, update_item,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
@@ -65,7 +65,16 @@ impl ItemsPanel {
                 cx,
             )
         });
+        let item_list_clone = item_list.clone();
         let _subscriptions = vec![
+            cx.observe_global::<ItemState>(move |_this, cx| {
+                let items = cx.global::<ItemState>().items.clone();
+                let _ = cx.update_entity(&item_list_clone, |list, cx| {
+                    list.delegate_mut().update_items(items);
+                    cx.notify();
+                });
+                cx.notify();
+            }),
             cx.subscribe(&item_info, |_this, _, event: &ItemInfoEvent, cx| match event {
                 ItemInfoEvent::Update(item) => {
                     print!("iteminfo updated after:{:?}", item);
@@ -90,22 +99,6 @@ impl ItemsPanel {
             }),
         ];
 
-        let item_list_clone = item_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let items = crate::service::load_items(db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("all items: {}", items.len());
-            let _ = cx
-                .update_entity(&item_list_clone, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
         Self {
             item_due: None,
             is_loading: false,

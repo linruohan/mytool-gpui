@@ -49,23 +49,7 @@ impl ProjectItemsPanel {
                 println!("ProjectItemsPanel List Cancelled");
             },
         })];
-        // let item_list_clone = item_list.clone();
-        // let db = cx.global::<DBState>().conn.clone();
 
-        // cx.spawn(async move |_view, cx| {
-        //     let db = db.lock().await;
-        //     let items = get_items_by_project_id(&project_clone.id, db.clone()).await;
-        //     let rc_items: Vec<Rc<ItemModel>> =
-        //         items.iter().map(|pro| Rc::new(pro.clone())).collect();
-        //     println!("len items: {}", items.len());
-        //     let _ = cx
-        //         .update_entity(&item_list_clone, |list, cx| {
-        //             list.delegate_mut().update_items(rc_items);
-        //             cx.notify();
-        //         })
-        //         .ok();
-        // })
-        // .detach();
         Self {
             item_due: None,
             is_loading: true,

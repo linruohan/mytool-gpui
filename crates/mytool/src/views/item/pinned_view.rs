@@ -11,10 +11,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{
-    DBState, ItemListDelegate,
-    service::{get_items_pinned, load_items},
-};
+use crate::{DBState, ItemListDelegate, service::load_items, todo_state::PinnedItemState};
 
 pub enum ItemsPinnedEvent {
     Finished(Rc<ItemModel>),
@@ -36,9 +33,17 @@ impl ItemsPinnedPanel {
 
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
-
-        let _subscriptions =
-            vec![cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
+        let item_list_clone = item_list.clone();
+        let _subscriptions = vec![
+            cx.observe_global::<PinnedItemState>(move |_this, cx| {
+                let items = cx.global::<PinnedItemState>().items.clone();
+                let _ = cx.update_entity(&item_list_clone, |list, cx| {
+                    list.delegate_mut().update_items(items);
+                    cx.notify();
+                });
+                cx.notify();
+            }),
+            cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(conn) = this.get_selected_item(*ix, cx)
                 {
@@ -48,24 +53,9 @@ impl ItemsPinnedPanel {
                         cx.notify();
                     })
                 }
-            })];
+            }),
+        ];
 
-        let item_list_clone = item_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let items = get_items_pinned(db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("pinned items: {}", items.len());
-            let _ = cx
-                .update_entity(&item_list_clone, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
         Self { input_esc, is_loading: false, item_list, active_index: Some(0), _subscriptions }
     }
 

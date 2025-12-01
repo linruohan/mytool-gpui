@@ -18,7 +18,7 @@ use todos::entity::ProjectModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ProjectEvent, ProjectListDelegate,
-    play_ogg_file, service::load_projects,
+    ProjectState, play_ogg_file, service::load_projects,
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
@@ -40,7 +40,16 @@ impl ProjectsPanel {
 
         let project_list = cx.new(|cx| ListState::new(ProjectListDelegate::new(), window, cx));
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let project_list_clone = project_list.clone();
         let _subscriptions = vec![
+            cx.observe_global::<ProjectState>(move |_this, cx| {
+                let projects = cx.global::<ProjectState>().projects.clone();
+                let _ = cx.update_entity(&project_list_clone, |list, cx| {
+                    list.delegate_mut().update_projects(projects);
+                    cx.notify();
+                });
+                cx.notify();
+            }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
@@ -59,21 +68,6 @@ impl ProjectsPanel {
             }),
         ];
 
-        let project_list_clone = project_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let projects = load_projects(db.clone()).await;
-            let rc_projects: Vec<Rc<ProjectModel>> =
-                projects.iter().map(|pro| Rc::new(pro.clone())).collect();
-            let _ = cx
-                .update_entity(&project_list_clone, |list, cx| {
-                    list.delegate_mut().update_projects(rc_projects);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
         Self {
             input_esc,
             is_loading: false,

@@ -15,7 +15,8 @@ use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, LabelListDelegate, service::load_labels,
+    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, LabelListDelegate, LabelState,
+    service::load_labels,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
@@ -37,7 +38,16 @@ impl LabelsPanel {
         let label_list =
             cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let label_list_clone = label_list.clone();
         let _subscriptions = vec![
+            cx.observe_global::<LabelState>(move |_this, cx| {
+                let labels = cx.global::<LabelState>().labels.clone();
+                let _ = cx.update_entity(&label_list_clone, |list, cx| {
+                    list.delegate_mut().update_labels(labels);
+                    cx.notify();
+                });
+                cx.notify();
+            }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
@@ -57,22 +67,6 @@ impl LabelsPanel {
             }),
         ];
 
-        let label_list_clone = label_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("label_panel: len labels: {}", labels.len());
-            let _ = cx
-                .update_entity(&label_list_clone, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
         Self {
             input_esc,
             is_loading: false,
