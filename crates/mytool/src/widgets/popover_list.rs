@@ -30,10 +30,10 @@ impl ListDelegate for DropdownListDelegate {
     }
 
     fn render_item(
-        &self,
+        &mut self,
         ix: gpui_component::IndexPath,
         _: &mut Window,
-        _: &mut App,
+        _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
         let confirmed = Some(ix.row) == self.confirmed_index;
         if let Some(item) = self.matches.get(ix.row) {

@@ -1,3 +1,4 @@
+mod actions; // 数据库操作管理
 mod app_menus;
 mod calendar_story;
 mod components; // 我的组件库
@@ -5,6 +6,7 @@ mod crypto; // 加解密
 mod gallery;
 mod list_story;
 mod service;
+mod state; // 状态管理
 mod themes;
 mod title_bar;
 mod todo_story;
@@ -37,6 +39,9 @@ use gpui_component::{
 pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
 pub use service::*;
+pub use state::{
+    DBState, ItemState, ItemStatus, LabelState, ProjectState, get_todo_conn, state_init,
+};
 pub use title_bar::AppTitleBar;
 pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
@@ -576,7 +581,7 @@ impl Panel for StoryContainer {
         "StoryContainer"
     }
 
-    fn title(&self, _window: &Window, _cx: &App) -> AnyElement {
+    fn title(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         self.name.clone().into_any_element()
     }
 
@@ -600,7 +605,7 @@ impl Panel for StoryContainer {
         !AppState::global(cx).invisible_panels.read(cx).contains(&self.name)
     }
 
-    fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut App) {
+    fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
             if let Some(mytool) = self.mytool.clone() {
@@ -609,15 +614,24 @@ impl Panel for StoryContainer {
         }
     }
 
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut App) {
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
         println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
-    fn dropdown_menu(&self, menu: PopupMenu, _window: &Window, _cx: &App) -> PopupMenu {
+    fn dropdown_menu(
+        &mut self,
+        menu: PopupMenu,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> PopupMenu {
         menu.menu("Info", Box::new(ShowPanelInfo))
     }
 
-    fn toolbar_buttons(&self, _window: &mut Window, _cx: &mut App) -> Option<Vec<Button>> {
+    fn toolbar_buttons(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Vec<Button>> {
         Some(vec![
             Button::new("info").icon(IconName::Info).on_click(|_, window, cx| {
                 window.push_notification("You have clicked info button", cx);

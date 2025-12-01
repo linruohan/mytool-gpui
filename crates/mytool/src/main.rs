@@ -3,16 +3,18 @@
 use gpui::Application;
 use gpui_component_assets::Assets;
 use mytool::*;
+
 #[tokio::main]
 async fn main() {
     let app = Application::new().with_assets(Assets);
 
     let name = std::env::args().nth(1);
-    let db = todo_database_init().await;
+    let db = get_todo_conn().await;
 
     app.run(move |cx| {
         mytool::init(cx);
         cx.set_global(DBState { conn: db });
+        state_init(cx);
         cx.activate(true);
         mytool::create_new_window(
             "MyTool-GPUI",

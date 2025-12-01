@@ -281,7 +281,12 @@ impl ListDelegate for ItemListDelegate {
         self.matched_items[section].len()
     }
 
-    fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
+    fn render_item(
+        &mut self,
+        ix: IndexPath,
+        _: &mut Window,
+        _: &mut Context<ListState<Self>>,
+    ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(item) = self.matched_items[ix.section].get(ix.row) {
             return Some(ItemListItem::new(ix, item.clone(), ix, selected));

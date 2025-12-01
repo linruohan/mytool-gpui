@@ -196,7 +196,12 @@ impl ListDelegate for LabelListDelegate {
         self.matched_labels[section].len()
     }
 
-    fn render_item(&self, ix: IndexPath, _: &mut Window, _: &mut App) -> Option<Self::Item> {
+    fn render_item(
+        &mut self,
+        ix: IndexPath,
+        _: &mut Window,
+        _: &mut Context<ListState<Self>>,
+    ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
             let checked = self.checked_labels.contains(&label);
