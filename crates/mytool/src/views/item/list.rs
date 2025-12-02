@@ -1,19 +1,19 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
+    actions, prelude::FluentBuilder, px, App, Context, ElementId, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    h_flex,
-    label::Label,
-    list::{ListDelegate, ListItem, ListState},
-    red_400,
-    tag::Tag,
+    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, red_400, tag::Tag,
     v_flex,
+    ActiveTheme,
+    IconName,
+    IndexPath,
+    Placement,
+    Selectable,
+    Sizable,
+    WindowExt,
 };
 use todos::entity::ItemModel;
 
@@ -264,13 +264,9 @@ impl ListDelegate for ItemListDelegate {
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if ix.section == 0 {
-            return None;
-        };
-        if let Some(item) = self.matched_items[ix.section].get(ix.row) {
-            return Some(ItemListItem::new(ix, item.clone(), ix, selected));
+        if let Some(company) = self.matched_items[ix.section].get(ix.row) {
+            return Some(ItemListItem::new(ix, company.clone(), ix, selected));
         }
-
         None
     }
 
