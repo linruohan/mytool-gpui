@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window, px,
+    Styled, Subscription, Window, px,
 };
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
@@ -15,8 +15,8 @@ use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, LabelListDelegate, LabelState,
-    service::load_labels,
+    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate, LabelState, add_label,
+    delete_label, update_label,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
@@ -97,17 +97,11 @@ impl LabelsPanel {
     }
 
     pub fn handle_label_event(&mut self, event: &LabelEvent, cx: &mut Context<Self>) {
+        println!("handle_label_event:");
         match event {
-            LabelEvent::Loaded => {
-                println!("Loaded");
-                self.get_labels(cx);
-            },
-            LabelEvent::Added(label) => {
-                println!("handle_label_event:");
-                self.add_label(cx, label.clone())
-            },
-            LabelEvent::Modified(label) => self.mod_label(cx, label.clone()),
-            LabelEvent::Deleted(label) => self.del_label(cx, label.clone()),
+            LabelEvent::Added(label) => add_label(label.clone(), cx),
+            LabelEvent::Modified(label) => update_label(label.clone(), cx),
+            LabelEvent::Deleted(label) => delete_label(label.clone(), cx),
             _ => {},
         }
     }
@@ -225,95 +219,6 @@ impl LabelsPanel {
                 });
             };
         }
-    }
-
-    // 更新labels
-    pub fn get_labels(&mut self, cx: &mut Context<Self>) {
-        if !self.is_loading {
-            return;
-        }
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this, cx| {
-            let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-
-            this.update(cx, |this, cx| {
-                this.label_list.update(cx, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
-                    cx.notify();
-                });
-
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-    }
-
-    pub fn add_label(&mut self, cx: &mut Context<Self>, label: Rc<LabelModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<LabelsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::add_label(label.clone(), db.clone()).await;
-            println!("add_label {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_labels(cx);
-    }
-
-    pub fn mod_label(&mut self, cx: &mut Context<Self>, label: Rc<LabelModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<LabelsPanel>, cx| {
-            let db = db.lock().await;
-            println!("mod_label before: {:?}", label.clone());
-            let ret = crate::service::mod_label(label.clone(), db.clone()).await;
-            println!("mod_label {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_labels(cx);
-    }
-
-    pub fn del_label(&mut self, cx: &mut Context<Self>, label: Rc<LabelModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<LabelsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::del_label(label.clone(), db.clone()).await;
-            println!("mod_label {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_labels(cx);
     }
 }
 

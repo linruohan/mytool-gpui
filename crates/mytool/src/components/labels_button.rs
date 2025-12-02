@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Window, px,
+    IntoElement, ParentElement, Render, Styled, Subscription, Window, px,
 };
 use gpui_component::{
     IconName, Sizable,
@@ -14,7 +14,7 @@ use gpui_component::{
 use serde_json::Value;
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelCheckListDelegate, SelectedCheckLabel, service::load_labels};
+use crate::{LabelCheckListDelegate, LabelState, SelectedCheckLabel};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),
@@ -26,6 +26,7 @@ pub struct LabelsPopoverList {
     pub label_list: Entity<ListState<LabelCheckListDelegate>>,
     pub selected_labels: Vec<Rc<LabelModel>>,
     pub(crate) list_popover_open: bool,
+    _subscriptions: Vec<Subscription>,
 }
 impl EventEmitter<LabelsPopoverEvent> for LabelsPopoverList {}
 impl LabelsPopoverList {
@@ -43,26 +44,20 @@ impl LabelsPopoverList {
 
         cx.focus_self(window);
         let label_list_clone = label_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("labels button: len labels: {}", labels.len());
-            let _ = cx
-                .update_entity(&label_list_clone, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
+        let _subscriptions = vec![cx.observe_global::<LabelState>(move |_this, cx| {
+            let labels = cx.global::<LabelState>().labels.clone();
+            let _ = cx.update_entity(&label_list_clone, |list, cx| {
+                list.delegate_mut().update_labels(labels);
+                cx.notify();
+            });
+            cx.notify();
+        })];
         Self {
             list_popover_open: false,
             label_list,
             focus_handle: cx.focus_handle(),
             selected_labels: Vec::new(),
+            _subscriptions,
         }
     }
 

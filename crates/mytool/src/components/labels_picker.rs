@@ -31,7 +31,7 @@ pub struct LabelsPickerCheck {
 }
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelListDelegate, service::load_labels};
+use crate::{LabelListDelegate, LabelState};
 
 const CONTEXT: &'static str = "LabelPicker";
 pub fn init(cx: &mut App) {
@@ -74,26 +74,22 @@ impl LabelPickerState {
         let label_list = cx.new(|cx| {
             ListState::new(LabelListDelegate::new(), window, cx).searchable(true).selectable(false)
         });
-        let _subscriptions = vec![cx.subscribe(&label_list, |_this, _, ev, _| match ev {
-            ListEvent::Select(_ix) => {},
-            _ => {},
-        })];
         let label_list_clone = label_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("label_picker: len labels: {}", labels.len());
-            let _ = cx
-                .update_entity(&label_list_clone, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
+        let _subscriptions = vec![
+            cx.observe_global::<LabelState>(move |_this, cx| {
+                let labels = cx.global::<LabelState>().labels.clone();
+                let _ = cx.update_entity(&label_list_clone, |list, cx| {
+                    list.delegate_mut().update_labels(labels);
                     cx.notify();
-                })
-                .ok();
-        })
-        .detach();
+                });
+                cx.notify();
+            }),
+            cx.subscribe(&label_list, |_this, _, ev, _| match ev {
+                ListEvent::Select(_ix) => {},
+                _ => {},
+            }),
+        ];
+
         Self {
             focus_handle: cx.focus_handle(),
             label_list,
