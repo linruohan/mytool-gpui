@@ -287,7 +287,6 @@ impl ListDelegate for ItemListDelegate {
         _: &mut Window,
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
-        println!("render_item:{:?}", ix);
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if ix.section == 0 {
             return None;
