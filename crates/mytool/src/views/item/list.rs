@@ -1,19 +1,19 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, prelude::FluentBuilder, px, App, Context, ElementId, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
+    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, red_400, tag::Tag,
+    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
+    button::{Button, ButtonVariants},
+    checkbox::Checkbox,
+    h_flex,
+    label::Label,
+    list::{ListDelegate, ListItem, ListState},
+    red_400,
+    tag::Tag,
     v_flex,
-    ActiveTheme,
-    IconName,
-    IndexPath,
-    Placement,
-    Selectable,
-    Sizable,
-    WindowExt,
 };
 use todos::entity::ItemModel;
 
@@ -289,7 +289,9 @@ impl ListDelegate for ItemListDelegate {
     ) -> Option<Self::Item> {
         println!("render_item:{:?}", ix);
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if ix.section == 0 { return None };
+        if ix.section == 0 {
+            return None;
+        };
         if let Some(item) = self.matched_items[ix.section].get(ix.row) {
             return Some(ItemListItem::new(ix, item.clone(), ix, selected));
         }

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemState, service::get_items_pinned};
+use crate::{DBState, service::get_items_pinned};
 
 #[derive(Clone, PartialEq)]
 pub enum PinnedItemStatus {
@@ -36,7 +36,7 @@ impl PinnedItemState {
             let list = get_items_pinned(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("pinned items: {}", list.len());
-            let _ = cx.update_global::<ItemState, _>(|state, _cx| {
+            let _ = cx.update_global::<PinnedItemState, _>(|state, _cx| {
                 state.items = rc_list;
             });
         })

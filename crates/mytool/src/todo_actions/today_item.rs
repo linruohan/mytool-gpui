@@ -4,12 +4,12 @@ use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemState};
+use crate::{DBState, TodayItemState};
 
 // 刷新items
 async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {
     let items = crate::service::get_items_today(db).await;
-    cx.update_global::<ItemState, _>(|state, _| {
+    cx.update_global::<TodayItemState, _>(|state, _| {
         state.set_items(items);
     })
     .ok();
