@@ -19,12 +19,15 @@ pub use project_item::*;
 pub use scheduled_item::*;
 pub use today_item::*;
 pub fn state_init(cx: &mut App) {
+    // item
     ItemState::init(cx);
+    // other item
     TodayItemState::init(cx);
     ScheduledItemState::init(cx);
     PinnedItemState::init(cx);
     CompleteItemState::init(cx);
+    // project
     ProjectState::init(cx);
+    // label
     LabelState::init(cx);
-    ProjectState::init(cx);
 }

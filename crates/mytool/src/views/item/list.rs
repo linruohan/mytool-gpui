@@ -17,6 +17,8 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
+use crate::LabelState;
+
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {
     Finished(Rc<ItemModel>),
@@ -149,7 +151,6 @@ impl RenderOnce for ItemListItem {
 pub struct ItemListDelegate {
     pub _items: Vec<Rc<ItemModel>>,
     pub matched_items: Vec<Vec<Rc<ItemModel>>>,
-    // label_list: Entity<ListState<LabelListDelegate>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -157,47 +158,22 @@ pub struct ItemListDelegate {
 
 impl ItemListDelegate {
     pub fn new() -> Self {
-        // let label_list =
-        //     cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
-        // let label_list_clone = label_list.clone();
-        // let db = cx.global::<DBState>().conn.clone();
-        // cx.spawn(async move |_view, cx| {
-        //     let db = db.lock().await;
-        //     let labels = load_labels(db.clone()).await;
-        //     let rc_labels: Vec<Rc<LabelModel>> =
-        //         labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-        //     println!("item list: len labels: {}", labels.len());
-        //     let _ = cx
-        //         .update_entity(&label_list_clone, |list, cx| {
-        //             list.delegate_mut().update_labels(rc_labels);
-        //             cx.notify();
-        //         })
-        //         .ok();
-        // })
-        // .detach();
         Self {
             _items: vec![],
             matched_items: vec![],
             selected_index: None,
             confirmed_index: None,
             query: "".into(),
-            // label_list,
         }
     }
 
-    fn get_label_by_id(
-        &mut self,
-        _id: &str,
-        _window: &mut Window,
-        _cx: &mut App,
-    ) -> Option<String> {
-        // let labels = self.label_list.read(cx).delegate()._labels.clone();
-        // if let Some(label) = labels.iter().find(|label| label.id == id).cloned() {
-        //     Some(label.name.clone())
-        // } else {
-        //     None
-        // }
-        None
+    fn get_label_by_id(&mut self, id: &str, _window: &mut Window, cx: &mut App) -> Option<String> {
+        let labels = cx.global::<LabelState>().labels.clone();
+        if let Some(label) = labels.iter().find(|label| label.id == id).cloned() {
+            Some(label.name.clone())
+        } else {
+            None
+        }
     }
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
@@ -247,7 +223,7 @@ impl ItemListDelegate {
                         window.push_notification("Hello this is message from Drawer.", cx)
                     },
                 ))
-                .child(Label::new(item.content.clone()))
+                .child(Label::new(item.description.clone().unwrap_or_default().to_string()))
                 .footer(
                     h_flex()
                         .gap_6()
