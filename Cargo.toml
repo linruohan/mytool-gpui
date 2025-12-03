@@ -21,13 +21,13 @@ anyhow = "1.0.100"
 rand = "0.8.5"
 tokio = { version = "1.48.0", features = ["full"] }
 rust-embed = { version = "8.9.0", features = ["include-exclude", "interpolate-folder-path"] }
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1"
 serde_repr = "0.1"
 raw-window-handle = { version = "0.6", features = ["std"] }
 paste = "1.0.15"
 rust-i18n = { version = "3.1.5" }
-whoami = { version = "1.4.1", default-features = false }
+whoami = { version = "1.6.1", default-features = false }
 sea-orm = { version = "1.1.19", features = [
     "with-chrono",
     "with-time",
@@ -38,11 +38,11 @@ sea-orm = { version = "1.1.19", features = [
     "with-rust_decimal",
     "runtime-tokio",
 ] }
-winresource = "0.1.22"
+winresource = "0.1.28"
 rodio = "0.21.1"
 tracing = { version = "0.1.43", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "chrono"] }
-chrono = { version = "0.4.41", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"
