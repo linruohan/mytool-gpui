@@ -47,3 +47,36 @@ pub fn delete_item(item: Rc<ItemModel>, cx: &mut App) {
     })
     .detach();
 }
+pub fn completed_item(item: Rc<ItemModel>, cx: &mut App) {
+    let conn = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| {
+        let db = conn.lock().await;
+        if let Ok(_) = crate::service::finish_item(item.clone(), true, false, db.clone()).await {
+            refresh_items(cx, db.clone()).await;
+        }
+    })
+    .detach();
+}
+pub fn uncompleted_item(item: Rc<ItemModel>, cx: &mut App) {
+    let conn = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| {
+        let db = conn.lock().await;
+        if let Ok(_store) =
+            crate::service::finish_item(item.clone(), false, false, db.clone()).await
+        {
+            refresh_items(cx, db.clone()).await;
+        }
+    })
+    .detach();
+}
+
+pub fn set_item_pinned(item: Rc<ItemModel>, pinned: bool, cx: &mut App) {
+    let conn = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| {
+        let db = conn.lock().await;
+        if let Ok(_store) = crate::service::pin_item(item.clone(), pinned, db.clone()).await {
+            refresh_items(cx, db.clone()).await;
+        }
+    })
+    .detach();
+}

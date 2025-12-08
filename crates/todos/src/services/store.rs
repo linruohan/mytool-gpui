@@ -382,12 +382,12 @@ impl Store {
         Ok(active_model.update(&self.db).await?)
     }
 
-    pub async fn update_item_pin(&self, item_id: &str) -> Result<(), TodoError> {
+    pub async fn update_item_pin(&self, item_id: &str, pinned: bool) -> Result<(), TodoError> {
         let item_model = self
             .get_item(item_id)
             .await
             .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
-        ItemEntity::update(ItemActiveModel { pinned: Set(true), ..item_model.into() })
+        ItemEntity::update(ItemActiveModel { pinned: Set(pinned), ..item_model.into() })
             .exec(&self.db)
             .await?;
         Ok(())

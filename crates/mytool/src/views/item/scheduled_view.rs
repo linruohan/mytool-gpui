@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, WeakEntity, Window, px,
+    Subscription, Window, px,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
@@ -11,14 +11,10 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{
-    ItemListDelegate,
-    service::load_items,
-    todo_state::{DBState, ScheduledItemState},
-};
+use crate::{ItemListDelegate, todo_state::ScheduledItemState};
 
 pub enum ItemsScheduledEvent {
-    Finished(Rc<ItemModel>),
+    Scheduled(Rc<ItemModel>),
 }
 
 impl EventEmitter<ItemsScheduledEvent> for ItemsScheduledPanel {}
@@ -81,11 +77,10 @@ impl ItemsScheduledPanel {
         cx.new(|cx| Self::new(window, cx))
     }
 
-    pub fn handle_item_event(&mut self, event: &ItemsScheduledEvent, cx: &mut Context<Self>) {
+    pub fn handle_schedule_event(&mut self, event: &ItemsScheduledEvent, _cx: &mut Context<Self>) {
         match event {
-            ItemsScheduledEvent::Finished(item) => {
+            ItemsScheduledEvent::Scheduled(_item) => {
                 println!("toggle finished item:");
-                self.unfinish_item(cx, item.clone())
             },
         }
     }
@@ -110,7 +105,7 @@ impl ItemsScheduledPanel {
                                 let item_mut = Rc::make_mut(&mut item);
                                 item_mut.checked = false; //切换为未完成状态
                                 view.update(cx, |_view, cx| {
-                                    cx.emit(ItemsScheduledEvent::Finished(item.clone()));
+                                    cx.emit(ItemsScheduledEvent::Scheduled(item.clone()));
                                     cx.notify();
                                 });
                                 window.push_notification("You have finished item ok.", cx);
@@ -124,52 +119,6 @@ impl ItemsScheduledPanel {
                 });
             };
         }
-    }
-
-    // 更新items
-    fn get_items(&mut self, cx: &mut Context<Self>) {
-        if !self.is_loading {
-            return;
-        }
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this, cx| {
-            let db = db.lock().await;
-            let items = load_items(db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-
-            this.update(cx, |this, cx| {
-                this.item_list.update(cx, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                });
-
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-    }
-
-    pub fn unfinish_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ItemsScheduledPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::mod_item(item.clone(), db.clone()).await;
-            println!("add_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.get_items(cx);
     }
 }
 

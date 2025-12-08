@@ -27,7 +27,7 @@ impl PinBoard {
         let _subscriptions =
             vec![cx.subscribe(&items_panel, |this, _, event: &ItemsPinnedEvent, cx| {
                 this.items_panel.update(cx, |panel, cx| {
-                    panel.handle_item_event(event, cx);
+                    panel.handle_pin_event(event, cx);
                 });
             })];
         Self { focus_handle: cx.focus_handle(), _subscriptions, items_panel }

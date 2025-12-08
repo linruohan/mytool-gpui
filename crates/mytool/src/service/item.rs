@@ -22,6 +22,21 @@ pub async fn del_item(item: Rc<ItemModel>, db: DatabaseConnection) -> Result<(),
     Store::new(db).await.delete_item(&item.id).await
 }
 
+pub async fn finish_item(
+    item: Rc<ItemModel>,
+    checked: bool,
+    complete_sub_items: bool,
+    db: DatabaseConnection,
+) -> Result<(), TodoError> {
+    Store::new(db).await.complete_item(&item.id, checked, complete_sub_items).await
+}
+pub async fn pin_item(
+    item: Rc<ItemModel>,
+    pinned: bool,
+    db: DatabaseConnection,
+) -> Result<(), TodoError> {
+    Store::new(db).await.update_item_pin(&item.id, pinned).await
+}
 pub async fn get_project_items(
     project: Rc<ProjectModel>,
     db: DatabaseConnection,

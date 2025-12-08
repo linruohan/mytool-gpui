@@ -483,7 +483,7 @@ impl Item {
     }
 
     pub async fn update_pin(&self) -> Result<(), TodoError> {
-        self.store().await.update_item_pin(&self.model.id).await
+        self.store().await.update_item_pin(&self.model.id, true).await
     }
 
     pub async fn was_archived(&self) -> bool {
