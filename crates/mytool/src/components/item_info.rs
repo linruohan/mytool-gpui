@@ -23,7 +23,8 @@ use todos::{
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
 use crate::{
-    DBState, LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList, service::load_labels,
+    LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList, service::load_labels,
+    todo_state::DBState,
 };
 
 #[derive(Action, Clone, PartialEq, Deserialize)]

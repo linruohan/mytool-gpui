@@ -2,7 +2,10 @@
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 use gpui::Application;
 use gpui_component_assets::Assets;
-use mytool::*;
+use mytool::{
+    Gallery,
+    todo_state::{DBState, get_todo_conn, state_init},
+};
 
 #[tokio::main]
 async fn main() {

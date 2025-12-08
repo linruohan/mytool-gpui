@@ -16,7 +16,8 @@ use gpui_component::{
 };
 use todos::entity::{ItemModel, ProjectModel};
 
-use crate::{DBState, ItemListDelegate, service::get_project_items};
+use crate::{ItemListDelegate, service::get_project_items, todo_state::DBState};
+
 pub enum ProjectItemEvent {
     Loaded,
     Added(Rc<ItemModel>),

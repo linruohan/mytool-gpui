@@ -141,7 +141,7 @@ impl Render for TodoStory {
             .child(
                 Sidebar::new(self.side)
                             .collapsed(self.collapsed)
-                            .w(px(220.))
+                    .w(px(250.))
                             .gap_0()
                             .board(self.board_panel.clone()) // .child(self.project_panel.clone()),
                             .child(

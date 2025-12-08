@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::ItemModel;
 
-use crate::{DBState, service::get_items_today};
+use crate::{service::get_items_today, todo_state::DBState};
 
 #[derive(Clone, PartialEq)]
 pub enum TodayItemStatus {

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::ItemModel;
 
-use crate::{DBState, service::get_items_scheduled};
+use crate::{service::get_items_scheduled, todo_state::DBState};
 
 #[derive(Clone, PartialEq)]
 pub enum ScheduledItemStatus {

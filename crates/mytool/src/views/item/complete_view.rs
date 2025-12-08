@@ -11,7 +11,11 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemListDelegate, service::load_items, todo_state::CompleteItemState};
+use crate::{
+    ItemListDelegate,
+    service::load_items,
+    todo_state::{CompleteItemState, DBState},
+};
 
 pub enum ItemCompletedEvent {
     UnFinished(Rc<ItemModel>),

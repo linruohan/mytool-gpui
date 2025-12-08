@@ -10,8 +10,12 @@ use gpui_component::{
     v_flex,
 };
 
-use crate::{ContainerEvent, ShowPanelInfo, ToggleSearch};
-// const PANEL_NAME: &str = "BoardContainer";
+use crate::{ShowPanelInfo, ToggleSearch};
+#[derive(Debug)]
+pub enum BoardContainerEvent {
+    Close,
+}
+
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
     pub name: SharedString,
@@ -29,7 +33,7 @@ pub struct BoardContainer {
     pub icon: IconName,
 }
 
-impl EventEmitter<ContainerEvent> for BoardContainer {}
+impl EventEmitter<BoardContainerEvent> for BoardContainer {}
 
 pub trait Board: Render + Sized {
     fn icon() -> IconName;

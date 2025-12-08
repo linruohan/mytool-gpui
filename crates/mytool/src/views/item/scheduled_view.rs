@@ -11,7 +11,11 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemListDelegate, service::load_items, todo_state::ScheduledItemState};
+use crate::{
+    ItemListDelegate,
+    service::load_items,
+    todo_state::{DBState, ScheduledItemState},
+};
 
 pub enum ItemsScheduledEvent {
     Finished(Rc<ItemModel>),

@@ -4,7 +4,7 @@ use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::LabelModel;
 
-use crate::{DBState, LabelState};
+use crate::todo_state::{DBState, LabelState};
 
 // 刷新labels
 async fn refresh_labels(cx: &mut AsyncApp, db: DatabaseConnection) {

@@ -16,8 +16,9 @@ use gpui_component::{
 use todos::entity::ItemModel;
 
 use crate::{
-    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, ItemState, add_item,
-    delete_item, update_item,
+    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    todo_actions::{add_item, delete_item, update_item},
+    todo_state::ItemState,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}

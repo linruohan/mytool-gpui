@@ -4,7 +4,7 @@ use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
 
-use crate::{DBState, PinnedItemState};
+use crate::todo_state::{DBState, PinnedItemState};
 
 // 刷新items
 async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {

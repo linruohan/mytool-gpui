@@ -15,8 +15,9 @@ use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate, LabelState, add_label,
-    delete_label, update_label,
+    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate,
+    todo_actions::{add_label, delete_label, update_label},
+    todo_state::LabelState,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}

@@ -17,7 +17,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::LabelState;
+use crate::todo_state::LabelState;
 
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {

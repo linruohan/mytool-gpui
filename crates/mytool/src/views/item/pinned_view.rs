@@ -11,7 +11,11 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{DBState, ItemListDelegate, service::load_items, todo_state::PinnedItemState};
+use crate::{
+    ItemListDelegate,
+    service::load_items,
+    todo_state::{DBState, PinnedItemState},
+};
 
 pub enum ItemsPinnedEvent {
     Finished(Rc<ItemModel>),

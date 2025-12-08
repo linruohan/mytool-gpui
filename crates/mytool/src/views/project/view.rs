@@ -17,8 +17,9 @@ use gpui_component::{
 use todos::entity::ProjectModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ProjectEvent, ProjectListDelegate,
-    ProjectState, play_ogg_file, service::load_projects,
+    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate, play_ogg_file,
+    service::load_projects,
+    todo_state::{DBState, ProjectState},
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}

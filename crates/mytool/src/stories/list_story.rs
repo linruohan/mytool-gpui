@@ -15,9 +15,10 @@ use gpui_component::{
 use todos::entity::ItemModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, DBState, ItemInfo, ItemInfoEvent, ItemInfoState,
+    ColorGroup, ColorGroupEvent, ColorGroupState, ItemInfo, ItemInfoEvent, ItemInfoState,
     ItemListDelegate, LabelPicker, LabelPickerEvent, LabelPickerState, LabelsPopoverEvent,
     LabelsPopoverList, popover_list::PopoverList, section, service::load_items,
+    todo_state::DBState,
 };
 
 actions!(list_story, [SelectedCompany]);

@@ -15,6 +15,9 @@ use gpui_component::{
     v_flex,
 };
 use serde::Deserialize;
+use todos::entity::LabelModel;
+
+use crate::{LabelListDelegate, todo_state::LabelState};
 
 actions!(labels_picker, [LabelsPickerCancel, LabelsPickerDelete,]);
 #[derive(Clone, Action, PartialEq, Eq, Deserialize)]
@@ -29,9 +32,6 @@ pub struct LabelsPickerCheck {
     /// Is confirm with secondary.
     pub select: bool,
 }
-use todos::entity::LabelModel;
-
-use crate::{LabelListDelegate, LabelState};
 
 const CONTEXT: &'static str = "LabelPicker";
 pub fn init(cx: &mut App) {

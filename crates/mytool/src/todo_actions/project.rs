@@ -4,7 +4,7 @@ use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::ProjectModel;
 
-use crate::{DBState, ProjectState};
+use crate::todo_state::{DBState, ProjectState};
 
 // 刷新projects
 async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
