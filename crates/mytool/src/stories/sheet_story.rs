@@ -1,28 +1,26 @@
 use std::{sync::Arc, time::Duration};
-
+use std::task::Context;
 use fake::Fake;
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement as _, IntoElement,
-    ParentElement, Render, SharedString, Styled, Task, Timer, WeakEntity, Window, div,
-    prelude::FluentBuilder as _, px,
+    div, prelude::FluentBuilder as _, px, App, AppContext, Context, Entity, FocusHandle,
+    Focusable, InteractiveElement as _, IntoElement, ParentElement, Render, SharedString, Styled, Task, Timer,
+    WeakEntity, Window,
 };
-use raw_window_handle::HasWindowHandle;
-
 use gpui_component::{
-    ActiveTheme as _, Icon, IconName, IndexPath, Placement, WindowExt as _,
-    button::{Button, ButtonVariant, ButtonVariants as _},
-    checkbox::Checkbox,
-    date_picker::{DatePicker, DatePickerState},
-    h_flex,
-    input::{Input, InputState},
-    list::{List, ListDelegate, ListItem, ListState},
+    button::{Button, ButtonVariant, ButtonVariants as _}, checkbox::Checkbox, date_picker::{DatePicker, DatePickerState}, h_flex, input::{Input, InputState}, list::{List, ListDelegate, ListItem, ListState},
     v_flex,
     webview::WebView,
     wry,
+    ActiveTheme as _,
+    Icon,
+    IconName,
+    IndexPath,
+    Placement,
+    WindowExt as _,
 };
+use raw_window_handle::HasWindowHandle;
 
-use crate::TestAction;
-use crate::{Story, section};
+use crate::{section, Mytool, TestAction};
 
 pub struct ListItemDeletegate {
     story: WeakEntity<SheetStory>,
@@ -61,7 +59,7 @@ impl ListDelegate for ListItemDeletegate {
                     .collect();
                 cx.notify();
             })
-                .ok();
+            .ok();
         })
     }
 
@@ -72,12 +70,7 @@ impl ListDelegate for ListItemDeletegate {
             let list_item = ListItem::new(("item", ix.row))
                 .check_icon(IconName::Check)
                 .confirmed(confirmed)
-                .child(
-                    h_flex()
-                        .items_center()
-                        .justify_between()
-                        .child(item.to_string()),
-                )
+                .child(h_flex().items_center().justify_between().child(item.to_string()))
                 .suffix(|_, _| {
                     Button::new("like")
                         .tab_stop(false)
@@ -100,11 +93,7 @@ impl ListDelegate for ListItemDeletegate {
     fn render_empty(&self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         v_flex()
             .size_full()
-            .child(
-                Icon::new(IconName::Inbox)
-                    .size(px(50.))
-                    .text_color(cx.theme().muted_foreground),
-            )
+            .child(Icon::new(IconName::Inbox).size(px(50.)).text_color(cx.theme().muted_foreground))
             .child("No matches found")
             .items_center()
             .justify_center()
@@ -156,7 +145,7 @@ pub struct SheetStory {
     overlay_closable: bool,
 }
 
-impl Story for SheetStory {
+impl Mytool for SheetStory {
     fn title() -> &'static str {
         "Sheet"
     }
@@ -227,9 +216,9 @@ impl SheetStory {
             "Tzatziki (Greece)",
             "Wiener Schnitzel (Austria)",
         ]
-            .iter()
-            .map(|s| Arc::new(s.to_string()))
-            .collect();
+        .iter()
+        .map(|s| Arc::new(s.to_string()))
+        .collect();
 
         let story = cx.entity().downgrade();
         let delegate = ListItemDeletegate {
@@ -284,13 +273,11 @@ impl SheetStory {
                 .gap_4()
                 .child(Input::new(&input1))
                 .child(DatePicker::new(&date).placeholder("Date of Birth"))
-                .child(
-                    Button::new("send-notification")
-                        .child("Test Notification")
-                        .on_click(|_, window, cx| {
-                            window.push_notification("Hello this is message from Sheet.", cx)
-                        }),
-                )
+                .child(Button::new("send-notification").child("Test Notification").on_click(
+                    |_, window, cx| {
+                        window.push_notification("Hello this is message from Sheet.", cx)
+                    },
+                ))
                 .child(
                     List::new(&list)
                         .border_1()
@@ -309,13 +296,9 @@ impl SheetStory {
                                 window.close_sheet(cx);
                             },
                         ))
-                        .child(
-                            Button::new("cancel")
-                                .label("Cancel")
-                                .on_click(|_, window, cx| {
-                                    window.close_sheet(cx);
-                                }),
-                        ),
+                        .child(Button::new("cancel").label("Cancel").on_click(|_, window, cx| {
+                            window.close_sheet(cx);
+                        })),
                 )
         });
     }
@@ -423,50 +406,43 @@ impl Render for SheetStory {
                                         window.dispatch_action(Box::new(TestAction), cx);
                                     })
                                     .tooltip(
-                                        "This button for test dispatch action, \
-                                        to make sure when Dialog close,\
-                                        \nthis still can handle the action.",
+                                        "This button for test dispatch action, to make sure when \
+                                         Dialog close,\nthis still can handle the action.",
                                     ),
                             ),
                     )
-                    .child(
-                        section("WebView in Sheet").child(
-                            Button::new("webview")
-                                .outline()
-                                .label("Open WebView")
-                                .on_click(cx.listener(|_, _, window, cx| {
-                                    let webview = cx.new(|cx| {
-                                        let webview = wry::WebViewBuilder::new()
-                                            .build_as_child(
-                                                &window.window_handle().expect("No window handle"),
-                                            )
-                                            .unwrap();
-
-                                        WebView::new(webview, window, cx)
-                                    });
-                                    webview.update(cx, |webview, _| {
-                                        webview.load_url("https://github.com/explore");
-                                    });
-                                    window.open_sheet(cx, move |sheet, window, cx| {
-                                        let height =
-                                            window.window_bounds().get_bounds().size.height;
-                                        let webview_bounds = webview.read(cx).bounds();
-
-                                        sheet.title("WebView Title").p_0().child(
-                                            div()
-                                                .h(height - webview_bounds.origin.y)
-                                                .child(webview.clone()),
+                    .child(section("WebView in Sheet").child(
+                        Button::new("webview").outline().label("Open WebView").on_click(
+                            cx.listener(|_, _, window, cx| {
+                                let webview = cx.new(|cx| {
+                                    let webview = wry::WebViewBuilder::new()
+                                        .build_as_child(
+                                            &window.window_handle().expect("No window handle"),
                                         )
-                                    });
-                                })),
+                                        .unwrap();
+
+                                    WebView::new(webview, window, cx)
+                                });
+                                webview.update(cx, |webview, _| {
+                                    webview.load_url("https://github.com/explore");
+                                });
+                                window.open_sheet(cx, move |sheet, window, cx| {
+                                    let height = window.window_bounds().get_bounds().size.height;
+                                    let webview_bounds = webview.read(cx).bounds();
+
+                                    sheet.title("WebView Title").p_0().child(
+                                        div()
+                                            .h(height - webview_bounds.origin.y)
+                                            .child(webview.clone()),
+                                    )
+                                });
+                            }),
                         ),
-                    )
+                    ))
                     .when_some(self.selected_value.clone(), |this, selected_value| {
                         this.child(
                             h_flex().gap_1().child("You have selected:").child(
-                                div()
-                                    .child(selected_value.to_string())
-                                    .text_color(gpui::red()),
+                                div().child(selected_value.to_string()).text_color(gpui::red()),
                             ),
                         )
                     }),

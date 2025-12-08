@@ -1,22 +1,18 @@
 mod app_menus;
-mod calendar_story;
 mod components; // 我的组件库
 mod crypto; // 加解密
 mod gallery;
-mod list_story;
 mod service;
+mod stories;
 mod themes;
 mod title_bar;
 mod todo_actions; // 数据库操作管理
 mod todo_state; // 状态管理
-mod todo_story;
 mod utils;
 mod views; // 任务管理视图
-mod welcome_story;
 mod widgets; // 部件库
 
 // 获取todoist数据
-pub use calendar_story::CalendarStory;
 pub use components::*;
 pub use gallery::Gallery;
 use gpui::{
@@ -36,19 +32,17 @@ use gpui_component::{
     scroll::{ScrollableElement as _, ScrollbarShow},
     v_flex,
 };
-pub use list_story::ListStory;
 use serde::{Deserialize, Serialize};
+pub use stories::*;
 pub use title_bar::AppTitleBar;
 pub use todo_actions::*;
 pub use todo_state::{
     CompleteItemState, DBState, ItemState, ItemStatus, LabelState, PinnedItemState,
     ProjectItemState, ProjectState, ScheduledItemState, TodayItemState, get_todo_conn, state_init,
 };
-pub use todo_story::TodoStory;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 pub use utils::play_ogg_file;
 pub use views::*;
-pub use welcome_story::WelcomeStory;
 pub use widgets::*;
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
@@ -378,53 +372,6 @@ pub struct StoryContainer {
 #[derive(Debug)]
 pub enum ContainerEvent {
     Close,
-}
-
-pub trait Mytool: Render + Sized {
-    fn klass() -> &'static str {
-        std::any::type_name::<Self>().split("::").last().unwrap()
-    }
-
-    fn title() -> &'static str;
-
-    fn description() -> &'static str {
-        ""
-    }
-
-    fn closable() -> bool {
-        true
-    }
-
-    fn zoomable() -> Option<PanelControl> {
-        Some(PanelControl::default())
-    }
-
-    fn title_bg() -> Option<Hsla> {
-        None
-    }
-
-    fn paddings() -> Pixels {
-        px(16.)
-    }
-
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render>;
-
-    fn on_active(&mut self, active: bool, window: &mut Window, cx: &mut App) {
-        let _ = active;
-        let _ = window;
-        let _ = cx;
-    }
-
-    fn on_active_any(view: AnyView, active: bool, window: &mut Window, cx: &mut App)
-    where
-        Self: 'static,
-    {
-        if let Some(mytool) = view.downcast::<Self>().ok() {
-            cx.update_entity(&mytool, |mytool, cx| {
-                mytool.on_active(active, window, cx);
-            });
-        }
-    }
 }
 
 impl EventEmitter<ContainerEvent> for StoryContainer {}
