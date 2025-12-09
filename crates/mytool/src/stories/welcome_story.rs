@@ -28,16 +28,16 @@ impl Mytool for WelcomeStory {
         "UI components for building fantastic desktop application by using GPUI."
     }
 
+    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
+        Self::view(window, cx)
+    }
+
     fn zoomable() -> Option<PanelControl> {
         None
     }
 
     fn paddings() -> gpui::Pixels {
         px(0.)
-    }
-
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
-        Self::view(window, cx)
     }
 }
 
@@ -54,7 +54,7 @@ impl Render for WelcomeStory {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         TextView::markdown("intro", include_str!("../../../../README.md"), window, cx)
-            .p_4()
+            .px_4()
             .scrollable(true)
             .selectable(true)
     }

@@ -3,7 +3,7 @@ use gpui::{
     Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
 };
 use gpui_component::{
-    Root, TitleBar,
+    Root, TitleBar, WindowExt,
     dock::{PanelInfo, register_panel},
     h_flex,
     scroll::ScrollbarShow,
@@ -183,6 +183,17 @@ pub fn init(cx: &mut App) {
 
     cx.on_action(|_: &Quit, cx: &mut App| {
         cx.quit();
+    });
+    cx.on_action(|_: &About, cx: &mut App| {
+        if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
+            cx.defer(move |cx| {
+                window
+                    .update(cx, |_, window, cx| {
+                        window.push_notification("GPUI Component Storybook\nVersion 0.1.0", cx);
+                    })
+                    .unwrap();
+            });
+        }
     });
 
     register_panel(cx, PANEL_NAME, |_, _, info, window, cx| {

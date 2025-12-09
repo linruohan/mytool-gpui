@@ -8,11 +8,10 @@ use gpui_component::{
     button::Button,
     dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
-    notification::Notification,
     scroll::ScrollableElement,
 };
 
-use crate::{AppState, Mytool, ShowPanelInfo, StoryState, ToggleSearch};
+use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
 
 pub struct StoryContainer {
     pub(crate) focus_handle: gpui::FocusHandle,
@@ -35,7 +34,6 @@ pub enum ContainerEvent {
 }
 
 impl EventEmitter<ContainerEvent> for StoryContainer {}
-
 impl StoryContainer {
     pub fn new(_window: &mut Window, cx: &mut App) -> Self {
         let focus_handle = cx.focus_handle();
@@ -78,12 +76,12 @@ impl StoryContainer {
         view
     }
 
-    pub fn width(mut self, width: Pixels) -> Self {
+    pub fn width(mut self, width: gpui::Pixels) -> Self {
         self.width = Some(width);
         self
     }
 
-    pub fn height(mut self, height: Pixels) -> Self {
+    pub fn height(mut self, height: gpui::Pixels) -> Self {
         self.height = Some(height);
         self
     }
@@ -97,37 +95,6 @@ impl StoryContainer {
     pub fn on_active(mut self, on_active: fn(AnyView, bool, &mut Window, &mut App)) -> Self {
         self.on_active = Some(on_active);
         self
-    }
-
-    fn on_action_panel_info(
-        &mut self,
-        _: &ShowPanelInfo,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        struct Info;
-        let note = Notification::new()
-            .message(format!("You have clicked panel info on: {}", self.name))
-            .id::<Info>();
-        window.push_notification(note, cx);
-    }
-
-    fn on_action_toggle_search(
-        &mut self,
-        _: &ToggleSearch,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        cx.propagate();
-        if window.has_focused_input(cx) {
-            return;
-        }
-
-        struct Search;
-        let note = Notification::new()
-            .message(format!("You have toggled search on: {}", self.name))
-            .id::<Search>();
-        window.push_notification(note, cx);
     }
 }
 
@@ -212,15 +179,14 @@ impl Focusable for StoryContainer {
     }
 }
 impl Render for StoryContainer {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
             .id("story-container")
             .size_full()
             .overflow_y_scrollbar()
-            .p(self.paddings)
             .track_focus(&self.focus_handle)
-            .on_action(cx.listener(Self::on_action_panel_info))
-            .on_action(cx.listener(Self::on_action_toggle_search))
-            .when_some(self.story.clone(), |this, story| this.child(story))
+            .when_some(self.story.clone(), |this, story| {
+                this.child(div().size_full().p(self.paddings).child(story))
+            })
     }
 }
