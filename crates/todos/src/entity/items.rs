@@ -40,7 +40,7 @@ pub struct Model {
     pub collapsed: bool,
     pub pinned: bool,
     #[sea_orm(column_type = "Json", nullable)]
-    pub labels: Option<serde_json::Value>,
+    pub labels: Option<String>,
     #[sea_orm(column_type = "Json", nullable)]
     pub extra_data: Option<serde_json::Value>,
     #[sea_orm(column_type = "Text", nullable)]

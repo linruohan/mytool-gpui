@@ -15,7 +15,6 @@ use gpui_component::{
     v_flex,
 };
 use serde::Deserialize;
-use serde_json::Value;
 use todos::{
     entity::{ItemModel, LabelModel},
     enums::item_priority::ItemPriority,
@@ -170,7 +169,7 @@ impl ItemInfoState {
     pub fn add_checked_labels(&mut self, label: Rc<LabelModel>) {
         let item = Rc::make_mut(&mut self.item);
         let mut labels_set = match &item.labels {
-            Some(Value::String(current)) => {
+            Some(current) => {
                 current.split(';').filter(|s: &&str| !s.is_empty()).collect::<HashSet<&str>>()
             },
             _ => HashSet::new(),
@@ -182,12 +181,12 @@ impl ItemInfoState {
         // 重新拼接成字符串
         let new_labels = labels_set.into_iter().collect::<Vec<&str>>().join(";");
 
-        item.labels = Some(Value::String(new_labels));
+        item.labels = Some(new_labels);
     }
 
     pub fn rm_checked_labels(&mut self, label: Rc<LabelModel>) {
         let item = Rc::make_mut(&mut self.item);
-        if let Some(Value::String(current_labels)) = &item.labels {
+        if let Some(current_labels) = &item.labels {
             if current_labels.is_empty() {
                 item.labels = None;
                 return;
@@ -200,8 +199,7 @@ impl ItemInfoState {
                 .collect::<Vec<_>>()
                 .join(";");
 
-            item.labels =
-                if new_labels.is_empty() { None } else { Some(Value::String(new_labels)) };
+            item.labels = if new_labels.is_empty() { None } else { Some(new_labels) };
         }
     }
 
@@ -215,7 +213,6 @@ impl ItemInfoState {
         };
         let all_labels = self.label_list.read(cx).delegate()._labels.clone();
         label_ids
-            .to_string()
             .split(';')
             .filter_map(|label_id| {
                 let trimmed_id = label_id.trim();

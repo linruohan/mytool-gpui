@@ -11,7 +11,6 @@ use gpui_component::{
     popover::Popover,
     v_flex,
 };
-use serde_json::Value;
 use todos::entity::LabelModel;
 
 use crate::{LabelCheckListDelegate, SelectedCheckLabel, todo_state::LabelState};
@@ -63,13 +62,12 @@ impl LabelsPopoverList {
 
     pub fn set_item_checked_label_id(
         &mut self,
-        label_ids: Value,
+        label_ids: String,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let all_labels = self.label_list.read(cx).delegate()._labels.clone();
         self.selected_labels = label_ids
-            .to_string()
             .split(';')
             .filter_map(|label_id| {
                 let trimmed_id = label_id.trim();

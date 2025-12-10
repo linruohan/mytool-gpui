@@ -52,15 +52,12 @@ impl Item {
     }
 
     pub fn labels(&self) -> Vec<LabelModel> {
-        self.model
-            .labels
-            .as_ref()
-            .and_then(|json_str| serde_json::from_value::<Vec<LabelModel>>(json_str.clone()).ok())
-            .unwrap_or_default()
+        todo!()
     }
 
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
-        self.model.labels = Some(serde_json::value::to_value(labels).unwrap());
+        let label_ids = labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";");
+        self.model.labels = Some(label_ids);
         self
     }
 
@@ -450,7 +447,8 @@ impl Item {
     ) -> Result<LabelModel, TodoError> {
         let mut labels = self.labels();
         labels.insert(0, label_model.clone());
-        self.model.labels = serde_json::to_value(&labels).ok();
+        self.model.labels =
+            Some(labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";"));
         self.store().await.update_item(self.model.clone(), "").await?;
         self.store().await.insert_label(label_model.clone()).await
     }
@@ -465,7 +463,8 @@ impl Item {
             return Ok(0);
         };
         let labels: Vec<_> = labels_model.into_iter().filter(|l| l.id != id).collect();
-        self.model.labels = serde_json::to_value(&labels).ok();
+        self.model.labels =
+            Some(labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";"));
         self.store().await.update_item(self.model.clone(), "").await?;
         self.store().await.delete_label(id).await
     }

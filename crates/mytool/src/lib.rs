@@ -3,7 +3,7 @@ use gpui::{
     SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
 };
 use gpui_component::{
-    Root, TitleBar, WindowExt,
+    Root, TitleBar,
     dock::{PanelInfo, register_panel},
     h_flex,
     scroll::ScrollbarShow,

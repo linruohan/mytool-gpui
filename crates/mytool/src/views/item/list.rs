@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
     App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
@@ -15,7 +15,7 @@ use gpui_component::{
     tag::Tag,
     v_flex,
 };
-use todos::entity::ItemModel;
+use todos::entity::{ItemModel, LabelModel};
 
 use crate::todo_state::LabelState;
 
@@ -69,6 +69,10 @@ impl RenderOnce for ItemListItem {
         } else {
             cx.theme().list_even
         };
+        let labels = cx.global::<LabelState>().labels.clone();
+        let label_map: HashMap<&str, &Rc<LabelModel>> =
+            labels.iter().map(|l| (l.id.as_str(), l)).collect();
+        let item_labels = &self.item.labels;
 
         self.base
             .px_2()
@@ -102,13 +106,17 @@ impl RenderOnce for ItemListItem {
                             )
                             .when(self.item.labels.is_some(), |this| {
                                 this.child(
-                                    h_flex().gap_2().flex().px_2().children(
-                                        self.item
-                                            .labels
+                                    h_flex().gap_2().flex().children(
+                                        item_labels
                                             .iter()
-                                            .flat_map(|labels| labels.as_str().unwrap().split(';'))
-                                            .filter(|label| !label.is_empty())
-                                            .map(|label| Tag::primary().child(label.to_string()))
+                                            .flat_map(|group| {
+                                                group.split(';').filter(|id| !id.is_empty())
+                                            })
+                                            .filter_map(|id| {
+                                                label_map.get(id).map(|label| {
+                                                    Tag::primary().child(label.name.clone())
+                                                })
+                                            })
                                             .collect::<Vec<_>>(),
                                     ),
                                 )
