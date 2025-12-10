@@ -5,8 +5,7 @@ use gpui::{
 use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
 
 use crate::{AppTitleBar, ShowPanelInfo, ToggleSearch};
-
-pub(crate) struct StoryRoot {
+pub struct StoryRoot {
     focus_handle: FocusHandle,
     title_bar: Entity<AppTitleBar>,
     view: AnyView,
@@ -65,7 +64,6 @@ impl Render for StoryRoot {
 
         div()
             .id("story-root")
-            .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::on_action_panel_info))
             .on_action(cx.listener(Self::on_action_toggle_search))
             .size_full()
@@ -73,10 +71,16 @@ impl Render for StoryRoot {
                 v_flex()
                     .size_full()
                     .child(self.title_bar.clone())
-                    .child(div().flex_1().overflow_hidden().child(self.view.clone())),
+                    .child(
+                        div()
+                            .track_focus(&self.focus_handle)
+                            .flex_1()
+                            .overflow_hidden()
+                            .child(self.view.clone()),
+                    )
+                    .children(sheet_layer)
+                    .children(dialog_layer)
+                    .children(notification_layer),
             )
-            .children(sheet_layer)
-            .children(dialog_layer)
-            .children(notification_layer)
     }
 }

@@ -1,6 +1,6 @@
 use gpui::{
-    Action, AnyView, App, AppContext, Bounds, Entity, Global, KeyBinding, Pixels, SharedString,
-    Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
+    Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, KeyBinding, Pixels,
+    SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
 };
 use gpui_component::{
     Root, TitleBar, WindowExt,
@@ -66,7 +66,6 @@ actions!(mytool, [
     TabPrev,
     ShowPanelInfo
 ]);
-
 const PANEL_NAME: &str = "StoryContainer";
 
 pub struct AppState {
@@ -118,7 +117,7 @@ pub fn create_new_window_with_size<F, E>(
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(window_bounds)),
             titlebar: Some(TitleBar::title_bar_options()),
-            window_min_size: Some(Size { width: px(480.), height: px(320.) }),
+            window_min_size: Some(gpui::Size { width: px(480.), height: px(320.) }),
             kind: WindowKind::Normal,
             #[cfg(target_os = "linux")]
             window_background: gpui::WindowBackgroundAppearance::Transparent,
@@ -130,9 +129,15 @@ pub fn create_new_window_with_size<F, E>(
         let window = cx
             .open_window(options, |window, cx| {
                 let view = crate_view_fn(window, cx);
-                let root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
+                let story_root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
 
-                cx.new(|cx| Root::new(root, window, cx))
+                // Set focus to the StoryRoot to enable it's actions.
+                let focus_handle = story_root.focus_handle(cx);
+                window.defer(cx, move |window, _| {
+                    focus_handle.focus(window);
+                });
+
+                cx.new(|cx| Root::new(story_root, window, cx))
             })
             .expect("failed to open window");
 
@@ -184,12 +189,17 @@ pub fn init(cx: &mut App) {
     cx.on_action(|_: &Quit, cx: &mut App| {
         cx.quit();
     });
+
     cx.on_action(|_: &About, cx: &mut App| {
         if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
             cx.defer(move |cx| {
                 window
-                    .update(cx, |_, window, cx| {
-                        window.push_notification("GPUI Component Storybook\nVersion 0.1.0", cx);
+                    .update(cx, |root, window, cx| {
+                        root.push_notification(
+                            "GPUI Component Storybook\nVersion 0.1.0",
+                            window,
+                            cx,
+                        );
                     })
                     .unwrap();
             });
@@ -227,7 +237,6 @@ pub fn init(cx: &mut App) {
 
     cx.activate(true);
 }
-
 pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
     StorySection {
         title: title.into(),

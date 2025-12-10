@@ -12,14 +12,17 @@ use gpui_component::{
 };
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
-
+#[derive(Debug)]
+pub enum ContainerEvent {
+    Close,
+}
 pub struct StoryContainer {
     pub(crate) focus_handle: gpui::FocusHandle,
     pub name: SharedString,
     pub title_bg: Option<Hsla>,
     pub description: SharedString,
-    width: Option<Pixels>,
-    height: Option<Pixels>,
+    width: Option<gpui::Pixels>,
+    height: Option<gpui::Pixels>,
     story: Option<AnyView>,
     story_klass: Option<SharedString>,
     pub(crate) closable: bool,
@@ -28,12 +31,8 @@ pub struct StoryContainer {
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
 }
 
-#[derive(Debug)]
-pub enum ContainerEvent {
-    Close,
-}
-
 impl EventEmitter<ContainerEvent> for StoryContainer {}
+
 impl StoryContainer {
     pub fn new(_window: &mut Window, cx: &mut App) -> Self {
         let focus_handle = cx.focus_handle();
@@ -97,7 +96,6 @@ impl StoryContainer {
         self
     }
 }
-
 impl Panel for StoryContainer {
     fn panel_name(&self) -> &'static str {
         "StoryContainer"
@@ -127,6 +125,10 @@ impl Panel for StoryContainer {
         !AppState::global(cx).invisible_panels.read(cx).contains(&self.name)
     }
 
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
+    }
+
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -134,10 +136,6 @@ impl Panel for StoryContainer {
                 on_active(story, active, _window, cx);
             }
         }
-    }
-
-    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     fn dropdown_menu(

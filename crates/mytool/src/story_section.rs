@@ -7,7 +7,6 @@ use gpui_component::{
     group_box::{GroupBox, GroupBoxVariants},
     h_flex,
 };
-
 #[derive(IntoElement)]
 pub struct StorySection {
     pub(crate) base: Div,
