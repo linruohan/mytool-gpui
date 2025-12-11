@@ -1,7 +1,7 @@
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Render, Styled as _, Window, px,
 };
-use gpui_component::{dock::PanelControl, text::TextView};
+use gpui_component::{dock::PanelControl, text::markdown};
 
 use crate::Mytool;
 
@@ -21,7 +21,7 @@ impl WelcomeStory {
 
 impl Mytool for WelcomeStory {
     fn title() -> &'static str {
-        "Welcome"
+        "Introduction"
     }
 
     fn description() -> &'static str {
@@ -50,12 +50,9 @@ impl Focusable for WelcomeStory {
 impl Render for WelcomeStory {
     fn render(
         &mut self,
-        window: &mut gpui::Window,
-        cx: &mut gpui::Context<Self>,
+        _: &mut gpui::Window,
+        _: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        TextView::markdown("intro", include_str!("../../../../README.md"), window, cx)
-            .px_4()
-            .scrollable(true)
-            .selectable(true)
+        markdown(include_str!("../../../../README.md")).px_4().scrollable(true).selectable(true)
     }
 }
