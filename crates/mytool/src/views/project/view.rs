@@ -5,21 +5,21 @@ use gpui::{
     Render, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, IconName, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    input::{Input, InputState},
-    list::{ListEvent, ListState},
-    menu::{DropdownMenu, PopupMenuItem},
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState}, list::{ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
+    ActiveTheme,
+    Colorize,
+    IconName,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::ProjectModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate, play_ogg_file,
-    service::load_projects,
-    todo_state::{DBState, ProjectState},
+    play_ogg_file, service::load_projects, todo_state::{DBState, ProjectState}, ColorGroup, ColorGroupEvent, ColorGroupState,
+    ProjectEvent,
+    ProjectListDelegate,
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
@@ -159,7 +159,6 @@ impl ProjectsPanel {
         window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title("New Project")
-                .items_center()
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
