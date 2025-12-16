@@ -181,8 +181,6 @@ impl ItemsPanel {
 
             modal
                 .title(dialog_title)
-                .items_center()
-                .w_full()
                 .overlay(true)
                 .keyboard(true)
                 .overlay_closable(true)
