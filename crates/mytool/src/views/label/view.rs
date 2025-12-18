@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
-    Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
+    Styled, Subscription, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState}, v_flex,
-    ActiveTheme,
-    Colorize,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, Colorize, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    input::{Input, InputState},
+    list::{List, ListEvent, ListState},
+    v_flex,
 };
 use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    todo_actions::{add_label, delete_label, update_label}, todo_state::LabelState, ColorGroup, ColorGroupEvent,
-    ColorGroupState,
-    LabelListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate,
+    todo_actions::{add_label, delete_label, update_label},
+    todo_state::LabelState,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
@@ -147,10 +147,7 @@ impl LabelsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex()
-                        .gap_3()
-                        .child(Input::new(&name_input))
-                        .child(ColorGroup::new(&color)),
+                    v_flex().gap_3().child(Input::new(&name_input)).child(ColorGroup::new(&color)),
                 )
                 .footer({
                     let view = view.clone();

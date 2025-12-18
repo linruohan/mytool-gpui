@@ -135,7 +135,7 @@ impl LabelPickerState {
 
         if let Some(focused) = window.focused(cx) {
             if focused.contains(&self.focus_handle, window) {
-                self.focus_handle.focus(window);
+                self.focus_handle.focus(window, cx);
             }
         }
     }
