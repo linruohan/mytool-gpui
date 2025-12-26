@@ -7,11 +7,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
-    color_picker::ColorPickerState,
-    date_picker::DatePickerState,
-    input::InputState,
     list::{List, ListEvent, ListState},
-    select::SelectState,
 };
 use todos::entity::ItemModel;
 
@@ -24,48 +20,20 @@ use crate::{
 impl EventEmitter<ItemEvent> for ItemsPanel {}
 pub struct ItemsPanel {
     pub item_list: Entity<ListState<ItemListDelegate>>,
-    item_due: Option<String>,
-    is_loading: bool,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
-    name_input: Entity<InputState>,
-    desc_input: Entity<InputState>,
-    color_state: Entity<ColorPickerState>,
-    // item_date: Entity<DatePickerState>,
-    priority_select: Entity<SelectState<Vec<String>>>,
     is_checked: bool, // 任务完成状态
     item_info: Entity<ItemInfoState>,
 }
 
 impl ItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let color_state = cx.new(|cx| ColorPickerState::new(window, cx));
-
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("task title here..."));
-        let desc_input = cx.new(|cx| {
-            InputState::new(window, cx).auto_grow(5, 20).placeholder("task description here...")
-        });
-        let _date = cx.new(|cx| DatePickerState::new(window, cx));
         let item_info = cx.new(|cx| {
             let picker = ItemInfoState::new(window, cx);
             picker
         });
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
-        let priority_select = cx.new(|cx| {
-            SelectState::new(
-                vec![
-                    "P1".to_string(),
-                    "P2".to_string(),
-                    "P3".to_string(),
-                    "P4".to_string(),
-                    "".to_string(),
-                ],
-                None,
-                window,
-                cx,
-            )
-        });
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<ItemState>(move |_this, cx| {
@@ -100,19 +68,7 @@ impl ItemsPanel {
             }),
         ];
 
-        Self {
-            item_due: None,
-            is_loading: false,
-            is_checked: false,
-            item_list,
-            item_info,
-            priority_select,
-            active_index: Some(0),
-            _subscriptions,
-            name_input,
-            desc_input,
-            color_state,
-        }
+        Self { is_checked: false, item_list, item_info, active_index: Some(0), _subscriptions }
     }
 
     pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {

@@ -64,7 +64,8 @@ actions!(mytool, [
     TestAction,
     Tab,
     TabPrev,
-    ShowPanelInfo
+    ShowPanelInfo,
+    ToggleListActiveHighlight
 ]);
 const PANEL_NAME: &str = "StoryContainer";
 

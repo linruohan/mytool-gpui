@@ -16,18 +16,13 @@ pub enum ScheduledItemStatus {
 pub struct ScheduledItemState {
     pub items: Vec<Rc<ItemModel>>,
     active_item: Option<Rc<ItemModel>>,
-    item_state: ScheduledItemStatus,
 }
 
 impl Global for ScheduledItemState {}
 
 impl ScheduledItemState {
     pub fn init(cx: &mut App) {
-        let this = ScheduledItemState {
-            items: vec![],
-            active_item: None,
-            item_state: ScheduledItemStatus::Loaded,
-        };
+        let this = ScheduledItemState { items: vec![], active_item: None };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();

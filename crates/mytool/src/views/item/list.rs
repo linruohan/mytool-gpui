@@ -62,13 +62,6 @@ impl RenderOnce for ItemListItem {
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        let _bg_color = if self.selected {
-            cx.theme().list_active
-        } else if self.ix.row.is_multiple_of(2) {
-            cx.theme().list
-        } else {
-            cx.theme().list_even
-        };
         let labels = cx.global::<LabelState>().labels.clone();
         let label_map: HashMap<&str, &Rc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();

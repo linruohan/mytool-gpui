@@ -67,21 +67,12 @@ impl RenderOnce for LabelListItem {
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        let bg_color = if self.selected {
-            cx.theme().list_active
-        } else if self.ix.row.is_multiple_of(2) {
-            cx.theme().list
-        } else {
-            cx.theme().list_even
-        };
-
         self.base
             .px_2()
             .py_1()
-            // .overflow_x_hidden()
-            .bg(bg_color)
+            .overflow_x_hidden()
             .border_1()
-            .border_color(bg_color)
+            .rounded(cx.theme().radius)
             .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(

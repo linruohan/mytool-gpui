@@ -21,7 +21,6 @@ impl EventEmitter<ItemsScheduledEvent> for ItemsScheduledPanel {}
 pub struct ItemsScheduledPanel {
     input_esc: Entity<InputState>,
     pub item_list: Entity<ListState<ItemListDelegate>>,
-    is_loading: bool,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
@@ -56,7 +55,7 @@ impl ItemsScheduledPanel {
             }),
         ];
 
-        Self { input_esc, is_loading: false, item_list, active_index: Some(0), _subscriptions }
+        Self { input_esc, item_list, active_index: Some(0), _subscriptions }
     }
 
     fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
