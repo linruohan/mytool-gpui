@@ -32,8 +32,11 @@ struct Info(i32);
 const CONTEXT: &'static str = "ItemInfo";
 #[derive(Clone)]
 pub enum ItemInfoEvent {
-    Update(Rc<ItemModel>),
-    Add(Rc<ItemModel>),
+    Updated(Rc<ItemModel>),    // 更新任务
+    Added(Rc<ItemModel>),      // 新增任务
+    Finished(Rc<ItemModel>),   // 状态改为完成
+    UnFinished(Rc<ItemModel>), // 状态改为未完成
+    Deleted(Rc<ItemModel>),    // 删除任务
 }
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
@@ -463,7 +466,7 @@ impl Render for ItemInfoState {
                                         ..Default::default()
                                     });
                                     println!("item_info: before:{:?}", item.clone());
-                                    cx.emit(ItemInfoEvent::Update(item.clone()));
+                                    cx.emit(ItemInfoEvent::Updated(item.clone()));
                                     cx.notify();
                                 });
                             }

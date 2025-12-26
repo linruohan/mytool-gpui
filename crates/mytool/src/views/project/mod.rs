@@ -1,5 +1,6 @@
 mod item_view;
 mod list;
+mod section;
 mod view;
 
 pub use item_view::{ProjectItemEvent, ProjectItemsPanel};

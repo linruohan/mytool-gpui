@@ -59,16 +59,19 @@ impl TodoStory {
         let project_items_panel = ProjectItemsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
         let _subscriptions = vec![
-            cx.subscribe(&project_panel, |this, _, event: &ProjectEvent, cx| {
+            cx.subscribe(&project_panel, |this: &mut Self, _, event: &ProjectEvent, cx| {
                 this.project_panel.update(cx, |project_panel, cx| {
                     project_panel.handle_project_event(event, cx);
                 });
             }),
-            cx.subscribe(&project_items_panel, |this, _, event: &ProjectItemEvent, cx| {
-                this.project_items_panel.update(cx, |project_items_panel, cx| {
-                    project_items_panel.handle_project_item_event(event, cx);
-                });
-            }),
+            cx.subscribe(
+                &project_items_panel,
+                |view: &mut Self, _, event: &ProjectItemEvent, cx| {
+                    view.project_items_panel.update(cx, |project_items_panel, cx| {
+                        project_items_panel.handle_project_item_event(event, cx);
+                    });
+                },
+            ),
         ];
         Self {
             collapsed: false,

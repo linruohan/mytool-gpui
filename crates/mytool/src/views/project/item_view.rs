@@ -2,21 +2,23 @@ use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
-    Render, Styled, Subscription, WeakEntity, Window, div,
+    Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
-    input::{Input, InputState},
     list::{List, ListEvent, ListState},
     menu::{DropdownMenu, PopupMenuItem},
     v_flex,
 };
 use todos::entity::{ItemModel, ProjectModel};
 
-use crate::{ItemListDelegate, service::get_project_items, todo_state::DBState};
+use crate::{
+    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    todo_actions::{add_project_item, delete_project_item, update_project_item},
+    todo_state::ProjectItemState,
+};
 
 pub enum ProjectItemEvent {
     Loaded,
@@ -25,39 +27,68 @@ pub enum ProjectItemEvent {
     Deleted(Rc<ItemModel>),
 }
 impl EventEmitter<ProjectItemEvent> for ProjectItemsPanel {}
+impl EventEmitter<ItemInfoEvent> for ProjectItemsPanel {}
+impl EventEmitter<ItemEvent> for ProjectItemsPanel {}
 pub struct ProjectItemsPanel {
     pub item_list: Entity<ListState<ItemListDelegate>>,
     project: Rc<ProjectModel>,
-    is_loading: bool,
-    item_due: Option<String>,
     pub active_index: Option<usize>,
+    item_info: Entity<ItemInfoState>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let item_info = cx.new(|cx| {
+            let picker = ItemInfoState::new(window, cx);
+            picker
+        });
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
-
-        let _subscriptions = vec![cx.subscribe(&item_list, |_, _, ev: &ListEvent, _| match ev {
-            ListEvent::Select(ix) => {
-                println!("ProjectItemsPanel List Selected: {:?}", ix);
-            },
-            ListEvent::Confirm(ix) => {
-                println!("ProjectItemsPanel List Confirmed: {:?}", ix);
-            },
-            ListEvent::Cancel => {
-                println!("ProjectItemsPanel List Cancelled");
-            },
-        })];
+        let item_list_clone = item_list.clone();
+        let _subscriptions = vec![
+            cx.observe_global::<ProjectItemState>(move |_this, cx| {
+                let items = cx.global::<ProjectItemState>().items.clone();
+                let _ = cx.update_entity(&item_list_clone, |list, cx| {
+                    list.delegate_mut().update_items(items);
+                    cx.notify();
+                });
+                cx.notify();
+            }),
+            cx.subscribe(&item_info, |_this, _, event: &ItemInfoEvent, cx| match event {
+                ItemInfoEvent::Updated(item) => {
+                    print!("iteminfo updated after:{:?}", item);
+                    cx.emit(ItemEvent::Modified(item.clone()));
+                    cx.notify();
+                },
+                ItemInfoEvent::Added(item) => {
+                    cx.emit(ItemEvent::Added(item.clone()));
+                    cx.notify();
+                },
+                ItemInfoEvent::Deleted(item) => {
+                    cx.emit(ItemEvent::Deleted(item.clone()));
+                },
+                ItemInfoEvent::Finished(item) => {
+                    cx.emit(ItemEvent::Finished(item.clone()));
+                },
+                ItemInfoEvent::UnFinished(item) => {
+                    cx.emit(ItemEvent::Modified(item.clone()));
+                },
+            }),
+            cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
+                if let ListEvent::Confirm(ix) = ev
+                    && let Some(_item) = this.get_selected_item(*ix, cx)
+                {
+                    this.update_active_index(Some(ix.row));
+                }
+            }),
+        ];
 
         Self {
-            item_due: None,
-            is_loading: true,
             item_list,
             active_index: Some(0),
+            item_info,
             _subscriptions,
-            // project: project.clone(),
             project: Rc::new(ProjectModel::default()),
         }
     }
@@ -72,9 +103,9 @@ impl ProjectItemsPanel {
             .cloned()
     }
 
-    pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
+    pub fn set_project(&mut self, project: Rc<ProjectModel>, _cx: &mut Context<Self>) {
         self.project = project;
-        self.update_items(cx);
+        // self.update_items(cx);
     }
 
     pub fn update_active_index(&mut self, value: Option<usize>) {
@@ -88,166 +119,91 @@ impl ProjectItemsPanel {
     pub fn handle_project_item_event(&mut self, event: &ProjectItemEvent, cx: &mut Context<Self>) {
         match event {
             ProjectItemEvent::Added(item) => {
-                println!("handle_item_event:");
-                self.add_item(cx, item.clone())
+                add_project_item(self.project.clone(), item.clone(), cx);
             },
-            ProjectItemEvent::Modified(item) => self.mod_item(cx, item.clone()),
-            ProjectItemEvent::Deleted(item) => self.del_item(cx, item.clone()),
+            ProjectItemEvent::Modified(item) => {
+                update_project_item(self.project.clone(), item.clone(), cx)
+            },
+            ProjectItemEvent::Deleted(item) => {
+                delete_project_item(self.project.clone(), item.clone(), cx)
+            },
             _ => {},
         }
+    }
+
+    fn initialize_item_model(&self, _is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+        self.active_index
+            .and_then(|index| {
+                println!("show_label_dialog: active index: {}", index);
+                self.get_selected_item(IndexPath::new(index), &cx)
+            })
+            .map(|label| {
+                let item_ref = label.as_ref();
+                ItemModel { ..item_ref.clone() }
+            })
+            .unwrap_or_default()
     }
 
     pub fn show_model(
         &mut self,
         _model: Rc<ItemModel>,
+        is_edit: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let input1 = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
-        let _input2 = cx.new(|cx| -> InputState {
-            InputState::new(window, cx).placeholder("For test focus back on modal close.")
-        });
-        let now = chrono::Local::now().naive_local().date();
-        let item_due = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
-            picker.set_date(now, window, cx);
-            picker
-        });
-        let _ = cx.subscribe(&item_due, |this, _, ev, _| match ev {
-            DatePickerEvent::Change(date) => {
-                this.item_due = date.format("%Y-%m-%d").map(|s| s.to_string());
-            },
-        });
+        let item_info = self.item_info.clone();
+        let ori_item = self.initialize_item_model(is_edit, window, cx);
+        if is_edit {
+            item_info.update(cx, |state, cx| {
+                state.set_item(Rc::new(ori_item.clone()), window, cx);
+                cx.notify();
+            });
+        } else {
+        }
         let view = cx.entity().clone();
+        let dialog_title = if is_edit { "Edit Item" } else { "New Item" };
+        let button_text = if is_edit { "Save" } else { "Add" };
 
         window.open_dialog(cx, move |modal, _, _| {
+            let item_info_clone = item_info.clone();
+            let view_clone = view.clone();
+
             modal
-                .title("Add Item")
-                .overlay(false)
+                .title(dialog_title)
+                .overlay(true)
                 .keyboard(true)
                 .overlay_closable(true)
-                .child(
-                    v_flex()
-                        .gap_3()
-                        .child(Input::new(&input1))
-                        .child(DatePicker::new(&item_due).placeholder("DueDate of Project")),
-                )
-                .footer({
-                    let view = view.clone();
-                    let input1 = input1.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("add").primary().label("Add").on_click({
-                                let view = view.clone();
-                                let input1 = input1.clone();
-                                move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                    view.update(cx, |_view, cx| {
-                                        let item = ItemModel {
-                                            content: input1.read(cx).value().to_string(),
-                                            ..Default::default()
-                                        };
-                                        cx.emit(ProjectItemEvent::Added(item.into()));
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                .child(ItemInfo::new(&item_info))
+                .footer(move |_, _, _, _| {
+                    vec![
+                        Button::new("save").primary().label(button_text).on_click({
+                            let view = view_clone.clone();
+                            let item_info = item_info_clone.clone();
+                            move |_, window, cx| {
                                 window.close_dialog(cx);
-                            }),
-                        ]
-                    }
+                                item_info.update(cx, |item_info, cx| {
+                                    cx.emit(ItemInfoEvent::Updated(item_info.item.clone()));
+                                    cx.notify();
+                                });
+                                view.update(cx, |_view, cx| {
+                                    let item = item_info.read(cx).item.clone();
+                                    print!("iteminfo dialog: {:?}", item.clone());
+                                    let event = if is_edit {
+                                        ProjectItemEvent::Modified(item.clone())
+                                    } else {
+                                        ProjectItemEvent::Added(item.clone())
+                                    };
+                                    cx.emit(event);
+                                    cx.notify();
+                                });
+                            }
+                        }),
+                        Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                            window.close_dialog(cx);
+                        }),
+                    ]
                 })
         });
-    }
-
-    // 更新items
-    pub fn update_items(&mut self, cx: &mut Context<Self>) {
-        if !self.is_loading {
-            return;
-        }
-        let db = cx.global::<DBState>().conn.clone();
-        let project = self.project.clone();
-        cx.spawn(async move |this, cx| {
-            let db = db.lock().await;
-            let items = get_project_items(project, db.clone()).await;
-            let rc_items: Vec<Rc<ItemModel>> =
-                items.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("project's items: {:?}", rc_items.len());
-            this.update(cx, |this, cx| {
-                this.item_list.update(cx, |list, cx| {
-                    list.delegate_mut().update_items(rc_items);
-                    cx.notify();
-                });
-
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-    }
-
-    pub fn add_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ProjectItemsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::add_item(item.clone(), db.clone()).await;
-            println!("add_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.update_items(cx);
-    }
-
-    pub fn mod_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ProjectItemsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::mod_item(item.clone(), db.clone()).await;
-            println!("mod_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.update_items(cx);
-    }
-
-    pub fn del_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        if self.is_loading {
-            return;
-        }
-        self.is_loading = true;
-        cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ProjectItemsPanel>, cx| {
-            let db = db.lock().await;
-            let ret = crate::service::del_item(item.clone(), db.clone()).await;
-            println!("mod_item {:?}", ret);
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
-        self.update_items(cx);
     }
 }
 
@@ -285,10 +241,11 @@ impl Render for ProjectItemsPanel {
                                                         |index| this.get_selected_item(index, cx),
                                                     )
                                                 {
-                                                    this.show_model(model, window, cx);
+                                                    this.show_model(model, false, window, cx);
                                                 } else {
                                                     this.show_model(
                                                         Rc::new(ItemModel::default()),
+                                                        true,
                                                         window,
                                                         cx,
                                                     );
@@ -308,7 +265,9 @@ impl Render for ProjectItemsPanel {
                                                             cx,
                                                         );
                                                         if let Some(item) = item_some {
-                                                            this.del_item(cx, item.clone());
+                                                            cx.emit(ProjectItemEvent::Deleted(
+                                                                item,
+                                                            ));
                                                         }
                                                         cx.notify();
                                                     },
