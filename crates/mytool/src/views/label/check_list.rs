@@ -23,7 +23,6 @@ impl EventEmitter<LabelCheckEvent> for LabelCheckListItem {}
 #[derive(IntoElement)]
 pub struct LabelCheckListItem {
     base: ListItem,
-    ix: IndexPath,
     label: Rc<LabelModel>,
     selected: bool,
     checked: bool,
@@ -33,11 +32,10 @@ impl LabelCheckListItem {
     pub fn new(
         id: impl Into<ElementId>,
         label: Rc<LabelModel>,
-        ix: IndexPath,
         selected: bool,
         checked: bool,
     ) -> Self {
-        LabelCheckListItem { label, ix, base: ListItem::new(id), selected, checked }
+        LabelCheckListItem { label, base: ListItem::new(id), selected, checked }
     }
 }
 
@@ -200,7 +198,7 @@ impl ListDelegate for LabelCheckListDelegate {
         let checked =
             self.selected_label().map(|label| self.checked_list.contains(&label)).unwrap_or(false);
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
-            return Some(LabelCheckListItem::new(ix, label.clone(), ix, selected, checked));
+            return Some(LabelCheckListItem::new(ix, label.clone(), selected, checked));
         }
 
         None

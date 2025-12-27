@@ -25,7 +25,6 @@ pub enum LabelEvent {
 #[derive(IntoElement)]
 pub struct LabelListItem {
     base: ListItem,
-    ix: IndexPath,
     label: Rc<LabelModel>,
     selected: bool,
     checked: bool,
@@ -35,11 +34,10 @@ impl LabelListItem {
     pub fn new(
         id: impl Into<ElementId>,
         label: Rc<LabelModel>,
-        ix: IndexPath,
         selected: bool,
         checked: bool,
     ) -> Self {
-        LabelListItem { label, ix, base: ListItem::new(id), selected, checked }
+        LabelListItem { label, base: ListItem::new(id), selected, checked }
     }
 }
 
@@ -196,7 +194,7 @@ impl ListDelegate for LabelListDelegate {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
             let checked = self.checked_labels.contains(&label);
-            return Some(LabelListItem::new(ix, label.clone(), ix, selected, checked));
+            return Some(LabelListItem::new(ix, label.clone(), selected, checked));
         }
         None
     }

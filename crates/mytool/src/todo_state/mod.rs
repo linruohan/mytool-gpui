@@ -23,14 +23,15 @@ pub use today_item::*;
 pub fn state_init(cx: &mut App) {
     // item
     ItemState::init(cx);
-    SectionState::init(cx);
     // other item
     TodayItemState::init(cx);
     ScheduledItemState::init(cx);
     PinnedItemState::init(cx);
     CompleteItemState::init(cx);
+    ProjectItemState::init(cx);
     // project
     ProjectState::init(cx);
+    SectionState::init(cx);
     // label
     LabelState::init(cx);
 }

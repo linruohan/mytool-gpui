@@ -23,7 +23,6 @@ pub enum SectionEvent {
 #[derive(IntoElement)]
 pub struct SectionListItem {
     base: ListItem,
-    ix: IndexPath,
     section: Rc<SectionModel>,
     selected: bool,
     checked: bool,
@@ -33,11 +32,10 @@ impl SectionListItem {
     pub fn new(
         id: impl Into<ElementId>,
         section: Rc<SectionModel>,
-        ix: IndexPath,
         selected: bool,
         checked: bool,
     ) -> Self {
-        SectionListItem { section, ix, base: ListItem::new(id), selected, checked }
+        SectionListItem { section, base: ListItem::new(id), selected, checked }
     }
 }
 
@@ -197,7 +195,7 @@ impl ListDelegate for SectionListDelegate {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(sec) = self.matched_sections[ix.section].get(ix.row) {
             let checked = self.checked_sections.contains(&sec);
-            return Some(SectionListItem::new(ix, sec.clone(), ix, selected, checked));
+            return Some(SectionListItem::new(ix, sec.clone(), selected, checked));
         }
         None
     }

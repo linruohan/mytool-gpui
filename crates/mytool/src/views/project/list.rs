@@ -23,19 +23,13 @@ pub enum ProjectEvent {
 #[derive(IntoElement)]
 pub struct ProjectListItem {
     base: ListItem,
-    ix: IndexPath,
     project: Rc<ProjectModel>,
     selected: bool,
 }
 
 impl ProjectListItem {
-    pub fn new(
-        id: impl Into<ElementId>,
-        project: Rc<ProjectModel>,
-        ix: IndexPath,
-        selected: bool,
-    ) -> Self {
-        ProjectListItem { project, ix, base: ListItem::new(id), selected }
+    pub fn new(id: impl Into<ElementId>, project: Rc<ProjectModel>, selected: bool) -> Self {
+        ProjectListItem { project, base: ListItem::new(id), selected }
     }
 }
 
@@ -183,7 +177,7 @@ impl ListDelegate for ProjectListDelegate {
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(project) = self.matched_projects[ix.section].get(ix.row) {
-            return Some(ProjectListItem::new(ix, project.clone(), ix, selected));
+            return Some(ProjectListItem::new(ix, project.clone(), selected));
         }
 
         None

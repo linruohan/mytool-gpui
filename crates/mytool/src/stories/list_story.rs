@@ -2,27 +2,70 @@ use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, actions, div,
-    prelude::FluentBuilder,
+    IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, actions,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, Sizable,
+    ActiveTheme, IndexPath,
+    checkbox::Checkbox,
     divider::Divider,
     h_flex,
     list::{ListEvent, ListState},
+    select::{SearchableVec, Select, SelectEvent, SelectGroup, SelectItem, SelectState},
     v_flex,
 };
-use todos::entity::ItemModel;
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
+use todos::entity::{ItemModel, LabelModel};
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ItemInfo, ItemInfoEvent, ItemInfoState,
-    ItemListDelegate, LabelPicker, LabelPickerEvent, LabelPickerState, LabelsPopoverEvent,
-    LabelsPopoverList, popover_list::PopoverList, section, service::load_items,
-    todo_state::DBState,
+    ColorGroupEvent, ColorGroupState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    ItemRow, LabelPicker, LabelPickerEvent, LabelPickerState, LabelsPopoverEvent,
+    LabelsPopoverList,
+    popover_list::PopoverList,
+    section,
+    service::load_items,
+    todo_state::{DBState, LabelState},
 };
 
 actions!(list_story, [SelectedCompany]);
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct LabelSelect {
+    label: Rc<LabelModel>,
+    selected: bool,
+    pub checked: bool,
+}
+impl LabelSelect {
+    fn new(label: Rc<LabelModel>, checked: bool) -> Self {
+        Self { label, selected: false, checked }
+    }
 
+    fn set_checked(&mut self, checked: bool) {
+        self.checked = checked;
+    }
+
+    fn name(&self) -> String {
+        self.label.name.clone()
+    }
+}
+impl SelectItem for LabelSelect {
+    type Value = Rc<LabelModel>;
+
+    fn title(&self) -> SharedString {
+        self.label.name.clone().into()
+    }
+
+    fn display_title(&self) -> Option<gpui::AnyElement> {
+        Some(format!("{} ", self.label.name.clone()).into_any_element())
+    }
+
+    fn render(&self, _: &mut Window, _: &mut App) -> impl IntoElement {
+        h_flex().child(Checkbox::new("is").checked(self.checked)).child(self.label.name.clone())
+    }
+
+    fn value(&self) -> &Self::Value {
+        &self.label
+    }
+}
 pub struct ListStory {
     focus_handle: FocusHandle,
     company_list: Entity<ListState<ItemListDelegate>>,
@@ -34,6 +77,7 @@ pub struct ListStory {
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
     label_picker: Entity<LabelPickerState>,
+    label_list_select: Entity<SelectState<SearchableVec<SelectGroup<LabelSelect>>>>,
 }
 
 impl super::Mytool for ListStory {
@@ -66,7 +110,23 @@ impl ListStory {
             let picker = ItemInfoState::new(window, cx);
             picker
         });
+        let label_list = cx.global::<LabelState>().labels.clone();
+        let mut grouped_countries: SearchableVec<SelectGroup<LabelSelect>> =
+            SearchableVec::new(vec![]);
+        for (prefix, items) in label_list.iter().chunk_by(|c| c.name.clone()).into_iter() {
+            let items = items
+                .into_iter()
+                .map(|item| LabelSelect::new(item.clone(), false))
+                .collect::<Vec<LabelSelect>>();
+            grouped_countries.push(SelectGroup::new(prefix.to_string()).items(items));
+        }
+
+        let label_list_select = cx.new(|cx| {
+            SelectState::new(grouped_countries, Some(IndexPath::default()), window, cx)
+                .searchable(true)
+        });
         let _subscriptions = vec![
+            cx.subscribe_in(&label_list_select, window, Self::on_select_event),
             cx.subscribe(&label_picker, |_this, _, ev, _| match ev {
                 LabelPickerEvent::Added(label) => {
                     println!("label picker selected: {:?}", label.clone());
@@ -85,7 +145,7 @@ impl ListStory {
                 LabelsPopoverEvent::Selected(label) => {
                     println!("label_popover_list select: {:?}", label);
                 },
-                LabelsPopoverEvent::DeSelected(_model) => todo!(),
+                LabelsPopoverEvent::DeSelected(_model) => {},
             }),
             cx.subscribe(&item_info, |this, _, _event: &ItemInfoEvent, cx| {
                 this.item_info.update(cx, |_item_info, _cx| {
@@ -132,6 +192,7 @@ impl ListStory {
             popover_list,
             label_popover_list,
             label_picker,
+            label_list_select,
         }
     }
 
@@ -141,16 +202,34 @@ impl ListStory {
             self.selected_company = Some(company);
         }
     }
+
+    fn on_select_event(
+        &mut self,
+        _: &Entity<SelectState<SearchableVec<SelectGroup<LabelSelect>>>>,
+        event: &SelectEvent<SearchableVec<SelectGroup<LabelSelect>>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        match event {
+            SelectEvent::Confirm(value) => println!("Selected country: {:?}", value),
+        }
+    }
 }
 
 impl Focusable for ListStory {
-    fn focus_handle(&self, cx: &gpui::App) -> FocusHandle {
-        self.color.read(cx).focus_handle(cx)
-        // self.focus_handle.clone()
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
     }
 }
 impl Render for ListStory {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let item = Rc::new(ItemModel {
+            id: "1".to_string(),
+            content: "Item 1".to_string(),
+            description: Some("This is item 1".to_string()),
+            ..Default::default()
+        });
+        let item_row = ItemRow::view(item, false, window, cx);
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_company))
@@ -160,34 +239,10 @@ impl Render for ListStory {
             .child(
                 section("label picker").child(LabelPicker::new(&self.label_picker).cleanable(true)),
             )
+            .child(section("Select").child(Select::new(&self.label_list_select).cleanable(true)))
             .child(section("popover_list").child(self.popover_list.clone()))
+            .child(section("item row").child(item_row))
             .child(section("label popover list").child(self.label_popover_list.clone()))
-            .child(ColorGroup::new(&self.color).large())
-            .when_some(self.selected_color, |this, color| {
-                this.child(
-                    h_flex()
-                        .gap_4()
-                        .child(
-                            div()
-                                .id(SharedString::from(format!("color-{}", color.to_hex())))
-                                .h_5()
-                                .w_5()
-                                .bg(color)
-                                .border_1()
-                                .border_color(color.darken(0.1)),
-                        )
-                        .child(color.to_hex()),
-                )
-            })
             .child(Divider::horizontal())
-        // .child(
-        //     List::new(&self.company_list)
-        //         .p(px(8.))
-        //         .flex_1()
-        //         .w_full()
-        //         .border_1()
-        //         .border_color(cx.theme().border)
-        //         .rounded(cx.theme().radius),
-        // )
     }
 }
