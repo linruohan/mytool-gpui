@@ -1,13 +1,15 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, ClickEvent, Context, ElementId, Entity, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Window, prelude::FluentBuilder as _,
+    prelude::FluentBuilder as _, App, AppContext, ClickEvent, Context, ElementId, Entity, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement, Render, Styled,
+    Window,
 };
-use gpui_component::{ActiveTheme, Selectable, button::Button, checkbox::Checkbox, h_flex};
+use gpui_component::{button::Button, checkbox::Checkbox, h_flex, ActiveTheme, Selectable};
 use todos::entity::ItemModel;
 
 pub struct ItemRow {
+    focus_handle: FocusHandle,
     selected: bool,
     checked: bool,
     item: Rc<ItemModel>,
@@ -18,10 +20,17 @@ pub struct ItemRow {
 }
 
 impl ItemRow {
-    pub fn new(id: impl Into<ElementId>, item: Rc<ItemModel>, is_project_view: bool) -> Self {
+    pub fn new(
+        id: impl Into<ElementId>,
+        item: Rc<ItemModel>,
+        is_project_view: bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let _id: ElementId = id.into();
         let item = item.clone();
         Self {
+            focus_handle: cx.focus_handle(),
             selected: false,
             checked: false,
             item: item.clone(),
@@ -35,11 +44,11 @@ impl ItemRow {
     pub fn view(
         item: Rc<ItemModel>,
         is_project_view: bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> Entity<Self> {
         let item = item.clone();
-        cx.new(|_cx| Self::new(item.id.clone(), item.clone(), is_project_view))
+        cx.new(|cx| Self::new(item.id.clone(), item.clone(), is_project_view, window, cx))
     }
 
     /// Set ListItem as the selected item style.
@@ -52,6 +61,11 @@ impl ItemRow {
         self.checked = *checked;
         println!("on clicked: {}", self.checked);
         cx.notify();
+    }
+}
+impl Focusable for ItemRow {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
+        self.focus_handle.clone()
     }
 }
 
