@@ -582,7 +582,7 @@ impl Store {
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
                 if let Ok(item) = item {
-                    if item.has_labels() && item.model.checked && !item.was_archived().await {
+                    if item.has_labels().await && item.model.checked && !item.was_archived().await {
                         return Some(model);
                     }
                 }
@@ -605,7 +605,7 @@ impl Store {
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
                 if let Ok(item) = item {
-                    if item.has_label(label_id)
+                    if item.has_label(label_id).await
                         && model.checked == checked
                         && !item.was_archived().await
                     {

@@ -47,12 +47,18 @@ impl Item {
     }
 
     pub fn set_priority(&mut self, priority: i32) -> &mut Self {
-        self.model.priority = Some(priority.into());
+        self.model.priority = Some(priority);
         self
     }
 
-    pub fn labels(&self) -> Vec<LabelModel> {
-        todo!()
+    pub async fn labels(&self) -> Vec<LabelModel> {
+        if let Some(labels_str) = &self.model.labels {
+            let all_labels = self.store().await.labels().await;
+            let label_ids: Vec<&str> = labels_str.split(';').collect();
+            all_labels.into_iter().filter(|label| label_ids.contains(&label.id.as_str())).collect()
+        } else {
+            vec![]
+        }
     }
 
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
@@ -155,7 +161,7 @@ impl Item {
     }
 
     pub fn has_due(&self) -> bool {
-        self.due().and_then(|d| Some(d.datetime().is_some())).unwrap_or(false)
+        self.due().map(|d| d.datetime().is_some()).unwrap_or(false)
     }
 
     pub fn has_time(&self) -> bool {
@@ -253,12 +259,12 @@ impl Item {
         self.store().await.get_attachments_by_itemid(&self.model.id).await
     }
 
-    pub(crate) fn has_labels(&self) -> bool {
-        !self.labels().is_empty()
+    pub async fn has_labels(&self) -> bool {
+        !self.labels().await.is_empty()
     }
 
-    pub fn has_label(&self, id: &str) -> bool {
-        self.get_label(id).is_some()
+    pub async fn has_label(&self, id: &str) -> bool {
+        self.get_label(id).await.is_some()
     }
 
     pub async fn exists_project(&self, project: ProjectModel) -> bool {
@@ -273,8 +279,8 @@ impl Item {
         .await
     }
 
-    pub fn get_label(&self, id: &str) -> Option<LabelModel> {
-        self.labels().iter().find(|l| l.id == id).cloned()
+    pub async fn get_label(&self, id: &str) -> Option<LabelModel> {
+        self.labels().await.iter().find(|l| l.id == id).cloned()
     }
 
     pub fn get_label_by_name(
@@ -291,13 +297,13 @@ impl Item {
 
     pub fn get_caldav_categories(&self) {}
 
-    pub fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
+    pub async fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
         for (key, label) in &new_labels {
-            if self.get_label(&label.id).is_none() {
+            if self.get_label(&label.id).await.is_none() {
                 self.add_label_if_not_exists(&label);
             }
         }
-        for label in self.labels() {
+        for label in self.labels().await {
             if !new_labels.contains_key(&label.id) {
                 self.delete_item_label(&label.id);
             }
@@ -445,7 +451,7 @@ impl Item {
         &mut self,
         label_model: LabelModel,
     ) -> Result<LabelModel, TodoError> {
-        let mut labels = self.labels();
+        let mut labels = self.labels().await;
         labels.insert(0, label_model.clone());
         self.model.labels =
             Some(labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";"));
@@ -458,8 +464,8 @@ impl Item {
     }
 
     pub async fn delete_item_label(&mut self, id: &str) -> Result<u64, TodoError> {
-        let labels_model = self.labels();
-        let Some(label_model) = self.get_label(id) else {
+        let labels_model = self.labels().await;
+        let Some(label_model) = self.get_label(id).await else {
             return Ok(0);
         };
         let labels: Vec<_> = labels_model.into_iter().filter(|l| l.id != id).collect();
@@ -575,7 +581,7 @@ impl Item {
         reminder: &ReminderModel,
     ) -> Result<ReminderModel, TodoError> {
         match self.get_reminder(reminder).await {
-            Some(reminder) => return Ok(reminder),
+            Some(reminder) => Ok(reminder),
             None => self.store().await.insert_reminder(reminder.clone()).await,
         }
     }
@@ -598,7 +604,7 @@ impl Item {
         &self,
         label: &LabelModel,
     ) -> Result<LabelModel, TodoError> {
-        match self.get_label(&label.id) {
+        match self.get_label(&label.id).await {
             Some(label) => Ok(label),
             None => self.store().await.insert_label(label.clone()).await,
         }

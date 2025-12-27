@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, App, Context, ElementId, Hsla, IntoElement,
-    ParentElement, RenderOnce, SharedString, Styled, Task, Window,
+    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
+    Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, Icon, IconName, IndexPath,
-    Selectable,
+    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::SectionModel;
 
@@ -86,8 +86,8 @@ impl RenderOnce for SectionListItem {
                                         &self.section.color.clone().unwrap_or_default()[1..],
                                         16,
                                     )
-                                        .ok()
-                                        .unwrap_or_default(),
+                                    .ok()
+                                    .unwrap_or_default(),
                                 ),
                             )),
                         )
@@ -150,8 +150,8 @@ impl SectionListDelegate {
             .filter(|section| section.name.to_lowercase().contains(&self.query.to_lowercase()))
             .cloned()
             .collect();
-        for Section in sections.into_iter() {
-            self.matched_sections.push(vec![Section]);
+        for section in sections.into_iter() {
+            self.matched_sections.push(vec![section]);
         }
     }
 
