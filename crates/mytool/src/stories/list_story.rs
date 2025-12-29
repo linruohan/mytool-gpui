@@ -19,8 +19,7 @@ use todos::entity::{ItemModel, LabelModel};
 
 use crate::{
     ColorGroupEvent, ColorGroupState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
-    ItemRow, LabelPicker, LabelPickerEvent, LabelPickerState, LabelsPopoverEvent,
-    LabelsPopoverList,
+    ItemRow, ItemRowEvent, ItemRowState, LabelsPopoverEvent, LabelsPopoverList,
     popover_list::PopoverList,
     section,
     service::load_items,
@@ -76,7 +75,7 @@ pub struct ListStory {
     selected_color: Option<Hsla>,
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
-    label_picker: Entity<LabelPickerState>,
+    item_row: Entity<ItemRowState>,
     label_list_select: Entity<SelectState<SearchableVec<SelectGroup<LabelSelect>>>>,
 }
 
@@ -103,7 +102,13 @@ impl ListStory {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
-        let label_picker = cx.new(|cx| LabelPickerState::new_with_checked(Vec::new(), window, cx));
+        let item = Rc::new(ItemModel {
+            id: "1".to_string(),
+            content: "Item 1".to_string(),
+            description: Some("This is item 1".to_string()),
+            ..Default::default()
+        });
+        let item_row = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
         let item_info = cx.new(|cx| {
@@ -127,11 +132,11 @@ impl ListStory {
         });
         let _subscriptions = vec![
             cx.subscribe_in(&label_list_select, window, Self::on_select_event),
-            cx.subscribe(&label_picker, |_this, _, ev, _| match ev {
-                LabelPickerEvent::Added(label) => {
+            cx.subscribe(&item_row, |_this, _, ev, _| match ev {
+                ItemRowEvent::Added(label) => {
                     println!("label picker selected: {:?}", label.clone());
                 },
-                LabelPickerEvent::Removed(label) => {
+                ItemRowEvent::Removed(label) => {
                     println!("label picker deselected: {:?}", label.clone());
                 },
             }),
@@ -191,7 +196,7 @@ impl ListStory {
             item_info,
             popover_list,
             label_popover_list,
-            label_picker,
+            item_row,
             label_list_select,
         }
     }
@@ -222,26 +227,22 @@ impl Focusable for ListStory {
     }
 }
 impl Render for ListStory {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let item = Rc::new(ItemModel {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let _item = Rc::new(ItemModel {
             id: "1".to_string(),
             content: "Item 1".to_string(),
             description: Some("This is item 1".to_string()),
             ..Default::default()
         });
-        let item_row = ItemRow::view(item, false, window, cx);
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_company))
             .size_full()
             .gap_4()
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
-            .child(
-                section("label picker").child(LabelPicker::new(&self.label_picker).cleanable(true)),
-            )
+            .child(section("item row").child(ItemRow::new(&self.item_row).cleanable(true)))
             .child(section("Select").child(Select::new(&self.label_list_select).cleanable(true)))
             .child(section("popover_list").child(self.popover_list.clone()))
-            .child(section("item row").child(item_row))
             .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(Divider::horizontal())
     }
