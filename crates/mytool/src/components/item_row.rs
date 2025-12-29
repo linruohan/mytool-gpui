@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
 use gpui::{
-    prelude::FluentBuilder as _, App, AppContext, ClickEvent, Context, ElementId, Entity, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement, Render, Styled,
-    Window,
+    App, AppContext, ClickEvent, Context, ElementId, Entity, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Window,
+    prelude::FluentBuilder as _,
 };
-use gpui_component::{button::Button, checkbox::Checkbox, h_flex, ActiveTheme, Selectable};
+use gpui_component::{ActiveTheme, Selectable, button::Button, checkbox::Checkbox, h_flex};
 use todos::entity::ItemModel;
 
 pub struct ItemRow {
