@@ -136,9 +136,7 @@ impl ListStory {
                 ItemRowEvent::Added(label) => {
                     println!("label picker selected: {:?}", label.clone());
                 },
-                ItemRowEvent::Removed(label) => {
-                    println!("label picker deselected: {:?}", label.clone());
-                },
+                _ => {},
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
@@ -240,7 +238,7 @@ impl Render for ListStory {
             .size_full()
             .gap_4()
             .child(section("item_info").child(ItemInfo::new(&self.item_info)))
-            .child(section("item row").child(ItemRow::new(&self.item_row).cleanable(true)))
+            .child(section("item row").child(ItemRow::new(&self.item_row)))
             .child(section("Select").child(Select::new(&self.label_list_select).cleanable(true)))
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))

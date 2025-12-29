@@ -1,26 +1,25 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    actions, anchored, deferred, div, prelude::FluentBuilder as _, px, Action, App, AppContext,
-    Context, ElementId, Empty, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _,
-    Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
+    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce,
+    StyleRefinement, Styled, Subscription, Window, actions, anchored, deferred, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, red_400, tag::Tag, v_flex,
-    ActiveTheme,
-    Disableable,
-    IconName,
-    Sizable,
-    Size,
-    StyleSized as _,
-    StyledExt as _,
+    ActiveTheme, IconName, Sizable, Size, StyledExt as _,
+    button::{Button, ButtonVariants},
+    checkbox::Checkbox,
+    h_flex,
+    label::Label,
+    red_400,
+    tag::Tag,
+    v_flex,
 };
 use serde::Deserialize;
 use todos::entity::{ItemModel, LabelModel};
-use tokio::io::AsyncReadExt;
 
-use crate::{section, todo_state::LabelState, ItemInfo, ItemInfoEvent, ItemInfoState};
+use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, section, todo_state::LabelState};
 
 actions!(item_row, [ItemRowCancel, ItemRowDelete,]);
 #[derive(Clone, Action, PartialEq, Eq, Deserialize)]
@@ -36,30 +35,22 @@ pub struct ItemRowCheck {
     pub select: bool,
 }
 
-const CONTEXT: &'static str = "item_row";
-pub fn init(cx: &mut App) {
-    cx.bind_keys([
-        KeyBinding::new("enter", ItemRowConfirm { secondary: false }, Some(CONTEXT)),
-        KeyBinding::new("escape", ItemRowCancel, Some(CONTEXT)),
-        KeyBinding::new("delete", ItemRowDelete, Some(CONTEXT)),
-        KeyBinding::new("backspace", ItemRowDelete, Some(CONTEXT)),
-    ])
-}
-
+const CONTEXT: &'static str = "ItemRow";
 #[derive(Clone)]
 pub enum ItemRowEvent {
-    Added(Rc<LabelModel>),
-    Removed(Rc<LabelModel>),
+    Updated(Rc<ItemModel>),    // 更新任务
+    Added(Rc<ItemModel>),      // 新增任务
+    Finished(Rc<ItemModel>),   // 状态改为完成
+    UnFinished(Rc<ItemModel>), // 状态改为未完成
+    Deleted(Rc<ItemModel>),    // 删除任务
 }
-
-/// Use to store the state of the date picker.
 pub struct ItemRowState {
     focus_handle: FocusHandle,
-    item: Rc<ItemModel>,
+    pub item: Rc<ItemModel>,
     item_info: Entity<ItemInfoState>,
-    checked: bool,
     open: bool,
     _subscriptions: Vec<Subscription>,
+    checked: bool,
 }
 
 impl Focusable for ItemRowState {
@@ -68,7 +59,6 @@ impl Focusable for ItemRowState {
     }
 }
 impl EventEmitter<ItemRowEvent> for ItemRowState {}
-
 impl ItemRowState {
     pub fn new(item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
@@ -79,14 +69,13 @@ impl ItemRowState {
                     // item_info.handel_item_info_event(event, cx);
                 });
             })];
-
         Self {
             focus_handle: cx.focus_handle(),
             item: item.clone(),
             item_info,
-            checked: item.clone().checked,
             open: false,
             _subscriptions,
+            checked: item.clone().checked,
         }
     }
 
@@ -131,187 +120,61 @@ impl ItemRowState {
         }
     }
 
+    // pub fn on_labels_event(
+    //     &mut self,
+    //     _state: &Entity<LabelsPopoverList>,
+    //     event: &LabelsPopoverEvent,
+    //     _window: &mut Window,
+    //     _cx: &mut Context<Self>,
+    // ) {
+    //     match event {
+    //         LabelsPopoverEvent::Selected(label) => {
+    //             self.add_checked_labels(label.clone());
+    //         },
+    //         LabelsPopoverEvent::DeSelected(label) => {
+    //             self.rm_checked_labels(label.clone());
+    //         },
+    //     }
+    // }
+
+    fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
+        self.checked = *selectable;
+    }
+
     // 显示label list
     fn toggle_labels(&mut self, _: &gpui::ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         self.open = !self.open;
         cx.notify();
     }
-
-    fn toggle_checked_labels(&mut self, checked: &bool, _: &mut Window, _cx: &mut Context<Self>) {
-        println!("toggle_checked_labels: {}", checked);
-        let _changed_label: Option<Rc<LabelModel>> = None;
-        // self.label_list.update(cx, |list, _cx| {
-        //     if let Some(ix) = &list.delegate().selected_index {
-        //         if let Some(label) = list
-        //             .delegate()
-        //             .matched_labels
-        //             .get(ix.section)
-        //             .and_then(|c| c.get(ix.row))
-        //             .cloned()
-        //         {
-        //             changed_label = Some(label.clone());
-        //
-        //             let exists = self.checked_labels.iter().any(|l| Rc::ptr_eq(l, &label));
-        //
-        //             if *checked && !exists {
-        //                 self.checked_labels.push(label.clone());
-        //             } else if !*checked && exists {
-        //                 self.checked_labels.retain(|l| !Rc::ptr_eq(l, &label));
-        //             }
-        //         }
-        //     }
-        // });
-        //
-        // if let Some(label) = changed_label {
-        //     let event = if *checked {
-        //         LabelPickerEvent::Added(label)
-        //     } else {
-        //         LabelPickerEvent::Removed(label)
-        //     };
-        //     cx.emit(event);
-        //     cx.notify();
-        // }
-    }
-
-    fn checked_preset(
-        &mut self,
-        _checked_labels: Vec<Rc<LabelModel>>,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) {
-        // self.checked_labels = checked_labels;
-        // self.label_list.update(cx, |state, cx| {
-        //     state.delegate_mut().checked_labels = self.checked_labels.clone();
-        //     cx.notify();
-        // })
-    }
-}
-
-/// A DatePicker element.
-#[derive(IntoElement)]
-pub struct ItemRow {
-    id: ElementId,
-    style: StyleRefinement,
-    state: Entity<ItemRowState>,
-    cleanable: bool,
-    selected: bool,
-    placeholder: Option<SharedString>,
-    size: Size,
-    appearance: bool,
-    disabled: bool,
-}
-
-impl Sizable for ItemRow {
-    fn with_size(mut self, size: impl Into<Size>) -> Self {
-        self.size = size.into();
-        self
-    }
-}
-impl Focusable for ItemRow {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
-        self.state.focus_handle(cx)
-    }
-}
-
-impl Styled for ItemRow {
-    fn style(&mut self) -> &mut StyleRefinement {
-        &mut self.style
-    }
-}
-
-impl Disableable for ItemRow {
-    fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = disabled;
-        self
-    }
 }
 
 impl Render for ItemRowState {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
-        Empty
-    }
-}
-
-impl ItemRow {
-    /// Create a new DatePicker with the given [`ItemRowState`].
-    pub fn new(state: &Entity<ItemRowState>) -> Self {
-        Self {
-            id: ("date-picker", state.entity_id()).into(),
-            state: state.clone(),
-            cleanable: false,
-            placeholder: None,
-            size: Size::default(),
-            style: StyleRefinement::default(),
-            appearance: true,
-            disabled: false,
-            selected: false,
-        }
-    }
-
-    /// Set the placeholder of the date picker, default: "".
-    pub fn placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
-        self.placeholder = Some(placeholder.into());
-        self
-    }
-
-    /// Set whether to show the clear button when the input field is not empty, default is false.
-    pub fn cleanable(mut self, cleanable: bool) -> Self {
-        self.cleanable = cleanable;
-        self
-    }
-
-    /// Set appearance of the date picker, if false, the date picker will be in a minimal style.
-    pub fn appearance(mut self, appearance: bool) -> Self {
-        self.appearance = appearance;
-        self
-    }
-}
-
-impl RenderOnce for ItemRow {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        // This for keep focus border style, when click on the popup.
-        let _is_focused = self.focus_handle(cx).contains_focused(window, cx);
-        let state = self.state.read(cx);
-        let item = state.item.clone();
-        let item_info = state.item_info.clone();
-        let text_color =
-            if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
-
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let labels = cx.global::<LabelState>().labels.clone();
         let label_map: HashMap<&str, &Rc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
-        let item_labels = &item.labels;
+        let item_labels = &self.item.labels;
+        let item = self.item.clone();
         div()
-            .id(self.id.clone())
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle(cx).tab_stop(true))
             // .on_action(window.listener_for(&self.state, ItemRowState::on_enter))
             // .on_action(window.listener_for(&self.state, ItemRowState::on_delete))
-            // .when(state.open, |this| {
-            //     this.on_action(window.listener_for(&self.state, ItemRowState::on_escape))
-            // })
+            .when(self.open, |this| {
+                this.on_action(cx.listener(ItemRowState::on_escape))
+            })
             .flex_1()
             .w_full()
             .relative()
-            .input_text_size(self.size)
-            .refine_style(&self.style)
-            // .child(
-            //     div()
-            //         .id("item-row")
-            //         .relative()
-            //         .flex()
-            //         .items_center()
-            //         .justify_between()
-            //         .overflow_hidden()
-            //         .input_text_size(self.size)
-            // )
             .child(
                 h_flex()
                     .items_center()
                     .justify_start()
                     .gap_2()
-                    .text_color(text_color)
-                    .child(Checkbox::new("item-finished").checked(item.checked))
+                    .child(Checkbox::new("item-finished").checked(self.checked).on_click(cx.listener(move |view, checked, _window, _cx| {
+                        view.checked = *checked;
+                    }
+                    )))
                     .child(
                         Label::new("Tomorrow").when(item.checked, |this| {
                             this.line_through().text_color(red_400())
@@ -380,15 +243,15 @@ impl RenderOnce for ItemRow {
                                     .small().icon(IconName::ViewMoreSymbolic)
                                     .ghost()
                                     .compact()
-                                    .when(!state.open && !self.disabled, |this| {
+                                    .when(!self.open, |this| {
                                         this.on_click(
-                                            window.listener_for(&self.state, ItemRowState::toggle_labels),
+                                            cx.listener(ItemRowState::toggle_labels),
                                         )
                                     })
                             )
                     )
             )
-            .when(state.open, |this| {
+            .when(self.open, |this| {
                 this.child(
                     deferred(
                         anchored().snap_to_window_with_margin(px(8.)).child(
@@ -404,15 +267,66 @@ impl RenderOnce for ItemRow {
                                 .text_color(cx.theme().popover_foreground)
                                 .on_mouse_up_out(
                                     MouseButton::Left,
-                                    window.listener_for(&self.state, |view, _, window, cx| {
+                                    cx.listener(|view, _, window, cx| {
                                         view.on_escape(&ItemRowCancel, window, cx);
                                     }),
                                 )
-                                .child(section("item_info").child(ItemInfo::new(&item_info)))
+                                .child(section("item_info").child(ItemInfo::new(&self.item_info)))
                         ),
                     )
                         .with_priority(2),
                 )
             })
+    }
+}
+
+/// A DatePicker element.
+#[derive(IntoElement)]
+pub struct ItemRow {
+    id: ElementId,
+    style: StyleRefinement,
+    size: Size,
+    state: Entity<ItemRowState>,
+}
+
+impl Sizable for ItemRow {
+    fn with_size(mut self, size: impl Into<Size>) -> Self {
+        self.size = size.into();
+        self
+    }
+}
+impl Focusable for ItemRow {
+    fn focus_handle(&self, cx: &App) -> FocusHandle {
+        self.state.focus_handle(cx)
+    }
+}
+
+impl Styled for ItemRow {
+    fn style(&mut self) -> &mut StyleRefinement {
+        &mut self.style
+    }
+}
+
+impl ItemRow {
+    /// Create a new DatePicker with the given [`ItemRowState`].
+    pub fn new(state: &Entity<ItemRowState>) -> Self {
+        Self {
+            id: ("item-info", state.entity_id()).into(),
+            state: state.clone(),
+            size: Size::default(),
+            style: StyleRefinement::default(),
+        }
+    }
+}
+
+impl RenderOnce for ItemRow {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        div()
+            .id(self.id.clone())
+            .key_context(CONTEXT)
+            .track_focus(&self.focus_handle(cx).tab_stop(true))
+            .w_full()
+            .refine_style(&self.style)
+            .child(self.state.clone())
     }
 }
