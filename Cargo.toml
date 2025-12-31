@@ -38,10 +38,10 @@ sea-orm = { version = "1.1.19", features = [
 ] }
 winresource = "0.1.28"
 rodio = "0.21.1"
-tracing = { version = "0.1.43", features = ["async-await"] }
+tracing = { version = "0.1.44", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "chrono"] }
 chrono = { version = "0.4.42", features = ["serde"] }
-smallvec = { version = "1.6", features = ["union"] }
+smallvec = { version = "1.15", features = ["union"] }
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"
