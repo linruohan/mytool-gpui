@@ -1,13 +1,14 @@
 use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div,
+    Action, App, AppContext, ClickEvent, Context, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
+    StyleRefinement, Styled, Subscription, Window, div,
 };
 use gpui_component::{
-    IconName, Sizable, Size, StyledExt as _, WindowExt,
+    IconName, Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
+    checkbox::Checkbox,
     divider::Divider,
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -22,8 +23,9 @@ use todos::{
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
 use crate::{
-    LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList, service::load_labels,
-    todo_state::DBState,
+    LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList,
+    service::load_labels,
+    todo_state::{DBState, LabelState},
 };
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -206,15 +208,11 @@ impl ItemInfoState {
         }
     }
 
-    pub fn selected_labels(
-        &self,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Vec<Rc<LabelModel>> {
+    pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Rc<LabelModel>> {
         let Some(label_ids) = &self.item.labels else {
             return Vec::new();
         };
-        let all_labels = self.label_list.read(cx).delegate()._labels.clone();
+        let all_labels = cx.global::<LabelState>().labels.clone();
         label_ids
             .split(';')
             .filter_map(|label_id| {
@@ -236,8 +234,13 @@ impl ItemInfoState {
         item.priority = Some(priority);
     }
 
-    fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
-        self.checked = *selectable;
+    fn toggle_finished(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let view = cx.entity();
+        let _ = cx.update_entity(&view, |this, cx| {
+            let item = Rc::make_mut(&mut self.item);
+            item.checked = !item.checked;
+            cx.notify();
+        });
     }
 
     // set item of item_info
@@ -260,15 +263,57 @@ impl ItemInfoState {
             }
         });
     }
+
+    // label_toggle_checked：label选中或取消选中
+    fn label_toggle_checked(
+        &mut self,
+        label: Rc<LabelModel>,
+        selected: &bool,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let view = cx.entity();
+        if *selected {
+            let _ = cx.update_entity(&view, |this, cx| {
+                this.add_checked_labels(label.clone());
+                cx.notify();
+            });
+        } else {
+            let _ = cx.update_entity(&view, |this, cx| {
+                this.rm_checked_labels(label.clone());
+                cx.notify();
+            });
+        }
+        cx.notify();
+    }
 }
 
 impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
+        let labels = cx.global::<LabelState>().labels.clone();
         v_flex()
             .border_3()
-            .child(Input::new(&self.name_input).focus_bordered(false))
+            .child(
+                h_flex().child(Input::new(&self.name_input).focus_bordered(false)).child(
+                    Button::new("item-finish")
+                        .small()
+                        .ghost()
+                        .compact()
+                        .icon(IconName::CheckRoundOutlineSymbolic)
+                        .on_click(cx.listener(Self::toggle_finished)),
+                ),
+            )
             .child(Input::new(&self.desc_input).bordered(false))
+            .child(h_flex().gap_3().children(labels.iter().enumerate().map(|(ix, label)| {
+                let label_clone = label.clone();
+                Checkbox::new(format!("label-{}", ix))
+                    .label(label.name.clone())
+                    .checked(self.selected_labels(cx).iter().any(|l| l.id == label.id))
+                    .on_click(cx.listener(move |view, checked: &bool, window, cx| {
+                        view.label_toggle_checked(label_clone.clone(), checked, window, cx);
+                    }))
+            })))
             .child(
                 h_flex()
                     .items_center()
@@ -285,16 +330,7 @@ impl Render for ItemInfoState {
                                     .compact()
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {
-                                            // let items_panel_clone = items_panel.clone();
-                                            // items_panel_clone.update(cx, |items_panel,
-                                            // cx| {
-                                            //     items_panel.
-                                            // show_finish_item_dialog(window,
-                                            // cx);
-                                            //     cx.notify();
-                                            // })
-                                        }
+                                        move |_event, _window, _cx| {}
                                     }),
                             ),
                         ),
@@ -313,17 +349,11 @@ impl Render for ItemInfoState {
                                     .icon(IconName::PlusLargeSymbolic)
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {
-                                            // let items_panel_clone = items_panel.clone();
-                                            // items_panel_clone.update(cx, |items_panel, cx| {
-                                            //     items_panel.show_finish_item_dialog(window, cx);
-                                            //     cx.notify();
-                                            // })
-                                        }
+                                        move |_event, _window, _cx| {}
                                     }),
                             )
                             .child(self.label_popover_list.clone()) // tags
-                            .child(PriorityButton::new(&self.priority_state))
+                            .child(PriorityButton::new(&self.priority_state)) // priority
                             .child(
                                 Button::new("item-reminder")
                                     .small()
@@ -332,13 +362,7 @@ impl Render for ItemInfoState {
                                     .icon(IconName::AlarmSymbolic)
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {
-                                            // let items_panel_clone = items_panel.clone();
-                                            // items_panel_clone.update(cx, |items_panel, cx| {
-                                            //     items_panel.show_item_dialog(window, cx, false);
-                                            //     cx.notify();
-                                            // })
-                                        }
+                                        move |_event, _window, _cx| {}
                                     }),
                             )
                             .child(
@@ -348,13 +372,14 @@ impl Render for ItemInfoState {
                                     .compact()
                                     .icon(IconName::PinSymbolic)
                                     .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {
-                                            // let items_panel_clone = items_panel.clone();
-                                            // items_panel_clone.update(cx, |items_panel, cx| {
-                                            //     items_panel.show_item_dialog(window, cx, true);
-                                            //     cx.notify();
-                                            // })
+                                        let view = view.clone();
+                                        move |_event, _window, cx| {
+                                            let _ = cx.update_entity(&view, |this, cx| {
+                                                let item = Rc::make_mut(&mut self.item);
+                                                item.pinned = !item.pinned;
+                                                println!("item pin: {}", item.pinned);
+                                                cx.notify();
+                                            });
                                         }
                                     }),
                             )
@@ -365,13 +390,7 @@ impl Render for ItemInfoState {
                                     .ghost()
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {
-                                            // let items_panel_clone = items_panel.clone();
-                                            // items_panel_clone.update(cx, |items_panel, cx| {
-                                            //     items_panel.show_item_delete_dialog(window, cx);
-                                            //     cx.notify();
-                                            // })
-                                        }
+                                        move |_event, _window, _cx| {}
                                     }),
                             ),
                     ),
@@ -397,16 +416,7 @@ impl Render for ItemInfoState {
                                         .compact()
                                         .on_click({
                                             // let items_panel = self.items_panel.clone();
-                                            move |_event, _window, _cx| {
-                                                // let items_panel_clone = items_panel.clone();
-                                                // items_panel_clone.update(cx, |items_panel,
-                                                // cx| {
-                                                //     items_panel.
-                                                // show_finish_item_dialog(window,
-                                                // cx);
-                                                //     cx.notify();
-                                                // })
-                                            }
+                                            move |_event, _window, _cx| {}
                                         }),
                                 )
                                 .child("——>")
@@ -418,16 +428,7 @@ impl Render for ItemInfoState {
                                         .compact()
                                         .on_click({
                                             // let items_panel = self.items_panel.clone();
-                                            move |_event, _window, _cx| {
-                                                // let items_panel_clone = items_panel.clone();
-                                                // items_panel_clone.update(cx, |items_panel,
-                                                // cx| {
-                                                //     items_panel.
-                                                // show_finish_item_dialog(window,
-                                                // cx);
-                                                //     cx.notify();
-                                                // })
-                                            }
+                                            move |_event, _window, _cx| {}
                                         }),
                                 ),
                         ),
@@ -439,7 +440,6 @@ impl Render for ItemInfoState {
                             let des_input_clone1 = self.desc_input.clone();
                             let label_popover_list_clone = self.label_popover_list.clone();
                             move |_, window, cx| {
-                                window.close_dialog(cx);
                                 view.update(cx, |view, cx| {
                                     let label_ids = label_popover_list_clone
                                         .read(cx)
