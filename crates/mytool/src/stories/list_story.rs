@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, actions,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, SharedString, Styled, Subscription, Window, actions,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath,
+    IndexPath,
     checkbox::Checkbox,
     divider::Divider,
     h_flex,
@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use todos::entity::{ItemModel, LabelModel};
 
 use crate::{
-    ColorGroupEvent, ColorGroupState, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
-    ItemRow, ItemRowEvent, ItemRowState, LabelsPopoverEvent, LabelsPopoverList,
+    ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, ItemRow, ItemRowEvent, ItemRowState,
+    LabelsPopoverEvent, LabelsPopoverList,
     popover_list::PopoverList,
     section,
     service::load_items,
@@ -71,8 +71,6 @@ pub struct ListStory {
     selected_company: Option<Rc<ItemModel>>,
     _subscriptions: Vec<Subscription>,
     item_info: Entity<ItemInfoState>,
-    color: Entity<ColorGroupState>,
-    selected_color: Option<Hsla>,
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
     item_row: Entity<ItemRowState>,
@@ -101,7 +99,6 @@ impl ListStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
-        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
         let item = Rc::new(ItemModel {
             id: "1".to_string(),
             content: "Item 1".to_string(),
@@ -137,12 +134,6 @@ impl ListStory {
                     println!("label picker selected: {:?}", label.clone());
                 },
                 _ => {},
-            }),
-            cx.subscribe(&color, |this, _, ev, _| match ev {
-                ColorGroupEvent::Change(color) => {
-                    this.selected_color = *color;
-                    println!("Color changed to: {:?}", color);
-                },
             }),
             cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
                 LabelsPopoverEvent::Selected(label) => {
@@ -185,8 +176,6 @@ impl ListStory {
         .detach();
 
         Self {
-            color,
-            selected_color: Some(cx.theme().primary),
             focus_handle: cx.focus_handle(),
             company_list,
             selected_company: None,

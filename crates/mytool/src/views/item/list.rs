@@ -162,6 +162,7 @@ impl ItemListDelegate {
         }
     }
 
+    #[allow(unused)]
     fn get_label_by_id(&mut self, id: &str, _window: &mut Window, cx: &mut App) -> Option<String> {
         let labels = cx.global::<LabelState>().labels.clone();
         if let Some(label) = labels.iter().find(|label| label.id == id).cloned() {

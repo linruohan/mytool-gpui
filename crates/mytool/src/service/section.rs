@@ -10,6 +10,7 @@ use todos::{
 pub async fn load_sections(db: DatabaseConnection) -> Vec<SectionModel> {
     Store::new(db).await.sections().await
 }
+#[allow(unused)]
 pub async fn add_section(
     section: Rc<SectionModel>,
     db: DatabaseConnection,

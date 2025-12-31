@@ -7,6 +7,7 @@ use todos::entity::SectionModel;
 use crate::todo_state::{DBState, SectionState};
 
 // 刷新sections
+#[allow(unused)]
 async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
     let sections = crate::service::load_sections(db).await;
     cx.update_global::<SectionState, _>(|state, _| {

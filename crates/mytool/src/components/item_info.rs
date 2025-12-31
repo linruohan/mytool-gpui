@@ -12,7 +12,6 @@ use gpui_component::{
     divider::Divider,
     h_flex,
     input::{Input, InputEvent, InputState},
-    list::ListState,
     v_flex,
 };
 use serde::Deserialize;
@@ -22,11 +21,7 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{
-    LabelListDelegate, LabelsPopoverEvent, LabelsPopoverList,
-    service::load_labels,
-    todo_state::{DBState, LabelState},
-};
+use crate::{LabelsPopoverEvent, LabelsPopoverList, todo_state::LabelState};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
@@ -43,7 +38,6 @@ pub enum ItemInfoEvent {
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
     pub item: Rc<ItemModel>,
-    pub label_list: Entity<ListState<LabelListDelegate>>,
     _subscriptions: Vec<Subscription>,
     // item view
     checked: bool,
@@ -63,9 +57,6 @@ impl ItemInfoState {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
 
-        let label_list =
-            cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
-
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("To-do Name"));
 
         let desc_input = cx.new(|cx| {
@@ -81,27 +72,9 @@ impl ItemInfoState {
             cx.subscribe_in(&priority_state, window, Self::on_priority_event),
         ];
 
-        let label_list_clone = label_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |_view, cx| {
-            let db = db.lock().await;
-            let labels = load_labels(db.clone()).await;
-            let rc_labels: Vec<Rc<LabelModel>> =
-                labels.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("label_panel: len labels: {}", labels.len());
-            let _ = cx
-                .update_entity(&label_list_clone, |list, cx| {
-                    list.delegate_mut().update_labels(rc_labels);
-                    cx.notify();
-                })
-                .ok();
-        })
-        .detach();
-
         Self {
             focus_handle: cx.focus_handle(),
             item,
-            label_list,
             _subscriptions,
             name_input,
             desc_input,
@@ -162,13 +135,14 @@ impl ItemInfoState {
         _state: &Entity<PriorityState>,
         event: &PriorityEvent,
         _window: &mut Window,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
         match event {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(*priority);
             },
         }
+        cx.notify();
     }
 
     pub fn add_checked_labels(&mut self, label: Rc<LabelModel>) {
@@ -232,15 +206,14 @@ impl ItemInfoState {
     pub fn set_priority(&mut self, priority: i32) {
         let item = Rc::make_mut(&mut self.item);
         item.priority = Some(priority);
+        println!("item priority:{:?} ", item.priority);
     }
 
     fn toggle_finished(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let view = cx.entity();
-        let _ = cx.update_entity(&view, |_this, cx| {
-            let item = Rc::make_mut(&mut self.item);
-            item.checked = !item.checked;
-            cx.notify();
-        });
+        let item = Rc::make_mut(&mut self.item);
+        item.checked = !item.checked;
+        println!("item checked:{:?} ", item.checked);
+        cx.notify();
     }
 
     // set item of item_info
@@ -272,19 +245,13 @@ impl ItemInfoState {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let view = cx.entity();
         if *selected {
-            let _ = cx.update_entity(&view, |this, cx| {
-                this.add_checked_labels(label.clone());
-                cx.notify();
-            });
+            self.add_checked_labels(label.clone());
         } else {
-            let _ = cx.update_entity(&view, |this, cx| {
-                this.rm_checked_labels(label.clone());
-                cx.notify();
-            });
+            self.rm_checked_labels(label.clone());
         }
         cx.notify();
+        println!("item labels :{:?} ", self.item.labels.clone().unwrap_or_default());
     }
 }
 
@@ -397,127 +364,42 @@ impl Render for ItemInfoState {
             )
             .child(Divider::horizontal().p_2())
             .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .child(
-                        h_flex().gap_2().child(
-                            h_flex()
-                                .gap_1()
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(
-                                    Button::new("item-project")
-                                        .label("Inbox")
-                                        .small()
-                                        .icon(IconName::Inbox)
-                                        .ghost()
-                                        .compact()
-                                        .on_click({
-                                            // let items_panel = self.items_panel.clone();
-                                            move |_event, _window, _cx| {}
-                                        }),
-                                )
-                                .child("——>")
-                                .child(
-                                    Button::new("item-section")
-                                        .label("Section")
-                                        .small()
-                                        .ghost()
-                                        .compact()
-                                        .on_click({
-                                            // let items_panel = self.items_panel.clone();
-                                            move |_event, _window, _cx| {}
-                                        }),
-                                ),
-                        ),
-                    )
-                    .child(
-                        h_flex().gap_2().items_center().justify_end(), /*     .child(
-                                                                        *     Button::new("save"
-                                                                        * ).label("Save").
-                                                                        * on_click({
-                                                                        *         let view =
-                                                                        * view.clone();
-                                                                        *         let
-                                                                        * name_input_clone1 =
-                                                                        * self.name_input.
-                                                                        * clone();
-                                                                        *         let
-                                                                        * des_input_clone1 =
-                                                                        * self.desc_input.
-                                                                        * clone();
-                                                                        *         let
-                                                                        * label_popover_list_clone
-                                                                        * = self.label_popover_list.
-                                                                        * clone();
-                                                                        *         move |_,
-                                                                        * window, cx| {
-                                                                        *
-                                                                        * view.update(cx, |view,
-                                                                        * cx| {
-                                                                        *                 let label_ids = label_popover_list_clone
-                                                                        *
-                                                                        * .read(cx)
-                                                                        *
-                                                                        * .selected_labels
-                                                                        *
-                                                                        * .iter()
-                                                                        *
-                                                                        * .map(|label|
-                                                                        * label.id.clone())
-                                                                        *                     .collect::<Vec<String>>()
-                                                                        *
-                                                                        * .join(";");
-                                                                        *
-                                                                        * println!("label_ids:
-                                                                        * {}", label_ids);
-                                                                        *                 let
-                                                                        * item = Rc::new(ItemModel
-                                                                        * {
-                                                                        *                     content: name_input_clone1.read(cx).value().to_string(),
-                                                                        *
-                                                                        * description: Some(
-                                                                        *
-                                                                        * des_input_clone1.
-                                                                        * read(cx).value().
-                                                                        * to_string(),
-                                                                        *                     ),
-                                                                        *                     checked: view.checked,
-                                                                        *                     labels: if label_ids.is_empty() {
-                                                                        *
-                                                                        * None
-                                                                        *                     }
-                                                                        * else {
-                                                                        *                         Some(label_ids.parse().unwrap_or_default())
-                                                                        *                     },
-                                                                        *
-                                                                        * priority: Some(
-                                                                        *
-                                                                        * view.priority_state.
-                                                                        * read(cx).priority() as
-                                                                        * i32
-                                                                        *                     ),
-                                                                        *                     ..Default::default()
-                                                                        *                 });
-                                                                        *
-                                                                        * println!("item_info:
-                                                                        * before:{:?}",
-                                                                        * item.clone());
-                                                                        *                 cx.emit(ItemInfoEvent::Updated(item.clone()));
-                                                                        *
-                                                                        * cx.notify();
-                                                                        *             });
-                                                                        *         }
-                                                                        *     }),
-                                                                        * ) */
+                h_flex().items_center().justify_between().gap_2().child(
+                    h_flex().gap_2().child(
+                        h_flex()
+                            .gap_1()
+                            .overflow_x_hidden()
+                            .flex_nowrap()
+                            .child(
+                                Button::new("item-project")
+                                    .label("Inbox")
+                                    .small()
+                                    .icon(IconName::Inbox)
+                                    .ghost()
+                                    .compact()
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {}
+                                    }),
+                            )
+                            .child("——>")
+                            .child(
+                                Button::new("item-section")
+                                    .label("Section")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .on_click({
+                                        // let items_panel = self.items_panel.clone();
+                                        move |_event, _window, _cx| {}
+                                    }),
+                            ),
                     ),
+                ),
             )
     }
 }
 
-/// A DatePicker element.
 #[derive(IntoElement)]
 pub struct ItemInfo {
     id: ElementId,
@@ -545,7 +427,6 @@ impl Styled for ItemInfo {
 }
 
 impl ItemInfo {
-    /// Create a new DatePicker with the given [`ItemInfoState`].
     pub fn new(state: &Entity<ItemInfoState>) -> Self {
         Self {
             id: ("item-info", state.entity_id()).into(),
@@ -557,15 +438,12 @@ impl ItemInfo {
 }
 
 impl RenderOnce for ItemInfo {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         div()
             .id(self.id.clone())
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle(cx).tab_stop(true))
-            // .flex_none()
             .w_full()
-            // .relative()
-            // .input_text_size(self.size)
             .refine_style(&self.style)
             .child(self.state.clone())
     }

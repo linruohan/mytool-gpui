@@ -11,6 +11,7 @@ use gpui_component::{
 use todos::entity::SectionModel;
 
 actions!(section, [SelectedSection, UnSelectedSection]);
+#[allow(unused)]
 pub enum SectionEvent {
     Checked(Rc<SectionModel>),
     UnChecked(Rc<SectionModel>),

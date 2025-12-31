@@ -11,7 +11,7 @@ use gpui_component::{
     list::{List, ListEvent, ListState},
     v_flex,
 };
-use todos::entity::SectionModel;
+use todos::entity::{ProjectModel, SectionModel};
 
 use super::{SectionEvent, SectionListDelegate};
 use crate::{
@@ -24,6 +24,7 @@ impl EventEmitter<SectionEvent> for SectionsPanel {}
 pub struct SectionsPanel {
     input_esc: Entity<InputState>,
     pub section_list: Entity<ListState<SectionListDelegate>>,
+    project: Rc<ProjectModel>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
     color: Entity<ColorGroupState>,
@@ -70,6 +71,7 @@ impl SectionsPanel {
         Self {
             input_esc,
             section_list,
+            project: Rc::new(ProjectModel::default()),
             active_index: Some(0),
             _subscriptions,
             color,

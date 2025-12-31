@@ -7,6 +7,7 @@ use todos::entity::ProjectModel;
 use crate::todo_state::{DBState, ProjectState};
 
 // 刷新projects
+#[allow(unused)]
 async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
     let projects = crate::service::load_projects(db).await;
     cx.update_global::<ProjectState, _>(|state, _| {
@@ -15,6 +16,7 @@ async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
     .ok();
 }
 // 添加project
+#[allow(unused)]
 pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
