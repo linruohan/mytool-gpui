@@ -236,7 +236,7 @@ impl ItemInfoState {
 
     fn toggle_finished(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         let view = cx.entity();
-        let _ = cx.update_entity(&view, |this, cx| {
+        let _ = cx.update_entity(&view, |_this, cx| {
             let item = Rc::make_mut(&mut self.item);
             item.checked = !item.checked;
             cx.notify();
@@ -375,7 +375,7 @@ impl Render for ItemInfoState {
                                         let view = view.clone();
                                         move |_event, _window, cx| {
                                             let _ = cx.update_entity(&view, |this, cx| {
-                                                let item = Rc::make_mut(&mut self.item);
+                                                let item = Rc::make_mut(&mut this.item);
                                                 item.pinned = !item.pinned;
                                                 println!("item pin: {}", item.pinned);
                                                 cx.notify();
@@ -433,45 +433,86 @@ impl Render for ItemInfoState {
                                 ),
                         ),
                     )
-                    .child(h_flex().gap_2().items_center().justify_end().child(
-                        Button::new("save").label("Save").on_click({
-                            let view = view.clone();
-                            let name_input_clone1 = self.name_input.clone();
-                            let des_input_clone1 = self.desc_input.clone();
-                            let label_popover_list_clone = self.label_popover_list.clone();
-                            move |_, window, cx| {
-                                view.update(cx, |view, cx| {
-                                    let label_ids = label_popover_list_clone
-                                        .read(cx)
-                                        .selected_labels
-                                        .iter()
-                                        .map(|label| label.id.clone())
-                                        .collect::<Vec<String>>()
-                                        .join(";");
-                                    println!("label_ids: {}", label_ids);
-                                    let item = Rc::new(ItemModel {
-                                        content: name_input_clone1.read(cx).value().to_string(),
-                                        description: Some(
-                                            des_input_clone1.read(cx).value().to_string(),
-                                        ),
-                                        checked: view.checked,
-                                        labels: if label_ids.is_empty() {
-                                            None
-                                        } else {
-                                            Some(label_ids.parse().unwrap_or_default())
-                                        },
-                                        priority: Some(
-                                            view.priority_state.read(cx).priority() as i32
-                                        ),
-                                        ..Default::default()
-                                    });
-                                    println!("item_info: before:{:?}", item.clone());
-                                    cx.emit(ItemInfoEvent::Updated(item.clone()));
-                                    cx.notify();
-                                });
-                            }
-                        }),
-                    )),
+                    .child(
+                        h_flex().gap_2().items_center().justify_end(), /*     .child(
+                                                                        *     Button::new("save"
+                                                                        * ).label("Save").
+                                                                        * on_click({
+                                                                        *         let view =
+                                                                        * view.clone();
+                                                                        *         let
+                                                                        * name_input_clone1 =
+                                                                        * self.name_input.
+                                                                        * clone();
+                                                                        *         let
+                                                                        * des_input_clone1 =
+                                                                        * self.desc_input.
+                                                                        * clone();
+                                                                        *         let
+                                                                        * label_popover_list_clone
+                                                                        * = self.label_popover_list.
+                                                                        * clone();
+                                                                        *         move |_,
+                                                                        * window, cx| {
+                                                                        *
+                                                                        * view.update(cx, |view,
+                                                                        * cx| {
+                                                                        *                 let label_ids = label_popover_list_clone
+                                                                        *
+                                                                        * .read(cx)
+                                                                        *
+                                                                        * .selected_labels
+                                                                        *
+                                                                        * .iter()
+                                                                        *
+                                                                        * .map(|label|
+                                                                        * label.id.clone())
+                                                                        *                     .collect::<Vec<String>>()
+                                                                        *
+                                                                        * .join(";");
+                                                                        *
+                                                                        * println!("label_ids:
+                                                                        * {}", label_ids);
+                                                                        *                 let
+                                                                        * item = Rc::new(ItemModel
+                                                                        * {
+                                                                        *                     content: name_input_clone1.read(cx).value().to_string(),
+                                                                        *
+                                                                        * description: Some(
+                                                                        *
+                                                                        * des_input_clone1.
+                                                                        * read(cx).value().
+                                                                        * to_string(),
+                                                                        *                     ),
+                                                                        *                     checked: view.checked,
+                                                                        *                     labels: if label_ids.is_empty() {
+                                                                        *
+                                                                        * None
+                                                                        *                     }
+                                                                        * else {
+                                                                        *                         Some(label_ids.parse().unwrap_or_default())
+                                                                        *                     },
+                                                                        *
+                                                                        * priority: Some(
+                                                                        *
+                                                                        * view.priority_state.
+                                                                        * read(cx).priority() as
+                                                                        * i32
+                                                                        *                     ),
+                                                                        *                     ..Default::default()
+                                                                        *                 });
+                                                                        *
+                                                                        * println!("item_info:
+                                                                        * before:{:?}",
+                                                                        * item.clone());
+                                                                        *                 cx.emit(ItemInfoEvent::Updated(item.clone()));
+                                                                        *
+                                                                        * cx.notify();
+                                                                        *             });
+                                                                        *         }
+                                                                        *     }),
+                                                                        * ) */
+                    ),
             )
     }
 }
