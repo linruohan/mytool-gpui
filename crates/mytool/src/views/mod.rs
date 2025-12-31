@@ -4,12 +4,12 @@ mod label;
 mod project;
 
 pub use boards::{
-    completed_board::CompletedBoard,
-    inbox_board::{InboxBoard, ItemClickEvent},
-    labels_board::LabelsBoard,
-    pin_board::PinBoard,
-    scheduled_board::ScheduledBoard,
-    today_board::TodayBoard,
+    board_completed::CompletedBoard,
+    board_inbox::{InboxBoard, ItemClickEvent},
+    board_labels::LabelsBoard,
+    board_pin::PinBoard,
+    board_scheduled::ScheduledBoard,
+    board_today::TodayBoard,
     *,
 };
 pub use item::*;

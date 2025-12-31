@@ -1,25 +1,25 @@
-mod complete_item;
 mod database;
 mod item;
+mod item_complete;
+mod item_pinned;
+mod item_project;
+mod item_scheduled;
+mod item_today;
 mod label;
-mod pinned_item;
 mod project;
-mod project_item;
-mod scheduled_item;
 mod section;
-mod today_item;
 
-pub use complete_item::*;
 pub use database::*;
 use gpui::App;
 pub use item::*;
+pub use item_complete::*;
+pub use item_pinned::*;
+pub use item_project::*;
+pub use item_scheduled::*;
+pub use item_today::*;
 pub use label::*;
-pub use pinned_item::*;
 pub use project::*;
-pub use project_item::*;
-pub use scheduled_item::*;
 pub use section::*;
-pub use today_item::*;
 pub fn state_init(cx: &mut App) {
     // item
     ItemState::init(cx);
