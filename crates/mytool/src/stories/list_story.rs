@@ -11,6 +11,8 @@ use gpui_component::{
     checkbox::Checkbox,
     collapsible::Collapsible,
     divider::Divider,
+    gray_300,
+    group_box::{GroupBox, GroupBoxVariants},
     h_flex,
     list::{ListEvent, ListState},
     select::{SearchableVec, Select, SelectEvent, SelectGroup, SelectItem, SelectState},
@@ -283,7 +285,7 @@ impl Render for ListStory {
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_company))
-            .size_full()
+            .w_full()
             .gap_4()
             // .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(section("item row").child(ItemRow::new(&self.item_row)))
@@ -291,52 +293,50 @@ impl Render for ListStory {
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(Divider::horizontal())
-            .child(section("Card").child(v_flex().children(self.item_infos.clone().into_values().map(|item_info_state| {
-                let item = item_info_state.read(cx).item.clone();
-                let is_open = match &self.item_open {
-                    Some(open_item) => open_item.id == item.id,
-                    None => false,
-                };
-                div().id(format!("item-{}", item.id.clone())).child(
-                    Collapsible::new()
-                        .gap_1()
-                        .open(is_open)
-                        .child(
-                            v_flex().justify_between().child(
-                                v_flex().child(item.content.clone()).child(
-                                    h_flex()
-                                        .gap_1()
-                                        .child(item.description.clone().unwrap_or_default())
-                                        .child(
-                                            Tag::info()
-                                                .child("+1.5%")
-                                                .outline()
-                                                .rounded_full()
-                                                .small(),
-                                        )
-                                        .child(
-                                            Button::new("toggle2")
-                                                .small()
-                                                .outline()
-                                                .icon(IconName::ChevronDown)
-                                                .label("Details")
-                                                .when(is_open, |this| {
-                                                    this.icon(IconName::ChevronUp)
-                                                })
-                                                .on_click({
-                                                    cx.listener(move |this, _, _, cx| {
-                                                        if is_open { this.item_open = None } else {
-                                                            this.item_open = Some(item.clone());
-                                                        }
-                                                        cx.notify();
-                                                    })
-                                                }),
-                                        ),
-                                ),
-                            ),
-                        )
-                        .content(v_flex().gap_2().child(ItemInfo::new(&item_info_state))),
-                )
-            }))))
+            .child(
+                section("Card").child(v_flex()
+                    .children(
+                        self.item_infos.clone().into_values().map(|item_info_state| {
+                            let item = item_info_state.read(cx).item.clone();
+                            let is_open = match &self.item_open {
+                                Some(open_item) => open_item.id == item.id,
+                                None => false,
+                            };
+                            GroupBox::new().outline().w_full()
+                                .child(
+                                    div().id(format!("item-{}", item.id.clone()))
+                                         .child(
+                                             Collapsible::new()
+                                                 .gap_1()
+                                                 .open(is_open)
+                                                 .child(
+                                                     h_flex().child(
+                                                         v_flex()
+                                                             .child(item.content.clone())
+                                                             .child(div().text_color(gray_300()).child(item.description.clone().unwrap_or_default())))
+                                                             .child(Tag::info().child("+1.5%").outline().rounded_full().small())
+                                                             .child(
+                                                                 Button::new("toggle2")
+                                                                     .small()
+                                                                     .outline()
+                                                                     .icon(IconName::ChevronDown)
+                                                                     .label("Details")
+                                                                     .when(is_open, |this| {
+                                                                         this.icon(IconName::ChevronUp)
+                                                                     })
+                                                                     .on_click({
+                                                                         cx.listener(move |this, _, _, cx| {
+                                                                             if is_open { this.item_open = None } else {
+                                                                                 this.item_open = Some(item.clone());
+                                                                             }
+                                                                             cx.notify();
+                                                                         })
+                                                                     }),
+                                                             ),
+                                                 )
+                                                 .content(v_flex().gap_2().child(ItemInfo::new(&item_info_state)))
+                                         )
+                                )
+                        }))))
     }
 }
