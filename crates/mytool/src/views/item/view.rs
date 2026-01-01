@@ -28,8 +28,9 @@ pub struct ItemsPanel {
 
 impl ItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let item = Rc::new(ItemModel::default());
         let item_info = cx.new(|cx| {
-            let picker = ItemInfoState::new(window, cx);
+            let picker = ItemInfoState::new(item.clone(), window, cx);
             picker
         });
         let item_list =

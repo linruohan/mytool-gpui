@@ -62,7 +62,7 @@ impl EventEmitter<ItemRowEvent> for ItemRowState {}
 impl ItemRowState {
     pub fn new(item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
-        let item_info = cx.new(|cx| ItemInfoState::new(window, cx));
+        let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let _subscriptions =
             vec![cx.subscribe(&item_info, |this, _, _event: &ItemInfoEvent, cx| {
                 this.item_info.update(cx, |_item_info, _cx| {

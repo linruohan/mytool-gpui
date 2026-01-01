@@ -1,16 +1,20 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, SharedString, Styled, Subscription, Window, actions,
+    ParentElement, Render, SharedString, Styled, Subscription, Window, actions, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
-    IndexPath,
+    IconName, IndexPath, Sizable,
+    button::Button,
     checkbox::Checkbox,
+    collapsible::Collapsible,
     divider::Divider,
     h_flex,
     list::{ListEvent, ListState},
     select::{SearchableVec, Select, SelectEvent, SelectGroup, SelectItem, SelectState},
+    tag::Tag,
     v_flex,
 };
 use itertools::Itertools;
@@ -18,12 +22,12 @@ use serde::{Deserialize, Serialize};
 use todos::entity::{ItemModel, LabelModel};
 
 use crate::{
-    ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate, ItemRow, ItemRowEvent, ItemRowState,
+    ItemInfo, ItemInfoState, ItemListDelegate, ItemRow, ItemRowEvent, ItemRowState,
     LabelsPopoverEvent, LabelsPopoverList,
     popover_list::PopoverList,
     section,
     service::load_items,
-    todo_state::{DBState, LabelState},
+    todo_state::{DBState, ItemState, LabelState},
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -70,11 +74,12 @@ pub struct ListStory {
     company_list: Entity<ListState<ItemListDelegate>>,
     selected_company: Option<Rc<ItemModel>>,
     _subscriptions: Vec<Subscription>,
-    item_info: Entity<ItemInfoState>,
+    item_infos: HashMap<String, Entity<ItemInfoState>>,
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
     item_row: Entity<ItemRowState>,
     label_list_select: Entity<SelectState<SearchableVec<SelectGroup<LabelSelect>>>>,
+    item_open: Option<Rc<ItemModel>>,
 }
 
 impl super::Mytool for ListStory {
@@ -108,10 +113,16 @@ impl ListStory {
         let item_row = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
-        let item_info = cx.new(|cx| {
-            let picker = ItemInfoState::new(window, cx);
-            picker
-        });
+        let item_infos = {
+            let items = cx.global::<ItemState>().items.clone();
+            items
+                .iter()
+                .map(|item| {
+                    let entity = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
+                    (item.id.clone(), entity)
+                })
+                .collect()
+        };
         let label_list = cx.global::<LabelState>().labels.clone();
         let mut grouped_countries: SearchableVec<SelectGroup<LabelSelect>> =
             SearchableVec::new(vec![]);
@@ -128,6 +139,37 @@ impl ListStory {
                 .searchable(true)
         });
         let _subscriptions = vec![
+            cx.observe_global_in::<ItemState>(window, move |this, window, cx| {
+                let state_items = cx.global::<ItemState>().items.clone();
+
+                // 将state_items转换为HashMap便于快速查找
+                let items_by_id: HashMap<String, Rc<ItemModel>> =
+                    state_items.iter().map(|item| (item.id.clone(), item.clone())).collect();
+
+                // 更新或删除现有的item_infos
+                this.item_infos.retain(|item_id, entity| {
+                    if let Some(updated_item) = items_by_id.get(item_id) {
+                        // 更新
+                        cx.update_entity(entity, |item_info, _cx| {
+                            item_info.item = updated_item.clone();
+                        });
+                        true
+                    } else {
+                        // 不存在，删除
+                        // cx.remove_entity(entity);
+                        false
+                    }
+                });
+
+                // 添加新的items（那些不在item_infos中的）
+                for (item_id, item) in items_by_id {
+                    if !this.item_infos.contains_key(&item_id) {
+                        let entity = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
+                        this.item_infos.insert(item_id, entity);
+                    }
+                }
+                cx.notify();
+            }),
             cx.subscribe_in(&label_list_select, window, Self::on_select_event),
             cx.subscribe(&item_row, |_this, _, ev, _| match ev {
                 ItemRowEvent::Added(label) => {
@@ -140,11 +182,6 @@ impl ListStory {
                     println!("label_popover_list select: {:?}", label);
                 },
                 LabelsPopoverEvent::DeSelected(_model) => {},
-            }),
-            cx.subscribe(&item_info, |this, _, _event: &ItemInfoEvent, cx| {
-                this.item_info.update(cx, |_item_info, _cx| {
-                    // item_info.handel_item_info_event(event, cx);
-                });
             }),
             cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
                 ListEvent::Select(ix) => {
@@ -180,11 +217,12 @@ impl ListStory {
             company_list,
             selected_company: None,
             _subscriptions,
-            item_info,
+            item_infos,
             popover_list,
             label_popover_list,
             item_row,
             label_list_select,
+            item_open: None,
         }
     }
 
@@ -221,16 +259,84 @@ impl Render for ListStory {
             description: Some("This is item 1".to_string()),
             ..Default::default()
         });
+
+        let _items = [
+            Rc::new(ItemModel {
+                id: "1".to_string(),
+                content: "Item 1".to_string(),
+                description: Some("This is item 1".to_string()),
+                ..Default::default()
+            }),
+            Rc::new(ItemModel {
+                id: "2".to_string(),
+                content: "Item 2".to_string(),
+                description: Some("This is item 2".to_string()),
+                ..Default::default()
+            }),
+            Rc::new(ItemModel {
+                id: "3".to_string(),
+                content: "Item 3".to_string(),
+                description: Some("This is item 3".to_string()),
+                ..Default::default()
+            }),
+        ];
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_company))
             .size_full()
             .gap_4()
-            .child(section("item_info").child(ItemInfo::new(&self.item_info)))
+            // .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(section("item row").child(ItemRow::new(&self.item_row)))
             .child(section("Select").child(Select::new(&self.label_list_select).cleanable(true)))
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(Divider::horizontal())
+            .child(section("Card").child(v_flex().children(self.item_infos.clone().into_values().map(|item_info_state| {
+                let item = item_info_state.read(cx).item.clone();
+                let is_open = match &self.item_open {
+                    Some(open_item) => open_item.id == item.id,
+                    None => false,
+                };
+                div().id(format!("item-{}", item.id.clone())).child(
+                    Collapsible::new()
+                        .gap_1()
+                        .open(is_open)
+                        .child(
+                            v_flex().justify_between().child(
+                                v_flex().child(item.content.clone()).child(
+                                    h_flex()
+                                        .gap_1()
+                                        .child(item.description.clone().unwrap_or_default())
+                                        .child(
+                                            Tag::info()
+                                                .child("+1.5%")
+                                                .outline()
+                                                .rounded_full()
+                                                .small(),
+                                        )
+                                        .child(
+                                            Button::new("toggle2")
+                                                .small()
+                                                .outline()
+                                                .icon(IconName::ChevronDown)
+                                                .label("Details")
+                                                .when(is_open, |this| {
+                                                    this.icon(IconName::ChevronUp)
+                                                })
+                                                .on_click({
+                                                    cx.listener(move |this, _, _, cx| {
+                                                        if is_open { this.item_open = None } else {
+                                                            this.item_open = Some(item.clone());
+                                                        }
+                                                        cx.notify();
+                                                    })
+                                                }),
+                                        ),
+                                ),
+                            ),
+                        )
+                        .content(v_flex().gap_2().child(ItemInfo::new(&item_info_state))),
+                )
+            }))))
     }
 }

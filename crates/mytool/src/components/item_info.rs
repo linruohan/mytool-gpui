@@ -54,8 +54,8 @@ impl Focusable for ItemInfoState {
 }
 impl EventEmitter<ItemInfoEvent> for ItemInfoState {}
 impl ItemInfoState {
-    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item = Rc::new(ItemModel::default());
+    pub fn new(item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let item = item.clone();
 
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("To-do Name"));
 
@@ -71,17 +71,18 @@ impl ItemInfoState {
             cx.subscribe_in(&label_popover_list, window, Self::on_labels_event),
             cx.subscribe_in(&priority_state, window, Self::on_priority_event),
         ];
-
-        Self {
+        let mut this = Self {
             focus_handle: cx.focus_handle(),
-            item,
+            item: item.clone(),
             _subscriptions,
             name_input,
             desc_input,
             checked: false,
             priority_state,
             label_popover_list,
-        }
+        };
+        this.set_item(item, window, cx);
+        this
     }
 
     fn on_input_event(
