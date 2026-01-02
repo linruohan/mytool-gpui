@@ -1,18 +1,18 @@
 use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div,
+    div, prelude::FluentBuilder, px, Action, App, AppContext, Context, ElementId, Entity,
+    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _,
+    Render, RenderOnce, StyleRefinement, Styled, Subscription, Window,
 };
 use gpui_component::{
-    IconName, Sizable, Size, StyledExt as _,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    divider::Divider,
-    gray_100, h_flex,
+    button::{Button, ButtonVariants}, checkbox::Checkbox, divider::Divider, gray_100,
+    h_flex,
     input::{Input, InputEvent, InputState},
-    v_flex,
+    purple_400,
+    v_flex, IconName,
+    Sizable,
+    Size, StyledExt as _,
 };
 use serde::Deserialize;
 use todos::{
@@ -22,7 +22,7 @@ use todos::{
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
 use crate::{
-    LabelsPopoverEvent, LabelsPopoverList, todo_actions::update_item, todo_state::LabelState,
+    todo_actions::update_item, todo_state::LabelState, LabelsPopoverEvent, LabelsPopoverList,
 };
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -269,7 +269,9 @@ impl Render for ItemInfoState {
         let view = cx.entity();
         let labels = cx.global::<LabelState>().labels.clone();
         v_flex()
-            .border_3()
+            .border_1()
+            .border_color(purple_400())
+            .rounded(px(5.0))
             .child(
                 h_flex()
                     .gap_2()

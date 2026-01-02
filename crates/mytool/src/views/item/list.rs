@@ -1,19 +1,17 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
+    actions, prelude::FluentBuilder, px, App, Context, ElementId, Hsla, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    h_flex,
-    label::Label,
-    list::{ListDelegate, ListItem, ListState},
-    red_400,
-    tag::Tag,
-    v_flex,
+    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, red_400, v_flex, ActiveTheme, Colorize,
+    Icon,
+    IconName,
+    IndexPath,
+    Placement,
+    Selectable,
+    Sizable, WindowExt,
 };
 use todos::entity::{ItemModel, LabelModel};
 
@@ -82,34 +80,46 @@ impl RenderOnce for ItemListItem {
                         }),
                     )
                     .child(
-                        v_flex()
-                            .gap_1()
-                            .overflow_x_hidden()
-                            .flex_nowrap()
-                            .child(
-                                Label::new(self.item.content.clone())
-                                    .whitespace_nowrap()
-                                    .when(self.item.checked, |this| this.line_through()),
-                            )
-                            .when(self.item.labels.is_some(), |this| {
-                                this.child(
-                                    h_flex().gap_2().flex().children(
-                                        item_labels
-                                            .iter()
-                                            .flat_map(|group| {
-                                                group.split(';').filter(|id| !id.is_empty())
-                                            })
-                                            .filter_map(|id| {
-                                                label_map.get(id).map(|label| {
-                                                    Tag::primary().child(label.name.clone())
-                                                })
-                                            })
-                                            .collect::<Vec<_>>(),
-                                    ),
-                                )
-                            }),
+                        v_flex().overflow_x_hidden().flex_nowrap().child(
+                            Label::new(self.item.content.clone())
+                                .whitespace_nowrap()
+                                .when(self.item.checked, |this| this.line_through()),
+                        ),
                     )
-                    .child(self.item.priority.unwrap_or_default().to_string())
+                    .when(self.item.labels.is_some(), |this| {
+                        this.child(
+                            h_flex().gap_1().flex().children(
+                                item_labels
+                                    .iter()
+                                    .flat_map(|group| group.split(';').filter(|id| !id.is_empty()))
+                                    .filter_map(|id| {
+                                        label_map.get(id).map(|label| {
+                                            h_flex()
+                                                .rounded(px(10.0))
+                                                .bg(Hsla::from(gpui::rgb(
+                                                    u32::from_str_radix(&label.color[1..], 16)
+                                                        .ok()
+                                                        .unwrap_or_default(),
+                                                ))
+                                                .lighten(0.3))
+                                                .child(
+                                                    Icon::build(IconName::TagOutlineSymbolic)
+                                                        .text_color(Hsla::from(gpui::rgb(
+                                                            u32::from_str_radix(
+                                                                &label.color[1..],
+                                                                16,
+                                                            )
+                                                            .ok()
+                                                            .unwrap_or_default(),
+                                                        ))),
+                                                )
+                                                .child(label.name.clone())
+                                        })
+                                    })
+                                    .collect::<Vec<_>>(),
+                            ),
+                        )
+                    })
                     .child(
                         h_flex()
                             .gap_2()

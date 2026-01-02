@@ -10,7 +10,6 @@ use gpui_component::{
     v_flex,
 };
 use todos::entity::ItemModel;
-use tokio::io::AsyncReadExt;
 
 use crate::{
     ItemListDelegate, ItemRow, ItemRowState, LabelsPopoverEvent, LabelsPopoverList,

@@ -1,24 +1,17 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder,
+    div, prelude::FluentBuilder, px, App, AppContext, Context, ElementId, Entity,
+    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _,
+    Render, RenderOnce, StyleRefinement, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable, Size, StyledExt as _,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    collapsible::Collapsible,
-    h_flex,
-    label::Label,
-    red_400,
-    tag::Tag,
-    v_flex,
+    button::Button, collapsible::Collapsible, h_flex, v_flex, ActiveTheme, IconName, Sizable,
+    Size, StyledExt as _,
 };
 use todos::entity::{ItemModel, LabelModel};
 
-use crate::{ItemInfo, ItemInfoState, todo_state::LabelState};
+use crate::{todo_state::LabelState, ItemInfo, ItemInfoState, ItemListItem};
 
 const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
@@ -64,15 +57,15 @@ impl Render for ItemRowState {
         let text_color =
             if self.is_open { cx.theme().accent_foreground } else { cx.theme().foreground };
         let labels = cx.global::<LabelState>().labels.clone();
-        let label_map: HashMap<&str, &Rc<LabelModel>> =
+        let _label_map: HashMap<&str, &Rc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
-        let item_labels = &self.item.labels;
+        let _item_labels = &self.item.labels;
         let item = self.item.clone();
         let item_info = self.item_info.clone();
         let is_open = self.is_open;
         let item_id = format!("item-{}", self.item.id.clone());
         let view = cx.entity();
-        div().id(item_id).child(
+        div().border_3().id(item_id.clone()).rounded(px(5.0)).child(
             Collapsible::new()
                 .gap_1()
                 .open(is_open)
@@ -82,71 +75,9 @@ impl Render for ItemRowState {
                         .justify_start()
                         .gap_2()
                         .text_color(text_color)
-                        .child(Checkbox::new("item-finished").checked(self.item.checked))
-                        .child(Label::new("Tomorrow").when(self.item.checked, |this| {
-                            this.line_through().text_color(red_400())
-                        }))
-                        .child(
-                            v_flex()
-                                .gap_1()
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(
-                                    Label::new(self.item.content.clone())
-                                        .whitespace_nowrap()
-                                        .when(self.item.checked, |this| this.line_through()),
-                                )
-                                .when(self.item.labels.is_some(), |this| {
-                                    this.child(
-                                        h_flex().gap_2().flex().children(
-                                            item_labels
-                                                .iter()
-                                                .flat_map(|group| {
-                                                    group.split(';').filter(|id| !id.is_empty())
-                                                })
-                                                .filter_map(|id| {
-                                                    label_map.get(id).map(|label| {
-                                                        Tag::primary().child(label.name.clone())
-                                                    })
-                                                })
-                                                .collect::<Vec<_>>(),
-                                        ),
-                                    )
-                                }),
-                        )
-                        .child(self.item.priority.unwrap_or_default().to_string())
-                        .child(
-                            h_flex()
-                                .gap_2()
-                                .items_center()
-                                .justify_end()
-                                .flex()
-                                .px_2()
-                                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                                .child(
-                                    Button::new("edit")
-                                        .small()
-                                        .ghost()
-                                        .compact()
-                                        .icon(IconName::EditSymbolic)
-                                        .on_click(move |_event, _window, _cx| {
-                                            let item = item.clone();
-                                            println!("edit item:{:?}", item);
-                                        }),
-                                )
-                                .child(
-                                    Button::new("delete")
-                                        .icon(IconName::UserTrashSymbolic)
-                                        .small()
-                                        .ghost()
-                                        .on_click(|_, _, _cx| {
-                                            println!("delete item:");
-                                        }),
-                                ),
-                        )
+                        .child(ItemListItem::new(item_id.clone(), item.clone(), false))
                         .child(
                             Button::new("toggle2")
-                                .label("Details")
                                 .small()
                                 .outline()
                                 .icon(IconName::ChevronDown)
