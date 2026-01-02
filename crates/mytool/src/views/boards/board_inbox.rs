@@ -9,7 +9,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use crate::{Board, ItemEvent, ItemsPanel};
+use crate::{Board, ItemEvent, ItemsPanel, todo_state::ItemState};
 
 pub enum ItemClickEvent {
     ShowModal,
@@ -48,8 +48,8 @@ impl Board for InboxBoard {
         vec![gpui::rgb(0x99c1f1).into(), gpui::rgb(0x3584e4).into()]
     }
 
-    fn count() -> usize {
-        1
+    fn count(cx: &mut App) -> usize {
+        cx.global::<ItemState>().items.len()
     }
 
     fn title() -> &'static str {

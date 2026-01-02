@@ -64,14 +64,14 @@ impl BoardType {
         }
     }
 
-    pub fn count(&self) -> usize {
+    pub fn count(&self, cx: &mut App) -> usize {
         match self {
-            Self::Inbox => InboxBoard::count(),
-            Self::Today => TodayBoard::count(),
-            Self::Scheduled => ScheduledBoard::count(),
-            Self::Pinboard => PinBoard::count(),
-            Self::Labels => LabelsBoard::count(),
-            Self::Completed => CompletedBoard::count(),
+            Self::Inbox => InboxBoard::count(cx),
+            Self::Today => TodayBoard::count(cx),
+            Self::Scheduled => ScheduledBoard::count(cx),
+            Self::Pinboard => PinBoard::count(cx),
+            Self::Labels => LabelsBoard::count(cx),
+            Self::Completed => CompletedBoard::count(cx),
         }
     }
 

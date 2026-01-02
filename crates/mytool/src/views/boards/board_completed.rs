@@ -9,7 +9,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use crate::{Board, ItemCompletedEvent, ItemsCompletedPanel};
+use crate::{Board, ItemCompletedEvent, ItemsCompletedPanel, todo_state::CompleteItemState};
 
 pub struct CompletedBoard {
     focus_handle: FocusHandle,
@@ -42,8 +42,8 @@ impl Board for CompletedBoard {
         vec![gpui::rgb(0xffbe6f).into(), gpui::rgb(0xff7800).into()]
     }
 
-    fn count() -> usize {
-        1
+    fn count(cx: &mut App) -> usize {
+        cx.global::<CompleteItemState>().items.len()
     }
 
     fn title() -> &'static str {

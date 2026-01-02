@@ -38,7 +38,7 @@ impl EventEmitter<BoardContainerEvent> for BoardContainer {}
 pub trait Board: Render + Sized {
     fn icon() -> IconName;
     fn colors() -> Vec<Hsla>;
-    fn count() -> usize;
+    fn count(cx: &mut App) -> usize;
     fn klass() -> &'static str {
         std::any::type_name::<Self>().split("::").last().unwrap()
     }
@@ -108,7 +108,7 @@ impl BoardContainer {
     pub fn panel<S: Board>(window: &mut Window, cx: &mut App) -> Entity<Self> {
         let name = S::title();
         let colors = S::colors();
-        let count = S::count();
+        let count = S::count(cx);
         let icon = S::icon();
 
         let description = S::description();

@@ -9,7 +9,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use crate::{Board, ItemsTodayEvent, ItemsTodayPanel};
+use crate::{Board, ItemsTodayEvent, ItemsTodayPanel, todo_state::TodayItemState};
 
 pub struct TodayBoard {
     focus_handle: FocusHandle,
@@ -42,8 +42,8 @@ impl Board for TodayBoard {
         vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
     }
 
-    fn count() -> usize {
-        1
+    fn count(cx: &mut App) -> usize {
+        cx.global::<TodayItemState>().items.len()
     }
 
     fn title() -> &'static str {

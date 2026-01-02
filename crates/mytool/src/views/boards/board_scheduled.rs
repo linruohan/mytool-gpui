@@ -9,7 +9,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use crate::{Board, ItemsScheduledEvent, ItemsScheduledPanel};
+use crate::{Board, ItemsScheduledEvent, ItemsScheduledPanel, todo_state::ScheduledItemState};
 
 pub struct ScheduledBoard {
     focus_handle: FocusHandle,
@@ -42,8 +42,8 @@ impl Board for ScheduledBoard {
         vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
     }
 
-    fn count() -> usize {
-        1
+    fn count(cx: &mut App) -> usize {
+        cx.global::<ScheduledItemState>().items.len()
     }
 
     fn title() -> &'static str {

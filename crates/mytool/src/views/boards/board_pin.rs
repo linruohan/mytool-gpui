@@ -9,7 +9,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use crate::{Board, ItemsPinnedEvent, ItemsPinnedPanel};
+use crate::{Board, ItemsPinnedEvent, ItemsPinnedPanel, todo_state::PinnedItemState};
 
 pub struct PinBoard {
     focus_handle: FocusHandle,
@@ -42,8 +42,8 @@ impl Board for PinBoard {
         vec![gpui::rgb(0xf66151).into(), gpui::rgb(0xed333b).into()]
     }
 
-    fn count() -> usize {
-        1
+    fn count(cx: &mut App) -> usize {
+        cx.global::<PinnedItemState>().items.len()
     }
 
     fn title() -> &'static str {

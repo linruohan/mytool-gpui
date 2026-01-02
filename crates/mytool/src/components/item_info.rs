@@ -1,9 +1,9 @@
 use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, ClickEvent, Context, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, div,
+    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
+    Styled, Subscription, Window, div,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
@@ -210,7 +210,7 @@ impl ItemInfoState {
         println!("item priority:{:?} ", item.priority);
     }
 
-    fn toggle_finished(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+    fn toggle_finished(&mut self, _: &bool, _: &mut Window, cx: &mut Context<Self>) {
         let item = Rc::make_mut(&mut self.item);
         item.checked = !item.checked;
         println!("item checked:{:?} ", item.checked);
@@ -263,16 +263,33 @@ impl Render for ItemInfoState {
         v_flex()
             .border_3()
             .child(
-                h_flex().child(Input::new(&self.name_input).focus_bordered(false)).child(
-                    Button::new("item-finish")
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::CheckRoundOutlineSymbolic)
-                        .on_click(cx.listener(Self::toggle_finished)),
-                ),
+                h_flex()
+                    .child(
+                        Checkbox::new("item-checked")
+                            .checked(self.item.checked)
+                            .on_click(cx.listener(Self::toggle_finished)),
+                    )
+                    .child(Input::new(&self.name_input).focus_bordered(false))
+                    .child(
+                        Button::new("item-pin")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::PinSymbolic)
+                            .on_click({
+                                let view = view.clone();
+                                move |_event, _window, cx| {
+                                    cx.update_entity(&view, |this, cx| {
+                                        let item = Rc::make_mut(&mut this.item);
+                                        item.pinned = !item.pinned;
+                                        println!("item pin: {}", item.pinned);
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                    ),
             )
-            .child(Input::new(&self.desc_input).bordered(false))
+            .child(Input::new(&self.desc_input))
             .child(h_flex().gap_3().children(labels.iter().enumerate().map(|(ix, label)| {
                 let label_clone = label.clone();
                 Checkbox::new(format!("label-{}", ix))
@@ -308,13 +325,12 @@ impl Render for ItemInfoState {
                             .gap_2()
                             .items_center()
                             .justify_end()
-                            // .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
-                                Button::new("item-add")
+                                Button::new("item-attachment")
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
+                                    .icon(IconName::MailAttachmentSymbolic)
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
                                         move |_event, _window, _cx| {}
@@ -334,21 +350,14 @@ impl Render for ItemInfoState {
                                     }),
                             )
                             .child(
-                                Button::new("item-pin")
+                                Button::new("item-due")
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(IconName::PinSymbolic)
+                                    .icon(IconName::AlarmSymbolic)
                                     .on_click({
-                                        let view = view.clone();
-                                        move |_event, _window, cx| {
-                                            cx.update_entity(&view, |this, cx| {
-                                                let item = Rc::make_mut(&mut this.item);
-                                                item.pinned = !item.pinned;
-                                                println!("item pin: {}", item.pinned);
-                                                cx.notify();
-                                            });
-                                        }
+                                        let _view = view.clone();
+                                        move |_event, _window, _cx| {}
                                     }),
                             )
                             .child(
