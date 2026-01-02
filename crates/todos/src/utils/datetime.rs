@@ -7,7 +7,7 @@ use chrono::{
 use chrono_humanize::{Accuracy, HumanTime};
 use serde_json::Value;
 
-use crate::{Item, enums::RecurrencyType, objects::DueDate};
+use crate::{enums::RecurrencyType, objects::DueDate, Item};
 pub const EMPTY_DATETIME: NaiveDateTime =
     chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc();
 #[derive(Default)]
@@ -129,7 +129,7 @@ impl DateTime {
     }
 
     pub fn get_date_from_string(&self, date: &str) -> NaiveDateTime {
-        NaiveDateTime::from_str(&date).unwrap_or_default()
+        NaiveDateTime::from_str(date).unwrap_or_default()
     }
 
     pub fn recurrence_to_due(&self, recurrence: RecurrencyType, due: &mut DueDate) {

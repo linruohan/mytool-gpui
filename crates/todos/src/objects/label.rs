@@ -2,11 +2,11 @@ use sea_orm::prelude::*;
 use tokio::sync::OnceCell;
 
 use crate::{
-    BaseObject, Store, Util,
-    entity::{labels::Model as LabelModel, prelude::LabelEntity, sources::Model as SourceModel},
-    enums::SourceType,
-    error::TodoError,
+    entity::{labels::Model as LabelModel, prelude::LabelEntity, sources::Model as SourceModel}, enums::SourceType, error::TodoError,
     objects::{BaseTrait, Item},
+    BaseObject,
+    Store,
+    Util,
 };
 
 #[derive(Clone, Debug)]
@@ -114,7 +114,7 @@ impl Label {
     }
 
     pub async fn source(&self) -> Option<SourceModel> {
-        self.store().await.get_source(&self.model.source_id.as_ref()?).await
+        self.store().await.get_source(self.model.source_id.as_ref()?).await
     }
 
     async fn label_count(&mut self) -> usize {

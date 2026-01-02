@@ -1,9 +1,9 @@
 use gpui::{App, Entity, Menu, MenuItem, SharedString};
-use gpui_component::{ActiveTheme as _, Theme, ThemeMode, ThemeRegistry, menu::AppMenuBar};
+use gpui_component::{menu::AppMenuBar, ActiveTheme as _, Theme, ThemeMode, ThemeRegistry};
 
 use crate::{
-    About, Open, Quit, SelectLocale, ToggleSearch,
-    themes::{SwitchTheme, SwitchThemeMode},
+    themes::{SwitchTheme, SwitchThemeMode}, About, Open, Quit, SelectLocale,
+    ToggleSearch,
 };
 
 pub fn init(title: impl Into<SharedString>, cx: &mut App) -> Entity<AppMenuBar> {
@@ -15,7 +15,7 @@ pub fn init(title: impl Into<SharedString>, cx: &mut App) -> Entity<AppMenuBar> 
         let title = title.clone();
         let app_menu_bar = app_menu_bar.clone();
         move |s: &SelectLocale, cx: &mut App| {
-            rust_i18n::set_locale(&s.0.as_str());
+            rust_i18n::set_locale(s.0.as_str());
             update_app_menu(title.clone(), app_menu_bar.clone(), cx);
         }
     });

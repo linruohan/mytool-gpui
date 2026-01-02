@@ -5,9 +5,9 @@ use tokio::sync::OnceCell;
 
 use super::BaseObject;
 use crate::{
-    entity::{prelude::AttachmentEntity, AttachmentModel, ItemModel},
-    error::TodoError,
     Store,
+    entity::{AttachmentModel, ItemModel, prelude::AttachmentEntity},
+    error::TodoError,
 };
 
 pub struct Attachment {

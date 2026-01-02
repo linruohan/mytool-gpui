@@ -2,6 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, PartialEq, EnumString, Eq, Deserialize, Serialize)]
 #[strum(serialize_all = "kebab-case")] // 自动处理连字符格式
 pub enum SourceType {

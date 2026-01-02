@@ -1,16 +1,16 @@
-use std::fmt;
+use std::{error::Error, fmt};
 
 use futures::stream::{self, StreamExt};
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
 use crate::{
-    BaseObject, Store,
-    entity::{ItemModel, ProjectModel, SectionModel, SourceModel, prelude::ProjectEntity},
-    enums::{ProjectIconStyle, ProjectViewStyle, SourceType},
+    entity::{prelude::ProjectEntity, ItemModel, ProjectModel, SectionModel, SourceModel}, enums::{ProjectIconStyle, ProjectViewStyle, SourceType},
     error::TodoError,
     objects::{BaseTrait, Item, Source},
     utils::Util,
+    BaseObject,
+    Store,
 };
 
 #[derive(Clone, Debug)]
@@ -70,16 +70,16 @@ impl Project {
     }
 
     pub async fn source_type(&self) -> SourceType {
-        if let Some(source_model) = self.source().await {
-            if let Ok(source) = Source::from_db(self.db.clone(), &source_model.id).await {
-                return source.source_type();
-            }
+        if let Some(source_model) = self.source().await
+            && let Ok(source) = Source::from_db(self.db.clone(), &source_model.id).await
+        {
+            return source.source_type();
         }
         SourceType::NONE
     }
 
     pub async fn source(&self) -> Option<SourceModel> {
-        self.store().await.get_source(&self.model.source_id.as_ref()?).await
+        self.store().await.get_source(self.model.source_id.as_ref()?).await
     }
 
     pub fn color_hex(&self) -> String {
@@ -150,10 +150,11 @@ impl Project {
         let items_model = self.items().await;
         stream::iter(items_model)
             .filter_map(async move |model| {
-                if let Ok(item) = Item::from_db(self.db.clone(), &model.id).await {
-                    if !item.model.checked && !item.was_archived().await {
-                        return Some(model);
-                    }
+                if let Ok(item) = Item::from_db(self.db.clone(), &model.id).await
+                    && !item.model.checked
+                    && !item.was_archived().await
+                {
+                    return Some(model);
                 }
                 None
             })

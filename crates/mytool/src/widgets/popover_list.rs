@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Window, px,
 };
 use gpui_component::{
     button::Button,

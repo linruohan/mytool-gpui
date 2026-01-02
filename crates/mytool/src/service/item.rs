@@ -21,7 +21,7 @@ pub async fn mod_item(item: Rc<ItemModel>, db: DatabaseConnection) -> Result<Ite
 pub async fn del_item(item: Rc<ItemModel>, db: DatabaseConnection) -> Result<(), TodoError> {
     Store::new(db).await.delete_item(&item.id).await
 }
-
+// 修改item完成状态
 pub async fn finish_item(
     item: Rc<ItemModel>,
     checked: bool,

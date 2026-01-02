@@ -2,11 +2,11 @@ use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
 use crate::{
-    BaseObject, Store,
-    entity::{ItemModel, ProjectModel, SectionModel, SourceModel, prelude::SectionEntity},
-    error::TodoError,
+    entity::{prelude::SectionEntity, ItemModel, ProjectModel, SectionModel, SourceModel}, error::TodoError,
     objects::{BaseTrait, Project},
     utils::Util,
+    BaseObject,
+    Store,
 };
 
 #[derive(Clone, Debug)]
@@ -126,9 +126,7 @@ impl Section {
     }
 
     pub async fn source(&self) -> Option<SourceModel> {
-        let Some(project_model) = self.project().await else {
-            return None;
-        };
+        let project_model = self.project().await?;
         if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
             return project.source().await;
         }

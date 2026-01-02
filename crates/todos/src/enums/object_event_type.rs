@@ -1,6 +1,7 @@
 use std::fmt;
 
-use strum::{Display, EnumString};
+use strum::EnumString;
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, PartialEq, EnumString)]
 #[strum(serialize_all = "camelCase")]
 pub enum ObjectEventType {

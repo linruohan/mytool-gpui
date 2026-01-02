@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
-    Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
+    Styled, Subscription, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState}, v_flex,
-    ActiveTheme,
-    Colorize,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, Colorize, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    input::{Input, InputState},
+    list::{List, ListEvent, ListState},
+    v_flex,
 };
 use todos::entity::{ProjectModel, SectionModel};
 
 use super::{SectionEvent, SectionListDelegate};
 use crate::{
-    todo_actions::{add_section, delete_section, update_section}, todo_state::SectionState, ColorGroup,
-    ColorGroupEvent,
-    ColorGroupState,
+    ColorGroup, ColorGroupEvent, ColorGroupState,
+    todo_actions::{add_section, delete_section, update_section},
+    todo_state::SectionState,
 };
 
 impl EventEmitter<SectionEvent> for SectionsPanel {}

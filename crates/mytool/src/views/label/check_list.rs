@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, App, Context, ElementId, Entity, EventEmitter,
-    Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
+    App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    checkbox::Checkbox, h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, Icon,
-    IconName,
-    IndexPath,
-    Selectable,
+    ActiveTheme, Icon, IconName, IndexPath, Selectable,
+    checkbox::Checkbox,
+    h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
 

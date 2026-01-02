@@ -5,21 +5,21 @@ use gpui::{
     Render, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState}, list::{ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
+    ActiveTheme, Colorize, IconName, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    input::{Input, InputState},
+    list::{ListEvent, ListState},
+    menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
-    ActiveTheme,
-    Colorize,
-    IconName,
-    IndexPath,
-    WindowExt,
 };
 use todos::entity::ProjectModel;
 
 use crate::{
-    play_ogg_file, service::load_projects, todo_state::{DBState, ProjectState}, ColorGroup, ColorGroupEvent, ColorGroupState,
-    ProjectEvent,
-    ProjectListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate, play_ogg_file,
+    service::load_projects,
+    todo_state::{DBState, ProjectState},
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}

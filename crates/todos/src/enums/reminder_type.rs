@@ -1,7 +1,8 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
+use strum::EnumString;
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Serialize, Deserialize)]
 #[strum(serialize_all = "camelCase")]
 pub enum ReminderType {

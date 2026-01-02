@@ -1,19 +1,19 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Subscription, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, list::{List, ListState},
+    IconName, Sizable,
+    button::{Button, ButtonVariants},
+    list::{List, ListState},
     popover::Popover,
     v_flex,
-    IconName,
-    Sizable,
 };
 use todos::entity::LabelModel;
 
-use crate::{todo_state::LabelState, LabelCheckListDelegate, SelectedCheckLabel};
+use crate::{LabelCheckListDelegate, SelectedCheckLabel, todo_state::LabelState};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),

@@ -7,15 +7,15 @@ use tokio::sync::OnceCell;
 
 use super::{BaseObject, Project, Section};
 use crate::{
-    Reminder, Store, Util, constants,
-    entity::{
-        AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel, SectionModel,
-        SourceModel, prelude::ItemEntity,
-    },
-    enums::{ItemType, RecurrencyEndType, RecurrencyType, ReminderType},
-    error::TodoError,
+    constants, entity::{
+        prelude::ItemEntity, AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel,
+        SectionModel, SourceModel,
+    }, enums::{ItemType, RecurrencyEndType, RecurrencyType, ReminderType}, error::TodoError,
     objects::{BaseTrait, DueDate},
     utils,
+    Reminder,
+    Store,
+    Util,
 };
 
 #[derive(Clone, Debug)]
@@ -43,7 +43,7 @@ impl Item {
     }
 
     pub fn priority(&self) -> i32 {
-        self.model.priority.unwrap_or_else(|| constants::PRIORITY_4)
+        self.model.priority.unwrap_or(constants::PRIORITY_4)
     }
 
     pub fn set_priority(&mut self, priority: i32) -> &mut Self {
@@ -167,7 +167,7 @@ impl Item {
     pub fn has_time(&self) -> bool {
         self.due()
             .and_then(|d| d.datetime())
-            .map_or(false, |dt| utils::DateTime::default().has_time(&dt))
+            .is_some_and(|dt| utils::DateTime::default().has_time(&dt))
     }
 
     pub fn completed_date(&self) -> Option<NaiveDateTime> {
@@ -229,15 +229,15 @@ impl Item {
     }
 
     pub async fn parent(&self) -> Option<ItemModel> {
-        self.store().await.get_item(&self.model.parent_id.as_ref()?).await
+        self.store().await.get_item(self.model.parent_id.as_ref()?).await
     }
 
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store().await.get_project(&self.model.project_id.as_ref()?).await
+        self.store().await.get_project(self.model.project_id.as_ref()?).await
     }
 
     pub async fn section(&self) -> Option<SectionModel> {
-        self.store().await.get_section(&self.model.section_id.as_ref()?).await
+        self.store().await.get_section(self.model.section_id.as_ref()?).await
     }
 
     // subitems
@@ -269,10 +269,10 @@ impl Item {
 
     pub async fn exists_project(&self, project: ProjectModel) -> bool {
         Box::pin(async move {
-            if let Some(p) = self.parent().await.as_ref() {
-                if let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await {
-                    return item.exists_project(project).await;
-                }
+            if let Some(p) = self.parent().await.as_ref()
+                && let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await
+            {
+                return item.exists_project(project).await;
             }
             self.model.project_id == Some(project.id)
         })
@@ -300,7 +300,7 @@ impl Item {
     pub async fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
         for (key, label) in &new_labels {
             if self.get_label(&label.id).await.is_none() {
-                self.add_label_if_not_exists(&label);
+                self.add_label_if_not_exists(label);
             }
         }
         for label in self.labels().await {
@@ -480,7 +480,7 @@ impl Item {
     }
 
     pub async fn update(&self, update_id: &str) -> Result<ItemModel, TodoError> {
-        self.store().await.update_item(self.model.clone(), &update_id).await
+        self.store().await.update_item(self.model.clone(), update_id).await
     }
 
     pub async fn move_item(&self, project_id: &str, section_id: &str) -> Result<(), TodoError> {
@@ -493,16 +493,16 @@ impl Item {
 
     pub async fn was_archived(&self) -> bool {
         Box::pin(async move {
-            if let Some(p) = self.parent().await.as_ref() {
-                if let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await {
-                    return item.was_archived().await;
-                }
+            if let Some(p) = self.parent().await.as_ref()
+                && let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await
+            {
+                return item.was_archived().await;
             }
 
-            if let Some(s) = self.section().await.as_ref() {
-                if let Ok(sec) = Section::from_db(self.db.clone(), &s.id).await {
-                    return sec.was_archived().await;
-                }
+            if let Some(s) = self.section().await.as_ref()
+                && let Ok(sec) = Section::from_db(self.db.clone(), &s.id).await
+            {
+                return sec.was_archived().await;
             }
             false
         })
@@ -510,10 +510,10 @@ impl Item {
     }
 
     pub async fn source(&self) -> Option<SourceModel> {
-        if let Some(project_model) = self.project().await.as_ref() {
-            if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
-                return project.source().await;
-            }
+        if let Some(project_model) = self.project().await.as_ref()
+            && let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await
+        {
+            return project.source().await;
         }
         None
     }

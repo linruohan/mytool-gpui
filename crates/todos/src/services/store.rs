@@ -114,7 +114,7 @@ impl Store {
     pub async fn delete_project(&self, id: &str) -> Result<(), TodoError> {
         Box::pin(async move {
             ProjectEntity::delete_by_id(id).exec(&self.db).await?;
-            self.delete_project(&id).await?;
+            self.delete_project(id).await?;
             Ok(())
         })
         .await
@@ -256,12 +256,12 @@ impl Store {
         };
         stream::iter(sections_model)
             .filter_map(|model| async move {
-                if let Ok(section) = Section::from_db(self.db.clone(), &model.id).await {
-                    if section.was_archived().await {
-                        return Some(model);
-                    }
+                if let Ok(section) = Section::from_db(self.db.clone(), &model.id).await
+                    && section.was_archived().await
+                {
+                    return Some(model);
                 };
-                return None;
+                None
             })
             .collect()
             .await
@@ -554,10 +554,10 @@ impl Store {
         stream::iter(items_model)
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
-                if let Ok(item) = item {
-                    if !item.was_archived().await {
-                        return Some(model);
-                    }
+                if let Ok(item) = item
+                    && !item.was_archived().await
+                {
+                    return Some(model);
                 }
                 None
             })
@@ -581,10 +581,12 @@ impl Store {
         stream::iter(items_model)
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
-                if let Ok(item) = item {
-                    if item.has_labels().await && item.model.checked && !item.was_archived().await {
-                        return Some(model);
-                    }
+                if let Ok(item) = item
+                    && item.has_labels().await
+                    && item.model.checked
+                    && !item.was_archived().await
+                {
+                    return Some(model);
                 }
                 None
             })
@@ -604,13 +606,12 @@ impl Store {
         stream::iter(items_model)
             .filter_map(|model| async move {
                 let item = Item::from_db(self.db.clone(), &model.id).await;
-                if let Ok(item) = item {
-                    if item.has_label(label_id).await
-                        && model.checked == checked
-                        && !item.was_archived().await
-                    {
-                        return Some(model);
-                    }
+                if let Ok(item) = item
+                    && item.has_label(label_id).await
+                    && model.checked == checked
+                    && !item.was_archived().await
+                {
+                    return Some(model);
                 }
                 None
             })

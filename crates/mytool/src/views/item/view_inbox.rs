@@ -132,7 +132,6 @@ impl ItemsPanel {
                 state.set_item(Rc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
-        } else {
         }
         let view = cx.entity().clone();
         let dialog_title = if is_edit { "Edit Item" } else { "New Item" };

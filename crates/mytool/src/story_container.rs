@@ -1,14 +1,14 @@
 use gpui::{
-    div, prelude::FluentBuilder, px, AnyView, App, AppContext, Context, Entity, EventEmitter,
-    Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString,
-    Styled, Window,
+    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Pixels, Render, SharedString, Styled, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::Button, dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle}, menu::PopupMenu,
+    ActiveTheme, IconName, WindowExt,
+    button::Button,
+    dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
+    menu::PopupMenu,
     scroll::ScrollableElement,
-    ActiveTheme,
-    IconName,
-    WindowExt,
 };
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};

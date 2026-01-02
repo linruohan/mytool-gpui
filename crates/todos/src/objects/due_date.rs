@@ -71,7 +71,7 @@ impl DueDate {
             RecurrencyEndType::OnDate => self
                 .datetime()
                 .map(|dt| DateTime::default().next_recurrency(dt, self.clone()))
-                .map_or(false, |next| next > self.end_datetime().unwrap_or_default()),
+                .is_some_and(|next| next > self.end_datetime().unwrap_or_default()),
             _ => false,
         }
     }

@@ -1,11 +1,13 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    actions, div, prelude::FluentBuilder, App, AppContext, Context, Entity, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window, actions, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    button::Button, collapsible::Collapsible,
+    IconName, Sizable,
+    button::Button,
+    collapsible::Collapsible,
     divider::Divider,
     gray_300,
     group_box::{GroupBox, GroupBoxVariants},
@@ -13,18 +15,16 @@ use gpui_component::{
     list::{ListEvent, ListState},
     tag::Tag,
     v_flex,
-    IconName,
-    Sizable,
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    popover_list::PopoverList, section, service::load_items, todo_state::{DBState, ItemState}, ItemInfo, ItemInfoState,
-    ItemListDelegate, ItemRow,
-    ItemRowEvent,
-    ItemRowState,
-    LabelsPopoverEvent,
-    LabelsPopoverList,
+    ItemInfo, ItemInfoState, ItemListDelegate, ItemRow, ItemRowEvent, ItemRowState,
+    LabelsPopoverEvent, LabelsPopoverList,
+    popover_list::PopoverList,
+    section,
+    service::load_items,
+    todo_state::{DBState, ItemState},
 };
 
 actions!(list_story, [SelectedCompany]);

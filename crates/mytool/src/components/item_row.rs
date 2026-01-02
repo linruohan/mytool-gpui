@@ -35,7 +35,7 @@ pub struct ItemRowCheck {
     pub select: bool,
 }
 
-const CONTEXT: &'static str = "ItemRow";
+const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
 pub enum ItemRowEvent {
     Updated(Rc<ItemModel>),    // 更新任务

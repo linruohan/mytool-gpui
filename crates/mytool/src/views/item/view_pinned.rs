@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, Window, px,
 };
 use gpui_component::{
-    input::InputState, list::{List, ListEvent, ListState}, ActiveTheme,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, IndexPath, WindowExt,
+    input::InputState,
+    list::{List, ListEvent, ListState},
 };
 use todos::entity::ItemModel;
 
-use crate::{todo_actions::set_item_pinned, todo_state::PinnedItemState, ItemListDelegate};
+use crate::{ItemListDelegate, todo_actions::set_item_pinned, todo_state::PinnedItemState};
 
 pub enum ItemsPinnedEvent {
     Pinned(Rc<ItemModel>),

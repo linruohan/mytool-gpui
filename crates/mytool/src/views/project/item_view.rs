@@ -53,26 +53,6 @@ impl ProjectItemsPanel {
                 });
                 cx.notify();
             }),
-            cx.subscribe(&item_info, |_this, _, event: &ItemInfoEvent, cx| match event {
-                ItemInfoEvent::Updated(item) => {
-                    print!("iteminfo updated after:{:?}", item);
-                    cx.emit(ItemEvent::Modified(item.clone()));
-                    cx.notify();
-                },
-                ItemInfoEvent::Added(item) => {
-                    cx.emit(ItemEvent::Added(item.clone()));
-                    cx.notify();
-                },
-                ItemInfoEvent::Deleted(item) => {
-                    cx.emit(ItemEvent::Deleted(item.clone()));
-                },
-                ItemInfoEvent::Finished(item) => {
-                    cx.emit(ItemEvent::Finished(item.clone()));
-                },
-                ItemInfoEvent::UnFinished(item) => {
-                    cx.emit(ItemEvent::Modified(item.clone()));
-                },
-            }),
             cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
                 if let ListEvent::Confirm(ix) = ev
                     && let Some(_item) = this.get_selected_item(*ix, cx)
@@ -156,7 +136,6 @@ impl ProjectItemsPanel {
                 state.set_item(Rc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
-        } else {
         }
         let view = cx.entity().clone();
         let dialog_title = if is_edit { "Edit Item" } else { "New Item" };

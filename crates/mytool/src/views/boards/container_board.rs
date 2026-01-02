@@ -1,13 +1,13 @@
 use gpui::{
-    prelude::FluentBuilder, px, AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable,
-    Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString,
-    StatefulInteractiveElement, Styled, Window,
+    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
+    Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    dock::{PanelControl, PanelEvent}, notification::Notification,
+    IconName, WindowExt,
+    dock::{PanelControl, PanelEvent},
+    notification::Notification,
     v_flex,
-    IconName,
-    WindowExt,
 };
 
 use crate::{ShowPanelInfo, ToggleSearch};

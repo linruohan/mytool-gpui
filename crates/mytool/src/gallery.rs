@@ -1,10 +1,10 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
+    ActiveTheme as _,
     input::{Input, InputEvent, InputState},
     resizable::{h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
-    ActiveTheme as _,
 };
 
 use crate::{CalendarStory, ListStory, StoryContainer, TodoStory, WelcomeStory};

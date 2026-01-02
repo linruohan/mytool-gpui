@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    actions, div, prelude::FluentBuilder, px, App, Context, ElementId,
-    InteractiveElement, IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
+    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, IconName,
-    IndexPath,
-    Selectable,
-    Sizable,
+    ActiveTheme, IconName, IndexPath, Selectable, Sizable,
+    button::{Button, ButtonVariants},
+    h_flex,
+    list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::ProjectModel;
 

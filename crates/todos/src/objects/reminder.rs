@@ -3,12 +3,12 @@ use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
 use crate::{
-    BaseObject, Store,
-    entity::{ItemModel, ReminderModel, SourceModel, prelude::ReminderEntity},
-    enums::ReminderType,
+    entity::{prelude::ReminderEntity, ItemModel, ReminderModel, SourceModel}, enums::ReminderType,
     error::TodoError,
     objects::{BaseTrait, DueDate, Item, Project},
     utils,
+    BaseObject,
+    Store,
 };
 
 #[derive(Clone, Debug)]
@@ -69,7 +69,7 @@ impl Reminder {
     // generate_accessors!(reminder_type:Option<String>);
 
     pub async fn item(&self) -> Option<ItemModel> {
-        self.store().await.get_item(&self.model.item_id.as_ref()?).await
+        self.store().await.get_item(self.model.item_id.as_ref()?).await
     }
 
     pub async fn datetime(&self) -> Option<NaiveDateTime> {

@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, Window, px,
 };
 use gpui_component::{
-    input::InputState, list::{List, ListEvent, ListState}, ActiveTheme,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, IndexPath, WindowExt,
+    input::InputState,
+    list::{List, ListEvent, ListState},
 };
 use todos::entity::ItemModel;
 
-use crate::{todo_state::TodayItemState, ItemListDelegate};
+use crate::{ItemListDelegate, todo_state::TodayItemState};
 
 pub enum ItemsTodayEvent {
     Finished(Rc<ItemModel>),

@@ -1,3 +1,4 @@
+#[allow(clippy::upper_case_acronyms)]
 pub enum ObjectEventKeyType {
     CONTENT,
     DESCRIPTION,

@@ -20,7 +20,7 @@ pub struct ColorGroupConfirm {
 }
 
 actions!(color_group, [ColorGroupCancel, SelectUp, SelectDown, SelectLeft, SelectRight]);
-const CONTEXT: &'static str = "ColorPickerGroup";
+const CONTEXT: &str = "ColorPickerGroup";
 use todos::utils::Util;
 
 use crate::section;

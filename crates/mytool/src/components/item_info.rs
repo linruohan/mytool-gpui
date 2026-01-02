@@ -26,7 +26,7 @@ use crate::{todo_state::LabelState, LabelsPopoverEvent, LabelsPopoverList};
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
 struct Info(i32);
-const CONTEXT: &'static str = "ItemInfo";
+const CONTEXT: &str = "ItemInfo";
 #[derive(Clone)]
 pub enum ItemInfoEvent {
     Updated(Rc<ItemModel>),    // 更新任务

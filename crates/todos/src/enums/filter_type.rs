@@ -1,6 +1,7 @@
 use std::fmt;
 
 use strum::EnumString;
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, PartialEq, EnumString)]
 #[strum(serialize_all = "camelCase")] // 自动处理连字符格式
 pub enum FilterType {

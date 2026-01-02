@@ -4,14 +4,9 @@ use rand::Rng;
 use uuid::Uuid;
 
 use crate::{constants, objects::Color};
+#[derive(Default)]
 pub struct Util {
     pub colors: HashMap<String, Color>,
-}
-
-impl Util {
-    pub fn default() -> Util {
-        Util { colors: HashMap::new() }
-    }
 }
 
 impl Util {

@@ -1,15 +1,15 @@
 use gpui::{
-    div, prelude::FluentBuilder, px, App, AppContext, ClickEvent, Context, Entity,
-    EventEmitter, InteractiveElement, IntoElement, IsZero, MouseButton, ParentElement, Render, Styled,
-    Subscription, Window,
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    IsZero, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, h_flex, input::{Input, InputEvent, InputState},
+    ActiveTheme, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    h_flex,
+    input::{Input, InputEvent, InputState},
     sidebar::{SidebarBoard, SidebarBoardItem},
     v_flex,
-    ActiveTheme,
-    IconName,
-    Sizable,
 };
 
 use crate::{

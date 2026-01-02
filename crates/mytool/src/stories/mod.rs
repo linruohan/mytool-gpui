@@ -1,4 +1,4 @@
-use gpui::{px, AnyView, App, AppContext as _, Entity, Hsla, Pixels, Render, Window};
+use gpui::{AnyView, App, AppContext as _, Entity, Hsla, Pixels, Render, Window, px};
 use gpui_component::dock::PanelControl;
 
 mod calendar_story;

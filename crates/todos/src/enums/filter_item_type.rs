@@ -5,6 +5,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, PartialEq, EnumString, Default, Eq, Hash, Deserialize, Serialize)]
 #[strum(serialize_all = "camelCase")]
 pub enum FilterItemType {

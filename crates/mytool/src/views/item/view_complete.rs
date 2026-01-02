@@ -1,20 +1,20 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, Window, px,
 };
 use gpui_component::{
-    input::InputState, list::{List, ListEvent, ListState}, ActiveTheme,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, IndexPath, WindowExt,
+    input::InputState,
+    list::{List, ListEvent, ListState},
 };
 use todos::entity::ItemModel;
 
 use crate::{
+    ItemListDelegate,
     todo_actions::{completed_item, uncompleted_item},
     todo_state::CompleteItemState,
-    ItemListDelegate,
 };
 
 pub enum ItemCompletedEvent {
