@@ -140,6 +140,7 @@ impl Render for LabelsPopoverList {
                             .small()
                             .ghost()
                             .compact()
+                            .tooltip("set Labels")
                             .icon(IconName::TagOutlineSymbolic),
                     )
                     .track_focus(&self.label_list.focus_handle(cx))

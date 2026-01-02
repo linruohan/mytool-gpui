@@ -10,7 +10,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     divider::Divider,
-    h_flex,
+    gray_100, h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,
 };
@@ -21,7 +21,9 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{LabelsPopoverEvent, LabelsPopoverList, todo_state::LabelState};
+use crate::{
+    LabelsPopoverEvent, LabelsPopoverList, todo_actions::update_item, todo_state::LabelState,
+};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
@@ -98,8 +100,10 @@ impl ItemInfoState {
                 let item = Rc::make_mut(&mut self.item);
                 if state == &self.name_input {
                     item.content = text;
+                    update_item(self.item.clone(), cx);
                 } else {
                     item.description = Some(text);
+                    update_item(self.item.clone(), cx);
                 }
             },
             InputEvent::PressEnter { secondary } => {
@@ -119,14 +123,16 @@ impl ItemInfoState {
         _state: &Entity<LabelsPopoverList>,
         event: &LabelsPopoverEvent,
         _window: &mut Window,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) {
         match event {
             LabelsPopoverEvent::Selected(label) => {
                 self.add_checked_labels(label.clone());
+                update_item(self.item.clone(), cx);
             },
             LabelsPopoverEvent::DeSelected(label) => {
                 self.rm_checked_labels(label.clone());
+                update_item(self.item.clone(), cx);
             },
         }
     }
@@ -141,6 +147,7 @@ impl ItemInfoState {
         match event {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(*priority);
+                update_item(self.item.clone(), cx);
             },
         }
         cx.notify();
@@ -214,6 +221,7 @@ impl ItemInfoState {
         let item = Rc::make_mut(&mut self.item);
         item.checked = !item.checked;
         println!("item checked:{:?} ", item.checked);
+        update_item(self.item.clone(), cx);
         cx.notify();
     }
 
@@ -264,6 +272,7 @@ impl Render for ItemInfoState {
             .border_3()
             .child(
                 h_flex()
+                    .gap_2()
                     .child(
                         Checkbox::new("item-checked")
                             .checked(self.item.checked)
@@ -276,6 +285,7 @@ impl Render for ItemInfoState {
                             .ghost()
                             .compact()
                             .icon(IconName::PinSymbolic)
+                            .tooltip("Pin item")
                             .on_click({
                                 let view = view.clone();
                                 move |_event, _window, cx| {
@@ -289,7 +299,7 @@ impl Render for ItemInfoState {
                             }),
                     ),
             )
-            .child(Input::new(&self.desc_input))
+            .child(Input::new(&self.desc_input).border_1().border_color(gray_100()))
             .child(h_flex().gap_3().children(labels.iter().enumerate().map(|(ix, label)| {
                 let label_clone = label.clone();
                 Checkbox::new(format!("label-{}", ix))
@@ -309,6 +319,7 @@ impl Render for ItemInfoState {
                             v_flex().gap_1().overflow_x_hidden().flex_nowrap().child(
                                 Button::new("item-schedule")
                                     .label("Schedule")
+                                    .tooltip("schedule item")
                                     .small()
                                     .icon(IconName::MonthSymbolic)
                                     .ghost()
@@ -330,6 +341,7 @@ impl Render for ItemInfoState {
                                     .small()
                                     .ghost()
                                     .compact()
+                                    .tooltip("Add attachment")
                                     .icon(IconName::MailAttachmentSymbolic)
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
@@ -341,6 +353,7 @@ impl Render for ItemInfoState {
                             .child(
                                 Button::new("item-reminder")
                                     .small()
+                                    .tooltip("Set reminder")
                                     .ghost()
                                     .compact()
                                     .icon(IconName::AlarmSymbolic)
@@ -353,8 +366,9 @@ impl Render for ItemInfoState {
                                 Button::new("item-due")
                                     .small()
                                     .ghost()
+                                    .tooltip("Set due date")
                                     .compact()
-                                    .icon(IconName::AlarmSymbolic)
+                                    .icon(IconName::DelayLongSmallSymbolic)
                                     .on_click({
                                         let _view = view.clone();
                                         move |_event, _window, _cx| {}
@@ -365,6 +379,7 @@ impl Render for ItemInfoState {
                                     .icon(IconName::ViewMoreSymbolic)
                                     .small()
                                     .ghost()
+                                    .tooltip("more actions")
                                     .on_click({
                                         // let items_panel = self.items_panel.clone();
                                         move |_event, _window, _cx| {}

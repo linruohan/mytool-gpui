@@ -2,25 +2,18 @@ use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window, actions, div, prelude::FluentBuilder,
+    ParentElement, Render, Styled, Subscription, Window, actions,
 };
 use gpui_component::{
-    IconName, Sizable,
-    button::Button,
-    collapsible::Collapsible,
     divider::Divider,
-    gray_300,
-    group_box::{GroupBox, GroupBoxVariants},
-    h_flex,
     list::{ListEvent, ListState},
-    tag::Tag,
     v_flex,
 };
 use todos::entity::ItemModel;
+use tokio::io::AsyncReadExt;
 
 use crate::{
-    ItemInfo, ItemInfoState, ItemListDelegate, ItemRow, ItemRowEvent, ItemRowState,
-    LabelsPopoverEvent, LabelsPopoverList,
+    ItemListDelegate, ItemRow, ItemRowState, LabelsPopoverEvent, LabelsPopoverList,
     popover_list::PopoverList,
     section,
     service::load_items,
@@ -33,11 +26,9 @@ pub struct ListStory {
     company_list: Entity<ListState<ItemListDelegate>>,
     selected_company: Option<Rc<ItemModel>>,
     _subscriptions: Vec<Subscription>,
-    item_infos: HashMap<String, Entity<ItemInfoState>>,
+    item_rows: HashMap<String, Entity<ItemRowState>>,
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
-    item_row: Entity<ItemRowState>,
-    item_open: Option<Rc<ItemModel>>,
 }
 
 impl super::Mytool for ListStory {
@@ -62,21 +53,20 @@ impl ListStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
-        let item = Rc::new(ItemModel {
+        let _item = Rc::new(ItemModel {
             id: "1".to_string(),
             content: "Item 1".to_string(),
             description: Some("This is item 1".to_string()),
             ..Default::default()
         });
-        let item_row = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
-        let item_infos = {
+        let item_rows = {
             let items = cx.global::<ItemState>().items.clone();
             items
                 .iter()
                 .map(|item| {
-                    let entity = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
+                    let entity = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
                     (item.id.clone(), entity)
                 })
                 .collect()
@@ -90,7 +80,7 @@ impl ListStory {
                     state_items.iter().map(|item| (item.id.clone(), item.clone())).collect();
 
                 // 更新或删除现有的item_infos
-                this.item_infos.retain(|item_id, entity| {
+                this.item_rows.retain(|item_id, entity| {
                     if let Some(updated_item) = items_by_id.get(item_id) {
                         // 更新
                         cx.update_entity(entity, |item_info, _cx| {
@@ -106,17 +96,12 @@ impl ListStory {
 
                 // 添加新的items（那些不在item_infos中的）
                 for (item_id, item) in items_by_id {
-                    if !this.item_infos.contains_key(&item_id) {
-                        let entity = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
-                        this.item_infos.insert(item_id, entity);
+                    if !this.item_rows.contains_key(&item_id) {
+                        let entity = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
+                        this.item_rows.insert(item_id, entity);
                     }
                 }
                 cx.notify();
-            }),
-            cx.subscribe(&item_row, |_this, _, ev, _| {
-                if let ItemRowEvent::Added(label) = ev {
-                    println!("label picker selected: {:?}", label.clone());
-                }
             }),
             cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
                 LabelsPopoverEvent::Selected(label) => {
@@ -158,11 +143,9 @@ impl ListStory {
             company_list,
             selected_company: None,
             _subscriptions,
-            item_infos,
+            item_rows,
             popover_list,
             label_popover_list,
-            item_row,
-            item_open: None,
         }
     }
 
@@ -187,54 +170,14 @@ impl Render for ListStory {
             .w_full()
             .gap_4()
             // .child(section("item_info").child(ItemInfo::new(&self.item_info)))
-            .child(section("item row").child(ItemRow::new(&self.item_row)))
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(Divider::horizontal())
             .child(
                 v_flex()
                     .children(
-                        self.item_infos.clone().into_values().map(|item_info_state| {
-                            let item = item_info_state.read(cx).item.clone();
-                            let is_open = match &self.item_open {
-                                Some(open_item) => open_item.id == item.id,
-                                None => false,
-                            };
-                            GroupBox::new().outline().w_full()
-                                .child(
-                                    div().id(format!("item-{}", item.id.clone()))
-                                         .child(
-                                             Collapsible::new()
-                                                 .gap_1()
-                                                 .open(is_open)
-                                                 .child(
-                                                     h_flex().child(
-                                                         v_flex()
-                                                             .child(item.content.clone())
-                                                             .child(div().text_color(gray_300()).child(item.description.clone().unwrap_or_default())))
-                                                             .child(Tag::info().child("+1.5%").outline().rounded_full().small())
-                                                             .child(
-                                                                 Button::new("toggle2")
-                                                                     .small()
-                                                                     .outline()
-                                                                     .icon(IconName::ChevronDown)
-                                                                     .label("Details")
-                                                                     .when(is_open, |this| {
-                                                                         this.icon(IconName::ChevronUp)
-                                                                     })
-                                                                     .on_click({
-                                                                         cx.listener(move |this, _, _, cx| {
-                                                                             if is_open { this.item_open = None } else {
-                                                                                 this.item_open = Some(item.clone());
-                                                                             }
-                                                                             cx.notify();
-                                                                         })
-                                                                     }),
-                                                             ),
-                                                 )
-                                                 .content(v_flex().gap_2().child(ItemInfo::new(&item_info_state)))
-                                         )
-                                )
+                        self.item_rows.clone().into_values().map(|item| {
+                            ItemRow::new(&item.clone())
                         })))
     }
 }

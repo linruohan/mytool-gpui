@@ -1,39 +1,24 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, actions, anchored, deferred, div,
-    prelude::FluentBuilder, px,
+    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, IconName, Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
+    collapsible::Collapsible,
     h_flex,
     label::Label,
     red_400,
     tag::Tag,
     v_flex,
 };
-use serde::Deserialize;
 use todos::entity::{ItemModel, LabelModel};
 
-use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, section, todo_state::LabelState};
-
-actions!(item_row, [ItemRowCancel, ItemRowDelete,]);
-#[derive(Clone, Action, PartialEq, Eq, Deserialize)]
-#[action(namespace = item_row, no_json)]
-pub struct ItemRowConfirm {
-    /// Is confirm with secondary.
-    pub secondary: bool,
-}
-#[derive(Clone, Action, PartialEq, Eq, Deserialize)]
-#[action(namespace = item_row, no_json)]
-pub struct ItemRowCheck {
-    /// Is confirm with secondary.
-    pub select: bool,
-}
+use crate::{ItemInfo, ItemInfoState, todo_state::LabelState};
 
 const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
@@ -48,9 +33,8 @@ pub struct ItemRowState {
     focus_handle: FocusHandle,
     pub item: Rc<ItemModel>,
     item_info: Entity<ItemInfoState>,
-    open: bool,
+    is_open: bool,
     _subscriptions: Vec<Subscription>,
-    checked: bool,
 }
 
 impl Focusable for ItemRowState {
@@ -63,224 +47,124 @@ impl ItemRowState {
     pub fn new(item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
-        let _subscriptions =
-            vec![cx.subscribe(&item_info, |this, _, _event: &ItemInfoEvent, cx| {
-                this.item_info.update(cx, |_item_info, _cx| {
-                    // item_info.handel_item_info_event(event, cx);
-                });
-            })];
+
+        let _subscriptions = vec![];
         Self {
             focus_handle: cx.focus_handle(),
             item: item.clone(),
             item_info,
-            open: false,
+            is_open: false,
             _subscriptions,
-            checked: item.clone().checked,
         }
-    }
-
-    fn on_escape(&mut self, _: &ItemRowCancel, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.open {
-            cx.propagate();
-        }
-
-        self.focus_back_if_need(window, cx);
-        self.open = false;
-
-        cx.notify();
-    }
-
-    fn on_enter(&mut self, _: &ItemRowConfirm, _: &mut Window, cx: &mut Context<Self>) {
-        if !self.open {
-            self.open = true;
-            cx.notify();
-        }
-    }
-
-    fn on_delete(&mut self, _: &ItemRowDelete, _window: &mut Window, _cx: &mut Context<Self>) {
-        // self.clean(&ClickEvent::default(), window, cx);
-    }
-
-    // To focus the Picker Input, if current focus in is on the container.
-    //
-    // This is because mouse down out the Calendar, GPUI will move focus to the container.
-    // So we need to move focus back to the Picker Input.
-    //
-    // But if mouse down target is some other focusable element (e.g.: [`crate::Input`]), we should
-    // not move focus.
-    fn focus_back_if_need(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.open {
-            return;
-        }
-
-        if let Some(focused) = window.focused(cx)
-            && focused.contains(&self.focus_handle, window)
-        {
-            self.focus_handle.focus(window, cx);
-        }
-    }
-
-    // pub fn on_labels_event(
-    //     &mut self,
-    //     _state: &Entity<LabelsPopoverList>,
-    //     event: &LabelsPopoverEvent,
-    //     _window: &mut Window,
-    //     _cx: &mut Context<Self>,
-    // ) {
-    //     match event {
-    //         LabelsPopoverEvent::Selected(label) => {
-    //             self.add_checked_labels(label.clone());
-    //         },
-    //         LabelsPopoverEvent::DeSelected(label) => {
-    //             self.rm_checked_labels(label.clone());
-    //         },
-    //     }
-    // }
-
-    fn toggle_finished(&mut self, selectable: &bool, _: &mut Window, _cx: &mut Context<Self>) {
-        self.checked = *selectable;
-    }
-
-    // 显示label list
-    fn toggle_labels(&mut self, _: &gpui::ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        self.open = !self.open;
-        cx.notify();
     }
 }
 
 impl Render for ItemRowState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let text_color =
+            if self.is_open { cx.theme().accent_foreground } else { cx.theme().foreground };
         let labels = cx.global::<LabelState>().labels.clone();
         let label_map: HashMap<&str, &Rc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
         let item_labels = &self.item.labels;
         let item = self.item.clone();
-        div()
-            .key_context(CONTEXT)
-            .track_focus(&self.focus_handle(cx).tab_stop(true))
-            // .on_action(window.listener_for(&self.state, ItemRowState::on_enter))
-            // .on_action(window.listener_for(&self.state, ItemRowState::on_delete))
-            .when(self.open, |this| {
-                this.on_action(cx.listener(ItemRowState::on_escape))
-            })
-            .flex_1()
-            .w_full()
-            .relative()
-            .child(
-                h_flex()
-                    .items_center()
-                    .justify_start()
-                    .gap_2()
-                    .child(Checkbox::new("item-finished").checked(self.checked).on_click(cx.listener(move |view, checked, _window, _cx| {
-                        view.checked = *checked;
-                    }
-                    )))
-                    .child(
-                        Label::new("Tomorrow").when(item.checked, |this| {
+        let item_info = self.item_info.clone();
+        let is_open = self.is_open;
+        let item_id = format!("item-{}", self.item.id.clone());
+        let view = cx.entity();
+        div().id(item_id).child(
+            Collapsible::new()
+                .gap_1()
+                .open(is_open)
+                .child(
+                    h_flex()
+                        .items_center()
+                        .justify_start()
+                        .gap_2()
+                        .text_color(text_color)
+                        .child(Checkbox::new("item-finished").checked(self.item.checked))
+                        .child(Label::new("Tomorrow").when(self.item.checked, |this| {
                             this.line_through().text_color(red_400())
-                        }),
-                    )
-                    .child(
-                        v_flex()
-                            .gap_1()
-                            .overflow_x_hidden()
-                            .flex_nowrap()
-                            .child(
-                                Label::new(item.content.clone())
-                                    .whitespace_nowrap()
-                                    .when(item.checked, |this| this.line_through()),
-                            )
-                            .when(item.labels.is_some(), |this| {
-                                this.child(
-                                    h_flex().gap_2().flex().children(
-                                        item_labels
-                                            .iter()
-                                            .flat_map(|group| {
-                                                group.split(';').filter(|id| !id.is_empty())
-                                            })
-                                            .filter_map(|id| {
-                                                label_map.get(id).map(|label| {
-                                                    Tag::primary().child(label.name.clone())
+                        }))
+                        .child(
+                            v_flex()
+                                .gap_1()
+                                .overflow_x_hidden()
+                                .flex_nowrap()
+                                .child(
+                                    Label::new(self.item.content.clone())
+                                        .whitespace_nowrap()
+                                        .when(self.item.checked, |this| this.line_through()),
+                                )
+                                .when(self.item.labels.is_some(), |this| {
+                                    this.child(
+                                        h_flex().gap_2().flex().children(
+                                            item_labels
+                                                .iter()
+                                                .flat_map(|group| {
+                                                    group.split(';').filter(|id| !id.is_empty())
                                                 })
-                                            })
-                                            .collect::<Vec<_>>(),
-                                    ),
+                                                .filter_map(|id| {
+                                                    label_map.get(id).map(|label| {
+                                                        Tag::primary().child(label.name.clone())
+                                                    })
+                                                })
+                                                .collect::<Vec<_>>(),
+                                        ),
+                                    )
+                                }),
+                        )
+                        .child(self.item.priority.unwrap_or_default().to_string())
+                        .child(
+                            h_flex()
+                                .gap_2()
+                                .items_center()
+                                .justify_end()
+                                .flex()
+                                .px_2()
+                                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                                .child(
+                                    Button::new("edit")
+                                        .small()
+                                        .ghost()
+                                        .compact()
+                                        .icon(IconName::EditSymbolic)
+                                        .on_click(move |_event, _window, _cx| {
+                                            let item = item.clone();
+                                            println!("edit item:{:?}", item);
+                                        }),
                                 )
-                            }),
-                    )
-                    .child(item.priority.unwrap_or_default().to_string())
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .justify_end()
-                            .flex()
-                            .px_2()
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("edit")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .on_click(move |_event, _window, _cx| {
-                                        let item = item.clone();
-                                        println!("edit item:{:?}", item);
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .on_click(|_, _, _cx| {
-                                        println!("delete item:");
-                                    }),
-                            )
-                            .child(
-                                Button::new("详情")
-                                    .tooltip("show item info")
-                                    .small().icon(IconName::ViewMoreSymbolic)
-                                    .ghost()
-                                    .compact()
-                                    .when(!self.open, |this| {
-                                        this.on_click(
-                                            cx.listener(ItemRowState::toggle_labels),
-                                        )
+                                .child(
+                                    Button::new("delete")
+                                        .icon(IconName::UserTrashSymbolic)
+                                        .small()
+                                        .ghost()
+                                        .on_click(|_, _, _cx| {
+                                            println!("delete item:");
+                                        }),
+                                ),
+                        )
+                        .child(
+                            Button::new("toggle2")
+                                .label("Details")
+                                .small()
+                                .outline()
+                                .icon(IconName::ChevronDown)
+                                .when(is_open, |this| this.icon(IconName::ChevronUp))
+                                .on_click(move |_event, _window, cx| {
+                                    let view = view.clone();
+                                    cx.update_entity(&view, |this, cx| {
+                                        this.is_open = !this.is_open;
+                                        cx.notify();
                                     })
-                            )
-                    )
-            )
-            .when(self.open, |this| {
-                this.child(
-                    deferred(
-                        anchored().snap_to_window_with_margin(px(8.)).child(
-                            div()
-                                .mt_1p5()
-                                .p_3()
-                                .w_full()
-                                .border_1()
-                                .border_color(cx.theme().border)
-                                .shadow_lg()
-                                .rounded((cx.theme().radius * 2.).min(px(8.)))
-                                .bg(cx.theme().popover)
-                                .text_color(cx.theme().popover_foreground)
-                                .on_mouse_up_out(
-                                    MouseButton::Left,
-                                    cx.listener(|view, _, window, cx| {
-                                        view.on_escape(&ItemRowCancel, window, cx);
-                                    }),
-                                )
-                                .child(section("item_info").child(ItemInfo::new(&self.item_info)))
+                                }),
                         ),
-                    )
-                        .with_priority(2),
                 )
-            })
+                .content(v_flex().gap_2().child(ItemInfo::new(&item_info.clone()))),
+        )
     }
 }
 
-/// A DatePicker element.
 #[derive(IntoElement)]
 pub struct ItemRow {
     id: ElementId,
@@ -308,7 +192,6 @@ impl Styled for ItemRow {
 }
 
 impl ItemRow {
-    /// Create a new DatePicker with the given [`ItemRowState`].
     pub fn new(state: &Entity<ItemRowState>) -> Self {
         Self {
             id: ("item-info", state.entity_id()).into(),
@@ -320,7 +203,7 @@ impl ItemRow {
 }
 
 impl RenderOnce for ItemRow {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         div()
             .id(self.id.clone())
             .key_context(CONTEXT)

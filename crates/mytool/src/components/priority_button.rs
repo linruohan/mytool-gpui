@@ -91,6 +91,7 @@ impl Render for PriorityState {
         v_flex().on_action(cx.listener(Self::on_action_info)).child(
             Button::new("priority")
                 .outline()
+                .tooltip("set priority")
                 .icon(Icon::build(IconName::FlagOutlineThickSymbolic).text_color(
                     if self.priority == ItemPriority::NONE {
                         cx.theme().primary
