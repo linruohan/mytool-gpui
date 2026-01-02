@@ -19,7 +19,7 @@ pub fn add_item(item: Rc<ItemModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::add_item(item.clone(), db.clone()).await {
+        if crate::service::add_item(item.clone(), db.clone()).await.is_ok() {
             refresh_items(cx, db.clone()).await;
         }
     })
@@ -30,7 +30,7 @@ pub fn update_item(item: Rc<ItemModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::mod_item(item.clone(), db.clone()).await {
+        if crate::service::mod_item(item.clone(), db.clone()).await.is_ok() {
             refresh_items(cx, db.clone()).await;
         }
     })
@@ -51,7 +51,7 @@ pub fn completed_item(item: Rc<ItemModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::finish_item(item.clone(), true, false, db.clone()).await {
+        if crate::service::finish_item(item.clone(), true, false, db.clone()).await.is_ok() {
             refresh_items(cx, db.clone()).await;
         }
     })

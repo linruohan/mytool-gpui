@@ -7,7 +7,7 @@ pub fn play_ogg_file(path: &str) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let stream_handle =
             rodio::OutputStreamBuilder::open_default_stream().expect("open default audio stream");
-        let sink = rodio::Sink::connect_new(&stream_handle.mixer());
+        let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
         let file = BufReader::new(File::open(&path).unwrap());
         sink.append(Decoder::try_from(file).unwrap());

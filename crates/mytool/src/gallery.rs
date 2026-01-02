@@ -1,10 +1,10 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _,
     input::{Input, InputEvent, InputState},
     resizable::{h_resizable, resizable_panel},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
     v_flex,
+    ActiveTheme as _,
 };
 
 use crate::{CalendarStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
@@ -21,13 +21,12 @@ pub struct Gallery {
 impl Gallery {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
-        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
-            InputEvent::Change => {
+        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| {
+            if let InputEvent::Change = e {
                 this.active_group_index = Some(0);
                 this.active_index = Some(0);
                 cx.notify()
-            },
-            _ => {},
+            }
         })];
         let stories = vec![("Components", vec![
             StoryContainer::panel::<WelcomeStory>(window, cx),

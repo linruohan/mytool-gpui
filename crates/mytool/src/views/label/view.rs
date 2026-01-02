@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
+    Render, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    input::{Input, InputState},
-    list::{List, ListEvent, ListState},
-    v_flex,
+    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState}, v_flex,
+    ActiveTheme,
+    Colorize,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate,
-    todo_actions::{add_label, delete_label, update_label},
-    todo_state::LabelState,
+    todo_actions::{add_label, delete_label, update_label}, todo_state::LabelState, ColorGroup, ColorGroupEvent,
+    ColorGroupState,
+    LabelListDelegate,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
@@ -42,7 +42,7 @@ impl LabelsPanel {
         let _subscriptions = vec![
             cx.observe_global::<LabelState>(move |_this, cx| {
                 let labels = cx.global::<LabelState>().labels.clone();
-                let _ = cx.update_entity(&label_list_clone, |list, cx| {
+                cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
                     cx.notify();
                 });
@@ -110,7 +110,7 @@ impl LabelsPanel {
             .filter(|_| is_edit)
             .and_then(|index| {
                 println!("show_label_dialog: active index: {}", index);
-                self.get_selected_label(IndexPath::new(index), &cx)
+                self.get_selected_label(IndexPath::new(index), cx)
             })
             .map(|label| {
                 let label_ref = label.as_ref();
@@ -187,7 +187,7 @@ impl LabelsPanel {
 
     pub fn show_label_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
-            let label_some = self.get_selected_label(IndexPath::new(active_index), &cx);
+            let label_some = self.get_selected_label(IndexPath::new(active_index), cx);
             if let Some(label) = label_some {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {

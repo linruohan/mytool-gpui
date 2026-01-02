@@ -1,15 +1,15 @@
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    IsZero, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    div, prelude::FluentBuilder, px, App, AppContext, ClickEvent, Context, Entity,
+    EventEmitter, InteractiveElement, IntoElement, IsZero, MouseButton, ParentElement, Render, Styled,
+    Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable,
-    button::{Button, ButtonVariants},
-    h_flex,
-    input::{Input, InputEvent, InputState},
+    button::{Button, ButtonVariants}, h_flex, input::{Input, InputEvent, InputState},
     sidebar::{SidebarBoard, SidebarBoardItem},
     v_flex,
+    ActiveTheme,
+    IconName,
+    Sizable,
 };
 
 use crate::{
@@ -37,12 +37,11 @@ impl BoardPanel {
             BoardContainer::panel::<LabelsBoard>(window, cx),
             BoardContainer::panel::<CompletedBoard>(window, cx),
         ];
-        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
-            InputEvent::Change => {
+        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| {
+            if let InputEvent::Change = e {
                 this.active_index = Some(0);
                 cx.notify()
-            },
-            _ => {},
+            }
         })];
         Self { search_input, boards, active_index: None, _subscriptions }
     }

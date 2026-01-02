@@ -1,25 +1,25 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, actions, anchored, deferred, div,
-    prelude::FluentBuilder, px,
+    actions, anchored, deferred, div, prelude::FluentBuilder, px, Action, App, AppContext,
+    Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce, StyleRefinement, Styled,
+    Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable, Size, StyledExt as _,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    h_flex,
-    label::Label,
-    red_400,
+    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, red_400,
     tag::Tag,
     v_flex,
+    ActiveTheme,
+    IconName,
+    Sizable,
+    Size,
+    StyledExt as _,
 };
 use serde::Deserialize;
 use todos::entity::{ItemModel, LabelModel};
 
-use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, section, todo_state::LabelState};
+use crate::{section, todo_state::LabelState, ItemInfo, ItemInfoEvent, ItemInfoState};
 
 actions!(item_row, [ItemRowCancel, ItemRowDelete,]);
 #[derive(Clone, Action, PartialEq, Eq, Deserialize)]
@@ -113,10 +113,10 @@ impl ItemRowState {
             return;
         }
 
-        if let Some(focused) = window.focused(cx) {
-            if focused.contains(&self.focus_handle, window) {
-                self.focus_handle.focus(window, cx);
-            }
+        if let Some(focused) = window.focused(cx)
+            && focused.contains(&self.focus_handle, window)
+        {
+            self.focus_handle.focus(window, cx);
         }
     }
 

@@ -236,7 +236,7 @@ impl ColorGroup {
 
         v_flex().gap_3().items_center().child(v_flex().gap_1().children(
             color_palettes().iter().map(|sub_colors| {
-                h_flex().gap_1().children(sub_colors.iter().enumerate().map(|(_ix, color)| {
+                h_flex().gap_1().children(sub_colors.iter().map(|color| {
                     // self.render_item(*color, true, window, cx)
                     let color = *color;
                     div()

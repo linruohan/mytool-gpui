@@ -11,13 +11,11 @@ use gpui_component::{
     group_box::{GroupBox, GroupBoxVariants},
     h_flex,
     list::{ListEvent, ListState},
-    select::SelectItem,
     tag::Tag,
     v_flex,
     IconName,
     Sizable,
 };
-use itertools::Itertools;
 use todos::entity::ItemModel;
 
 use crate::{
@@ -115,11 +113,10 @@ impl ListStory {
                 }
                 cx.notify();
             }),
-            cx.subscribe(&item_row, |_this, _, ev, _| match ev {
-                ItemRowEvent::Added(label) => {
+            cx.subscribe(&item_row, |_this, _, ev, _| {
+                if let ItemRowEvent::Added(label) = ev {
                     println!("label picker selected: {:?}", label.clone());
-                },
-                _ => {},
+                }
             }),
             cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
                 LabelsPopoverEvent::Selected(label) => {

@@ -1,19 +1,19 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Subscription, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::{
-    IconName, Sizable,
-    button::{Button, ButtonVariants},
-    list::{List, ListState},
+    button::{Button, ButtonVariants}, list::{List, ListState},
     popover::Popover,
     v_flex,
+    IconName,
+    Sizable,
 };
 use todos::entity::LabelModel;
 
-use crate::{LabelCheckListDelegate, SelectedCheckLabel, todo_state::LabelState};
+use crate::{todo_state::LabelState, LabelCheckListDelegate, SelectedCheckLabel};
 
 pub enum LabelsPopoverEvent {
     Selected(Rc<LabelModel>),
@@ -45,7 +45,7 @@ impl LabelsPopoverList {
         let label_list_clone = label_list.clone();
         let _subscriptions = vec![cx.observe_global::<LabelState>(move |_this, cx| {
             let labels = cx.global::<LabelState>().labels.clone();
-            let _ = cx.update_entity(&label_list_clone, |list, cx| {
+            cx.update_entity(&label_list_clone, |list, cx| {
                 list.delegate_mut().update_labels(labels);
                 cx.notify();
             });
@@ -84,12 +84,12 @@ impl LabelsPopoverList {
 
     fn selected_label(&mut self, _: &SelectedCheckLabel, _: &mut Window, cx: &mut Context<Self>) {
         let picker = self.label_list.read(cx);
-        if let Some(label) = picker.delegate().selected_label() {
-            if !self.selected_labels.contains(&label) {
-                self.selected_labels.push(label.clone());
-                cx.emit(LabelsPopoverEvent::Selected(label.clone()));
-                cx.notify();
-            }
+        if let Some(label) = picker.delegate().selected_label()
+            && !self.selected_labels.contains(&label)
+        {
+            self.selected_labels.push(label.clone());
+            cx.emit(LabelsPopoverEvent::Selected(label.clone()));
+            cx.notify();
         }
         println!("Selected label: {:?}", self.selected_labels.len());
     }

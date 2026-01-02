@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
-    Render, Styled, Subscription, Window, div,
+    div, App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    h_flex,
-    list::{List, ListEvent, ListState},
-    menu::{DropdownMenu, PopupMenuItem},
+    button::{Button, ButtonVariants}, h_flex, list::{List, ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
     v_flex,
+    ActiveTheme,
+    IconName,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
-    todo_actions::{add_project_item, delete_project_item, update_project_item},
-    todo_state::ProjectItemState,
+    todo_actions::{add_project_item, delete_project_item, update_project_item}, todo_state::ProjectItemState, ItemEvent, ItemInfo, ItemInfoEvent,
+    ItemInfoState,
+    ItemListDelegate,
 };
 
 pub enum ProjectItemEvent {
@@ -40,17 +40,14 @@ pub struct ProjectItemsPanel {
 impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
-        let item_info = cx.new(|cx| {
-            let picker = ItemInfoState::new(item.clone(), window, cx);
-            picker
-        });
+        let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<ProjectItemState>(move |_this, cx| {
                 let items = cx.global::<ProjectItemState>().items.clone();
-                let _ = cx.update_entity(&item_list_clone, |list, cx| {
+                cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();
                 });
@@ -136,7 +133,7 @@ impl ProjectItemsPanel {
         self.active_index
             .and_then(|index| {
                 println!("show_label_dialog: active index: {}", index);
-                self.get_selected_item(IndexPath::new(index), &cx)
+                self.get_selected_item(IndexPath::new(index), cx)
             })
             .map(|label| {
                 let item_ref = label.as_ref();

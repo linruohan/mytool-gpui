@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
+    actions, div, prelude::FluentBuilder, px, App, Context, ElementId, Entity, EventEmitter,
+    Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable,
-    checkbox::Checkbox,
-    h_flex,
-    list::{ListDelegate, ListItem, ListState},
+    checkbox::Checkbox, h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, Icon,
+    IconName,
+    IndexPath,
+    Selectable,
 };
 use todos::entity::LabelModel;
 
@@ -147,9 +147,7 @@ impl LabelCheckListDelegate {
     }
 
     pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
-        let Some(ix) = self.selected_index else {
-            return None;
-        };
+        let ix = self.selected_index?;
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 

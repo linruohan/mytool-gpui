@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
+    actions, div, prelude::FluentBuilder, px, App, Context, ElementId,
+    InteractiveElement, IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Selectable, Sizable,
-    button::{Button, ButtonVariants},
-    h_flex,
-    list::{ListDelegate, ListItem, ListState},
+    button::{Button, ButtonVariants}, h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, IconName,
+    IndexPath,
+    Selectable,
+    Sizable,
 };
 use todos::entity::ProjectModel;
 
@@ -111,6 +111,11 @@ pub struct ProjectListDelegate {
     confirmed_index: Option<IndexPath>,
     query: SharedString,
 }
+impl Default for ProjectListDelegate {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ProjectListDelegate {
     pub fn new() -> Self {
@@ -145,10 +150,7 @@ impl ProjectListDelegate {
     }
 
     pub fn selected_project(&self) -> Option<Rc<ProjectModel>> {
-        let Some(ix) = self.selected_index else {
-            return None;
-        };
-
+        let ix = self.selected_index?;
         self.matched_projects.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 }

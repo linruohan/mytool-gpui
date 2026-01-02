@@ -2,8 +2,6 @@ use gpui::*;
 use gpui_component::select::*;
 use serde::{Deserialize, Serialize};
 
-pub fn init(_: &mut App) {}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct ListSelect {
     name: SharedString,

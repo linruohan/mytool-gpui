@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use gpui::{Action, App, SharedString};
-use gpui_component::{ActiveTheme, Theme, ThemeMode, ThemeRegistry, scroll::ScrollbarShow};
+use gpui_component::{scroll::ScrollbarShow, ActiveTheme, Theme, ThemeMode, ThemeRegistry};
 use serde::{Deserialize, Serialize};
 
 const STATE_FILE: &str = "target/state.json";
@@ -20,7 +20,7 @@ impl Default for State {
 
 pub fn init(cx: &mut App) {
     // Load last theme state
-    let json = std::fs::read_to_string(STATE_FILE).unwrap_or(String::default());
+    let json = std::fs::read_to_string(STATE_FILE).unwrap_or_default();
     tracing::info!("Load themes...");
     let state = serde_json::from_str::<State>(&json).unwrap_or_default();
     if let Err(err) = ThemeRegistry::watch_dir(PathBuf::from("./themes"), cx, move |cx| {

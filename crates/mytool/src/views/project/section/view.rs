@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
+    Render, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    input::{Input, InputState},
-    list::{List, ListEvent, ListState},
-    v_flex,
+    button::{Button, ButtonVariants}, input::{Input, InputState}, list::{List, ListEvent, ListState}, v_flex,
+    ActiveTheme,
+    Colorize,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::{ProjectModel, SectionModel};
 
 use super::{SectionEvent, SectionListDelegate};
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState,
-    todo_actions::{add_section, delete_section, update_section},
-    todo_state::SectionState,
+    todo_actions::{add_section, delete_section, update_section}, todo_state::SectionState, ColorGroup,
+    ColorGroupEvent,
+    ColorGroupState,
 };
 
 impl EventEmitter<SectionEvent> for SectionsPanel {}
@@ -43,7 +43,7 @@ impl SectionsPanel {
         let _subscriptions = vec![
             cx.observe_global::<SectionState>(move |_this, cx| {
                 let sections = cx.global::<SectionState>().sections.clone();
-                let _ = cx.update_entity(&section_list_clone, |list, cx| {
+                cx.update_entity(&section_list_clone, |list, cx| {
                     list.delegate_mut().update_sections(sections);
                     cx.notify();
                 });
@@ -117,7 +117,7 @@ impl SectionsPanel {
             .filter(|_| is_edit)
             .and_then(|index| {
                 println!("show_section_dialog: active index: {}", index);
-                self.get_selected_section(IndexPath::new(index), &cx)
+                self.get_selected_section(IndexPath::new(index), cx)
             })
             .map(|section| {
                 let section_ref = section.as_ref();
@@ -199,7 +199,7 @@ impl SectionsPanel {
 
     pub fn show_section_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
-            let section_some = self.get_selected_section(IndexPath::new(active_index), &cx);
+            let section_some = self.get_selected_section(IndexPath::new(active_index), cx);
             if let Some(section) = section_some {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {

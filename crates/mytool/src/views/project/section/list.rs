@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
-    Task, Window, actions, div, prelude::FluentBuilder, px,
+    actions, div, prelude::FluentBuilder, px, App, Context, ElementId, Hsla, IntoElement,
+    ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
-    list::{ListDelegate, ListItem, ListState},
+    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, Icon, IconName, IndexPath,
+    Selectable,
 };
 use todos::entity::SectionModel;
 
@@ -163,10 +163,7 @@ impl SectionListDelegate {
     }
 
     pub fn selected_section(&self) -> Option<Rc<SectionModel>> {
-        let Some(ix) = self.selected_index else {
-            return None;
-        };
-
+        let ix = self.selected_index?;
         self.matched_sections.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 }
@@ -195,7 +192,7 @@ impl ListDelegate for SectionListDelegate {
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(sec) = self.matched_sections[ix.section].get(ix.row) {
-            let checked = self.checked_sections.contains(&sec);
+            let checked = self.checked_sections.contains(sec);
             return Some(SectionListItem::new(ix, sec.clone(), selected, checked));
         }
         None

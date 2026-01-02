@@ -1,13 +1,13 @@
 use gpui::{
-    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
-    Window, prelude::FluentBuilder, px,
+    prelude::FluentBuilder, px, AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable,
+    Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString,
+    StatefulInteractiveElement, Styled, Window,
 };
 use gpui_component::{
-    IconName, WindowExt,
-    dock::{PanelControl, PanelEvent},
-    notification::Notification,
+    dock::{PanelControl, PanelEvent}, notification::Notification,
     v_flex,
+    IconName,
+    WindowExt,
 };
 
 use crate::{ShowPanelInfo, ToggleSearch};
@@ -75,7 +75,7 @@ pub trait Board: Render + Sized {
     where
         Self: 'static,
     {
-        if let Some(board) = view.downcast::<Self>().ok() {
+        if let Ok(board) = view.downcast::<Self>() {
             cx.update_entity(&board, |board, cx| {
                 board.on_active(active, window, cx);
             });
@@ -116,7 +116,7 @@ impl BoardContainer {
         let story_klass = S::klass();
         let focus_handle = cx.focus_handle();
 
-        let view = cx.new(|cx| {
+        cx.new(|cx| {
             let mut mytool =
                 Self::new(window, cx).board(mytool.into(), story_klass).on_active(S::on_active_any);
             mytool.focus_handle = focus_handle;
@@ -129,9 +129,7 @@ impl BoardContainer {
             mytool.description = description.into();
             mytool.title_bg = S::title_bg();
             mytool
-        });
-
-        view
+        })
     }
 
     pub fn width(mut self, width: gpui::Pixels) -> Self {

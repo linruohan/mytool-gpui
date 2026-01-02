@@ -16,18 +16,13 @@ pub enum PinnedItemStatus {
 pub struct PinnedItemState {
     pub items: Vec<Rc<ItemModel>>,
     active_item: Option<Rc<ItemModel>>,
-    item_state: PinnedItemStatus,
 }
 
 impl Global for PinnedItemState {}
 
 impl PinnedItemState {
     pub fn init(cx: &mut App) {
-        let this = PinnedItemState {
-            items: vec![],
-            active_item: None,
-            item_state: PinnedItemStatus::Loaded,
-        };
+        let this = PinnedItemState { items: vec![], active_item: None };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();

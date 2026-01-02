@@ -1,19 +1,19 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
+    actions, prelude::FluentBuilder, px, App, Context, ElementId, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    h_flex,
-    label::Label,
-    list::{ListDelegate, ListItem, ListState},
-    red_400,
-    tag::Tag,
+    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, red_400, tag::Tag,
     v_flex,
+    ActiveTheme,
+    IconName,
+    IndexPath,
+    Placement,
+    Selectable,
+    Sizable,
+    WindowExt,
 };
 use todos::entity::{ItemModel, LabelModel};
 
@@ -150,7 +150,11 @@ pub struct ItemListDelegate {
     confirmed_index: Option<IndexPath>,
     query: SharedString,
 }
-
+impl Default for ItemListDelegate {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl ItemListDelegate {
     pub fn new() -> Self {
         Self {
@@ -165,11 +169,7 @@ impl ItemListDelegate {
     #[allow(unused)]
     fn get_label_by_id(&mut self, id: &str, _window: &mut Window, cx: &mut App) -> Option<String> {
         let labels = cx.global::<LabelState>().labels.clone();
-        if let Some(label) = labels.iter().find(|label| label.id == id).cloned() {
-            Some(label.name.clone())
-        } else {
-            None
-        }
+        labels.iter().find(|label| label.id == id).cloned().map(|label| label.name.clone())
     }
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
@@ -194,10 +194,7 @@ impl ItemListDelegate {
     }
 
     pub fn selected_item(&self) -> Option<Rc<ItemModel>> {
-        let Some(ix) = self.selected_index else {
-            return None;
-        };
-
+        let ix = self.selected_index?;
         self.matched_items.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Window, px,
+    px, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Window,
 };
 use gpui_component::{
     button::Button,
@@ -57,7 +57,7 @@ impl ListDelegate for DropdownListDelegate {
     ) {
         self.selected_index = ix.map(|ix| ix.row);
 
-        if let Some(_) = ix {
+        if ix.is_some() {
             cx.notify();
         }
     }
@@ -66,10 +66,10 @@ impl ListDelegate for DropdownListDelegate {
         self.parent.update(cx, |this, cx| {
             this.list_popover_open = false;
             self.confirmed_index = self.selected_index;
-            if let Some(ix) = self.confirmed_index {
-                if let Some(item) = self.matches.get(ix) {
-                    this.priority = ItemPriority::from_i32(**item);
-                }
+            if let Some(ix) = self.confirmed_index
+                && let Some(item) = self.matches.get(ix)
+            {
+                this.priority = ItemPriority::from_i32(**item);
             }
             cx.notify();
         })

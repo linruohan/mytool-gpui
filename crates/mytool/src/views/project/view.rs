@@ -5,21 +5,21 @@ use gpui::{
     Render, Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, IconName, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    input::{Input, InputState},
-    list::{ListEvent, ListState},
-    menu::{DropdownMenu, PopupMenuItem},
+    button::{Button, ButtonVariants}, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, input::{Input, InputState}, list::{ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
     sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
+    ActiveTheme,
+    Colorize,
+    IconName,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::ProjectModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate, play_ogg_file,
-    service::load_projects,
-    todo_state::{DBState, ProjectState},
+    play_ogg_file, service::load_projects, todo_state::{DBState, ProjectState}, ColorGroup, ColorGroupEvent, ColorGroupState,
+    ProjectEvent,
+    ProjectListDelegate,
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
@@ -45,7 +45,7 @@ impl ProjectsPanel {
         let _subscriptions = vec![
             cx.observe_global::<ProjectState>(move |_this, cx| {
                 let projects = cx.global::<ProjectState>().projects.clone();
-                let _ = cx.update_entity(&project_list_clone, |list, cx| {
+                cx.update_entity(&project_list_clone, |list, cx| {
                     list.delegate_mut().update_projects(projects);
                     cx.notify();
                 });
@@ -123,7 +123,7 @@ impl ProjectsPanel {
             .filter(|_| is_edit)
             .and_then(|index| {
                 println!("show_label_dialog: active index: {}", index);
-                self.get_selected_project(IndexPath::new(index), &cx)
+                self.get_selected_project(IndexPath::new(index), cx)
             })
             .map(|label| {
                 let item_ref = label.as_ref();
@@ -303,7 +303,7 @@ impl Render for ProjectsPanel {
                 .child(SidebarMenuItem::new("On This Computer                     ➕").on_click(
                     cx.listener(move |this, _, window: &mut Window, cx| {
                         // let projects = projects.read(cx);
-                        println!("project_panel: {}", "add projects");
+                        println!("project_panel: add projects");
                         play_ogg_file("assets/sounds/success.ogg");
                         let default_model = Rc::new(ProjectModel::default());
                         this.open_project_dialog(default_model, window, cx);

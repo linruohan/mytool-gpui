@@ -21,7 +21,7 @@ pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::add_project(project.clone(), db.clone()).await {
+        if crate::service::add_project(project.clone(), db.clone()).await.is_ok() {
             refresh_projects(cx, db.clone()).await;
         }
     })
@@ -32,7 +32,7 @@ pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::mod_project(project.clone(), db.clone()).await {
+        if crate::service::mod_project(project.clone(), db.clone()).await.is_ok() {
             refresh_projects(cx, db.clone()).await;
         }
     })

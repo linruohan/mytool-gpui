@@ -1,14 +1,14 @@
 use gpui::{
-    AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Pixels, Render, SharedString, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    div, prelude::FluentBuilder, px, AnyView, App, AppContext, Context, Entity, EventEmitter,
+    Focusable, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, Render, SharedString,
+    Styled, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, WindowExt,
-    button::Button,
-    dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
-    menu::PopupMenu,
+    button::Button, dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle}, menu::PopupMenu,
     scroll::ScrollableElement,
+    ActiveTheme,
+    IconName,
+    WindowExt,
 };
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
@@ -59,7 +59,7 @@ impl StoryContainer {
         let story = S::new_view(window, cx);
         let story_klass = S::klass();
 
-        let view = cx.new(|cx| {
+        cx.new(|cx| {
             let mut story =
                 Self::new(window, cx).story(story.into(), story_klass).on_active(S::on_active_any);
             story.focus_handle = cx.focus_handle();
@@ -70,16 +70,16 @@ impl StoryContainer {
             story.title_bg = S::title_bg();
             story.paddings = S::paddings();
             story
-        });
-
-        view
+        })
     }
 
+    #[allow(unused)]
     pub fn width(mut self, width: gpui::Pixels) -> Self {
         self.width = Some(width);
         self
     }
 
+    #[allow(unused)]
     pub fn height(mut self, height: gpui::Pixels) -> Self {
         self.height = Some(height);
         self
@@ -106,11 +106,7 @@ impl Panel for StoryContainer {
     }
 
     fn title_style(&self, cx: &App) -> Option<TitleStyle> {
-        if let Some(bg) = self.title_bg {
-            Some(TitleStyle { background: bg, foreground: cx.theme().foreground })
-        } else {
-            None
-        }
+        self.title_bg.map(|bg| TitleStyle { background: bg, foreground: cx.theme().foreground })
     }
 
     fn closable(&self, _cx: &App) -> bool {
@@ -131,10 +127,10 @@ impl Panel for StoryContainer {
 
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
         println!("panel: {} active: {}", self.name, active);
-        if let Some(on_active) = self.on_active {
-            if let Some(story) = self.story.clone() {
-                on_active(story, active, _window, cx);
-            }
+        if let Some(on_active) = self.on_active
+            && let Some(story) = self.story.clone()
+        {
+            on_active(story, active, _window, cx);
         }
     }
 

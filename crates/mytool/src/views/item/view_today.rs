@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    input::InputState,
-    list::{List, ListEvent, ListState},
+    input::InputState, list::{List, ListEvent, ListState}, ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemListDelegate, todo_state::TodayItemState};
+use crate::{todo_state::TodayItemState, ItemListDelegate};
 
 pub enum ItemsTodayEvent {
     Finished(Rc<ItemModel>),
@@ -37,7 +37,7 @@ impl ItemsTodayPanel {
         let _subscriptions = vec![
             cx.observe_global::<TodayItemState>(move |_this, cx| {
                 let items = cx.global::<TodayItemState>().items.clone();
-                let _ = cx.update_entity(&item_list_clone, |list, cx| {
+                cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();
                 });
@@ -87,7 +87,7 @@ impl ItemsTodayPanel {
 
     pub fn show_finish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
+            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {

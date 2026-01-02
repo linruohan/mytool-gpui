@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
-    Task, Window, actions, div, prelude::FluentBuilder, px,
+    actions, div, prelude::FluentBuilder, px, App, Context, ElementId, Hsla, IntoElement,
+    ParentElement, RenderOnce, SharedString, Styled, Task, Window,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
-    list::{ListDelegate, ListItem, ListState},
+    h_flex, list::{ListDelegate, ListItem, ListState}, ActiveTheme, Icon, IconName, IndexPath,
+    Selectable,
 };
 use todos::entity::LabelModel;
 
@@ -102,6 +102,11 @@ pub struct LabelListDelegate {
     confirmed_index: Option<IndexPath>,
     query: SharedString,
 }
+impl Default for LabelListDelegate {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LabelListDelegate {
     pub fn new() -> Self {
@@ -161,10 +166,7 @@ impl LabelListDelegate {
     }
 
     pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
-        let Some(ix) = self.selected_index else {
-            return None;
-        };
-
+        let ix = self.selected_index?;
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 }
@@ -193,7 +195,7 @@ impl ListDelegate for LabelListDelegate {
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
-            let checked = self.checked_labels.contains(&label);
+            let checked = self.checked_labels.contains(label);
             return Some(LabelListItem::new(ix, label.clone(), selected, checked));
         }
         None

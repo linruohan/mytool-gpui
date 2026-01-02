@@ -1,18 +1,18 @@
 use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
-    Action, App, AppContext, ClickEvent, Context, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, div,
+    div, Action, App, AppContext, ClickEvent, Context, ElementId, Entity, EventEmitter,
+    FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render,
+    RenderOnce, StyleRefinement, Styled, Subscription, Window,
 };
 use gpui_component::{
-    IconName, Sizable, Size, StyledExt as _,
-    button::{Button, ButtonVariants},
-    checkbox::Checkbox,
-    divider::Divider,
-    h_flex,
+    button::{Button, ButtonVariants}, checkbox::Checkbox, divider::Divider, h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,
+    IconName,
+    Sizable,
+    Size,
+    StyledExt as _,
 };
 use serde::Deserialize;
 use todos::{
@@ -21,7 +21,7 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{LabelsPopoverEvent, LabelsPopoverList, todo_state::LabelState};
+use crate::{todo_state::LabelState, LabelsPopoverEvent, LabelsPopoverList};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
@@ -221,10 +221,10 @@ impl ItemInfoState {
     pub fn set_item(&mut self, item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
         self.item = item.clone();
         self.name_input.update(cx, |this, cx| {
-            this.set_value(&item.content.clone(), window, cx);
+            this.set_value(item.content.clone(), window, cx);
         });
         self.desc_input.update(cx, |this, cx| {
-            this.set_value(&item.description.clone().unwrap_or_default(), window, cx);
+            this.set_value(item.description.clone().unwrap_or_default(), window, cx);
         });
         self.priority_state.update(cx, |this, cx| {
             if let Some(priority) = item.priority {
@@ -342,7 +342,7 @@ impl Render for ItemInfoState {
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, _window, cx| {
-                                            let _ = cx.update_entity(&view, |this, cx| {
+                                            cx.update_entity(&view, |this, cx| {
                                                 let item = Rc::make_mut(&mut this.item);
                                                 item.pinned = !item.pinned;
                                                 println!("item pin: {}", item.pinned);

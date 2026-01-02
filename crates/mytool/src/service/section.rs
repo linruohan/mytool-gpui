@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use sea_orm::DatabaseConnection;
 use todos::{
-    Store,
     entity::{ItemModel, ProjectModel, SectionModel},
     error::TodoError,
+    Store,
 };
 
 pub async fn load_sections(db: DatabaseConnection) -> Vec<SectionModel> {
@@ -45,5 +45,5 @@ pub async fn get_sections_by_project_id(
     Store::new(db).await.get_sections_by_project(project_id).await
 }
 pub async fn get_section_items(section_id: &str, db: DatabaseConnection) -> Vec<ItemModel> {
-    Store::new(db).await.get_items_by_section(&section_id).await
+    Store::new(db).await.get_items_by_section(section_id).await
 }

@@ -19,7 +19,7 @@ pub fn add_label(label: Rc<LabelModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::add_label(label.clone(), db.clone()).await {
+        if crate::service::add_label(label.clone(), db.clone()).await.is_ok() {
             refresh_labels(cx, db.clone()).await;
         }
     })
@@ -30,7 +30,7 @@ pub fn update_label(label: Rc<LabelModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_) = crate::service::mod_label(label.clone(), db.clone()).await {
+        if crate::service::mod_label(label.clone(), db.clone()).await.is_ok() {
             refresh_labels(cx, db.clone()).await;
         }
     })
@@ -41,7 +41,7 @@ pub fn delete_label(label: Rc<LabelModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
-        if let Ok(_store) = crate::service::del_label(label.clone(), db.clone()).await {
+        if crate::service::del_label(label.clone(), db.clone()).await.is_ok() {
             refresh_labels(cx, db.clone()).await;
         }
     })

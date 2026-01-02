@@ -1,20 +1,20 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, Window, px,
+    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
+    Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    list::{List, ListEvent, ListState},
+    button::{Button, ButtonVariants}, list::{List, ListEvent, ListState}, ActiveTheme,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
-    todo_actions::{add_item, delete_item, update_item},
-    todo_state::ItemState,
+    todo_actions::{add_item, delete_item, update_item}, todo_state::ItemState, ItemEvent, ItemInfo, ItemInfoEvent,
+    ItemInfoState,
+    ItemListDelegate,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
@@ -29,17 +29,14 @@ pub struct ItemsPanel {
 impl ItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
-        let item_info = cx.new(|cx| {
-            let picker = ItemInfoState::new(item.clone(), window, cx);
-            picker
-        });
+        let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<ItemState>(move |_this, cx| {
                 let items = cx.global::<ItemState>().items.clone();
-                let _ = cx.update_entity(&item_list_clone, |list, cx| {
+                cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();
                 });
@@ -118,7 +115,7 @@ impl ItemsPanel {
         self.active_index
             .and_then(|index| {
                 println!("show_label_dialog: active index: {}", index);
-                self.get_selected_item(IndexPath::new(index), &cx)
+                self.get_selected_item(IndexPath::new(index), cx)
             })
             .map(|label| {
                 let item_ref = label.as_ref();
@@ -185,7 +182,7 @@ impl ItemsPanel {
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
+            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
@@ -219,7 +216,7 @@ impl ItemsPanel {
 
     pub fn show_finish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(active_index) = self.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), &cx);
+            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
