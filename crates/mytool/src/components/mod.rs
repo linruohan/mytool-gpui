@@ -1,6 +1,7 @@
 mod color_group;
 mod item_info;
 mod item_row;
+mod label_select;
 mod labels_popover;
 mod list_select;
 mod priority_button;

@@ -1,14 +1,14 @@
 use gpui::{
-    Action, App, AppContext, Bounds, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render,
-    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
-    Subscription, Window, actions, div, prelude::FluentBuilder as _,
+    actions, div, prelude::FluentBuilder as _, Action, App, AppContext, Bounds, Context, Corner, ElementId,
+    Entity, EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement,
+    ParentElement, Pixels, Render, RenderOnce, SharedString,
+    StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyleSized, h_flex,
-    input::{InputEvent, InputState},
-    tooltip::Tooltip,
-    v_flex,
+    h_flex, input::{InputEvent, InputState}, tooltip::Tooltip, v_flex, ActiveTheme as _, Colorize as _, Icon,
+    Sizable,
+    Size,
+    StyleSized,
 };
 use serde::Deserialize;
 
@@ -160,7 +160,6 @@ pub struct ColorGroup {
     id: ElementId,
     style: StyleRefinement,
     state: Entity<ColorGroupState>,
-    active_index: Option<usize>,
     featured_colors: Option<Vec<Hsla>>,
     label: Option<SharedString>,
     icon: Option<Icon>,
@@ -176,7 +175,6 @@ impl ColorGroup {
             style: StyleRefinement::default(),
             state: state.clone(),
             featured_colors: None,
-            active_index: None,
             size: Size::Small,
             label: None,
             icon: None,

@@ -1,17 +1,17 @@
 use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    Set, prelude::Expr,
+    prelude::Expr, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait,
+    QueryFilter, Set,
 };
 
 use crate::{
     constants,
     entity::{
-        AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
-        LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
-        SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items,
-        labels, prelude::*, projects, reminders, sections,
+        attachments, items, labels, prelude::*, projects,
+        reminders, sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel,
+        ItemModel, LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel,
+        ReminderModel, SectionActiveModel, SectionModel, SourceActiveModel, SourceModel,
     },
     error::TodoError,
     objects::{BaseTrait, Item, Section},
@@ -190,7 +190,7 @@ impl Store {
 
         let sections = self.get_sections_by_project(project_id).await;
         for section in sections {
-            self.archive_section(&*section.id, true).await?;
+            self.archive_section(&section.id, true).await?;
         }
         Ok(())
     }
@@ -349,7 +349,7 @@ impl Store {
                 .all(&self.db)
                 .await?;
             for item in items {
-                self.delete_item(&*item.id).await?;
+                self.delete_item(&item.id).await?;
             }
         }
         Ok(())
@@ -665,7 +665,7 @@ impl Store {
         };
         stream::iter(items_model)
             .filter_map(|model| async move {
-                self.valid_item_by_date(&*model.id, date, checked).await.then_some(model)
+                self.valid_item_by_date(&model.id, date, checked).await.then_some(model)
             })
             .collect()
             .await
@@ -704,7 +704,7 @@ impl Store {
         };
         stream::iter(items_model)
             .filter_map(|model| async move {
-                self.valid_item_by_date_range(&*model.id, start_date, end_date, checked)
+                self.valid_item_by_date_range(&model.id, start_date, end_date, checked)
                     .await
                     .then_some(model)
             })
@@ -723,7 +723,7 @@ impl Store {
         };
         stream::iter(items_model)
             .filter_map(|model| async move {
-                self.valid_item_by_month(&*model.id, date, checked).await.then_some(model)
+                self.valid_item_by_month(&model.id, date, checked).await.then_some(model)
             })
             .collect()
             .await

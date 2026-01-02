@@ -64,16 +64,15 @@ impl Util {
     pub fn get_color_u32_by_key(&self, key: String) -> u32 {
         let num = self.get_colors().get(&key).and_then(|color| {
             let color_str = color.hexadecimal.trim();
-
-            if color_str.starts_with("0x") {
-                u32::from_str_radix(&color_str[2..], 16).ok()
-            } else if color_str.starts_with('#') {
-                u32::from_str_radix(&color_str[1..], 16).ok()
+            if let Some(stripped) = color_str.strip_prefix("0x") {
+                u32::from_str_radix(stripped, 16).ok()
+            } else if let Some(stripped) = color_str.strip_prefix('#') {
+                u32::from_str_radix(stripped, 16).ok()
             } else {
                 color_str.parse::<u32>().ok()
             }
         });
-        return num.unwrap_or(0x000000); // 默认黑色
+        num.unwrap_or(0x000000) // 默认黑色
     }
 
     pub fn get_random_color(&self) -> String {

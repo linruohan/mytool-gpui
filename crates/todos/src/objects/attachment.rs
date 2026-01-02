@@ -5,9 +5,9 @@ use tokio::sync::OnceCell;
 
 use super::BaseObject;
 use crate::{
-    Store,
-    entity::{AttachmentModel, ItemModel, prelude::AttachmentEntity},
+    entity::{prelude::AttachmentEntity, AttachmentModel, ItemModel},
     error::TodoError,
+    Store,
 };
 
 pub struct Attachment {
@@ -52,7 +52,7 @@ impl Attachment {
         AttachmentModel {
             file_type: self.model.file_type.clone(),
             file_name: self.model.file_name.clone(),
-            file_size: self.model.file_size.clone(),
+            file_size: self.model.file_size,
             file_path: self.model.file_path.clone(),
             ..Default::default()
         }
