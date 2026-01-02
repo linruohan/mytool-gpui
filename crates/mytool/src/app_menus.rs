@@ -1,9 +1,9 @@
 use gpui::{App, Entity, Menu, MenuItem, SharedString};
-use gpui_component::{menu::AppMenuBar, ActiveTheme as _, Theme, ThemeMode, ThemeRegistry};
+use gpui_component::{ActiveTheme as _, Theme, ThemeMode, ThemeRegistry, menu::AppMenuBar};
 
 use crate::{
-    themes::{SwitchTheme, SwitchThemeMode}, About, Open, Quit, SelectLocale,
-    ToggleSearch,
+    About, Open, Quit, SelectLocale, ToggleSearch,
+    themes::{SwitchTheme, SwitchThemeMode},
 };
 
 pub fn init(title: impl Into<SharedString>, cx: &mut App) -> Entity<AppMenuBar> {

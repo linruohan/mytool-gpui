@@ -2,11 +2,11 @@ use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
 use crate::{
-    entity::{prelude::SectionEntity, ItemModel, ProjectModel, SectionModel, SourceModel}, error::TodoError,
+    BaseObject, Store,
+    entity::{ItemModel, ProjectModel, SectionModel, SourceModel, prelude::SectionEntity},
+    error::TodoError,
     objects::{BaseTrait, Project},
     utils::Util,
-    BaseObject,
-    Store,
 };
 
 #[derive(Clone, Debug)]

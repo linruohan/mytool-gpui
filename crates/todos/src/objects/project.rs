@@ -5,12 +5,12 @@ use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
 
 use crate::{
-    entity::{prelude::ProjectEntity, ItemModel, ProjectModel, SectionModel, SourceModel}, enums::{ProjectIconStyle, ProjectViewStyle, SourceType},
+    BaseObject, Store,
+    entity::{ItemModel, ProjectModel, SectionModel, SourceModel, prelude::ProjectEntity},
+    enums::{ProjectIconStyle, ProjectViewStyle, SourceType},
     error::TodoError,
     objects::{BaseTrait, Item, Source},
     utils::Util,
-    BaseObject,
-    Store,
 };
 
 #[derive(Clone, Debug)]

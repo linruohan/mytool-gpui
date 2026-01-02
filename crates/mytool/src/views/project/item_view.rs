@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
+    Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, h_flex, list::{List, ListEvent, ListState}, menu::{DropdownMenu, PopupMenuItem},
+    ActiveTheme, IconName, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    h_flex,
+    list::{List, ListEvent, ListState},
+    menu::{DropdownMenu, PopupMenuItem},
     v_flex,
-    ActiveTheme,
-    IconName,
-    IndexPath,
-    WindowExt,
 };
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    todo_actions::{add_project_item, delete_project_item, update_project_item}, todo_state::ProjectItemState, ItemEvent, ItemInfo, ItemInfoEvent,
-    ItemInfoState,
-    ItemListDelegate,
+    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    todo_actions::{add_project_item, delete_project_item, update_project_item},
+    todo_state::ProjectItemState,
 };
 
 pub enum ProjectItemEvent {

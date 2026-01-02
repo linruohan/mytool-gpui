@@ -1,18 +1,18 @@
 use std::{collections::HashSet, rc::Rc};
 
 use gpui::{
-    div, Action, App, AppContext, ClickEvent, Context, ElementId, Entity, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render,
-    RenderOnce, StyleRefinement, Styled, Subscription, Window,
+    Action, App, AppContext, ClickEvent, Context, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
+    StyleRefinement, Styled, Subscription, Window, div,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, checkbox::Checkbox, divider::Divider, h_flex,
+    IconName, Sizable, Size, StyledExt as _,
+    button::{Button, ButtonVariants},
+    checkbox::Checkbox,
+    divider::Divider,
+    h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,
-    IconName,
-    Sizable,
-    Size,
-    StyledExt as _,
 };
 use serde::Deserialize;
 use todos::{
@@ -21,7 +21,7 @@ use todos::{
 };
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
-use crate::{todo_state::LabelState, LabelsPopoverEvent, LabelsPopoverList};
+use crate::{LabelsPopoverEvent, LabelsPopoverList, todo_state::LabelState};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]

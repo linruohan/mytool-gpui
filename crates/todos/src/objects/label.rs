@@ -2,11 +2,11 @@ use sea_orm::prelude::*;
 use tokio::sync::OnceCell;
 
 use crate::{
-    entity::{labels::Model as LabelModel, prelude::LabelEntity, sources::Model as SourceModel}, enums::SourceType, error::TodoError,
+    BaseObject, Store, Util,
+    entity::{labels::Model as LabelModel, prelude::LabelEntity, sources::Model as SourceModel},
+    enums::SourceType,
+    error::TodoError,
     objects::{BaseTrait, Item},
-    BaseObject,
-    Store,
-    Util,
 };
 
 #[derive(Clone, Debug)]

@@ -1,17 +1,17 @@
 use chrono::{Datelike, NaiveDateTime, Utc};
 use futures::stream::{self, StreamExt};
 use sea_orm::{
-    prelude::Expr, ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait,
-    QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    Set, prelude::Expr,
 };
 
 use crate::{
     constants,
     entity::{
-        attachments, items, labels, prelude::*, projects,
-        reminders, sections, AttachmentActiveModel, AttachmentModel, ItemActiveModel,
-        ItemModel, LabelActiveModel, LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel,
-        ReminderModel, SectionActiveModel, SectionModel, SourceActiveModel, SourceModel,
+        AttachmentActiveModel, AttachmentModel, ItemActiveModel, ItemModel, LabelActiveModel,
+        LabelModel, ProjectActiveModel, ProjectModel, ReminderActiveModel, ReminderModel,
+        SectionActiveModel, SectionModel, SourceActiveModel, SourceModel, attachments, items,
+        labels, prelude::*, projects, reminders, sections,
     },
     error::TodoError,
     objects::{BaseTrait, Item, Section},

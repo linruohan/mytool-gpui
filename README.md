@@ -53,6 +53,26 @@ cargo clippy --fix --lib -p mytool --allow-dirty
 
 ```
 
+## 代码修复流程
+
+```bash
+# 1. 先格式化代码
+cargo fmt
+
+# 2. 尝试自动修复所有 Clippy 警告
+cargo clippy --fix
+
+# 3. 检查剩余的 style 警告
+cargo clippy -- -W clippy::style
+
+# 4. 手动修复不能自动修复的
+#    - 使用 IDE 的快速修复
+#    - 或者根据建议手动修改
+
+# 5. 再次检查
+cargo clippy -- -W clippy::style
+```
+
 ## 示例
 
 中文日历

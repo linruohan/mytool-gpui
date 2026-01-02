@@ -1,20 +1,20 @@
 use std::rc::Rc;
 
 use gpui::{
-    px, App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window,
+    App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
+    Subscription, Window, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, list::{List, ListEvent, ListState}, ActiveTheme,
-    IndexPath,
-    WindowExt,
+    ActiveTheme, IndexPath, WindowExt,
+    button::{Button, ButtonVariants},
+    list::{List, ListEvent, ListState},
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    todo_actions::{add_item, delete_item, update_item}, todo_state::ItemState, ItemEvent, ItemInfo, ItemInfoEvent,
-    ItemInfoState,
-    ItemListDelegate,
+    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    todo_actions::{add_item, delete_item, update_item},
+    todo_state::ItemState,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}

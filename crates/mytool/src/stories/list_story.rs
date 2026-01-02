@@ -181,33 +181,6 @@ impl Focusable for ListStory {
 }
 impl Render for ListStory {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let _item = Rc::new(ItemModel {
-            id: "1".to_string(),
-            content: "Item 1".to_string(),
-            description: Some("This is item 1".to_string()),
-            ..Default::default()
-        });
-
-        let _items = [
-            Rc::new(ItemModel {
-                id: "1".to_string(),
-                content: "Item 1".to_string(),
-                description: Some("This is item 1".to_string()),
-                ..Default::default()
-            }),
-            Rc::new(ItemModel {
-                id: "2".to_string(),
-                content: "Item 2".to_string(),
-                description: Some("This is item 2".to_string()),
-                ..Default::default()
-            }),
-            Rc::new(ItemModel {
-                id: "3".to_string(),
-                content: "Item 3".to_string(),
-                description: Some("This is item 3".to_string()),
-                ..Default::default()
-            }),
-        ];
         v_flex()
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::selected_company))
@@ -219,7 +192,7 @@ impl Render for ListStory {
             .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(Divider::horizontal())
             .child(
-                section("Card").child(v_flex()
+                v_flex()
                     .children(
                         self.item_infos.clone().into_values().map(|item_info_state| {
                             let item = item_info_state.read(cx).item.clone();
@@ -262,6 +235,6 @@ impl Render for ListStory {
                                                  .content(v_flex().gap_2().child(ItemInfo::new(&item_info_state)))
                                          )
                                 )
-                        }))))
+                        })))
     }
 }

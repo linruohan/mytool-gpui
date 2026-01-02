@@ -1,14 +1,14 @@
 use gpui::{
-    actions, div, prelude::FluentBuilder as _, Action, App, AppContext, Bounds, Context, Corner, ElementId,
-    Entity, EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement, Pixels, Render, RenderOnce, SharedString,
-    StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
+    Action, App, AppContext, Bounds, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render,
+    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Subscription, Window, actions, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
-    h_flex, input::{InputEvent, InputState}, tooltip::Tooltip, v_flex, ActiveTheme as _, Colorize as _, Icon,
-    Sizable,
-    Size,
-    StyleSized,
+    ActiveTheme as _, Colorize as _, Icon, Sizable, Size, StyleSized, h_flex,
+    input::{InputEvent, InputState},
+    tooltip::Tooltip,
+    v_flex,
 };
 use serde::Deserialize;
 
