@@ -1,17 +1,17 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    actions, prelude::FluentBuilder, px, App, Context, ElementId, Hsla, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, RenderOnce, SharedString, Styled, Task, Window,
+    App, Context, ElementId, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::{Button, ButtonVariants}, checkbox::Checkbox, h_flex, label::Label, list::{ListDelegate, ListItem, ListState}, red_400, v_flex, ActiveTheme, Colorize,
-    Icon,
-    IconName,
-    IndexPath,
-    Placement,
-    Selectable,
-    Sizable, WindowExt,
+    ActiveTheme, Colorize, Icon, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
+    button::{Button, ButtonVariants},
+    checkbox::Checkbox,
+    h_flex,
+    label::Label,
+    list::{ListDelegate, ListItem, ListState},
+    red_400, v_flex,
 };
 use todos::entity::{ItemModel, LabelModel};
 

@@ -1,17 +1,17 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    div, prelude::FluentBuilder, px, App, AppContext, Context, ElementId, Entity,
-    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _,
-    Render, RenderOnce, StyleRefinement, Styled, Subscription, Window,
+    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
+    Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    button::Button, collapsible::Collapsible, h_flex, v_flex, ActiveTheme, IconName, Sizable,
-    Size, StyledExt as _,
+    ActiveTheme, IconName, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible,
+    h_flex, v_flex,
 };
 use todos::entity::{ItemModel, LabelModel};
 
-use crate::{todo_state::LabelState, ItemInfo, ItemInfoState, ItemListItem};
+use crate::{ItemInfo, ItemInfoState, ItemListItem, todo_state::LabelState};
 
 const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
