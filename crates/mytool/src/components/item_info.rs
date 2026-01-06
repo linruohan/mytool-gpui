@@ -3,16 +3,16 @@ use std::{collections::HashSet, rc::Rc};
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    Styled, Subscription, Window, blue, div, px,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     divider::Divider,
-    gray_100, h_flex,
+    h_flex,
     input::{Input, InputEvent, InputState},
-    purple_400, v_flex,
+    v_flex,
 };
 use serde::Deserialize;
 use todos::{
@@ -269,9 +269,9 @@ impl Render for ItemInfoState {
         let view = cx.entity();
         let labels = cx.global::<LabelState>().labels.clone();
         v_flex()
-            .border_1()
-            .border_color(purple_400())
-            .rounded(px(5.0))
+            .border_2()
+            .border_color(blue())
+            .rounded(px(10.0))
             .child(
                 h_flex()
                     .gap_2()
@@ -301,7 +301,7 @@ impl Render for ItemInfoState {
                             }),
                     ),
             )
-            .child(Input::new(&self.desc_input).border_1().border_color(gray_100()))
+            .child(Input::new(&self.desc_input).bordered(false))
             .child(h_flex().gap_3().children(labels.iter().enumerate().map(|(ix, label)| {
                 let label_clone = label.clone();
                 Checkbox::new(format!("label-{}", ix))
