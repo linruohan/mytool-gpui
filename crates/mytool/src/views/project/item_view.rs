@@ -17,7 +17,7 @@ use todos::entity::{ItemModel, ProjectModel};
 use crate::{
     ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
     todo_actions::{add_project_item, delete_project_item, update_project_item},
-    todo_state::ProjectItemState,
+    todo_state::ProjectState,
 };
 
 pub enum ProjectItemEvent {
@@ -45,8 +45,8 @@ impl ProjectItemsPanel {
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<ProjectItemState>(move |_this, cx| {
-                let items = cx.global::<ProjectItemState>().items.clone();
+            cx.observe_global::<ProjectState>(move |_this, cx| {
+                let items = cx.global::<ProjectState>().items.clone();
                 cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();

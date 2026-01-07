@@ -4,13 +4,14 @@ use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::{ItemModel, ProjectModel};
 
-use crate::todo_state::{DBState, ProjectItemState};
+use crate::todo_state::{DBState, ProjectState};
 
 // 刷新items
 async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
     let items = crate::service::get_items_by_project_id(project_id, db).await;
-    cx.update_global::<ProjectItemState, _>(|state, _| {
-        state.set_items(items);
+    let rc_items = items.iter().map(|item| Rc::new(item.clone())).collect::<Vec<_>>();
+    cx.update_global::<ProjectState, _>(|state, _| {
+        state.items = rc_items.clone();
     })
     .ok();
 }

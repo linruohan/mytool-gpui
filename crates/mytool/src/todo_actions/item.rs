@@ -9,8 +9,9 @@ use crate::todo_state::{DBState, ItemState};
 // 刷新items
 async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {
     let items = crate::service::load_items(db).await;
+    let rc_items = items.iter().map(|item| Rc::new(item.clone())).collect::<Vec<_>>();
     cx.update_global::<ItemState, _>(|state, _| {
-        state.set_items(items);
+        state.items = rc_items.clone();
     })
     .ok();
 }

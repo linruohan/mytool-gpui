@@ -11,7 +11,8 @@ use crate::todo_state::{DBState, ProjectState};
 async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
     let projects = crate::service::load_projects(db).await;
     cx.update_global::<ProjectState, _>(|state, _| {
-        state.set_projects(projects);
+        state.projects =
+            projects.iter().map(|project| Rc::new(project.clone())).collect::<Vec<_>>();
     })
     .ok();
 }

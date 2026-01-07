@@ -3,43 +3,38 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::ItemModel;
 
-use crate::{service::get_items_today, todo_state::DBState};
+use crate::{service::get_inbox_items, todo_state::DBState};
 
 #[derive(Clone, PartialEq)]
-pub enum ProjectItemStatus {
+pub enum InboxItemStatus {
     Added,
     Modified,
     Deleted,
     Loaded,
 }
 
-pub struct ProjectItemState {
+pub struct InboxItemState {
     pub items: Vec<Rc<ItemModel>>,
     active_item: Option<Rc<ItemModel>>,
 }
 
-impl Global for ProjectItemState {}
+impl Global for InboxItemState {}
 
-impl ProjectItemState {
+impl InboxItemState {
     pub fn init(cx: &mut App) {
-        let this = ProjectItemState { items: vec![], active_item: None };
+        let this = InboxItemState { items: vec![], active_item: None };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
             let db = conn.lock().await;
-            let list = get_items_today(db.clone()).await;
+            let list = get_inbox_items(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("project items: {}", list.len());
-            let _ = cx.update_global::<ProjectItemState, _>(|state, _cx| {
+            println!("state inbox_items: {}", list.len());
+            let _ = cx.update_global::<InboxItemState, _>(|state, _cx| {
                 state.items = rc_list;
             });
         })
         .detach();
-    }
-
-    pub fn set_items(&mut self, items: impl IntoIterator<Item = ItemModel>) {
-        self.items = items.into_iter().map(Rc::new).collect();
-        self.active_item = None;
     }
 }

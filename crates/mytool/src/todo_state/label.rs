@@ -23,16 +23,11 @@ impl LabelState {
             let list = load_labels(db.clone()).await;
             let rc_list: Vec<Rc<LabelModel>> =
                 list.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("all labels: {}", list.len());
+            println!("state labels: {}", list.len());
             let _ = cx.update_global::<LabelState, _>(|state, _cx| {
                 state.labels = rc_list;
             });
         })
         .detach();
-    }
-
-    pub fn set_labels(&mut self, labels: impl IntoIterator<Item = LabelModel>) {
-        self.labels = labels.into_iter().map(Rc::new).collect();
-        self.active_label = None;
     }
 }

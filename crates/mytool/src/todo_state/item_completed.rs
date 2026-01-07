@@ -30,16 +30,11 @@ impl CompleteItemState {
             let db = conn.lock().await;
             let list = get_items_completed(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
-            println!("complete items: {}", list.len());
+            println!("state completed_items: {}", list.len());
             let _ = cx.update_global::<CompleteItemState, _>(|state, _cx| {
                 state.items = rc_list;
             });
         })
         .detach();
-    }
-
-    pub fn set_items(&mut self, items: impl IntoIterator<Item = ItemModel>) {
-        self.items = items.into_iter().map(Rc::new).collect();
-        self.active_item = None;
     }
 }

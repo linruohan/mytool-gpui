@@ -37,12 +37,14 @@ pub async fn pin_item(
 ) -> Result<(), TodoError> {
     Store::new(db).await.update_item_pin(&item.id, pinned).await
 }
-#[allow(unused)]
 pub async fn get_project_items(
     project: Rc<ProjectModel>,
     db: DatabaseConnection,
 ) -> Vec<ItemModel> {
     Store::new(db).await.get_items_by_project(&project.id).await
+}
+pub async fn get_inbox_items(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).await.get_items_unchecked().await.unwrap_or_default()
 }
 pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).await.get_items_by_project(project_id).await

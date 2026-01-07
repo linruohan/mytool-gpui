@@ -105,6 +105,7 @@ impl Render for BoardPanel {
                         .enumerate()
                         .map(|(ix, item)| {
                             let board = item.read(cx);
+                            println!("board cnt: {:?}", board.count.clone());
                             SidebarBoardItem::new(
                                 board.name.clone(),
                                 board.colors.clone(),

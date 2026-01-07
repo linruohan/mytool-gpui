@@ -623,6 +623,10 @@ impl Store {
         Ok(ItemEntity::find().filter(items::Column::Checked.eq(1)).all(&self.db).await?)
     }
 
+    pub async fn get_items_unchecked(&self) -> Result<Vec<ItemModel>, TodoError> {
+        Ok(ItemEntity::find().filter(items::Column::Checked.eq(0)).all(&self.db).await?)
+    }
+
     pub async fn get_items_checked_by_project(&self, project_id: &str) -> Vec<ItemModel> {
         ItemEntity::find()
             .filter(items::Column::ProjectId.eq(project_id).and(items::Column::Checked.eq(1)))

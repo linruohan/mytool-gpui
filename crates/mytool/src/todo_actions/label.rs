@@ -10,7 +10,7 @@ use crate::todo_state::{DBState, LabelState};
 async fn refresh_labels(cx: &mut AsyncApp, db: DatabaseConnection) {
     let labels = crate::service::load_labels(db).await;
     cx.update_global::<LabelState, _>(|state, _| {
-        state.set_labels(labels);
+        state.labels = labels.iter().map(|label| Rc::new(label.clone())).collect::<Vec<_>>();
     })
     .ok();
 }
