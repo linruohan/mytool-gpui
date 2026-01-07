@@ -12,6 +12,7 @@ use todos::entity::ProjectModel;
 
 use crate::{
     BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
+    todo_state::ProjectState,
 };
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
@@ -132,7 +133,7 @@ impl Render for TodoStory {
         let boards = board_panel.boards.clone();
         let board_active_index = board_panel.active_index;
         let project_panel = self.project_panel.read(cx);
-        let project_list = project_panel.project_list.read(cx).delegate()._projects.clone();
+        let project_list = cx.global::<ProjectState>().projects.clone();
         let _view = cx.entity();
         let project_avtive_index = project_panel.active_index;
 
@@ -155,11 +156,11 @@ impl Render for TodoStory {
                                 ),
                             )
                             .child(SidebarMenu::new().children(
-                                project_list.iter().enumerate().map(|(ix, story)| {
-                                    SidebarMenuItem::new(story.name.clone())
+                                project_list.iter().enumerate().map(|(ix, project)| {
+                                    SidebarMenuItem::new(project.name.clone())
                                         .active(project_avtive_index == Some(ix))
                                         .on_click({
-                                            let story = story.clone();
+                                            let story = project.clone();
                                             cx.listener(move |this, _: &ClickEvent, _, cx| {
                                                 this.is_board_active = false;
                                                 this.active_index = Some(ix);

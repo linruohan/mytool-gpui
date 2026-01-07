@@ -52,12 +52,6 @@ impl ListStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let company_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
-        let _item = Rc::new(ItemModel {
-            id: "1".to_string(),
-            content: "Item 1".to_string(),
-            description: Some("This is item 1".to_string()),
-            ..Default::default()
-        });
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
         let item_rows = {

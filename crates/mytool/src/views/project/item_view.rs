@@ -1,23 +1,24 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
-    Render, Styled, Subscription, Window, div,
+    div, App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
-    h_flex,
-    list::{List, ListEvent, ListState},
-    menu::{DropdownMenu, PopupMenuItem},
-    v_flex,
+    button::{Button, ButtonVariants}, h_flex, menu::{DropdownMenu, PopupMenuItem}, v_flex,
+    ActiveTheme,
+    IconName,
+    IndexPath,
+    WindowExt,
 };
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
-    todo_actions::{add_project_item, delete_project_item, update_project_item},
-    todo_state::ProjectState,
+    todo_actions::{
+        add_project_item, delete_project_item, load_project_items, update_project_item,
+    }, todo_state::{ItemState, ProjectState}, ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState,
+    ItemRow,
+    ItemRowState,
 };
 
 pub enum ProjectItemEvent {
@@ -30,9 +31,9 @@ impl EventEmitter<ProjectItemEvent> for ProjectItemsPanel {}
 impl EventEmitter<ItemInfoEvent> for ProjectItemsPanel {}
 impl EventEmitter<ItemEvent> for ProjectItemsPanel {}
 pub struct ProjectItemsPanel {
-    pub item_list: Entity<ListState<ItemListDelegate>>,
     project: Rc<ProjectModel>,
     pub active_index: Option<usize>,
+    item_rows: HashMap<String, Entity<ItemRowState>>,
     item_info: Entity<ItemInfoState>,
     _subscriptions: Vec<Subscription>,
 }
@@ -41,49 +42,67 @@ impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
-        let item_list =
-            cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).searchable(true));
-        let item_list_clone = item_list.clone();
-        let _subscriptions = vec![
-            cx.observe_global::<ProjectState>(move |_this, cx| {
-                let items = cx.global::<ProjectState>().items.clone();
-                cx.update_entity(&item_list_clone, |list, cx| {
-                    list.delegate_mut().update_items(items);
-                    cx.notify();
+        let item_rows = {
+            let items = cx.global::<ItemState>().items.clone();
+            items
+                .iter()
+                .map(|item| {
+                    let entity = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
+                    (item.id.clone(), entity)
+                })
+                .collect()
+        };
+
+        let _subscriptions =
+            vec![cx.observe_global_in::<ProjectState>(window, move |this, window, cx| {
+                let state_items = cx.global::<ProjectState>().items.clone();
+
+                // 将state_items转换为HashMap便于快速查找
+                let items_by_id: HashMap<String, Rc<ItemModel>> =
+                    state_items.iter().map(|item| (item.id.clone(), item.clone())).collect();
+
+                // 更新或删除现有的item_infos
+                this.item_rows.retain(|item_id, entity| {
+                    if let Some(updated_item) = items_by_id.get(item_id) {
+                        // 更新
+                        cx.update_entity(entity, |item_info, _cx| {
+                            item_info.item = updated_item.clone();
+                        });
+                        true
+                    } else {
+                        // 不存在，删除
+                        // cx.remove_entity(entity);
+                        false
+                    }
                 });
-                cx.notify();
-            }),
-            cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
-                if let ListEvent::Confirm(ix) = ev
-                    && let Some(_item) = this.get_selected_item(*ix, cx)
-                {
-                    this.update_active_index(Some(ix.row));
+
+                // 添加新的items（那些不在item_infos中的）
+                for (item_id, item) in items_by_id {
+                    if !this.item_rows.contains_key(&item_id) {
+                        let entity = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
+                        this.item_rows.insert(item_id, entity);
+                    }
                 }
-            }),
-        ];
+                cx.notify();
+            })];
 
         Self {
-            item_list,
             active_index: Some(0),
+            item_rows,
             item_info,
             _subscriptions,
             project: Rc::new(ProjectModel::default()),
         }
     }
 
-    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
-        self.item_list
-            .read(cx)
-            .delegate()
-            .matched_items
-            .get(ix.section)
-            .and_then(|c| c.get(ix.row))
-            .cloned()
+    pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
+        self.project = project.clone();
+        load_project_items(project.clone(), cx);
     }
 
-    pub fn set_project(&mut self, project: Rc<ProjectModel>, _cx: &mut Context<Self>) {
-        self.project = project;
-        // self.update_items(cx);
+    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
+        let item_list = cx.global::<ItemState>().items.clone();
+        item_list.get(ix.row).cloned()
     }
 
     pub fn update_active_index(&mut self, value: Option<usize>) {
@@ -186,7 +205,6 @@ impl ProjectItemsPanel {
 
 impl Render for ProjectItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let _items: Vec<_> = self.item_list.read(cx).delegate()._items.clone();
         let view = cx.entity();
         v_flex()
             .size_full()
@@ -208,7 +226,7 @@ impl Render for ProjectItemsPanel {
                                     move |this, window, _cx| {
                                         this.link(
                                             "About",
-                                            "https://github.com/longbridge/gpui-component",
+                                            "https://github.com/linruohan/gpui-component",
                                         )
                                         .separator()
                                         .item(PopupMenuItem::new("Edit item").on_click(
@@ -256,6 +274,8 @@ impl Render for ProjectItemsPanel {
                         ),
                     ),
             )
-            .child(List::new(&self.item_list))
+            .child(v_flex().children(
+                self.item_rows.clone().into_values().map(|item| ItemRow::new(&item.clone())),
+            ))
     }
 }
