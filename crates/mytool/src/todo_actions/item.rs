@@ -12,8 +12,7 @@ async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {
     let rc_items = items.iter().map(|item| Rc::new(item.clone())).collect::<Vec<_>>();
     cx.update_global::<ItemState, _>(|state, _| {
         state.items = rc_items.clone();
-    })
-    .ok();
+    });
 }
 // 添加item
 pub fn add_item(item: Rc<ItemModel>, cx: &mut App) {

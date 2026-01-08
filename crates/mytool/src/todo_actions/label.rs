@@ -11,8 +11,7 @@ async fn refresh_labels(cx: &mut AsyncApp, db: DatabaseConnection) {
     let labels = crate::service::load_labels(db).await;
     cx.update_global::<LabelState, _>(|state, _| {
         state.labels = labels.iter().map(|label| Rc::new(label.clone())).collect::<Vec<_>>();
-    })
-    .ok();
+    });
 }
 // 添加label
 pub fn add_label(label: Rc<LabelModel>, cx: &mut App) {

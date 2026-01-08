@@ -13,8 +13,7 @@ async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
     cx.update_global::<ProjectState, _>(|state, _| {
         state.projects =
             projects.iter().map(|project| Rc::new(project.clone())).collect::<Vec<_>>();
-    })
-    .ok();
+    });
 }
 // 添加project
 #[allow(unused)]

@@ -23,8 +23,7 @@ async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: Database
     let rc_items = items.iter().map(|item| Rc::new(item.clone())).collect::<Vec<_>>();
     cx.update_global::<ProjectState, _>(|state, _| {
         state.items = rc_items.clone();
-    })
-    .ok();
+    });
 }
 // 添加item
 pub fn add_project_item(project: Rc<ProjectModel>, item: Rc<ItemModel>, cx: &mut App) {

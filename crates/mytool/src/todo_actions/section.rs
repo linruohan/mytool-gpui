@@ -12,8 +12,7 @@ async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
     let rc_sections = sections.iter().map(|section| Rc::new(section.clone())).collect::<Vec<_>>();
     cx.update_global::<ProjectState, _>(|state, _| {
         state.sections = rc_sections.clone();
-    })
-    .ok();
+    });
 }
 // 添加section
 #[allow(unused)]
