@@ -42,8 +42,9 @@ impl Board for TodayBoard {
         vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
     }
 
-    fn count(cx: &mut App) -> usize {
-        cx.global::<TodayItemState>().items.len()
+    fn count(_cx: &mut App) -> usize {
+        // cx.global::<TodayItemState>().items.len()
+        1
     }
 
     fn title() -> &'static str {
@@ -75,6 +76,7 @@ impl Render for TodayBoard {
         _: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        let cnt = cx.global::<TodayItemState>().items.len();
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -92,7 +94,8 @@ impl Render for TodayBoard {
                                 h_flex()
                                     .gap_2()
                                     .child(<TodayBoard as Board>::icon())
-                                    .child(div().text_base().child(<TodayBoard as Board>::title())),
+                                    .child(div().text_base().child(<TodayBoard as Board>::title()))
+                                    .child(cnt.to_string()),
                             )
                             .child(
                                 div()

@@ -1,15 +1,12 @@
 use std::rc::Rc;
 
-use gpui::{App, AsyncApp, BorrowAppContext};
+use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::todo_state::{DBState, ProjectState};
 
 pub fn load_project_items(project: Rc<ProjectModel>, cx: &mut App) {
-    cx.update_global::<ProjectState, _>(|state, _cx| {
-        state.active_project = Some(project.clone());
-    });
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         let db = conn.lock().await;
@@ -21,6 +18,7 @@ pub fn load_project_items(project: Rc<ProjectModel>, cx: &mut App) {
 async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
     let items = crate::service::get_items_by_project_id(project_id, db).await;
     let rc_items = items.iter().map(|item| Rc::new(item.clone())).collect::<Vec<_>>();
+    println!("project items: {}", rc_items.len());
     cx.update_global::<ProjectState, _>(|state, _| {
         state.items = rc_items.clone();
     });

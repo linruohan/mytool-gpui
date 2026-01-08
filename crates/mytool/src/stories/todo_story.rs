@@ -24,7 +24,6 @@ pub struct TodoStory {
     click_to_open_submenu: bool,
     side: Side,
     focus_handle: gpui::FocusHandle,
-    active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
     // 看板是0, projects是1
     pub is_board_active: bool,
@@ -32,6 +31,7 @@ pub struct TodoStory {
     board_panel: Entity<BoardPanel>,
     // projects
     project_panel: Entity<ProjectsPanel>,
+    active_project: Option<Rc<ProjectModel>>,
     project_items_panel: Entity<ProjectItemsPanel>,
 }
 
@@ -76,7 +76,7 @@ impl TodoStory {
         ];
         Self {
             collapsed: false,
-            active_index: None,
+            active_project: None,
             focus_handle: cx.focus_handle(),
             _subscriptions,
             is_board_active: true,
@@ -135,7 +135,7 @@ impl Render for TodoStory {
         let project_panel = self.project_panel.read(cx);
         let project_list = cx.global::<ProjectState>().projects.clone();
         let _view = cx.entity();
-        let project_avtive_index = project_panel.active_index;
+        let project_active_index = project_panel.active_index;
 
         h_flex()
             .rounded(cx.theme().radius)
@@ -158,12 +158,12 @@ impl Render for TodoStory {
                             .child(SidebarMenu::new().children(
                                 project_list.iter().enumerate().map(|(ix, project)| {
                                     SidebarMenuItem::new(project.name.clone())
-                                        .active(project_avtive_index == Some(ix))
+                                        .active(project_active_index == Some(ix))
                                         .on_click({
                                             let story = project.clone();
                                             cx.listener(move |this, _: &ClickEvent, _, cx| {
                                                 this.is_board_active = false;
-                                                this.active_index = Some(ix);
+                                                this.active_project = Some(story.clone());
                                                 this.project_panel.update(cx, |panel, cx| {
                                                     panel.update_active_index(Some(ix));
                                                     cx.notify();

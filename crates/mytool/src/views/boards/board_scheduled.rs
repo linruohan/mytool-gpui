@@ -42,8 +42,9 @@ impl Board for ScheduledBoard {
         vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
     }
 
-    fn count(cx: &mut App) -> usize {
-        cx.global::<ScheduledItemState>().items.len()
+    fn count(_cx: &mut App) -> usize {
+        // cx.global::<ScheduledItemState>().items.len()
+        2
     }
 
     fn title() -> &'static str {
@@ -75,6 +76,7 @@ impl Render for ScheduledBoard {
         _: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        let cnt = cx.global::<ScheduledItemState>().items.len();
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -90,7 +92,10 @@ impl Render for ScheduledBoard {
                         v_flex()
                             .child(
                                 h_flex().gap_2().child(<ScheduledBoard as Board>::icon()).child(
-                                    div().text_base().child(<ScheduledBoard as Board>::title()),
+                                    div()
+                                        .text_base()
+                                        .child(<ScheduledBoard as Board>::title())
+                                        .child(cnt.to_string()),
                                 ),
                             )
                             .child(
