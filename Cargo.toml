@@ -20,7 +20,7 @@ gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git
 anyhow = "1.0.100"
 rand = "0.8.5"
 tokio = { version = "1.49.0", features = ["full"] }
-rust-embed = { version = "8.9.0", features = ["include-exclude", "interpolate-folder-path"] }
+rust-embed = { version = "8.10.0", features = ["include-exclude", "interpolate-folder-path"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1"
 serde_repr = "0.1"
@@ -36,7 +36,7 @@ sea-orm = { version = "1.1.19", features = [
     "with-rust_decimal",
     "runtime-tokio",
 ] }
-winresource = "0.1.28"
+winresource = "0.1.29"
 rodio = "0.21.1"
 tracing = { version = "0.1.44", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "chrono"] }
