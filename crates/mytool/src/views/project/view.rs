@@ -1,23 +1,21 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement,
-    Render, Styled, Subscription, WeakEntity, Window,
+    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
+    Styled, Subscription, WeakEntity, Window,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, IconName, IndexPath, WindowExt,
+    ActiveTheme, Colorize, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     input::{Input, InputState},
     list::{ListEvent, ListState},
-    menu::{DropdownMenu, PopupMenuItem},
-    sidebar::{SidebarMenu, SidebarMenuItem},
     v_flex,
 };
 use todos::entity::ProjectModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate, play_ogg_file,
+    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate,
     service::load_projects,
     todo_state::{DBState, ProjectState},
 };
@@ -295,78 +293,8 @@ impl ProjectsPanel {
 
 impl Render for ProjectsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let projects: Vec<_> = self.project_list.read(cx).delegate()._projects.clone();
-        let view = cx.entity();
-        v_flex().w_full().gap_4().child(
-            // 添加项目按钮：
-            SidebarMenu::new()
-                .child(SidebarMenuItem::new("On This Computer                     ➕").on_click(
-                    cx.listener(move |this, _, window: &mut Window, cx| {
-                        // let projects = projects.read(cx);
-                        println!("project_panel: add projects");
-                        play_ogg_file("assets/sounds/success.ogg");
-                        let default_model = Rc::new(ProjectModel::default());
-                        this.open_project_dialog(default_model, window, cx);
-                        cx.notify();
-                    }),
-                ))
-                .children(projects.iter().enumerate().map(|(ix, story)| {
-                    SidebarMenuItem::new(story.name.clone())
-                        .active(self.active_index == Some(ix))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.active_index = Some(ix);
-                            cx.notify();
-                        }))
-                        .suffix(
-                            Button::new("project-popup-menu")
-                                .label("label")
-                                .icon(IconName::EllipsisVertical)
-                                .dropdown_menu({
-                                    let view = view.clone();
-                                    move |this, window, _cx| {
-                                        this.link(
-                                            "About",
-                                            "https://github.com/longbridge/gpui-component",
-                                        )
-                                        .separator()
-                                        .item(PopupMenuItem::new("Edit project").on_click(
-                                            window.listener_for(&view, |this, _, window, cx| {
-                                                if let Some(model) = this
-                                                    .active_index
-                                                    .map(IndexPath::new)
-                                                    .and_then(|index| {
-                                                        this.get_selected_project(index, cx)
-                                                    })
-                                                {
-                                                    this.open_project_dialog(model, window, cx);
-                                                }
-                                                cx.notify();
-                                            }),
-                                        ))
-                                        .separator()
-                                        .item(
-                                            PopupMenuItem::new("Delete project").on_click(
-                                                window.listener_for(
-                                                    &view,
-                                                    |this, _, _window, cx| {
-                                                        let index = this.active_index.unwrap();
-                                                        let project_some = this
-                                                            .get_selected_project(
-                                                                IndexPath::new(index),
-                                                                cx,
-                                                            );
-                                                        if let Some(project) = project_some {
-                                                            this.del_project(cx, project.clone());
-                                                        }
-                                                        cx.notify();
-                                                    },
-                                                ),
-                                            ),
-                                        )
-                                    }
-                                }),
-                        )
-                })),
-        )
+        let _projects: Vec<_> = self.project_list.read(cx).delegate()._projects.clone();
+        let _view = cx.entity();
+        v_flex().w_full().gap_4().child("projects_panel")
     }
 }

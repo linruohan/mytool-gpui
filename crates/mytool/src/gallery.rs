@@ -96,7 +96,7 @@ impl Render for Gallery {
         h_resizable("gallery-container")
             .child(
                 resizable_panel().size(px(255.)).size_range(px(200.)..px(320.)).child(
-                    Sidebar::left()
+                    Sidebar::new("gallery-sidebar")
                         .w(relative(1.))
                         .border_0()
                         .collapsed(self.collapsed)

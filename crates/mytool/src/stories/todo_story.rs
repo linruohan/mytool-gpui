@@ -143,10 +143,11 @@ impl Render for TodoStory {
             .border_color(cx.theme().border)
             .h_full()
             .child(
-                Sidebar::new(self.side)
-                            .collapsed(self.collapsed)
-                    .w(px(250.))
-                            .gap_0()
+                Sidebar::new("sidebar-story")
+                    .side(self.side)
+                    .collapsed(self.collapsed)
+                    .w(px(220.))
+                    .gap_0()
                             .board(self.board_panel.clone()) // .child(self.project_panel.clone()),
                             .child(
                                 // 添加项目按钮：
