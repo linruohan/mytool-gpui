@@ -27,20 +27,28 @@ impl EventEmitter<LabelEvent> for BoardPanel {}
 impl EventEmitter<ItemEvent> for BoardPanel {}
 
 impl BoardPanel {
+    fn board_count_for_klass(klass: &str, cx: &mut App) -> Option<usize> {
+        // 用映射表替代重复 match，新增 board 时只需追加一行
+        // 注意：klass() 不是 const fn，映射表需要在运行时构建
+        let map: [(&str, fn(&mut App) -> usize); 6] = [
+            (InboxBoard::klass(), InboxBoard::count),
+            (TodayBoard::klass(), TodayBoard::count),
+            (ScheduledBoard::klass(), ScheduledBoard::count),
+            (PinBoard::klass(), PinBoard::count),
+            (LabelsBoard::klass(), LabelsBoard::count),
+            (CompletedBoard::klass(), CompletedBoard::count),
+        ];
+        map.iter().find(|(k, _)| *k == klass).map(|(_, f)| f(cx))
+    }
+
     fn refresh_counts(&mut self, cx: &mut Context<Self>) {
         for board in &self.boards {
             board.update(cx, |board, cx| {
-                let klass = board.board_klass.as_deref();
-                let new_count = match klass {
-                    Some(name) if **name == *InboxBoard::klass() => InboxBoard::count(cx),
-                    Some(name) if **name == *TodayBoard::klass() => TodayBoard::count(cx),
-                    Some(name) if **name == *ScheduledBoard::klass() => ScheduledBoard::count(cx),
-                    Some(name) if **name == *PinBoard::klass() => PinBoard::count(cx),
-                    Some(name) if **name == *LabelsBoard::klass() => LabelsBoard::count(cx),
-                    Some(name) if **name == *CompletedBoard::klass() => CompletedBoard::count(cx),
-                    _ => board.count,
-                };
-                board.count = new_count;
+                if let Some(klass) = board.board_klass.as_deref() {
+                    if let Some(new_count) = Self::board_count_for_klass(klass, cx) {
+                        board.count = new_count;
+                    }
+                }
             });
         }
     }

@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
-    Render, Styled, Subscription, Window, div,
+    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, WindowExt,
@@ -75,7 +75,11 @@ impl ProjectItemsPanel {
 
     pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project.clone();
-        // 切换项目时，重置选中项，避免沿用上一个项目的索引
+        // 切换项目时，先清空当前 items，避免新项目为空时仍短暂显示旧项目
+        cx.update_global::<ProjectState, _>(|state, _| {
+            state.items.clear();
+        });
+        // 重置选中项，避免沿用上一个项目的索引
         self.active_index = Some(0);
         load_project_items(project.clone(), cx);
     }
