@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
@@ -18,7 +18,7 @@ use crate::{
     todo_actions::{
         add_project_item, delete_project_item, load_project_items, update_project_item,
     },
-    todo_state::{ItemState, ProjectState},
+    todo_state::ProjectState,
 };
 
 pub enum ProjectItemEvent {
@@ -33,7 +33,7 @@ impl EventEmitter<ItemEvent> for ProjectItemsPanel {}
 pub struct ProjectItemsPanel {
     project: Rc<ProjectModel>,
     pub active_index: Option<usize>,
-    item_rows: HashMap<String, Entity<ItemRowState>>,
+    item_rows: Vec<Entity<ItemRowState>>,
     item_info: Entity<ItemInfoState>,
     _subscriptions: Vec<Subscription>,
 }
@@ -42,46 +42,24 @@ impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = Rc::new(ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
-        let item_rows = {
-            let items = cx.global::<ItemState>().items.clone();
-            items
-                .iter()
-                .map(|item| {
-                    let entity = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
-                    (item.id.clone(), entity)
-                })
-                .collect()
-        };
+        let item_rows = vec![];
 
         let _subscriptions =
             vec![cx.observe_global_in::<ProjectState>(window, move |this, window, cx| {
+                // 单一数据源：只从 ProjectState.items 构建 UI，保证顺序稳定，active_index 不会错位
                 let state_items = cx.global::<ProjectState>().items.clone();
+                this.item_rows = state_items
+                    .iter()
+                    .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
+                    .collect();
 
-                // 将state_items转换为HashMap便于快速查找
-                let items_by_id: HashMap<String, Rc<ItemModel>> =
-                    state_items.iter().map(|item| (item.id.clone(), item.clone())).collect();
-
-                // 更新或删除现有的item_infos
-                this.item_rows.retain(|item_id, entity| {
-                    if let Some(updated_item) = items_by_id.get(item_id) {
-                        // 更新
-                        cx.update_entity(entity, |item_info, _cx| {
-                            item_info.item = updated_item.clone();
-                        });
-                        true
-                    } else {
-                        // 不存在，删除
-                        // cx.remove_entity(entity);
-                        false
+                // 保护 active_index，避免删除/刷新后越界导致后续 unwrap 崩溃
+                if let Some(ix) = this.active_index {
+                    if ix >= this.item_rows.len() {
+                        this.active_index = this.item_rows.is_empty().then_some(0).or(None);
                     }
-                });
-
-                // 添加新的items（那些不在item_infos中的）
-                for (item_id, item) in items_by_id {
-                    if !this.item_rows.contains_key(&item_id) {
-                        let entity = cx.new(|cx| ItemRowState::new(item.clone(), window, cx));
-                        this.item_rows.insert(item_id, entity);
-                    }
+                } else if !this.item_rows.is_empty() {
+                    this.active_index = Some(0);
                 }
                 cx.notify();
             })];
@@ -97,11 +75,13 @@ impl ProjectItemsPanel {
 
     pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project.clone();
+        // 切换项目时，重置选中项，避免沿用上一个项目的索引
+        self.active_index = Some(0);
         load_project_items(project.clone(), cx);
     }
 
     pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
-        let item_list = cx.global::<ItemState>().items.clone();
+        let item_list = cx.global::<ProjectState>().items.clone();
         item_list.get(ix.row).cloned()
     }
 
@@ -236,11 +216,13 @@ impl Render for ProjectItemsPanel {
                                                         |index| this.get_selected_item(index, cx),
                                                     )
                                                 {
-                                                    this.show_model(model, false, window, cx);
+                                                    // 已有选中项 => 编辑模式
+                                                    this.show_model(model, true, window, cx);
                                                 } else {
+                                                    // 没有选中项 => 新建模式
                                                     this.show_model(
                                                         Rc::new(ItemModel::default()),
-                                                        true,
+                                                        false,
                                                         window,
                                                         cx,
                                                     );
@@ -254,12 +236,13 @@ impl Render for ProjectItemsPanel {
                                                 window.listener_for(
                                                     &view,
                                                     |this, _, _window, cx| {
-                                                        let index = this.active_index.unwrap();
-                                                        let item_some = this.get_selected_item(
-                                                            IndexPath::new(index),
-                                                            cx,
-                                                        );
-                                                        if let Some(item) = item_some {
+                                                        if let Some(index) = this.active_index
+                                                            && let Some(item) = this
+                                                                .get_selected_item(
+                                                                    IndexPath::new(index),
+                                                                    cx,
+                                                                )
+                                                        {
                                                             cx.emit(ProjectItemEvent::Deleted(
                                                                 item,
                                                             ));
@@ -274,8 +257,6 @@ impl Render for ProjectItemsPanel {
                         ),
                     ),
             )
-            .child(v_flex().children(
-                self.item_rows.clone().into_values().map(|item| ItemRow::new(&item.clone())),
-            ))
+            .child(v_flex().children(self.item_rows.iter().map(|item| ItemRow::new(&item))))
     }
 }

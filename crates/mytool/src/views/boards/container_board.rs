@@ -24,7 +24,7 @@ pub struct BoardContainer {
     width: Option<gpui::Pixels>,
     height: Option<gpui::Pixels>,
     board: Option<AnyView>,
-    board_klass: Option<SharedString>,
+    pub(crate) board_klass: Option<SharedString>,
     closable: bool,
     zoomable: Option<PanelControl>,
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,

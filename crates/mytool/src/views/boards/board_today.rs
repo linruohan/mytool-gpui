@@ -42,9 +42,8 @@ impl Board for TodayBoard {
         vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
     }
 
-    fn count(_cx: &mut App) -> usize {
-        // cx.global::<TodayItemState>().items.len()
-        1
+    fn count(cx: &mut App) -> usize {
+        cx.global::<TodayItemState>().items.len()
     }
 
     fn title() -> &'static str {

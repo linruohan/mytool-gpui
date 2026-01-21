@@ -13,8 +13,8 @@ use gpui_component::{
 };
 
 use crate::{
-    BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard, PinBoard,
-    ScheduledBoard, TodayBoard, todo_state::TodayItemState,
+    Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
+    PinBoard, ScheduledBoard, TodayBoard, todo_state::TodayItemState,
 };
 
 pub struct BoardPanel {
@@ -27,6 +27,24 @@ impl EventEmitter<LabelEvent> for BoardPanel {}
 impl EventEmitter<ItemEvent> for BoardPanel {}
 
 impl BoardPanel {
+    fn refresh_counts(&mut self, cx: &mut Context<Self>) {
+        for board in &self.boards {
+            board.update(cx, |board, cx| {
+                let klass = board.board_klass.as_deref();
+                let new_count = match klass {
+                    Some(name) if **name == *InboxBoard::klass() => InboxBoard::count(cx),
+                    Some(name) if **name == *TodayBoard::klass() => TodayBoard::count(cx),
+                    Some(name) if **name == *ScheduledBoard::klass() => ScheduledBoard::count(cx),
+                    Some(name) if **name == *PinBoard::klass() => PinBoard::count(cx),
+                    Some(name) if **name == *LabelsBoard::klass() => LabelsBoard::count(cx),
+                    Some(name) if **name == *CompletedBoard::klass() => CompletedBoard::count(cx),
+                    _ => board.count,
+                };
+                board.count = new_count;
+            });
+        }
+    }
+
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
         let boards = vec![
@@ -43,7 +61,8 @@ impl BoardPanel {
                 cx.notify()
             }
         })];
-        Self { search_input, boards, active_index: None, _subscriptions }
+        // 默认选中第一个看板，避免初始状态没有任何内容渲染
+        Self { search_input, boards, active_index: Some(0), _subscriptions }
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
@@ -57,6 +76,9 @@ impl BoardPanel {
 
 impl Render for BoardPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // 每次渲染前刷新 count，保证看板数量实时更新
+        self.refresh_counts(cx);
+
         let query = self.search_input.read(cx).value().trim().to_lowercase();
         let boards: Vec<_> = self
             .boards

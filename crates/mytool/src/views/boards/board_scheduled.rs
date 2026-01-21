@@ -42,9 +42,8 @@ impl Board for ScheduledBoard {
         vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
     }
 
-    fn count(_cx: &mut App) -> usize {
-        // cx.global::<ScheduledItemState>().items.len()
-        2
+    fn count(cx: &mut App) -> usize {
+        cx.global::<ScheduledItemState>().items.len()
     }
 
     fn title() -> &'static str {

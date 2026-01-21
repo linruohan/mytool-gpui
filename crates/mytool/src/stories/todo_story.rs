@@ -25,8 +25,6 @@ pub struct TodoStory {
     side: Side,
     focus_handle: gpui::FocusHandle,
     _subscriptions: Vec<Subscription>,
-    // 看板是0, projects是1
-    pub is_board_active: bool,
     // 所有看板
     board_panel: Entity<BoardPanel>,
     // projects
@@ -79,7 +77,6 @@ impl TodoStory {
             active_project: None,
             focus_handle: cx.focus_handle(),
             _subscriptions,
-            is_board_active: true,
             board_panel,
             project_panel,
             project_items_panel,
@@ -137,6 +134,18 @@ impl Render for TodoStory {
         let _view = cx.entity();
         let project_active_index = project_panel.active_index;
 
+        let mut content = div().id("todos").flex_1().overflow_y_scroll();
+
+        if let Some(active_ix) = board_active_index {
+            if let Some(board_view) = boards.get(active_ix) {
+                content = content.child(board_view.clone());
+            } else {
+                content = content.child(Empty);
+            }
+        } else {
+            content = content.child(self.project_items_panel.clone());
+        }
+
         h_flex()
             .rounded(cx.theme().radius)
             .border_1()
@@ -163,7 +172,6 @@ impl Render for TodoStory {
                                         .on_click({
                                             let story = project.clone();
                                             cx.listener(move |this, _: &ClickEvent, _, cx| {
-                                                this.is_board_active = false;
                                                 this.active_project = Some(story.clone());
                                                 this.project_panel.update(cx, |panel, cx| {
                                                     panel.update_active_index(Some(ix));
@@ -183,24 +191,6 @@ impl Render for TodoStory {
                                 }),
                             )),
             )
-            .child(
-                v_flex().flex_1().h_full().overflow_x_hidden().child(
-                    div()
-                        .id("todos")
-                        .flex_1()
-                        .overflow_y_scroll()
-                        .when(board_active_index.is_some(), |this| {
-                            let board_some = boards.get(board_active_index.unwrap());
-                            if let Some(board) = board_some {
-                                this.child(board.clone())
-                            } else {
-                                this.child(Empty)
-                            }
-                        })
-                        .when(!self.is_board_active, |this| {
-                            this.child(self.project_items_panel.clone())
-                        }),
-                ),
-            )
+            .child(v_flex().flex_1().h_full().overflow_x_hidden().child(content))
     }
 }
