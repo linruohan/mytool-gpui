@@ -161,8 +161,8 @@ impl ProjectItemsPanel {
                             let item_info = item_info_clone.clone();
                             move |_, window, cx| {
                                 window.close_dialog(cx);
-                                item_info.update(cx, |item_info, cx| {
-                                    cx.emit(ItemInfoEvent::Updated(item_info.item.clone()));
+                                item_info.update(cx, |_item_info, cx| {
+                                    cx.emit(ItemInfoEvent::Updated());
                                     cx.notify();
                                 });
                                 view.update(cx, |_view, cx| {

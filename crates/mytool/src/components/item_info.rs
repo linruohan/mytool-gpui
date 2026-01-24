@@ -22,7 +22,9 @@ use todos::{
 
 use super::{PriorityButton, PriorityEvent, PriorityState};
 use crate::{
-    LabelsPopoverEvent, LabelsPopoverList, todo_actions::update_item, todo_state::LabelState,
+    LabelsPopoverEvent, LabelsPopoverList,
+    todo_actions::{add_item, completed_item, delete_item, uncompleted_item, update_item},
+    todo_state::LabelState,
 };
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -31,11 +33,11 @@ struct Info(i32);
 const CONTEXT: &str = "ItemInfo";
 #[derive(Clone)]
 pub enum ItemInfoEvent {
-    Updated(Rc<ItemModel>),    // 更新任务
-    Added(Rc<ItemModel>),      // 新增任务
-    Finished(Rc<ItemModel>),   // 状态改为完成
-    UnFinished(Rc<ItemModel>), // 状态改为未完成
-    Deleted(Rc<ItemModel>),    // 删除任务
+    Updated(),    // 更新任务
+    Added(),      // 新增任务
+    Finished(),   // 状态改为完成
+    UnFinished(), // 状态改为未完成
+    Deleted(),    // 删除任务
 }
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
@@ -148,6 +150,29 @@ impl ItemInfoState {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(*priority);
                 update_item(self.item.clone(), cx);
+            },
+        }
+        cx.notify();
+    }
+
+    pub fn handle_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
+        println!("handle_item_event:");
+        println!("item_info.item{:#?}", self.item.clone());
+        match event {
+            ItemInfoEvent::Finished() => {
+                completed_item(self.item.clone(), cx);
+            },
+            ItemInfoEvent::Added() => {
+                add_item(self.item.clone(), cx);
+            },
+            ItemInfoEvent::Updated() => {
+                update_item(self.item.clone(), cx);
+            },
+            ItemInfoEvent::Deleted() => {
+                delete_item(self.item.clone(), cx);
+            },
+            ItemInfoEvent::UnFinished() => {
+                uncompleted_item(self.item.clone(), cx);
             },
         }
         cx.notify();

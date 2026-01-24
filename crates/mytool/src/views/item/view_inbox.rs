@@ -42,25 +42,10 @@ impl ItemsPanel {
                 });
                 cx.notify();
             }),
-            cx.subscribe(&item_info, |_this, _, event: &ItemInfoEvent, cx| match event {
-                ItemInfoEvent::Updated(item) => {
-                    print!("iteminfo updated after:{:?}", item);
-                    cx.emit(ItemEvent::Modified(item.clone()));
-                    cx.notify();
-                },
-                ItemInfoEvent::Added(item) => {
-                    cx.emit(ItemEvent::Added(item.clone()));
-                    cx.notify();
-                },
-                ItemInfoEvent::Deleted(item) => {
-                    cx.emit(ItemEvent::Deleted(item.clone()));
-                },
-                ItemInfoEvent::Finished(item) => {
-                    cx.emit(ItemEvent::Finished(item.clone()));
-                },
-                ItemInfoEvent::UnFinished(item) => {
-                    cx.emit(ItemEvent::Modified(item.clone()));
-                },
+            cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
+                this.item_info.update(cx, |state, cx| {
+                    state.handle_item_info_event(event, cx);
+                });
             }),
             cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
                 if let ListEvent::Confirm(ix) = ev
@@ -154,8 +139,8 @@ impl ItemsPanel {
                             let item_info = item_info_clone.clone();
                             move |_, window, cx| {
                                 window.close_dialog(cx);
-                                item_info.update(cx, |item_info, cx| {
-                                    cx.emit(ItemInfoEvent::Updated(item_info.item.clone()));
+                                item_info.update(cx, |_item_info, cx| {
+                                    cx.emit(ItemInfoEvent::Updated());
                                     cx.notify();
                                 });
                                 view.update(cx, |_view, cx| {
