@@ -22,7 +22,8 @@ use todos::{
 
 use super::{
     PriorityButton, PriorityEvent, PriorityState, ProjectButton, ProjectButtonEvent,
-    ProjectButtonState, SectionButton, SectionEvent, SectionState,
+    ProjectButtonState, ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton,
+    SectionEvent, SectionState,
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
@@ -53,6 +54,7 @@ pub struct ItemInfoState {
     priority_state: Entity<PriorityState>,
     project_state: Entity<ProjectButtonState>,
     section_state: Entity<SectionState>,
+    schedule_button_state: Entity<ScheduleButtonState>,
     label_popover_list: Entity<LabelsPopoverList>,
 }
 
@@ -76,6 +78,7 @@ impl ItemInfoState {
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
         let project_state = cx.new(|cx| ProjectButtonState::new(window, cx));
         let section_state = cx.new(|cx| SectionState::new(window, cx));
+        let schedule_button_state = cx.new(|cx| ScheduleButtonState::new(window, cx));
         let _subscriptions = vec![
             cx.subscribe_in(&name_input, window, Self::on_input_event),
             cx.subscribe_in(&desc_input, window, Self::on_input_event),
@@ -83,6 +86,7 @@ impl ItemInfoState {
             cx.subscribe_in(&priority_state, window, Self::on_priority_event),
             cx.subscribe_in(&project_state, window, Self::on_project_event),
             cx.subscribe_in(&section_state, window, Self::on_section_event),
+            cx.subscribe_in(&schedule_button_state, window, Self::on_schedule_event),
         ];
         let mut this = Self {
             focus_handle: cx.focus_handle(),
@@ -94,6 +98,7 @@ impl ItemInfoState {
             priority_state,
             project_state,
             section_state,
+            schedule_button_state,
             label_popover_list,
         };
         this.set_item(item, window, cx);
@@ -243,6 +248,44 @@ impl ItemInfoState {
                 let item = Rc::make_mut(&mut self.item);
                 item.section_id =
                     if section_id.is_empty() { None } else { Some(section_id.clone()) };
+            },
+        }
+        cx.emit(ItemInfoEvent::Updated());
+        cx.notify();
+    }
+
+    pub fn on_schedule_event(
+        &mut self,
+        _state: &Entity<ScheduleButtonState>,
+        event: &ScheduleButtonEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            ScheduleButtonEvent::DateSelected(_date_str) => {
+                let schedule_state = _state.read(cx);
+                let item = Rc::make_mut(&mut self.item);
+                if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
+                    item.due = Some(json_value);
+                }
+            },
+            ScheduleButtonEvent::TimeSelected(_time_str) => {
+                let schedule_state = _state.read(cx);
+                let item = Rc::make_mut(&mut self.item);
+                if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
+                    item.due = Some(json_value);
+                }
+            },
+            ScheduleButtonEvent::RecurrencySelected(_recurrency_type) => {
+                let schedule_state = _state.read(cx);
+                let item = Rc::make_mut(&mut self.item);
+                if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
+                    item.due = Some(json_value);
+                }
+            },
+            ScheduleButtonEvent::Cleared => {
+                let item = Rc::make_mut(&mut self.item);
+                item.due = None;
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -480,19 +523,11 @@ impl Render for ItemInfoState {
                     .gap_2()
                     .child(
                         h_flex().gap_2().child(
-                            v_flex().gap_1().overflow_x_hidden().flex_nowrap().child(
-                                Button::new("item-schedule")
-                                    .label("Schedule")
-                                    .tooltip("schedule item")
-                                    .small()
-                                    .icon(IconName::MonthSymbolic)
-                                    .ghost()
-                                    .compact()
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {}
-                                    }),
-                            ),
+                            v_flex()
+                                .gap_1()
+                                .overflow_x_hidden()
+                                .flex_nowrap()
+                                .child(ScheduleButton::new(&self.schedule_button_state)),
                         ),
                     )
                     .child(
