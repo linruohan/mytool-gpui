@@ -13,9 +13,9 @@ use gpui_component::{
 };
 
 use crate::{
-    Board, ItemInfo, ItemInfoState, ItemRow, ItemRowState,
+    Board, ItemInfo, ItemInfoState, ItemRow, ItemRowState, section,
     todo_actions::{add_item, delete_item, update_item},
-    todo_state::{InboxItemState, ItemState},
+    todo_state::{InboxItemState, ItemState, ProjectState, SectionState},
 };
 
 pub enum ItemClickEvent {
@@ -43,9 +43,9 @@ impl InboxBoard {
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_rows = vec![];
 
-        let _subscriptions =
-            vec![cx.observe_global_in::<ItemState>(window, move |this, window, cx| {
-                let state_items = cx.global::<ItemState>().items.clone();
+        let _subscriptions = vec![
+            cx.observe_global_in::<InboxItemState>(window, move |this, window, cx| {
+                let state_items = cx.global::<InboxItemState>().items.clone();
                 this.item_rows = state_items
                     .iter()
                     .filter(|item| !item.checked)
@@ -60,7 +60,11 @@ impl InboxBoard {
                     this.active_index = Some(0);
                 }
                 cx.notify();
-            })];
+            }),
+            cx.observe_global_in::<ProjectState>(window, move |_, _, cx| {
+                cx.notify();
+            }),
+        ];
         Self {
             focus_handle: cx.focus_handle(),
             _subscriptions,
@@ -244,6 +248,27 @@ impl Render for InboxBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
+        let sections = cx.global::<SectionState>().sections.clone();
+
+        let mut no_section_items = vec![];
+        let mut section_items_map: std::collections::HashMap<
+            String,
+            Vec<(usize, Entity<ItemRowState>)>,
+        > = std::collections::HashMap::new();
+
+        for (i, item_row) in self.item_rows.iter().enumerate() {
+            let item = item_row.read(cx).item.clone();
+            match item.section_id.as_deref() {
+                None | Some("") => no_section_items.push((i, item_row.clone())),
+                Some(sid) => {
+                    section_items_map
+                        .entry(sid.to_string())
+                        .or_default()
+                        .push((i, item_row.clone()));
+                },
+            }
+        }
+
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
@@ -343,23 +368,105 @@ impl Render for InboxBoard {
                             ),
                     ),
             )
-            .child(v_flex().flex_1().overflow_y_scrollbar().child(v_flex().gap_2().children(
-                self.item_rows.iter().enumerate().map(|(i, item)| {
-                    let view = view.clone();
-                    let is_active = self.active_index == Some(i);
-                    div()
-                        .id(("item", i))
-                        .on_click(move |_, _, cx| {
-                            view.update(cx, |this, cx| {
-                                this.active_index = Some(i);
-                                cx.notify();
-                            });
-                        })
-                        .when(is_active, |this: gpui::Stateful<gpui::Div>| {
-                            this.border_color(cx.theme().list_active_border)
-                        })
-                        .child(ItemRow::new(item))
-                }),
-            )))
+            .child(
+                v_flex().flex_1().overflow_y_scrollbar().child(
+                    v_flex()
+                        .gap_4()
+                        .child(v_flex().gap_2().children(no_section_items.into_iter().map(
+                            |(i, item_row)| {
+                                let view = view.clone();
+                                let is_active = self.active_index == Some(i);
+                                div()
+                                    .id(("item", i))
+                                    .on_click(move |_, _, cx| {
+                                        view.update(cx, |this, cx| {
+                                            this.active_index = Some(i);
+                                            cx.notify();
+                                        });
+                                    })
+                                    .when(is_active, |this| {
+                                        this.border_color(cx.theme().list_active_border)
+                                    })
+                                    .child(ItemRow::new(&item_row))
+                            },
+                        )))
+                        .children(sections.iter().filter_map(|sec| {
+                            let items = section_items_map.get(&sec.id)?;
+                            if items.is_empty() {
+                                return None;
+                            }
+
+                            let view_clone = view.clone();
+                            Some(
+                                section(sec.name.clone())
+                                    .child(
+                                        h_flex()
+                                            .gap_1()
+                                            .child(
+                                                Button::new(format!("add-section-{}", sec.id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::PlusLargeSymbolic),
+                                            )
+                                            .child(
+                                                Button::new(format!("edit-section-{}", sec.id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::EditSymbolic),
+                                            )
+                                            .child(
+                                                Button::new(format!("delete-section-{}", sec.id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::UserTrashSymbolic),
+                                            )
+                                            .child(
+                                                Button::new(format!("more-section-{}", sec.id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::MoreHorizontal),
+                                            ),
+                                    )
+                                    .child(
+                                        Button::new(format!("add-item-to-section-{}", sec.id))
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::PlusLargeSymbolic)
+                                            .on_click(move |_, window, cx| {
+                                                // TODO: Add item to specific section
+                                                window.push_notification(
+                                                    "Add item to section not implemented",
+                                                    cx,
+                                                );
+                                            }),
+                                    )
+                                    .child(v_flex().gap_2().children(items.iter().map(
+                                        |(i, item_row)| {
+                                            let view = view_clone.clone();
+                                            let i = *i;
+                                            let is_active = self.active_index == Some(i);
+                                            div()
+                                                .id(("item", i))
+                                                .on_click(move |_, _, cx| {
+                                                    view.update(cx, |this, cx| {
+                                                        this.active_index = Some(i);
+                                                        cx.notify();
+                                                    });
+                                                })
+                                                .when(is_active, |this| {
+                                                    this.border_color(cx.theme().list_active_border)
+                                                })
+                                                .child(ItemRow::new(item_row))
+                                        },
+                                    ))),
+                            )
+                        })),
+                ),
+            )
     }
 }

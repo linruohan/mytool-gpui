@@ -7,6 +7,7 @@ mod item_scheduled;
 mod item_today;
 mod label;
 mod project;
+mod section;
 
 pub use database::*;
 use gpui::App;
@@ -18,6 +19,7 @@ pub use item_scheduled::*;
 pub use item_today::*;
 pub use label::*;
 pub use project::*;
+pub use section::*;
 pub fn state_init(cx: &mut App) {
     // item
     ItemState::init(cx);
@@ -31,4 +33,6 @@ pub fn state_init(cx: &mut App) {
     ProjectState::init(cx);
     // label
     LabelState::init(cx);
+    // section
+    SectionState::init(cx);
 }

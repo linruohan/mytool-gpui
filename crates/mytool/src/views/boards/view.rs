@@ -148,7 +148,7 @@ impl Render for BoardPanel {
                                     this.active_index = Some(ix);
                                     println!("board:view {:?}", this.active_index);
                                     let cnt = cx.global::<TodayItemState>().items.len();
-                                    println!("board:view today cnt {:?}", cnt);
+                                    println!("today cnt:{:?}", cnt);
                                     cx.notify();
                                 },
                             ))
