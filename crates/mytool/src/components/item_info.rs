@@ -105,15 +105,15 @@ impl ItemInfoState {
                 } else {
                     item.description = Some(text);
                 }
-                cx.emit(ItemInfoEvent::Updated());
+                // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
             InputEvent::PressEnter { secondary } => {
                 let _text = state.read(cx).value().to_string();
                 if *secondary {
-                    println!("Shift+Enter pressed - insert line break");
                 } else {
-                    println!("Enter pressed - could submit form");
+                    // Enter 键时保存
+                    cx.emit(ItemInfoEvent::Updated());
                 }
             },
             _ => {},
@@ -237,13 +237,11 @@ impl ItemInfoState {
     pub fn set_priority(&mut self, priority: i32) {
         let item = Rc::make_mut(&mut self.item);
         item.priority = Some(priority);
-        println!("item priority:{:?} ", item.priority);
     }
 
     fn toggle_finished(&mut self, _: &bool, _: &mut Window, cx: &mut Context<Self>) {
         let item = Rc::make_mut(&mut self.item);
         item.checked = !item.checked;
-        println!("item checked:{:?} ", item.checked);
         if item.checked {
             cx.emit(ItemInfoEvent::Finished());
         } else {
@@ -288,7 +286,6 @@ impl ItemInfoState {
         }
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();
-        println!("item labels :{:?} ", self.item.labels.clone().unwrap_or_default());
     }
 }
 
@@ -322,7 +319,6 @@ impl Render for ItemInfoState {
                                     cx.update_entity(&view, |this, cx| {
                                         let item = Rc::make_mut(&mut this.item);
                                         item.pinned = !item.pinned;
-                                        println!("item pin: {}", item.pinned);
                                         cx.emit(ItemInfoEvent::Updated());
                                         cx.notify();
                                     });

@@ -92,6 +92,13 @@ impl Render for ItemRowState {
                                 .when(is_open, |this| this.icon(IconName::ChevronUp))
                                 .on_click(move |_event, _window, cx| {
                                     cx.update_entity(&view, |this, cx| {
+                                        // 如果当前是展开状态，收缩时触发保存
+                                        if this.is_open {
+                                            // 直接通过 item_info 发出 Updated 事件
+                                            this.item_info.update(cx, |_, cx| {
+                                                cx.emit(ItemInfoEvent::Updated());
+                                            });
+                                        }
                                         this.is_open = !this.is_open;
                                         cx.notify();
                                     })
