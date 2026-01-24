@@ -57,6 +57,17 @@ impl ProjectButtonState {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // 根据project_id更新selected_project
+        if info.0.is_empty() {
+            // 选择Inbox
+            self.selected_project = None;
+        } else {
+            // 根据project_id查找project
+            let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
+            if let Some(project) = projects.iter().find(|p| &p.id == &info.0) {
+                self.selected_project = Some(project.clone());
+            }
+        }
         cx.emit(ProjectButtonEvent::Selected(info.0.clone()));
         cx.notify();
     }
