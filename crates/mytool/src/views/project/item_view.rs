@@ -1,20 +1,21 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, InteractiveElement,
-    IntoElement, ParentElement, Render, Styled, Subscription, Window, div,
+    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement as _, MouseButton, ParentElement, Render, StatefulInteractiveElement as _,
+    Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, WindowExt,
+    ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     h_flex,
-    menu::{DropdownMenu, PopupMenuItem},
+    scroll::ScrollableElement,
     v_flex,
 };
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState,
+    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, section,
     todo_actions::{
         add_project_item, delete_project_item, load_project_items, update_project_item,
     },
@@ -27,15 +28,20 @@ pub enum ProjectItemEvent {
     Modified(Rc<ItemModel>),
     Deleted(Rc<ItemModel>),
 }
+
 impl EventEmitter<ProjectItemEvent> for ProjectItemsPanel {}
 impl EventEmitter<ItemInfoEvent> for ProjectItemsPanel {}
 impl EventEmitter<ItemEvent> for ProjectItemsPanel {}
+
 pub struct ProjectItemsPanel {
     project: Rc<ProjectModel>,
     pub active_index: Option<usize>,
     item_rows: Vec<Entity<ItemRowState>>,
     item_info: Entity<ItemInfoState>,
     _subscriptions: Vec<Subscription>,
+    focus_handle: FocusHandle,
+    no_section_items: Vec<(usize, Rc<ItemModel>)>,
+    section_items_map: std::collections::HashMap<String, Vec<(usize, Rc<ItemModel>)>>,
 }
 
 impl ProjectItemsPanel {
@@ -43,17 +49,33 @@ impl ProjectItemsPanel {
         let item = Rc::new(ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_rows = vec![];
+        let no_section_items = vec![];
+        let section_items_map = std::collections::HashMap::new();
 
         let _subscriptions =
             vec![cx.observe_global_in::<ProjectState>(window, move |this, window, cx| {
-                // 单一数据源：只从 ProjectState.items 构建 UI，保证顺序稳定，active_index 不会错位
                 let state_items = cx.global::<ProjectState>().items.clone();
                 this.item_rows = state_items
                     .iter()
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
-                // 保护 active_index，避免删除/刷新后越界导致后续 unwrap 崩溃
+                // 重新计算no_section_items和section_items_map
+                this.no_section_items.clear();
+                this.section_items_map.clear();
+
+                for (i, item) in state_items.iter().enumerate() {
+                    match item.section_id.as_deref() {
+                        None | Some("") => this.no_section_items.push((i, item.clone())),
+                        Some(sid) => {
+                            this.section_items_map
+                                .entry(sid.to_string())
+                                .or_default()
+                                .push((i, item.clone()));
+                        },
+                    }
+                }
+
                 if let Some(ix) = this.active_index {
                     if ix >= this.item_rows.len() {
                         this.active_index = this.item_rows.is_empty().then_some(0).or(None);
@@ -70,16 +92,17 @@ impl ProjectItemsPanel {
             item_info,
             _subscriptions,
             project: Rc::new(ProjectModel::default()),
+            focus_handle: cx.focus_handle(),
+            no_section_items,
+            section_items_map,
         }
     }
 
     pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project.clone();
-        // 切换项目时，先清空当前 items，避免新项目为空时仍短暂显示旧项目
         cx.update_global::<ProjectState, _>(|state, _| {
             state.items.clear();
         });
-        // 重置选中项，避免沿用上一个项目的索引
         self.active_index = Some(0);
         load_project_items(project.clone(), cx);
     }
@@ -114,24 +137,15 @@ impl ProjectItemsPanel {
 
     fn initialize_item_model(&self, _is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
         self.active_index
-            .and_then(|index| {
-                println!("show_label_dialog: active index: {}", index);
-                self.get_selected_item(IndexPath::new(index), cx)
-            })
-            .map(|label| {
-                let item_ref = label.as_ref();
+            .and_then(|index| self.get_selected_item(IndexPath::new(index), cx))
+            .map(|item| {
+                let item_ref = item.as_ref();
                 ItemModel { ..item_ref.clone() }
             })
             .unwrap_or_default()
     }
 
-    pub fn show_model(
-        &mut self,
-        _model: Rc<ItemModel>,
-        is_edit: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
         let item_info = self.item_info.clone();
         let ori_item = self.initialize_item_model(is_edit, window, cx);
         if is_edit {
@@ -167,7 +181,6 @@ impl ProjectItemsPanel {
                                 });
                                 view.update(cx, |_view, cx| {
                                     let item = item_info.read(cx).item.clone();
-                                    print!("iteminfo dialog: {:?}", item.clone());
                                     let event = if is_edit {
                                         ProjectItemEvent::Modified(item.clone())
                                     } else {
@@ -185,12 +198,54 @@ impl ProjectItemsPanel {
                 })
         });
     }
+
+    pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(active_index) = self.active_index {
+            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
+            if let Some(item) = item_some {
+                let view = cx.entity().clone();
+                window.open_dialog(cx, move |dialog, _, _| {
+                    dialog
+                        .confirm()
+                        .overlay(true)
+                        .overlay_closable(true)
+                        .child("Are you sure to delete the item?")
+                        .on_ok({
+                            let view = view.clone();
+                            let item = item.clone();
+                            move |_, window, cx| {
+                                view.update(cx, |_, cx| {
+                                    cx.emit(ProjectItemEvent::Deleted(item.clone()));
+                                });
+                                window.push_notification("You have delete ok.", cx);
+                                true
+                            }
+                        })
+                        .on_cancel(|_, window, cx| {
+                            window.push_notification("You have canceled delete.", cx);
+                            true
+                        })
+                });
+            };
+        }
+    }
+}
+
+impl Focusable for ProjectItemsPanel {
+    fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
+        self.focus_handle.clone()
+    }
 }
 
 impl Render for ProjectItemsPanel {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let view = cx.entity();
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let view = cx.entity().clone();
+        let sections = cx.global::<ProjectState>().sections.clone();
+        let no_section_items = self.no_section_items.clone();
+        let section_items_map = self.section_items_map.clone();
+
         v_flex()
+            .track_focus(&self.focus_handle)
             .size_full()
             .gap_4()
             .child(
@@ -202,65 +257,168 @@ impl Render for ProjectItemsPanel {
                     .items_start()
                     .child(v_flex().child(div().text_xl().child(self.project.name.clone())))
                     .child(
-                        div().items_end().text_color(cx.theme().muted_foreground).child(
-                            Button::new("item-popup-menu")
-                                .icon(IconName::EllipsisVertical)
-                                .dropdown_menu({
-                                    let view = view.clone();
-                                    move |this, window, _cx| {
-                                        this.link(
-                                            "About",
-                                            "https://github.com/linruohan/gpui-component",
-                                        )
-                                        .separator()
-                                        .item(PopupMenuItem::new("Edit item").on_click(
-                                            window.listener_for(&view, |this, _, window, cx| {
-                                                if let Some(model) =
-                                                    this.active_index.map(IndexPath::new).and_then(
-                                                        |index| this.get_selected_item(index, cx),
-                                                    )
-                                                {
-                                                    // 已有选中项 => 编辑模式
-                                                    this.show_model(model, true, window, cx);
-                                                } else {
-                                                    // 没有选中项 => 新建模式
-                                                    this.show_model(
-                                                        Rc::new(ItemModel::default()),
-                                                        false,
-                                                        window,
-                                                        cx,
-                                                    );
-                                                }
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_end()
+                            .px_2()
+                            .gap_2()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(
+                                Button::new("add-label")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PlusLargeSymbolic)
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_item_dialog(window, cx, false);
                                                 cx.notify();
-                                            }),
-                                        ))
-                                        .separator()
-                                        .item(
-                                            PopupMenuItem::new("Delete item").on_click(
-                                                window.listener_for(
-                                                    &view,
-                                                    |this, _, _window, cx| {
-                                                        if let Some(index) = this.active_index
-                                                            && let Some(item) = this
-                                                                .get_selected_item(
-                                                                    IndexPath::new(index),
-                                                                    cx,
-                                                                )
-                                                        {
-                                                            cx.emit(ProjectItemEvent::Deleted(
-                                                                item,
-                                                            ));
-                                                        }
-                                                        cx.notify();
-                                                    },
-                                                ),
-                                            ),
-                                        )
-                                    }
-                                }),
-                        ),
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("edit-item")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditSymbolic)
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_item_dialog(window, cx, true);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("delete-item")
+                                    .icon(IconName::UserTrashSymbolic)
+                                    .small()
+                                    .ghost()
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_item_delete_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            ),
                     ),
             )
-            .child(v_flex().children(self.item_rows.iter().map(|item| ItemRow::new(&item))))
+            .child(
+                v_flex().flex_1().overflow_y_scrollbar().child(
+                    v_flex()
+                        .gap_4()
+                        .when(!no_section_items.is_empty(), |this| {
+                            let view_clone = view.clone();
+                            this.child(
+                                section("No Section")
+                                    .sub_title(
+                                        h_flex().gap_1().child(
+                                            Button::new("add-item-to-no-section")
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::PlusLargeSymbolic)
+                                                .label("Add Task")
+                                                .on_click({
+                                                    let view = view_clone.clone();
+                                                    move |_, window, cx| {
+                                                        view.update(cx, |this, cx| {
+                                                            this.show_item_dialog(
+                                                                window, cx, false,
+                                                            );
+                                                            cx.notify();
+                                                        })
+                                                    }
+                                                }),
+                                        ),
+                                    )
+                                    .child(v_flex().gap_2().w_full().children(
+                                        no_section_items.into_iter().map(|(i, _item)| {
+                                            let view = view_clone.clone();
+                                            let is_active = self.active_index == Some(i);
+                                            let item_row = self.item_rows.get(i).cloned();
+                                            div()
+                                                .id(("item", i))
+                                                .on_click(move |_, _, cx| {
+                                                    view.update(cx, |this, cx| {
+                                                        this.active_index = Some(i);
+                                                        cx.notify();
+                                                    });
+                                                })
+                                                .when(is_active, |this| {
+                                                    this.border_color(cx.theme().list_active_border)
+                                                })
+                                                .children(item_row.map(|row| ItemRow::new(&row)))
+                                        }),
+                                    )),
+                            )
+                        })
+                        .children(sections.iter().filter_map(|sec| {
+                            let items = section_items_map.get(&sec.id)?;
+                            if items.is_empty() {
+                                return None;
+                            }
+
+                            let view_clone = view.clone();
+                            let section_id = sec.id.clone();
+
+                            Some(
+                                section(sec.name.clone())
+                                    .sub_title(
+                                        h_flex().gap_1().child(
+                                            Button::new(format!(
+                                                "add-item-to-section-{}",
+                                                section_id
+                                            ))
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::PlusLargeSymbolic)
+                                            .label("Add Task")
+                                            .on_click({
+                                                let view = view_clone.clone();
+                                                move |_, window, cx| {
+                                                    view.update(cx, |this, cx| {
+                                                        this.show_item_dialog(window, cx, false);
+                                                        cx.notify();
+                                                    })
+                                                }
+                                            }),
+                                        ),
+                                    )
+                                    .child(v_flex().gap_2().w_full().children(items.iter().map(
+                                        |(i, _item)| {
+                                            let view = view_clone.clone();
+                                            let i = *i;
+                                            let is_active = self.active_index == Some(i);
+                                            let item_row = self.item_rows.get(i).cloned();
+                                            div()
+                                                .id(("item", i))
+                                                .on_click(move |_, _, cx| {
+                                                    view.update(cx, |this, cx| {
+                                                        this.active_index = Some(i);
+                                                        cx.notify();
+                                                    });
+                                                })
+                                                .when(is_active, |this| {
+                                                    this.border_color(cx.theme().list_active_border)
+                                                })
+                                                .children(item_row.map(|row| ItemRow::new(&row)))
+                                        },
+                                    ))),
+                            )
+                        })),
+                ),
+            )
     }
 }
