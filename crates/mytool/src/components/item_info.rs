@@ -20,7 +20,9 @@ use todos::{
     enums::item_priority::ItemPriority,
 };
 
-use super::{PriorityButton, PriorityEvent, PriorityState};
+use super::{
+    PriorityButton, PriorityEvent, PriorityState, SectionButton, SectionEvent, SectionState,
+};
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     todo_actions::{add_item, completed_item, delete_item, uncompleted_item, update_item},
@@ -48,6 +50,7 @@ pub struct ItemInfoState {
     name_input: Entity<InputState>,
     desc_input: Entity<InputState>,
     priority_state: Entity<PriorityState>,
+    section_state: Entity<SectionState>,
     label_popover_list: Entity<LabelsPopoverList>,
 }
 
@@ -69,11 +72,13 @@ impl ItemInfoState {
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
+        let section_state = cx.new(|cx| SectionState::new(window, cx));
         let _subscriptions = vec![
             cx.subscribe_in(&name_input, window, Self::on_input_event),
             cx.subscribe_in(&desc_input, window, Self::on_input_event),
             cx.subscribe_in(&label_popover_list, window, Self::on_labels_event),
             cx.subscribe_in(&priority_state, window, Self::on_priority_event),
+            cx.subscribe_in(&section_state, window, Self::on_section_event),
         ];
         let mut this = Self {
             focus_handle: cx.focus_handle(),
@@ -83,6 +88,7 @@ impl ItemInfoState {
             desc_input,
             checked: false,
             priority_state,
+            section_state,
             label_popover_list,
         };
         this.set_item(item, window, cx);
@@ -149,6 +155,24 @@ impl ItemInfoState {
         match event {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(*priority);
+            },
+        }
+        cx.emit(ItemInfoEvent::Updated());
+        cx.notify();
+    }
+
+    pub fn on_section_event(
+        &mut self,
+        _state: &Entity<SectionState>,
+        event: &SectionEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            SectionEvent::Selected(section_id) => {
+                let item = Rc::make_mut(&mut self.item);
+                item.section_id =
+                    if section_id.is_empty() { None } else { Some(section_id.clone()) };
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -262,6 +286,14 @@ impl ItemInfoState {
         self.priority_state.update(cx, |this, cx| {
             if let Some(priority) = item.priority {
                 this.set_priority(ItemPriority::from_i32(priority), window, cx);
+            }
+        });
+        self.section_state.update(cx, |this, cx| {
+            if let Some(section_id) = &item.section_id {
+                let sections = cx.global::<crate::todo_state::SectionState>().sections.clone();
+                if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
+                    this.set_section(Some(section.clone()), window, cx);
+                }
             }
         });
         self.label_popover_list.update(cx, |this, cx| {
@@ -435,17 +467,10 @@ impl Render for ItemInfoState {
                                     }),
                             )
                             .child("——>")
-                            .child(
-                                Button::new("item-section")
-                                    .label("Section")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {}
-                                    }),
-                            ),
+                            .child(SectionButton::new(
+                                &self.section_state,
+                                cx.global::<crate::todo_state::SectionState>().sections.clone(),
+                            )),
                     ),
                 ),
             )
