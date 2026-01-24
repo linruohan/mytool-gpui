@@ -10,13 +10,16 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
+    input::{Input, InputState},
     scroll::ScrollableElement,
     v_flex,
 };
 
 use crate::{
     Board, ItemInfo, ItemInfoState, ItemRow, ItemRowState, section,
-    todo_actions::{add_item, delete_item, update_item},
+    todo_actions::{
+        add_item, add_section, delete_item, delete_section, update_item, update_section,
+    },
     todo_state::{InboxItemState, ItemState, ProjectState, SectionState},
 };
 
@@ -234,6 +237,120 @@ impl InboxBoard {
             };
         }
     }
+
+    pub fn show_section_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: Option<String>,
+        is_edit: bool,
+    ) {
+        let sections = cx.global::<SectionState>().sections.clone();
+        let ori_section = if is_edit {
+            sections
+                .iter()
+                .find(|s| s.id == section_id.clone().unwrap_or_default())
+                .map(|s| s.as_ref().clone())
+                .unwrap_or_default()
+        } else {
+            todos::entity::SectionModel::default()
+        };
+
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
+        if is_edit {
+            name_input.update(cx, |is, cx| {
+                is.set_value(ori_section.name.clone(), window, cx);
+                cx.notify();
+            })
+        };
+
+        let view = cx.entity().clone();
+        let dialog_title = if is_edit { "Edit Section" } else { "New Section" };
+        let button_label = if is_edit { "Save" } else { "Add" };
+
+        window.open_dialog(cx, move |modal, _, _| {
+            modal
+                .title(dialog_title)
+                .overlay(false)
+                .keyboard(true)
+                .overlay_closable(true)
+                .child(v_flex().gap_3().child(Input::new(&name_input)))
+                .footer({
+                    let view = view.clone();
+                    let ori_section = ori_section.clone();
+                    let name_input_clone = name_input.clone();
+                    move |_, _, _, _cx| {
+                        vec![
+                            Button::new("save").primary().label(button_label).on_click({
+                                let view = view.clone();
+                                let ori_section = ori_section.clone();
+                                let name_input_clone1 = name_input_clone.clone();
+                                move |_, window, cx| {
+                                    window.close_dialog(cx);
+                                    view.update(cx, |_view, cx| {
+                                        let section =
+                                            std::rc::Rc::new(todos::entity::SectionModel {
+                                                name: name_input_clone1
+                                                    .read(cx)
+                                                    .value()
+                                                    .to_string(),
+                                                ..ori_section.clone()
+                                            });
+                                        if is_edit {
+                                            update_section(section, cx);
+                                        } else {
+                                            add_section(section, cx);
+                                        }
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
+                        ]
+                    }
+                })
+        });
+    }
+
+    pub fn show_section_delete_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<SectionState>().sections.clone();
+        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
+        if let Some(section) = section_some {
+            let view = cx.entity().clone();
+            window.open_dialog(cx, move |dialog, _, _| {
+                dialog
+                    .confirm()
+                    .overlay(true)
+                    .overlay_closable(true)
+                    .child("Are you sure to delete the section?")
+                    .on_ok({
+                        let view = view.clone();
+                        let section = section.clone();
+                        move |_, window, cx| {
+                            let view = view.clone();
+                            let section = section.clone();
+                            view.update(cx, |_view, cx| {
+                                delete_section(section, cx);
+                                cx.notify();
+                            });
+                            window.push_notification("You have delete ok.", cx);
+                            true
+                        }
+                    })
+                    .on_cancel(|_, window, cx| {
+                        window.push_notification("You have canceled delete.", cx);
+                        true
+                    })
+            });
+        };
+    }
 }
 impl Board for InboxBoard {
     fn icon() -> IconName {
@@ -385,40 +502,40 @@ impl Render for InboxBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap_4()
-                        .child(v_flex().gap_2().children(no_section_items.into_iter().map(
-                            |(i, _item)| {
-                                let view = view.clone();
-                                let is_active = self.active_index == Some(i);
-                                let item_row = self.item_rows.get(i).cloned();
-                                div()
-                                    .id(("item", i))
-                                    .on_click(move |_, _, cx| {
-                                        view.update(cx, |this, cx| {
-                                            this.active_index = Some(i);
-                                            cx.notify();
-                                        });
-                                    })
-                                    .when(is_active, |this| {
-                                        this.border_color(cx.theme().list_active_border)
-                                    })
-                                    .children(item_row.map(|row| ItemRow::new(&row)))
-                            },
-                        )))
-                        .child(
-                            Button::new("add-task-no-section")
-                                .small()
-                                .ghost()
-                                .label("+ Add tasks")
-                                .on_click({
-                                    let view = view.clone();
-                                    move |_, window, cx| {
-                                        view.update(cx, |this, cx| {
-                                            this.show_item_dialog(window, cx, false);
-                                            cx.notify();
-                                        })
-                                    }
-                                }),
-                        )
+                        .when(!no_section_items.is_empty(), |this| {
+                            let view_clone = view.clone();
+                            this.child(
+                                section("No Section")
+                                    .sub_title(
+                                        h_flex().gap_1().child(
+                                            Button::new("more-no-section")
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::EllipsisVertical),
+                                        ),
+                                    )
+                                    .child(v_flex().gap_2().w_full().children(
+                                        no_section_items.into_iter().map(|(i, _item)| {
+                                            let view = view_clone.clone();
+                                            let is_active = self.active_index == Some(i);
+                                            let item_row = self.item_rows.get(i).cloned();
+                                            div()
+                                                .id(("item", i))
+                                                .on_click(move |_, _, cx| {
+                                                    view.update(cx, |this, cx| {
+                                                        this.active_index = Some(i);
+                                                        cx.notify();
+                                                    });
+                                                })
+                                                .when(is_active, |this| {
+                                                    this.border_color(cx.theme().list_active_border)
+                                                })
+                                                .children(item_row.map(|row| ItemRow::new(&row)))
+                                        }),
+                                    )),
+                            )
+                        })
                         .children(sections.iter().filter_map(|sec| {
                             let items = section_items_map.get(&sec.id)?;
                             if items.is_empty() {
@@ -460,7 +577,22 @@ impl Render for InboxBoard {
                                                     .small()
                                                     .ghost()
                                                     .compact()
-                                                    .icon(IconName::EditSymbolic),
+                                                    .icon(IconName::EditSymbolic)
+                                                    .on_click({
+                                                        let view = view_clone.clone();
+                                                        let section_id = section_id.clone();
+                                                        move |_, window, cx| {
+                                                            view.update(cx, |this, cx| {
+                                                                this.show_section_dialog(
+                                                                    window,
+                                                                    cx,
+                                                                    Some(section_id.clone()),
+                                                                    true,
+                                                                );
+                                                                cx.notify();
+                                                            })
+                                                        }
+                                                    }),
                                             )
                                             .child(
                                                 Button::new(format!(
@@ -470,7 +602,21 @@ impl Render for InboxBoard {
                                                 .small()
                                                 .ghost()
                                                 .compact()
-                                                .icon(IconName::UserTrashSymbolic),
+                                                .icon(IconName::UserTrashSymbolic)
+                                                .on_click({
+                                                    let view = view_clone.clone();
+                                                    let section_id = section_id.clone();
+                                                    move |_, window, cx| {
+                                                        view.update(cx, |this, cx| {
+                                                            this.show_section_delete_dialog(
+                                                                window,
+                                                                cx,
+                                                                section_id.clone(),
+                                                            );
+                                                            cx.notify();
+                                                        })
+                                                    }
+                                                }),
                                             )
                                             .child(
                                                 Button::new(format!("more-section-{}", section_id))

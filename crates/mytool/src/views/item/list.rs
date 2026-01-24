@@ -1,11 +1,11 @@
 use std::{collections::HashMap, rc::Rc};
 
 use gpui::{
-    App, Context, ElementId, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    RenderOnce, SharedString, Styled, Task, Window, actions, prelude::FluentBuilder, px,
+    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
+    Task, Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, Icon, IconName, IndexPath, Placement, Selectable, Sizable, WindowExt,
+    ActiveTheme, Colorize, Icon, IconName, IndexPath, Placement, Selectable, WindowExt,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     h_flex,
@@ -119,36 +119,7 @@ impl RenderOnce for ItemListItem {
                                     .collect::<Vec<_>>(),
                             ),
                         )
-                    })
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .justify_end()
-                            .flex()
-                            .px_2()
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("edit")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .on_click(move |_event, _window, _cx| {
-                                        let item = self.item.clone();
-                                        println!("edit item:{:?}", item);
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .on_click(|_, _, _cx| {
-                                        println!("delete item:");
-                                    }),
-                            ),
-                    ),
+                    }),
             )
     }
 }
