@@ -5,6 +5,7 @@ mod label_select;
 mod labels_popover;
 mod list_select;
 mod priority_button;
+mod project_button;
 mod section_button;
 
 pub use color_group::*;
@@ -12,4 +13,5 @@ pub use item_info::*;
 pub use item_row::*;
 pub use labels_popover::*;
 pub use priority_button::*;
+pub use project_button::*;
 pub use section_button::*;

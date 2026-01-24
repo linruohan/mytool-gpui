@@ -22,6 +22,7 @@ pub enum SectionEvent {
 pub struct SectionState {
     focus_handle: FocusHandle,
     pub selected_section: Option<Rc<SectionModel>>,
+    pub sections: Option<Vec<Rc<SectionModel>>>,
 }
 
 impl EventEmitter<SectionEvent> for SectionState {}
@@ -34,7 +35,7 @@ impl Focusable for SectionState {
 
 impl SectionState {
     pub(crate) fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { focus_handle: cx.focus_handle(), selected_section: None }
+        Self { focus_handle: cx.focus_handle(), selected_section: None, sections: None }
     }
 
     pub fn section(&self) -> Option<Rc<SectionModel>> {
@@ -48,6 +49,18 @@ impl SectionState {
         cx: &mut Context<Self>,
     ) {
         self.selected_section = section;
+        cx.notify()
+    }
+
+    pub fn set_sections(
+        &mut self,
+        sections: Option<Vec<Rc<SectionModel>>>,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.sections = sections;
+        // 清空已选择的section，因为project改变了
+        self.selected_section = None;
         cx.notify()
     }
 
@@ -88,7 +101,11 @@ impl Styled for SectionButton {
 
 impl Render for SectionState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let sections = cx.global::<crate::todo_state::SectionState>().sections.clone();
+        // 优先使用传入的sections，否则从全局状态获取
+        let sections = self
+            .sections
+            .clone()
+            .unwrap_or_else(|| cx.global::<crate::todo_state::SectionState>().sections.clone());
 
         v_flex().on_action(cx.listener(Self::on_action_info)).child(
             Button::new("section")

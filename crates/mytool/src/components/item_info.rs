@@ -21,7 +21,8 @@ use todos::{
 };
 
 use super::{
-    PriorityButton, PriorityEvent, PriorityState, SectionButton, SectionEvent, SectionState,
+    PriorityButton, PriorityEvent, PriorityState, ProjectButton, ProjectButtonEvent,
+    ProjectButtonState, SectionButton, SectionEvent, SectionState,
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
@@ -50,6 +51,7 @@ pub struct ItemInfoState {
     name_input: Entity<InputState>,
     desc_input: Entity<InputState>,
     priority_state: Entity<PriorityState>,
+    project_state: Entity<ProjectButtonState>,
     section_state: Entity<SectionState>,
     label_popover_list: Entity<LabelsPopoverList>,
 }
@@ -72,12 +74,14 @@ impl ItemInfoState {
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
+        let project_state = cx.new(|cx| ProjectButtonState::new(window, cx));
         let section_state = cx.new(|cx| SectionState::new(window, cx));
         let _subscriptions = vec![
             cx.subscribe_in(&name_input, window, Self::on_input_event),
             cx.subscribe_in(&desc_input, window, Self::on_input_event),
             cx.subscribe_in(&label_popover_list, window, Self::on_labels_event),
             cx.subscribe_in(&priority_state, window, Self::on_priority_event),
+            cx.subscribe_in(&project_state, window, Self::on_project_event),
             cx.subscribe_in(&section_state, window, Self::on_section_event),
         ];
         let mut this = Self {
@@ -88,6 +92,7 @@ impl ItemInfoState {
             desc_input,
             checked: false,
             priority_state,
+            project_state,
             section_state,
             label_popover_list,
         };
@@ -155,6 +160,71 @@ impl ItemInfoState {
         match event {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(*priority);
+            },
+        }
+        cx.emit(ItemInfoEvent::Updated());
+        cx.notify();
+    }
+
+    pub fn on_project_event(
+        &mut self,
+        _state: &Entity<ProjectButtonState>,
+        event: &ProjectButtonEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            ProjectButtonEvent::Selected(project_id) => {
+                let item = Rc::make_mut(&mut self.item);
+                item.project_id =
+                    if project_id.is_empty() { None } else { Some(project_id.clone()) };
+
+                // 根据project_id更新section_state的sections
+                self.section_state.update(cx, |section_state, cx| {
+                    if project_id.is_empty() {
+                        // 如果是Inbox，使用全局的SectionState
+                        println!("Project changed to Inbox, using global sections");
+                        section_state.set_sections(None, window, cx);
+                    } else {
+                        // 根据project_id获取对应的sections
+                        let projects =
+                            cx.global::<crate::todo_state::ProjectState>().projects.clone();
+                        let all_sections =
+                            cx.global::<crate::todo_state::ProjectState>().sections.clone();
+                        println!(
+                            "Project changed to: {}, total sections: {}",
+                            project_id,
+                            all_sections.len()
+                        );
+
+                        if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
+                            // 获取该project的sections
+                            let filtered_sections: Vec<Rc<todos::entity::SectionModel>> =
+                                all_sections
+                                    .iter()
+                                    .filter(|s| {
+                                        let matches = s.project_id.as_ref() == Some(&project.id);
+                                        if matches {
+                                            println!(
+                                                "Found section: {} for project: {}",
+                                                s.name, project.name
+                                            );
+                                        }
+                                        matches
+                                    })
+                                    .cloned()
+                                    .collect();
+                            println!(
+                                "Filtered sections for project {}: {}",
+                                project.name,
+                                filtered_sections.len()
+                            );
+                            section_state.set_sections(Some(filtered_sections), window, cx);
+                        } else {
+                            println!("Project not found: {}", project_id);
+                        }
+                    }
+                });
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -288,14 +358,49 @@ impl ItemInfoState {
                 this.set_priority(ItemPriority::from_i32(priority), window, cx);
             }
         });
-        self.section_state.update(cx, |this, cx| {
-            if let Some(section_id) = &item.section_id {
-                let sections = cx.global::<crate::todo_state::SectionState>().sections.clone();
-                if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
-                    this.set_section(Some(section.clone()), window, cx);
+        self.project_state.update(cx, |this, cx| {
+            if let Some(project_id) = &item.project_id {
+                let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
+                if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
+                    this.set_project(Some(project.clone()), window, cx);
                 }
             }
         });
+
+        // 根据project_id更新section_state的sections
+        self.section_state.update(cx, |section_state, cx| {
+            if let Some(project_id) = &item.project_id {
+                // 根据project_id获取对应的sections
+                let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
+                if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
+                    // 获取该project的sections
+                    let project_sections =
+                        cx.global::<crate::todo_state::ProjectState>().sections.clone();
+                    let filtered_sections: Vec<Rc<todos::entity::SectionModel>> = project_sections
+                        .iter()
+                        .filter(|s| s.project_id.as_ref() == Some(&project.id))
+                        .cloned()
+                        .collect();
+                    section_state.set_sections(Some(filtered_sections), window, cx);
+                }
+            } else {
+                // 如果是Inbox，使用全局的SectionState
+                section_state.set_sections(None, window, cx);
+            }
+
+            // 设置section
+            if let Some(section_id) = &item.section_id {
+                let sections = if let Some(sections) = &section_state.sections {
+                    sections.clone()
+                } else {
+                    cx.global::<crate::todo_state::SectionState>().sections.clone()
+                };
+                if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
+                    section_state.set_section(Some(section.clone()), window, cx);
+                }
+            }
+        });
+
         self.label_popover_list.update(cx, |this, cx| {
             if let Some(labels) = item.labels.clone() {
                 this.set_item_checked_label_id(labels, window, cx);
@@ -454,18 +559,10 @@ impl Render for ItemInfoState {
                             .gap_1()
                             .overflow_x_hidden()
                             .flex_nowrap()
-                            .child(
-                                Button::new("item-project")
-                                    .label("Inbox")
-                                    .small()
-                                    .icon(IconName::Inbox)
-                                    .ghost()
-                                    .compact()
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {}
-                                    }),
-                            )
+                            .child(ProjectButton::new(
+                                &self.project_state,
+                                cx.global::<crate::todo_state::ProjectState>().projects.clone(),
+                            ))
                             .child("——>")
                             .child(SectionButton::new(
                                 &self.section_state,

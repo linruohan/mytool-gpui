@@ -3,7 +3,10 @@ use std::rc::Rc;
 use gpui::{App, Global};
 use todos::entity::{ItemModel, ProjectModel, SectionModel};
 
-use crate::{service::load_projects, todo_state::DBState};
+use crate::{
+    service::{load_projects, load_sections},
+    todo_state::DBState,
+};
 
 pub struct ProjectState {
     pub projects: Vec<Rc<ProjectModel>>,
@@ -32,6 +35,20 @@ impl ProjectState {
             println!("state projects: {}", list.len());
             let _ = cx.update_global::<ProjectState, _>(|state, _cx| {
                 state.projects = rc_list;
+            });
+        })
+        .detach();
+
+        // 加载sections
+        let conn = cx.global::<DBState>().conn.clone();
+        cx.spawn(async move |cx| {
+            let db = conn.lock().await;
+            let list = load_sections(db.clone()).await;
+            let rc_list: Vec<Rc<SectionModel>> =
+                list.iter().map(|sec| Rc::new(sec.clone())).collect();
+            println!("state project sections: {}", list.len());
+            let _ = cx.update_global::<ProjectState, _>(|state, _cx| {
+                state.sections = rc_list;
             });
         })
         .detach();
