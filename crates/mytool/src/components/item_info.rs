@@ -102,11 +102,11 @@ impl ItemInfoState {
                 let item = Rc::make_mut(&mut self.item);
                 if state == &self.name_input {
                     item.content = text;
-                    update_item(self.item.clone(), cx);
                 } else {
                     item.description = Some(text);
-                    update_item(self.item.clone(), cx);
                 }
+                cx.emit(ItemInfoEvent::Updated());
+                cx.notify();
             },
             InputEvent::PressEnter { secondary } => {
                 let _text = state.read(cx).value().to_string();
@@ -130,13 +130,13 @@ impl ItemInfoState {
         match event {
             LabelsPopoverEvent::Selected(label) => {
                 self.add_checked_labels(label.clone());
-                update_item(self.item.clone(), cx);
             },
             LabelsPopoverEvent::DeSelected(label) => {
                 self.rm_checked_labels(label.clone());
-                update_item(self.item.clone(), cx);
             },
         }
+        cx.emit(ItemInfoEvent::Updated());
+        cx.notify();
     }
 
     pub fn on_priority_event(
@@ -149,15 +149,13 @@ impl ItemInfoState {
         match event {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(*priority);
-                update_item(self.item.clone(), cx);
             },
         }
+        cx.emit(ItemInfoEvent::Updated());
         cx.notify();
     }
 
     pub fn handle_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
-        println!("handle_item_event:");
-        println!("item_info.item{:#?}", self.item.clone());
         match event {
             ItemInfoEvent::Finished() => {
                 completed_item(self.item.clone(), cx);
@@ -246,7 +244,11 @@ impl ItemInfoState {
         let item = Rc::make_mut(&mut self.item);
         item.checked = !item.checked;
         println!("item checked:{:?} ", item.checked);
-        update_item(self.item.clone(), cx);
+        if item.checked {
+            cx.emit(ItemInfoEvent::Finished());
+        } else {
+            cx.emit(ItemInfoEvent::UnFinished());
+        }
         cx.notify();
     }
 
@@ -284,6 +286,7 @@ impl ItemInfoState {
         } else {
             self.rm_checked_labels(label.clone());
         }
+        cx.emit(ItemInfoEvent::Updated());
         cx.notify();
         println!("item labels :{:?} ", self.item.labels.clone().unwrap_or_default());
     }
@@ -320,6 +323,7 @@ impl Render for ItemInfoState {
                                         let item = Rc::make_mut(&mut this.item);
                                         item.pinned = !item.pinned;
                                         println!("item pin: {}", item.pinned);
+                                        cx.emit(ItemInfoEvent::Updated());
                                         cx.notify();
                                     });
                                 }

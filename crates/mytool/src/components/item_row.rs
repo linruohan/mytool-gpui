@@ -24,7 +24,7 @@ pub enum ItemRowEvent {
 }
 pub struct ItemRowState {
     pub item: Rc<ItemModel>,
-    item_info: Entity<ItemInfoState>,
+    pub item_info: Entity<ItemInfoState>,
     is_open: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -39,19 +39,24 @@ impl ItemRowState {
             cx.observe_global_in::<ItemState>(window, move |this, window, cx| {
                 let state_items = cx.global::<ItemState>().items.clone();
                 if let Some(updated_item) = state_items.iter().find(|i| i.id == item_id) {
-                    if updated_item != &this.item {
-                        this.item = updated_item.clone();
-                        this.item_info.update(cx, |this_info, cx| {
-                            this_info.set_item(updated_item.clone(), window, cx);
-                        });
-                        cx.notify();
-                    }
+                    this.item = updated_item.clone();
+                    this.item_info.update(cx, |this_info, cx| {
+                        this_info.set_item(updated_item.clone(), window, cx);
+                    });
+                    // println!("[ItemState changed]itemRow.item : {:?}", this.item);
+                    cx.notify();
                 }
             }),
             cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
                 this.item_info.update(cx, |state, cx| {
                     state.handle_item_info_event(event, cx);
                 });
+                // 直接从 item_info 中获取最新的 item，确保及时更新
+                let latest_item = this.item_info.read(cx).item.clone();
+                if this.item != latest_item {
+                    this.item = latest_item;
+                    cx.notify();
+                }
             }),
         ];
 
@@ -137,6 +142,6 @@ impl RenderOnce for ItemRow {
             .key_context(CONTEXT)
             .w_full()
             .refine_style(&self.style)
-            .child(self.state)
+            .child(self.state.clone())
     }
 }

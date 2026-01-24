@@ -82,7 +82,6 @@ impl ItemsPanel {
     }
 
     pub fn handle_item_event(&mut self, event: &ItemEvent, cx: &mut Context<Self>) {
-        println!("handle_item_event:");
         match event {
             ItemEvent::Added(item) => add_item(item.clone(), cx),
             ItemEvent::Modified(item) => update_item(item.clone(), cx),
