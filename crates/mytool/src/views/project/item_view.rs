@@ -9,15 +9,19 @@ use gpui_component::{
     ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     h_flex,
+    input::{Input, InputState},
+    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
+use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, section,
     todo_actions::{
-        add_project_item, delete_project_item, load_project_items, update_project_item,
+        add_project_item, add_section, delete_project_item, delete_section, load_project_items,
+        update_project_item, update_section,
     },
     todo_state::ProjectState,
 };
@@ -145,15 +149,28 @@ impl ProjectItemsPanel {
             .unwrap_or_default()
     }
 
-    pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
+    pub fn show_item_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        is_edit: bool,
+        section_id: Option<String>,
+    ) {
         let item_info = self.item_info.clone();
-        let ori_item = self.initialize_item_model(is_edit, window, cx);
-        if is_edit {
-            item_info.update(cx, |state, cx| {
-                state.set_item(Rc::new(ori_item.clone()), window, cx);
-                cx.notify();
-            });
+        let mut ori_item = self.initialize_item_model(is_edit, window, cx);
+
+        // If adding a new item with a section_id, set it
+        if !is_edit {
+            if let Some(sid) = section_id {
+                ori_item.section_id = Some(sid);
+            }
         }
+
+        item_info.update(cx, |state, cx| {
+            state.set_item(Rc::new(ori_item.clone()), window, cx);
+            cx.notify();
+        });
+
         let view = cx.entity().clone();
         let dialog_title = if is_edit { "Edit Item" } else { "New Item" };
         let button_text = if is_edit { "Save" } else { "Add" };
@@ -229,6 +246,151 @@ impl ProjectItemsPanel {
             };
         }
     }
+
+    pub fn show_section_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: Option<String>,
+        is_edit: bool,
+    ) {
+        let sections = cx.global::<ProjectState>().sections.clone();
+        let ori_section = if is_edit {
+            sections
+                .iter()
+                .find(|s| s.id == section_id.clone().unwrap_or_default())
+                .map(|s| s.as_ref().clone())
+                .unwrap_or_default()
+        } else {
+            todos::entity::SectionModel::default()
+        };
+
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
+        if is_edit {
+            name_input.update(cx, |is, cx| {
+                is.set_value(ori_section.name.clone(), window, cx);
+                cx.notify();
+            })
+        };
+
+        let view = cx.entity().clone();
+        let dialog_title = if is_edit { "Edit Section" } else { "New Section" };
+        let button_label = if is_edit { "Save" } else { "Add" };
+
+        window.open_dialog(cx, move |modal, _, _| {
+            modal
+                .title(dialog_title)
+                .overlay(false)
+                .keyboard(true)
+                .overlay_closable(true)
+                .child(v_flex().gap_3().child(Input::new(&name_input)))
+                .footer({
+                    let view = view.clone();
+                    let ori_section = ori_section.clone();
+                    let name_input_clone = name_input.clone();
+                    move |_, _, _, _cx| {
+                        vec![
+                            Button::new("save").primary().label(button_label).on_click({
+                                let view = view.clone();
+                                let ori_section = ori_section.clone();
+                                let name_input_clone1 = name_input_clone.clone();
+                                move |_, window, cx| {
+                                    window.close_dialog(cx);
+                                    view.update(cx, |_view, cx| {
+                                        let section =
+                                            std::rc::Rc::new(todos::entity::SectionModel {
+                                                name: name_input_clone1
+                                                    .read(cx)
+                                                    .value()
+                                                    .to_string(),
+                                                ..ori_section.clone()
+                                            });
+                                        if is_edit {
+                                            update_section(section, cx);
+                                        } else {
+                                            add_section(section, cx);
+                                        }
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
+                        ]
+                    }
+                })
+        });
+    }
+
+    pub fn show_section_delete_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<ProjectState>().sections.clone();
+        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
+        if let Some(section) = section_some {
+            let view = cx.entity().clone();
+            window.open_dialog(cx, move |dialog, _, _| {
+                dialog
+                    .confirm()
+                    .overlay(true)
+                    .overlay_closable(true)
+                    .child("Are you sure to delete the section?")
+                    .on_ok({
+                        let view = view.clone();
+                        let section = section.clone();
+                        move |_, window, cx| {
+                            let view = view.clone();
+                            let section = section.clone();
+                            view.update(cx, |_view, cx| {
+                                delete_section(section, cx);
+                                cx.notify();
+                            });
+                            window.push_notification("You have delete ok.", cx);
+                            true
+                        }
+                    })
+                    .on_cancel(|_, window, cx| {
+                        window.push_notification("You have canceled delete.", cx);
+                        true
+                    })
+            });
+        };
+    }
+
+    pub fn duplicate_section(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<ProjectState>().sections.clone();
+        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+            let mut new_section = section.as_ref().clone();
+            new_section.id = uuid::Uuid::new_v4().to_string();
+            new_section.name = format!("{} (copy)", new_section.name);
+            add_section(std::rc::Rc::new(new_section), cx);
+            window.push_notification("Section duplicated successfully.", cx);
+        }
+    }
+
+    pub fn archive_section(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<ProjectState>().sections.clone();
+        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+            let mut updated_section = section.as_ref().clone();
+            updated_section.is_archived = true;
+            update_section(std::rc::Rc::new(updated_section), cx);
+            window.push_notification("Section archived successfully.", cx);
+        }
+    }
 }
 
 impl Focusable for ProjectItemsPanel {
@@ -274,7 +436,7 @@ impl Render for ProjectItemsPanel {
                                         let view = view.clone();
                                         move |_event, window, cx| {
                                             view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, false);
+                                                this.show_item_dialog(window, cx, false, None);
                                                 cx.notify();
                                             })
                                         }
@@ -290,7 +452,7 @@ impl Render for ProjectItemsPanel {
                                         let view = view.clone();
                                         move |_event, window, cx| {
                                             view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, true);
+                                                this.show_item_dialog(window, cx, true, None);
                                                 cx.notify();
                                             })
                                         }
@@ -334,7 +496,7 @@ impl Render for ProjectItemsPanel {
                                                     move |_, window, cx| {
                                                         view.update(cx, |this, cx| {
                                                             this.show_item_dialog(
-                                                                window, cx, false,
+                                                                window, cx, false, None,
                                                             );
                                                             cx.notify();
                                                         })
@@ -387,14 +549,125 @@ impl Render for ProjectItemsPanel {
                                             .label("Add Task")
                                             .on_click({
                                                 let view = view_clone.clone();
+                                                let section_id = section_id.clone();
                                                 move |_, window, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.show_item_dialog(window, cx, false);
+                                                        this.show_item_dialog(window, cx, false, Some(section_id.clone()));
                                                         cx.notify();
                                                     })
                                                 }
                                             }),
                                         ),
+                                    )
+                                    .sub_title(
+                                        h_flex()
+                                            .gap_1()
+                                            .child(
+                                                Button::new(format!("edit-section-{}", section_id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::EditSymbolic)
+                                                    .on_click({
+                                                        let view = view_clone.clone();
+                                                        let section_id = section_id.clone();
+                                                        move |_, window, cx| {
+                                                            view.update(cx, |this, cx| {
+                                                                this.show_section_dialog(window, cx, Some(section_id.clone()), true);
+                                                                cx.notify();
+                                                            })
+                                                        }
+                                                    }),
+                                            )
+                                            .child(
+                                                Button::new(format!(
+                                                    "delete-section-{}",
+                                                    section_id
+                                                ))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::UserTrashSymbolic)
+                                                    .on_click({
+                                                        let view = view_clone.clone();
+                                                        let section_id = section_id.clone();
+                                                        move |_, window, cx| {
+                                                            view.update(cx, |this, cx| {
+                                                                this.show_section_delete_dialog(window, cx, section_id.clone());
+                                                                cx.notify();
+                                                            })
+                                                        }
+                                                    }),
+                                            )
+                                            .child(
+                                                Button::new(format!("more-section-{}", section_id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::EllipsisVertical)
+                                                    .dropdown_menu({
+                                                        let view = view_clone.clone();
+                                                        let section_id = section_id.clone();
+                                                        move |this, window, _cx| {
+                                                            let view = view.clone();
+                                                            let section_id = section_id.clone();
+                                                            this.item({
+                                                                let view = view.clone();
+                                                                let section_id = section_id.clone();
+                                                                PopupMenuItem::new("+ Add Task").on_click(
+                                                                    window.listener_for(&view, move |this, _, window, cx| {
+                                                                        this.show_item_dialog(window, cx, false, Some(section_id.clone()));
+                                                                        cx.notify();
+                                                                    }),
+                                                                )
+                                                            })
+                                                                .separator()
+                                                                .item({
+                                                                    let view = view.clone();
+                                                                    let section_id = section_id.clone();
+                                                                    PopupMenuItem::new("Edit Section").on_click(
+                                                                        window.listener_for(&view, move |this, _, window, cx| {
+                                                                            this.show_section_dialog(window, cx, Some(section_id.clone()), true);
+                                                                            cx.notify();
+                                                                        })
+                                                                    )
+                                                                })
+                                                                .separator()
+                                                                .item({
+                                                                    let view = view.clone();
+                                                                    let section_id = section_id.clone();
+                                                                    PopupMenuItem::new("Duplicate").on_click(
+                                                                        window.listener_for(&view, move |this, _, window, cx| {
+                                                                            this.duplicate_section(window, cx, section_id.clone());
+                                                                            cx.notify();
+                                                                        })
+                                                                    )
+                                                                })
+                                                                .separator()
+                                                                .item({
+                                                                    let view = view.clone();
+                                                                    let section_id = section_id.clone();
+                                                                    PopupMenuItem::new("Archive").on_click(
+                                                                        window.listener_for(&view, move |this, _, window, cx| {
+                                                                            this.archive_section(window, cx, section_id.clone());
+                                                                            cx.notify();
+                                                                        })
+                                                                    )
+                                                                })
+                                                                .separator()
+                                                                .item({
+                                                                    let view = view.clone();
+                                                                    let section_id = section_id.clone();
+                                                                    PopupMenuItem::new("Delete Section").on_click(
+                                                                        window.listener_for(&view, move |this, _, window, cx| {
+                                                                            this.show_section_delete_dialog(window, cx, section_id.clone());
+                                                                            cx.notify();
+                                                                        })
+                                                                    )
+                                                                })
+                                                        }
+                                                    }),
+                                            ),
                                     )
                                     .child(v_flex().gap_2().w_full().children(items.iter().map(
                                         |(i, _item)| {

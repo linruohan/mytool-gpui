@@ -107,7 +107,13 @@ impl ScheduledBoard {
         item_list.get(ix.row).cloned()
     }
 
-    pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
+    pub fn show_item_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        is_edit: bool,
+        section_id: Option<String>,
+    ) {
         let item_info = if is_edit {
             if let Some(active_index) = self.active_index {
                 if let Some(item_row) = self.item_rows.get(active_index) {
@@ -119,7 +125,13 @@ impl ScheduledBoard {
                 self.item_info.clone()
             }
         } else {
-            let ori_item = todos::entity::ItemModel::default();
+            let mut ori_item = todos::entity::ItemModel::default();
+
+            // If adding a new item with a section_id, set it
+            if let Some(sid) = section_id {
+                ori_item.section_id = Some(sid);
+            }
+
             self.item_info.update(cx, |state, cx| {
                 state.set_item(std::rc::Rc::new(ori_item.clone()), window, cx);
                 cx.notify();
@@ -284,7 +296,7 @@ impl Render for ScheduledBoard {
                                         let view = view.clone();
                                         move |_event, window, cx| {
                                             view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, false);
+                                                this.show_item_dialog(window, cx, false, None);
                                                 cx.notify();
                                             })
                                         }
@@ -300,7 +312,7 @@ impl Render for ScheduledBoard {
                                         let view = view.clone();
                                         move |_event, window, cx| {
                                             view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, true);
+                                                this.show_item_dialog(window, cx, true, None);
                                                 cx.notify();
                                             })
                                         }
@@ -344,7 +356,7 @@ impl Render for ScheduledBoard {
                                                     move |_, window, cx| {
                                                         view.update(cx, |this, cx| {
                                                             this.show_item_dialog(
-                                                                window, cx, false,
+                                                                window, cx, false, None,
                                                             );
                                                             cx.notify();
                                                         })
@@ -397,9 +409,15 @@ impl Render for ScheduledBoard {
                                             .label("Add Task")
                                             .on_click({
                                                 let view = view_clone.clone();
+                                                let section_id = section_id.clone();
                                                 move |_, window, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.show_item_dialog(window, cx, false);
+                                                        this.show_item_dialog(
+                                                            window,
+                                                            cx,
+                                                            false,
+                                                            Some(section_id.clone()),
+                                                        );
                                                         cx.notify();
                                                     })
                                                 }
