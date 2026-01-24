@@ -4,13 +4,16 @@ use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::SectionModel;
 
-use crate::todo_state::{DBState, ProjectState};
+use crate::todo_state::{DBState, ProjectState, SectionState};
 
 // 刷新sections
 async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
     let sections = crate::service::load_sections(db).await;
     let rc_sections = sections.iter().map(|section| Rc::new(section.clone())).collect::<Vec<_>>();
     cx.update_global::<ProjectState, _>(|state, _| {
+        state.sections = rc_sections.clone();
+    });
+    cx.update_global::<SectionState, _>(|state, _| {
         state.sections = rc_sections.clone();
     });
 }
