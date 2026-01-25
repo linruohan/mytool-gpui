@@ -14,7 +14,8 @@ mod section_button;
 pub use color_group::*;
 pub use dialog::*;
 pub use dialog_helper::{
-    ItemDialogConfig, SectionDialogConfig, show_item_dialog, show_section_dialog,
+    ItemDialogConfig, SectionDialogConfig, show_item_delete_dialog, show_item_dialog,
+    show_section_delete_dialog, show_section_dialog,
 };
 pub use item_info::*;
 pub use item_row::*;

@@ -177,28 +177,14 @@ impl InboxBoard {
         if let Some(active_index) = self.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .confirm()
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Are you sure to delete the item?")
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window, cx| {
-                                let _view = view.clone();
-                                delete_item(item.clone(), cx);
-                                window.push_notification("You have delete ok.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window, cx| {
-                            window.push_notification("You have canceled delete.", cx);
-                            true
-                        })
-                });
+                crate::components::show_item_delete_dialog(
+                    window,
+                    cx,
+                    "Are you sure to delete the item?",
+                    move |cx| {
+                        delete_item(item.clone(), cx);
+                    },
+                );
             };
         }
     }
@@ -294,31 +280,17 @@ impl InboxBoard {
         let section_some = sections.iter().find(|s| s.id == section_id).cloned();
         if let Some(section) = section_some {
             let view = cx.entity().clone();
-            window.open_dialog(cx, move |dialog, _, _| {
-                dialog
-                    .confirm()
-                    .overlay(true)
-                    .overlay_closable(true)
-                    .child("Are you sure to delete the section?")
-                    .on_ok({
-                        let view = view.clone();
-                        let section = section.clone();
-                        move |_, window, cx| {
-                            let view = view.clone();
-                            let section = section.clone();
-                            view.update(cx, |_view, cx| {
-                                delete_section(section, cx);
-                                cx.notify();
-                            });
-                            window.push_notification("You have delete ok.", cx);
-                            true
-                        }
-                    })
-                    .on_cancel(|_, window, cx| {
-                        window.push_notification("You have canceled delete.", cx);
-                        true
-                    })
-            });
+            crate::components::show_section_delete_dialog(
+                window,
+                cx,
+                "Are you sure to delete the section?",
+                move |cx| {
+                    view.update(cx, |_view, cx| {
+                        delete_section(section.clone(), cx);
+                        cx.notify();
+                    });
+                },
+            );
         };
     }
 

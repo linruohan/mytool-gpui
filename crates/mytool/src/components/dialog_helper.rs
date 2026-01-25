@@ -159,3 +159,83 @@ pub fn show_section_dialog<T, F>(
             })
     });
 }
+
+/// 显示删除 Item 确认对话框
+///
+/// # 参数
+/// - `window`: 窗口引用
+/// - `cx`: 上下文
+/// - `message`: 确认消息
+/// - `on_ok`: 确认回调
+pub fn show_item_delete_dialog<T, F>(
+    window: &mut Window,
+    cx: &mut Context<T>,
+    message: &str,
+    on_ok: F,
+) where
+    T: Render + 'static,
+    F: Fn(&mut gpui::App) + Clone + 'static,
+{
+    let message = message.to_string();
+    let on_ok = on_ok.clone();
+
+    window.open_dialog(cx, move |dialog, _, _| {
+        let message = message.clone();
+        let on_ok = on_ok.clone();
+
+        dialog
+            .confirm()
+            .overlay(true)
+            .overlay_closable(true)
+            .child(message)
+            .on_ok(move |_, window, cx| {
+                on_ok(cx);
+                window.push_notification("You have delete ok.", cx);
+                true
+            })
+            .on_cancel(|_, window, cx| {
+                window.push_notification("You have canceled delete.", cx);
+                true
+            })
+    });
+}
+
+/// 显示删除 Section 确认对话框
+///
+/// # 参数
+/// - `window`: 窗口引用
+/// - `cx`: 上下文
+/// - `message`: 确认消息
+/// - `on_ok`: 确认回调
+pub fn show_section_delete_dialog<T, F>(
+    window: &mut Window,
+    cx: &mut Context<T>,
+    message: &str,
+    on_ok: F,
+) where
+    T: Render + 'static,
+    F: Fn(&mut gpui::App) + Clone + 'static,
+{
+    let message = message.to_string();
+    let on_ok = on_ok.clone();
+
+    window.open_dialog(cx, move |dialog, _, _| {
+        let message = message.clone();
+        let on_ok = on_ok.clone();
+
+        dialog
+            .confirm()
+            .overlay(true)
+            .overlay_closable(true)
+            .child(message)
+            .on_ok(move |_, window, cx| {
+                on_ok(cx);
+                window.push_notification("You have delete ok.", cx);
+                true
+            })
+            .on_cancel(|_, window, cx| {
+                window.push_notification("You have canceled delete.", cx);
+                true
+            })
+    });
+}
