@@ -129,12 +129,28 @@ impl ItemInfoState {
                 let _text = state.read(cx).value().to_string();
                 if *secondary {
                 } else {
-                    // Enter 键时保存
-                    cx.emit(ItemInfoEvent::Updated());
+                    // Enter 键时保存（仅在变更时）
+                    if self.sync_inputs(cx) {
+                        cx.emit(ItemInfoEvent::Updated());
+                    }
                 }
             },
             _ => {},
         };
+    }
+
+    pub fn sync_inputs(&mut self, cx: &mut Context<Self>) -> bool {
+        let name = self.name_input.read(cx).value().to_string();
+        let desc = self.desc_input.read(cx).value().to_string();
+        let new_desc = if desc.is_empty() { None } else { Some(desc) };
+
+        let item = Rc::make_mut(&mut self.item);
+        let changed = item.content != name || item.description != new_desc;
+        if changed {
+            item.content = name;
+            item.description = new_desc;
+        }
+        changed
     }
 
     pub fn on_labels_event(
@@ -289,6 +305,8 @@ impl ItemInfoState {
                 item.due = None;
             },
         }
+        println!("schedule changed: {:?}", self.item.due);
+
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();
     }
@@ -449,6 +467,16 @@ impl ItemInfoState {
             if let Some(labels) = item.labels.clone() {
                 this.set_item_checked_label_id(labels, window, cx);
             }
+        });
+
+        self.schedule_button_state.update(cx, |this, cx| {
+            if let Some(due) = item.due.clone() {
+                if let Ok(due_date) = serde_json::from_value::<todos::objects::DueDate>(due) {
+                    this.set_due_date(due_date, window, cx);
+                    return;
+                }
+            }
+            this.set_due_date(todos::objects::DueDate::default(), window, cx);
         });
     }
 

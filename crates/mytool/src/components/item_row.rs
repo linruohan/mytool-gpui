@@ -27,6 +27,7 @@ pub struct ItemRowState {
     pub item_info: Entity<ItemInfoState>,
     is_open: bool,
     _subscriptions: Vec<Subscription>,
+    update_version: usize, // 用于强制重新渲染 ItemListItem
 }
 
 impl EventEmitter<ItemRowEvent> for ItemRowState {}
@@ -40,6 +41,7 @@ impl ItemRowState {
                 let state_items = cx.global::<ItemState>().items.clone();
                 if let Some(updated_item) = state_items.iter().find(|i| i.id == item_id) {
                     this.item = updated_item.clone();
+                    this.update_version += 1; // 增加版本号，强制重新渲染
                     this.item_info.update(cx, |this_info, cx| {
                         this_info.set_item(updated_item.clone(), window, cx);
                     });
@@ -53,14 +55,13 @@ impl ItemRowState {
                 });
                 // 直接从 item_info 中获取最新的 item，确保及时更新
                 let latest_item = this.item_info.read(cx).item.clone();
-                if this.item != latest_item {
-                    this.item = latest_item;
-                    cx.notify();
-                }
+                this.item = latest_item;
+                this.update_version += 1; // 增加版本号，强制重新渲染
+                cx.notify();
             }),
         ];
 
-        Self { item, item_info, is_open: false, _subscriptions }
+        Self { item, item_info, is_open: false, _subscriptions, update_version: 0 }
     }
 }
 
@@ -68,11 +69,15 @@ impl Render for ItemRowState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let text_color =
             if self.is_open { cx.theme().accent_foreground } else { cx.theme().foreground };
-        let item = self.item.clone();
+
+        // 从 item_info 中获取最新的 item，确保显示最新的数据
+        let item = self.item_info.read(cx).item.clone();
         let item_info = self.item_info.clone();
         let is_open = self.is_open;
-        let item_id = format!("item-{}", self.item.id);
+        let item_id = format!("item-{}", item.id);
         let view = cx.entity();
+        let version = self.update_version; // 获取当前版本号
+
         div().border_3().id(item_id.clone()).rounded(px(5.0)).child(
             Collapsible::new()
                 .gap_1()
@@ -83,7 +88,11 @@ impl Render for ItemRowState {
                         .justify_start()
                         .gap_2()
                         .text_color(text_color)
-                        .child(ItemListItem::new(item_id.clone(), item.clone(), false))
+                        .child(ItemListItem::new(
+                            format!("{}-{}", item_id, version),
+                            item.clone(),
+                            false,
+                        ))
                         .child(
                             Button::new("toggle2")
                                 .small()
@@ -94,9 +103,11 @@ impl Render for ItemRowState {
                                     cx.update_entity(&view, |this, cx| {
                                         // 如果当前是展开状态，收缩时触发保存
                                         if this.is_open {
-                                            // 直接通过 item_info 发出 Updated 事件
-                                            this.item_info.update(cx, |_, cx| {
-                                                cx.emit(ItemInfoEvent::Updated());
+                                            // 先同步输入框内容，再触发保存
+                                            this.item_info.update(cx, |state, cx| {
+                                                if state.sync_inputs(cx) {
+                                                    cx.emit(ItemInfoEvent::Updated());
+                                                }
                                             });
                                         }
                                         this.is_open = !this.is_open;

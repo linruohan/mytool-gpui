@@ -1,12 +1,13 @@
 use chrono::Local;
 use gpui::{
-    Action, App, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, SharedString,
-    StyleRefinement, Styled, Window, div,
+    Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
+    SharedString, StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     IconName, Side, Sizable, Size, StyleSized, StyledExt as _,
     button::Button,
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     menu::{DropdownMenu, PopupMenu},
     v_flex,
 };
@@ -28,6 +29,9 @@ pub struct ScheduleButtonState {
     focus_handle: FocusHandle,
     pub due_date: DueDate,
     selected_time: Option<String>,
+    date_picker_state: Entity<DatePickerState>,
+    show_date_picker: bool,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl EventEmitter<ScheduleButtonEvent> for ScheduleButtonState {}
@@ -39,45 +43,99 @@ impl Focusable for ScheduleButtonState {
 }
 
 impl ScheduleButtonState {
-    pub(crate) fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { focus_handle: cx.focus_handle(), due_date: DueDate::default(), selected_time: None }
+    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let date_picker_state = cx.new(|cx| DatePickerState::new(window, cx));
+        let _subscriptions = vec![cx.subscribe_in(&date_picker_state, window, Self::on_date_event)];
+
+        Self {
+            focus_handle: cx.focus_handle(),
+            due_date: DueDate::default(),
+            selected_time: None,
+            date_picker_state,
+            show_date_picker: false,
+            _subscriptions,
+        }
     }
 
     pub fn due_date(&self) -> DueDate {
         self.due_date.clone()
     }
 
-    pub fn set_due_date(&mut self, due_date: DueDate, _: &mut Window, cx: &mut Context<Self>) {
+    pub fn set_due_date(&mut self, due_date: DueDate, window: &mut Window, cx: &mut Context<Self>) {
         self.due_date = due_date;
+        self.sync_selected_time_from_due_date();
+        if let Some(dt) = self.due_date.datetime() {
+            let date = dt.date();
+            self.date_picker_state.update(cx, |picker, cx| {
+                picker.set_date(date, window, cx);
+            });
+        }
         cx.notify()
+    }
+
+    fn on_date_event(
+        &mut self,
+        _state: &Entity<DatePickerState>,
+        event: &DatePickerEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let DatePickerEvent::Change(date) = event;
+        if let Some(date_str) = date.format("%Y-%m-%d").map(|s| s.to_string()) {
+            let time_str = self.resolve_time_str();
+            self.due_date.date = format!("{} {}:00", date_str, time_str);
+            self.show_date_picker = false;
+            cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
+            cx.notify();
+        }
     }
 
     fn on_select_action(
         &mut self,
         action: &ScheduleAction,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let today = Local::now().naive_local().date();
-        let time_str = self.selected_time.clone().unwrap_or_else(|| "00:00".to_string());
+        let time_str = self.resolve_time_str();
 
         match action.0.as_str() {
             "today" => {
                 let date_str = today.format("%Y-%m-%d").to_string();
                 self.due_date.date = format!("{} {}:00", date_str, time_str);
+                self.date_picker_state.update(cx, |picker, cx| {
+                    picker.set_date(today, window, cx);
+                });
+                self.show_date_picker = false;
                 cx.emit(ScheduleButtonEvent::DateSelected("Today".to_string()));
             },
             "tomorrow" => {
                 let tomorrow = today.succ_opt().unwrap_or(today);
                 let date_str = tomorrow.format("%Y-%m-%d").to_string();
                 self.due_date.date = format!("{} {}:00", date_str, time_str);
+                self.date_picker_state.update(cx, |picker, cx| {
+                    picker.set_date(tomorrow, window, cx);
+                });
+                self.show_date_picker = false;
                 cx.emit(ScheduleButtonEvent::DateSelected("Tomorrow".to_string()));
             },
             "next_week" => {
                 let next_week = today + chrono::Duration::days(7);
                 let date_str = next_week.format("%Y-%m-%d").to_string();
                 self.due_date.date = format!("{} {}:00", date_str, time_str);
+                self.date_picker_state.update(cx, |picker, cx| {
+                    picker.set_date(next_week, window, cx);
+                });
+                self.show_date_picker = false;
                 cx.emit(ScheduleButtonEvent::DateSelected("Next week".to_string()));
+            },
+            "choose_date" => {
+                self.show_date_picker = true;
+                if self.due_date.date.is_empty() {
+                    self.date_picker_state.update(cx, |picker, cx| {
+                        picker.set_date(today, window, cx);
+                    });
+                }
             },
             "daily" => {
                 self.due_date.is_recurring = true;
@@ -132,8 +190,18 @@ impl ScheduleButtonState {
             },
             s if s.starts_with("time_") => {
                 let time = s.strip_prefix("time_").unwrap_or("00:00");
-                self.selected_time = Some(time.to_string());
+                self.apply_time_to_due_date(time);
                 cx.emit(ScheduleButtonEvent::TimeSelected(time.to_string()));
+            },
+            "clear" => {
+                self.due_date = DueDate::default();
+                self.selected_time = None;
+                self.show_date_picker = false;
+                cx.emit(ScheduleButtonEvent::Cleared);
+            },
+            "done" => {
+                self.show_date_picker = false;
+                cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
             },
             _ => {},
         }
@@ -185,7 +253,34 @@ impl ScheduleButtonState {
 
     #[allow(dead_code)]
     fn get_time_text(&self) -> String {
-        self.selected_time.clone().unwrap_or_else(|| "00:00".to_string())
+        self.resolve_time_str()
+    }
+
+    fn apply_time_to_due_date(&mut self, time: &str) {
+        self.selected_time = Some(time.to_string());
+        if let Some((date_part, _)) = self.due_date.date.split_once(' ') {
+            self.due_date.date = format!("{} {}:00", date_part, time);
+        }
+    }
+
+    fn resolve_time_str(&self) -> String {
+        self.selected_time
+            .clone()
+            .or_else(|| self.due_date.datetime().map(|dt| dt.time().format("%H:%M").to_string()))
+            .unwrap_or_else(|| "17:30".to_string())
+    }
+
+    fn sync_selected_time_from_due_date(&mut self) {
+        self.selected_time =
+            self.due_date.datetime().map(|dt| dt.time().format("%H:%M").to_string());
+    }
+
+    fn get_choose_date_label(&self) -> String {
+        if let Some(dt) = self.due_date.datetime() {
+            format!("📅 Choose a date: {}", dt.date().format("%b %e"))
+        } else {
+            "📅 Choose a date".to_string()
+        }
     }
 }
 
@@ -219,38 +314,98 @@ impl Styled for ScheduleButton {
 
 impl Render for ScheduleButtonState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        v_flex().on_action(cx.listener(Self::on_select_action)).child(
-            Button::new(("item-schedule", cx.entity_id()))
-                .outline()
-                .tooltip("set schedule")
-                .icon(IconName::Calendar)
-                .label(SharedString::from(self.get_display_text()))
-                .dropdown_menu_with_anchor(Corner::TopLeft, move |this, window, cx| {
-                    this.check_side(Side::Left)
-                        .label("Date")
-                        .menu("Today", Box::new(ScheduleAction("today".to_string())))
-                        .menu("Tomorrow", Box::new(ScheduleAction("tomorrow".to_string())))
-                        .menu("Next week", Box::new(ScheduleAction("next_week".to_string())))
-                        .separator()
-                        .submenu("Repeat", window, cx, |this: PopupMenu, _window, _cx| {
-                            this.menu("Daily", Box::new(ScheduleAction("daily".to_string())))
-                                .menu("Weekdays", Box::new(ScheduleAction("weekdays".to_string())))
-                                .menu("Weekends", Box::new(ScheduleAction("weekends".to_string())))
-                                .menu("Weekly", Box::new(ScheduleAction("weekly".to_string())))
-                                .menu("Monthly", Box::new(ScheduleAction("monthly".to_string())))
-                                .menu("Yearly", Box::new(ScheduleAction("yearly".to_string())))
-                                .menu("None", Box::new(ScheduleAction("none".to_string())))
-                        })
-                        .separator()
-                        .submenu("Time", window, cx, |this: PopupMenu, _window, _cx| {
-                            this.menu("09:00", Box::new(ScheduleAction("time_09:00".to_string())))
-                                .menu("12:00", Box::new(ScheduleAction("time_12:00".to_string())))
-                                .menu("14:00", Box::new(ScheduleAction("time_14:00".to_string())))
-                                .menu("18:00", Box::new(ScheduleAction("time_18:00".to_string())))
-                                .menu("20:00", Box::new(ScheduleAction("time_20:00".to_string())))
-                        })
-                }),
-        )
+        let choose_date_label = self.get_choose_date_label();
+        let repeat_hint = self.get_repeat_text();
+        let time_hint = self.get_time_text();
+        let date_picker = self.date_picker_state.clone();
+
+        v_flex()
+            .on_action(cx.listener(Self::on_select_action))
+            .child(
+                Button::new(("item-schedule", cx.entity_id()))
+                    .outline()
+                    .tooltip("set schedule")
+                    .icon(IconName::Calendar)
+                    .label(SharedString::from(self.get_display_text()))
+                    .dropdown_menu_with_anchor(Corner::TopLeft, move |this, window, cx| {
+                        let choose_date_label = choose_date_label.clone();
+                        let repeat_hint = repeat_hint.clone();
+                        let time_hint = time_hint.clone();
+
+                        this.check_side(Side::Left)
+                            .min_w(px(260.))
+                            .menu("★ Today", Box::new(ScheduleAction("today".to_string())))
+                            .menu("☐ Tomorrow", Box::new(ScheduleAction("tomorrow".to_string())))
+                            .menu("↷ Next week", Box::new(ScheduleAction("next_week".to_string())))
+                            .separator()
+                            .menu(
+                                choose_date_label,
+                                Box::new(ScheduleAction("choose_date".to_string())),
+                            )
+                            .separator()
+                            .submenu(
+                                format!("⟳ Repeat   {}", repeat_hint),
+                                window,
+                                cx,
+                                |this: PopupMenu, _window, _cx| {
+                                    this.menu(
+                                        "Every day",
+                                        Box::new(ScheduleAction("daily".to_string())),
+                                    )
+                                    .menu(
+                                        "Weekdays",
+                                        Box::new(ScheduleAction("weekdays".to_string())),
+                                    )
+                                    .menu(
+                                        "Weekends",
+                                        Box::new(ScheduleAction("weekends".to_string())),
+                                    )
+                                    .menu("Weekly", Box::new(ScheduleAction("weekly".to_string())))
+                                    .menu(
+                                        "Monthly",
+                                        Box::new(ScheduleAction("monthly".to_string())),
+                                    )
+                                    .menu("Yearly", Box::new(ScheduleAction("yearly".to_string())))
+                                    .menu("None", Box::new(ScheduleAction("none".to_string())))
+                                },
+                            )
+                            .separator()
+                            .submenu(
+                                format!("⏰ Time   {}", time_hint),
+                                window,
+                                cx,
+                                |this: PopupMenu, _window, _cx| {
+                                    this.menu(
+                                        "17:30",
+                                        Box::new(ScheduleAction("time_17:30".to_string())),
+                                    )
+                                    .menu(
+                                        "09:00",
+                                        Box::new(ScheduleAction("time_09:00".to_string())),
+                                    )
+                                    .menu(
+                                        "12:00",
+                                        Box::new(ScheduleAction("time_12:00".to_string())),
+                                    )
+                                    .menu(
+                                        "14:00",
+                                        Box::new(ScheduleAction("time_14:00".to_string())),
+                                    )
+                                    .menu(
+                                        "18:00",
+                                        Box::new(ScheduleAction("time_18:00".to_string())),
+                                    )
+                                    .menu(
+                                        "20:00",
+                                        Box::new(ScheduleAction("time_20:00".to_string())),
+                                    )
+                                },
+                            )
+                    }),
+            )
+            .when(self.show_date_picker, move |this| {
+                this.child(DatePicker::new(&date_picker).cleanable(true).w(px(260.)))
+            })
     }
 }
 
