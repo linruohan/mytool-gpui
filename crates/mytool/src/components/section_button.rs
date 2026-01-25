@@ -77,6 +77,7 @@ pub struct SectionButton {
     style: StyleRefinement,
     size: Size,
     state: Entity<SectionState>,
+    #[allow(dead_code)]
     sections: Vec<Rc<SectionModel>>,
 }
 

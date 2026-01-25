@@ -160,6 +160,7 @@ impl ScheduleButtonState {
         }
     }
 
+    #[allow(dead_code)]
     fn get_repeat_text(&self) -> String {
         if !self.due_date.is_recurring {
             "None".to_string()
@@ -182,6 +183,7 @@ impl ScheduleButtonState {
         }
     }
 
+    #[allow(dead_code)]
     fn get_time_text(&self) -> String {
         self.selected_time.clone().unwrap_or_else(|| "00:00".to_string())
     }

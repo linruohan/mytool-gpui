@@ -13,6 +13,7 @@ use gpui_component::{
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ContainerEvent {
     Close,
 }

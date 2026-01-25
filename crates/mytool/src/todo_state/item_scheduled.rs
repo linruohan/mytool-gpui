@@ -15,14 +15,13 @@ pub enum ScheduledItemStatus {
 
 pub struct ScheduledItemState {
     pub items: Vec<Rc<ItemModel>>,
-    active_item: Option<Rc<ItemModel>>,
 }
 
 impl Global for ScheduledItemState {}
 
 impl ScheduledItemState {
     pub fn init(cx: &mut App) {
-        let this = ScheduledItemState { items: vec![], active_item: None };
+        let this = ScheduledItemState { items: vec![] };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();
@@ -31,7 +30,7 @@ impl ScheduledItemState {
             let list = get_items_scheduled(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state scheduled_items: {}", list.len());
-            let _ = cx.update_global::<ScheduledItemState, _>(|state, _cx| {
+            cx.update_global::<ScheduledItemState, _>(|state, _cx| {
                 state.items = rc_list;
             });
         })

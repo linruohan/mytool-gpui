@@ -7,14 +7,13 @@ use crate::{service::load_labels, todo_state::DBState};
 
 pub struct LabelState {
     pub labels: Vec<Rc<LabelModel>>,
-    active_label: Option<Rc<LabelModel>>,
 }
 
 impl Global for LabelState {}
 
 impl LabelState {
     pub fn init(cx: &mut App) {
-        let this = LabelState { labels: vec![], active_label: None };
+        let this = LabelState { labels: vec![] };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();
@@ -24,7 +23,7 @@ impl LabelState {
             let rc_list: Vec<Rc<LabelModel>> =
                 list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state labels: {}", list.len());
-            let _ = cx.update_global::<LabelState, _>(|state, _cx| {
+            cx.update_global::<LabelState, _>(|state, _cx| {
                 state.labels = rc_list;
             });
         })

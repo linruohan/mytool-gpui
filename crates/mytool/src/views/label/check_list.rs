@@ -91,10 +91,12 @@ impl RenderOnce for LabelCheckListItem {
 }
 
 pub struct LabelCheckListDelegate {
+    #[allow(dead_code)]
     parent: Entity<LabelsPopoverList>,
     pub _labels: Vec<Rc<LabelModel>>,
     pub checked_list: Vec<Rc<LabelModel>>,
     pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
+    #[allow(dead_code)]
     checked: bool,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
@@ -151,6 +153,7 @@ impl LabelCheckListDelegate {
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 
+    #[allow(dead_code)]
     fn confirm(&mut self, _select: bool, _: &mut Window, cx: &mut Context<ListState<Self>>) {
         if let Some(label) = self.selected_label() {
             self.checked_list.push(label.clone());
@@ -161,6 +164,7 @@ impl LabelCheckListDelegate {
         })
     }
 
+    #[allow(dead_code)]
     fn cancel(&mut self, _: &mut Window, cx: &mut Context<ListState<Self>>) {
         self.parent.update(cx, |this, cx| {
             this.list_popover_open = false;

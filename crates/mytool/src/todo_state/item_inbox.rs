@@ -15,14 +15,13 @@ pub enum InboxItemStatus {
 
 pub struct InboxItemState {
     pub items: Vec<Rc<ItemModel>>,
-    active_item: Option<Rc<ItemModel>>,
 }
 
 impl Global for InboxItemState {}
 
 impl InboxItemState {
     pub fn init(cx: &mut App) {
-        let this = InboxItemState { items: vec![], active_item: None };
+        let this = InboxItemState { items: vec![] };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();
@@ -31,7 +30,7 @@ impl InboxItemState {
             let list = get_inbox_items(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state inbox_items: {}", list.len());
-            let _ = cx.update_global::<InboxItemState, _>(|state, _cx| {
+            cx.update_global::<InboxItemState, _>(|state, _cx| {
                 state.items = rc_list;
             });
         })
@@ -46,7 +45,7 @@ impl InboxItemState {
                 let rc_list: Vec<Rc<ItemModel>> =
                     list.iter().map(|pro| Rc::new(pro.clone())).collect();
                 println!("state inbox_items updated: {}", list.len());
-                let _ = cx.update_global::<InboxItemState, _>(|state, _cx| {
+                cx.update_global::<InboxItemState, _>(|state, _cx| {
                     state.items = rc_list;
                 });
             })

@@ -122,7 +122,7 @@ impl ListStory {
             let rc_labels: Vec<Rc<ItemModel>> =
                 labels.iter().map(|label| Rc::new(label.clone())).collect();
             println!("list_story: len labels: {}", rc_labels.len());
-            let _ = cx.update_entity(&company_list_clone, |list, cx| {
+            cx.update_entity(&company_list_clone, |list, cx| {
                 list.delegate_mut().update_items(rc_labels);
                 cx.notify();
             });

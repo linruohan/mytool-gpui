@@ -160,10 +160,8 @@ impl ProjectItemsPanel {
         let mut ori_item = self.initialize_item_model(is_edit, window, cx);
 
         // If adding a new item with a section_id, set it
-        if !is_edit {
-            if let Some(sid) = section_id {
-                ori_item.section_id = Some(sid);
-            }
+        if !is_edit && let Some(sid) = section_id {
+            ori_item.section_id = Some(sid);
         }
 
         item_info.update(cx, |state, cx| {

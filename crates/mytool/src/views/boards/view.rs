@@ -44,10 +44,10 @@ impl BoardPanel {
     fn refresh_counts(&mut self, cx: &mut Context<Self>) {
         for board in &self.boards {
             board.update(cx, |board, cx| {
-                if let Some(klass) = board.board_klass.as_deref() {
-                    if let Some(new_count) = Self::board_count_for_klass(klass, cx) {
-                        board.count = new_count;
-                    }
+                if let Some(klass) = board.board_klass.as_deref()
+                    && let Some(new_count) = Self::board_count_for_klass(klass, cx)
+                {
+                    board.count = new_count;
                 }
             });
         }

@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize};
 use todos::entity::LabelModel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct LabelSelect {
     label: Rc<LabelModel>,
     selected: bool,
     pub checked: bool,
 }
+#[allow(dead_code)]
 impl LabelSelect {
     fn new(label: Rc<LabelModel>, checked: bool) -> Self {
         Self { label, selected: false, checked }

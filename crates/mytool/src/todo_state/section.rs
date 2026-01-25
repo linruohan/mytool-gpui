@@ -7,14 +7,13 @@ use crate::{service::load_sections, todo_state::DBState};
 
 pub struct SectionState {
     pub sections: Vec<Rc<SectionModel>>,
-    active_label: Option<Rc<SectionModel>>,
 }
 
 impl Global for SectionState {}
 
 impl SectionState {
     pub fn init(cx: &mut App) {
-        let this = SectionState { sections: vec![], active_label: None };
+        let this = SectionState { sections: vec![] };
         cx.set_global(this);
 
         let conn = cx.global::<DBState>().conn.clone();
@@ -24,7 +23,7 @@ impl SectionState {
             let rc_list: Vec<Rc<SectionModel>> =
                 list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state sections: {}", list.len());
-            let _ = cx.update_global::<SectionState, _>(|state, _cx| {
+            cx.update_global::<SectionState, _>(|state, _cx| {
                 state.sections = rc_list;
             });
         })

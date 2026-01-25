@@ -34,6 +34,7 @@ pub async fn del_section(
 }
 
 // 获取project下的sections
+#[allow(unused)]
 pub async fn get_project_sections(
     project: Rc<ProjectModel>,
     db: DatabaseConnection,
@@ -41,6 +42,7 @@ pub async fn get_project_sections(
     Store::new(db).await.get_sections_by_project(&project.id).await
 }
 // 获取project_id下的sections
+#[allow(unused)]
 pub async fn get_sections_by_project_id(
     project_id: &str,
     db: DatabaseConnection,
@@ -48,6 +50,7 @@ pub async fn get_sections_by_project_id(
     Store::new(db).await.get_sections_by_project(project_id).await
 }
 // 获取section下的items
+#[allow(unused)]
 pub async fn get_section_items(section_id: &str, db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).await.get_items_by_section(section_id).await
 }

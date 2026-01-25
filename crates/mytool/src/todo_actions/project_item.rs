@@ -26,10 +26,10 @@ async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: Database
     println!("project items: {}", rc_items.len());
     // 只在当前激活项目仍然是该 project_id 时更新，避免快速切换导致旧请求覆盖新项目的 items
     cx.update_global::<ProjectState, _>(|state, _| {
-        if let Some(active) = &state.active_project {
-            if active.id == project_id {
-                state.items = rc_items.clone();
-            }
+        if let Some(active) = &state.active_project
+            && active.id == project_id
+        {
+            state.items = rc_items.clone();
         }
     });
 }

@@ -3,11 +3,13 @@ use gpui_component::select::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ListSelect {
     name: SharedString,
     code: SharedString,
 }
 
+#[allow(dead_code)]
 impl ListSelect {
     pub fn letter_prefix(&self) -> char {
         self.name.chars().next().unwrap_or(' ')

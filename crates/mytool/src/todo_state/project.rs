@@ -33,7 +33,7 @@ impl ProjectState {
             let rc_list: Vec<Rc<ProjectModel>> =
                 list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state projects: {}", list.len());
-            let _ = cx.update_global::<ProjectState, _>(|state, _cx| {
+            cx.update_global::<ProjectState, _>(|state, _cx| {
                 state.projects = rc_list;
             });
         })
@@ -47,7 +47,7 @@ impl ProjectState {
             let rc_list: Vec<Rc<SectionModel>> =
                 list.iter().map(|sec| Rc::new(sec.clone())).collect();
             println!("state project sections: {}", list.len());
-            let _ = cx.update_global::<ProjectState, _>(|state, _cx| {
+            cx.update_global::<ProjectState, _>(|state, _cx| {
                 state.sections = rc_list;
             });
         })

@@ -48,6 +48,7 @@ pub struct ItemInfoState {
     pub item: Rc<ItemModel>,
     _subscriptions: Vec<Subscription>,
     // item view
+    #[allow(dead_code)]
     checked: bool,
     name_input: Entity<InputState>,
     desc_input: Entity<InputState>,

@@ -19,6 +19,7 @@ struct DropdownListDelegate {
     parent: Entity<PopoverList>,
     confirmed_index: Option<usize>,
     selected_index: Option<usize>,
+    #[allow(dead_code)]
     items: Vec<Arc<i32>>,
     matches: Vec<Arc<i32>>,
 }

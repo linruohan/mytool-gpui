@@ -28,6 +28,7 @@ pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
     .detach();
 }
 // 修改project
+#[allow(unused)]
 pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
@@ -39,6 +40,7 @@ pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
     .detach();
 }
 // 删除project
+#[allow(unused)]
 pub fn delete_project(project: Rc<ProjectModel>, cx: &mut App) {
     let conn = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {

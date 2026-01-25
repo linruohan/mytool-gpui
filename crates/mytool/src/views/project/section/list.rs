@@ -22,6 +22,7 @@ pub enum SectionEvent {
 }
 
 #[derive(IntoElement)]
+#[allow(dead_code)]
 pub struct SectionListItem {
     base: ListItem,
     section: Rc<SectionModel>,
@@ -29,6 +30,7 @@ pub struct SectionListItem {
     checked: bool,
 }
 
+#[allow(dead_code)]
 impl SectionListItem {
     pub fn new(
         id: impl Into<ElementId>,
@@ -96,6 +98,7 @@ impl RenderOnce for SectionListItem {
     }
 }
 
+#[allow(dead_code)]
 pub struct SectionListDelegate {
     pub _sections: Vec<Rc<SectionModel>>,
     pub checked_sections: Vec<Rc<SectionModel>>,
@@ -105,6 +108,7 @@ pub struct SectionListDelegate {
     query: SharedString,
 }
 
+#[allow(dead_code)]
 impl SectionListDelegate {
     pub fn new() -> Self {
         Self {

@@ -21,6 +21,7 @@ use crate::{
 };
 
 impl EventEmitter<SectionEvent> for SectionsPanel {}
+#[allow(dead_code)]
 pub struct SectionsPanel {
     input_esc: Entity<InputState>,
     pub section_list: Entity<ListState<SectionListDelegate>>,
@@ -31,6 +32,7 @@ pub struct SectionsPanel {
     selected_color: Option<Hsla>,
 }
 
+#[allow(dead_code)]
 impl SectionsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let input_esc =

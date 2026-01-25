@@ -243,7 +243,7 @@ impl Item {
     // subitems
     pub async fn items(&self) -> Vec<ItemModel> {
         let mut items = self.store().await.get_subitems(&self.model.id).await;
-        items.sort_by(|a, b| a.child_order.cmp(&b.child_order));
+        items.sort_by_key(|a| a.child_order);
         items
     }
 

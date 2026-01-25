@@ -64,7 +64,7 @@ impl ProjectButtonState {
         } else {
             // 根据project_id查找project
             let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
-            if let Some(project) = projects.iter().find(|p| &p.id == &info.0) {
+            if let Some(project) = projects.iter().find(|p| p.id == info.0) {
                 self.selected_project = Some(project.clone());
             }
         }
@@ -80,6 +80,7 @@ pub struct ProjectButton {
     style: StyleRefinement,
     size: Size,
     state: Entity<ProjectButtonState>,
+    #[allow(dead_code)]
     projects: Vec<Rc<ProjectModel>>,
 }
 

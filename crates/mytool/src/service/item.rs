@@ -37,6 +37,7 @@ pub async fn pin_item(
 ) -> Result<(), TodoError> {
     Store::new(db).await.update_item_pin(&item.id, pinned).await
 }
+#[allow(unused)]
 pub async fn get_project_items(
     project: Rc<ProjectModel>,
     db: DatabaseConnection,
