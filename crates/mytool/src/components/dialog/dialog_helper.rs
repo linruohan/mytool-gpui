@@ -10,7 +10,7 @@ use gpui_component::{
 
 use crate::{
     ItemInfoState,
-    components::{DialogConfig, ItemInfo},
+    components::{ItemInfo, dialog::dialog::DialogConfig},
 };
 
 /// Item Dialog 配置

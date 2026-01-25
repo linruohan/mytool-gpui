@@ -1,6 +1,5 @@
 mod color_group;
 mod dialog;
-mod dialog_helper;
 mod item_info;
 mod item_row;
 mod label_select;
@@ -13,10 +12,6 @@ mod section_button;
 
 pub use color_group::*;
 pub use dialog::*;
-pub use dialog_helper::{
-    ItemDialogConfig, SectionDialogConfig, show_item_delete_dialog, show_item_dialog,
-    show_section_delete_dialog, show_section_dialog,
-};
 pub use item_info::*;
 pub use item_row::*;
 pub use labels_popover::*;
