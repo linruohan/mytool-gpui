@@ -21,14 +21,15 @@ use todos::{
 };
 
 use super::{
-    PriorityButton, PriorityEvent, PriorityState, ProjectButton, ProjectButtonEvent,
-    ProjectButtonState, ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton,
-    SectionEvent, SectionState,
+    AttachmentButton, AttachmentButtonState, PriorityButton, PriorityEvent, PriorityState,
+    ProjectButton, ProjectButtonEvent, ProjectButtonState, ReminderButton, ReminderButtonState,
+    ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton, SectionEvent,
+    SectionState,
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     todo_actions::{add_item, completed_item, delete_item, uncompleted_item, update_item},
-    todo_state::LabelState,
+    todo_state::{DBState, LabelState},
 };
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -57,6 +58,8 @@ pub struct ItemInfoState {
     section_state: Entity<SectionState>,
     schedule_button_state: Entity<ScheduleButtonState>,
     label_popover_list: Entity<LabelsPopoverList>,
+    attachment_state: Entity<AttachmentButtonState>,
+    reminder_state: Entity<ReminderButtonState>,
 }
 
 impl Focusable for ItemInfoState {
@@ -80,6 +83,9 @@ impl ItemInfoState {
         let project_state = cx.new(|cx| ProjectButtonState::new(window, cx));
         let section_state = cx.new(|cx| SectionState::new(window, cx));
         let schedule_button_state = cx.new(|cx| ScheduleButtonState::new(window, cx));
+        let attachment_state = cx.new(|cx| AttachmentButtonState::new(item.id.clone(), window, cx));
+        let reminder_state = cx.new(|cx| ReminderButtonState::new(item.id.clone(), window, cx));
+
         let _subscriptions = vec![
             cx.subscribe_in(&name_input, window, Self::on_input_event),
             cx.subscribe_in(&desc_input, window, Self::on_input_event),
@@ -101,6 +107,8 @@ impl ItemInfoState {
             section_state,
             schedule_button_state,
             label_popover_list,
+            attachment_state,
+            reminder_state,
         };
         this.set_item(item, window, cx);
         this
@@ -478,6 +486,32 @@ impl ItemInfoState {
             }
             this.set_due_date(todos::objects::DueDate::default(), window, cx);
         });
+
+        // 异步加载附件和提醒
+        let item_id = item.id.clone();
+        let attachment_state = self.attachment_state.clone();
+        let reminder_state = self.reminder_state.clone();
+        let conn = cx.global::<DBState>().conn.clone();
+
+        cx.spawn(async move |_this, cx| {
+            let db = conn.lock().await;
+
+            // 加载附件
+            let attachments =
+                crate::service::load_attachments_by_item(&item_id, (*db).clone()).await;
+            let rc_attachments = attachments.iter().map(|a| Rc::new(a.clone())).collect::<Vec<_>>();
+            let _ = cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
+                state.set_attachments(rc_attachments, cx);
+            });
+
+            // 加载提醒
+            let reminders = crate::service::load_reminders_by_item(&item_id, (*db).clone()).await;
+            let rc_reminders = reminders.iter().map(|r| Rc::new(r.clone())).collect::<Vec<_>>();
+            let _ = cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
+                state.set_reminders(rc_reminders, cx);
+            });
+        })
+        .detach();
     }
 
     // label_toggle_checked：label选中或取消选中
@@ -564,32 +598,10 @@ impl Render for ItemInfoState {
                             .gap_2()
                             .items_center()
                             .justify_end()
-                            .child(
-                                Button::new("item-attachment")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .tooltip("Add attachment")
-                                    .icon(IconName::MailAttachmentSymbolic)
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {}
-                                    }),
-                            )
+                            .child(AttachmentButton::new(&self.attachment_state))
                             .child(self.label_popover_list.clone()) // tags
                             .child(PriorityButton::new(&self.priority_state)) // priority
-                            .child(
-                                Button::new("item-reminder")
-                                    .small()
-                                    .tooltip("Set reminder")
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::AlarmSymbolic)
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {}
-                                    }),
-                            )
+                            .child(ReminderButton::new(&self.reminder_state))
                             .child(
                                 Button::new("item-due")
                                     .small()

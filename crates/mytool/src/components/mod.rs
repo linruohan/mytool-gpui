@@ -1,3 +1,4 @@
+mod attachment_button;
 mod color_group;
 mod dialog;
 mod item_info;
@@ -7,9 +8,11 @@ mod labels_popover;
 mod list_select;
 mod priority_button;
 mod project_button;
+mod reminder_button;
 mod schedule_button;
 mod section_button;
 
+pub use attachment_button::*;
 pub use color_group::*;
 pub use dialog::*;
 pub use item_info::*;
@@ -17,5 +20,6 @@ pub use item_row::*;
 pub use labels_popover::*;
 pub use priority_button::*;
 pub use project_button::*;
+pub use reminder_button::*;
 pub use schedule_button::*;
 pub use section_button::*;
