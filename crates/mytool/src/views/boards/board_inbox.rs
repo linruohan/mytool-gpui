@@ -10,7 +10,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
-    input::{Input, InputState},
+    input::InputState,
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
@@ -18,7 +18,7 @@ use gpui_component::{
 use sea_orm::sqlx::types::uuid;
 
 use crate::{
-    Board, ItemInfo, ItemInfoState, ItemRow, ItemRowState, section,
+    Board, ItemInfoState, ItemRow, ItemRowState, section,
     todo_actions::{
         add_item, add_section, delete_item, delete_section, update_item, update_section,
     },
@@ -158,39 +158,18 @@ impl InboxBoard {
             self.item_info.clone()
         };
 
-        let view = cx.entity().clone();
-        let dialog_title = if is_edit { "Edit Item" } else { "New Item" };
-        let button_text = if is_edit { "Save" } else { "Add" };
+        let config = crate::components::ItemDialogConfig::new(
+            if is_edit { "Edit Item" } else { "New Item" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        );
 
-        window.open_dialog(cx, move |modal, _, _| {
-            let item_info_clone = item_info.clone();
-            let _view_clone = view.clone();
-
-            modal
-                .title(dialog_title)
-                .overlay(true)
-                .keyboard(true)
-                .overlay_closable(true)
-                .child(ItemInfo::new(&item_info))
-                .footer(move |_, _, _, _| {
-                    vec![
-                        Button::new("save").primary().label(button_text).on_click({
-                            let item_info = item_info_clone.clone();
-                            move |_, window, cx| {
-                                window.close_dialog(cx);
-                                let item = item_info.read(cx).item.clone();
-                                if is_edit {
-                                    update_item(item, cx);
-                                } else {
-                                    add_item(item, cx);
-                                };
-                            }
-                        }),
-                        Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
-                            window.close_dialog(cx);
-                        }),
-                    ]
-                })
+        crate::components::show_item_dialog(window, cx, item_info, config, move |item, cx| {
+            if is_edit {
+                update_item(item, cx);
+            } else {
+                add_item(item, cx);
+            }
         });
     }
 
@@ -283,53 +262,25 @@ impl InboxBoard {
             })
         };
 
-        let view = cx.entity().clone();
-        let dialog_title = if is_edit { "Edit Section" } else { "New Section" };
-        let button_label = if is_edit { "Save" } else { "Add" };
+        let config = crate::components::SectionDialogConfig::new(
+            if is_edit { "Edit Section" } else { "New Section" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        )
+        .with_overlay(false);
 
-        window.open_dialog(cx, move |modal, _, _| {
-            modal
-                .title(dialog_title)
-                .overlay(false)
-                .keyboard(true)
-                .overlay_closable(true)
-                .child(v_flex().gap_3().child(Input::new(&name_input)))
-                .footer({
-                    let view = view.clone();
-                    let ori_section = ori_section.clone();
-                    let name_input_clone = name_input.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("save").primary().label(button_label).on_click({
-                                let view = view.clone();
-                                let ori_section = ori_section.clone();
-                                let name_input_clone1 = name_input_clone.clone();
-                                move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                    view.update(cx, |_view, cx| {
-                                        let section =
-                                            std::rc::Rc::new(todos::entity::SectionModel {
-                                                name: name_input_clone1
-                                                    .read(cx)
-                                                    .value()
-                                                    .to_string(),
-                                                ..ori_section.clone()
-                                            });
-                                        if is_edit {
-                                            update_section(section, cx);
-                                        } else {
-                                            add_section(section, cx);
-                                        }
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
-                                window.close_dialog(cx);
-                            }),
-                        ]
-                    }
-                })
+        let view = cx.entity().clone();
+        crate::components::show_section_dialog(window, cx, name_input, config, move |name, cx| {
+            view.update(cx, |_view, cx| {
+                let section =
+                    std::rc::Rc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
+                if is_edit {
+                    update_section(section, cx);
+                } else {
+                    add_section(section, cx);
+                }
+                cx.notify();
+            });
         });
     }
 

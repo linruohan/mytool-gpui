@@ -6,13 +6,12 @@ use gpui::{
 };
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
-    button::{Button, ButtonVariants},
     list::{List, ListEvent, ListState},
 };
 use todos::entity::ItemModel;
 
 use crate::{
-    ItemEvent, ItemInfo, ItemInfoEvent, ItemInfoState, ItemListDelegate,
+    ItemEvent, ItemInfoEvent, ItemInfoState, ItemListDelegate,
     todo_actions::{add_item, delete_item, update_item},
     todo_state::InboxItemState,
 };
@@ -117,50 +116,36 @@ impl ItemsPanel {
                 cx.notify();
             });
         }
+
+        let config = crate::components::ItemDialogConfig::new(
+            if is_edit { "Edit Item" } else { "New Item" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        );
+
         let view = cx.entity().clone();
-        let dialog_title = if is_edit { "Edit Item" } else { "New Item" };
-        let button_text = if is_edit { "Save" } else { "Add" };
-
-        window.open_dialog(cx, move |modal, _, _| {
-            let item_info_clone = item_info.clone();
-            let view_clone = view.clone();
-
-            modal
-                .title(dialog_title)
-                .overlay(true)
-                .keyboard(true)
-                .overlay_closable(true)
-                .child(ItemInfo::new(&item_info))
-                .footer(move |_, _, _, _| {
-                    vec![
-                        Button::new("save").primary().label(button_text).on_click({
-                            let view = view_clone.clone();
-                            let item_info = item_info_clone.clone();
-                            move |_, window, cx| {
-                                window.close_dialog(cx);
-                                item_info.update(cx, |_item_info, cx| {
-                                    cx.emit(ItemInfoEvent::Updated());
-                                    cx.notify();
-                                });
-                                view.update(cx, |_view, cx| {
-                                    let item = item_info.read(cx).item.clone();
-                                    print!("iteminfo dialog: {:?}", item.clone());
-                                    let event = if is_edit {
-                                        ItemEvent::Modified(item.clone())
-                                    } else {
-                                        ItemEvent::Added(item.clone())
-                                    };
-                                    cx.emit(event);
-                                    cx.notify();
-                                });
-                            }
-                        }),
-                        Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
-                            window.close_dialog(cx);
-                        }),
-                    ]
-                })
-        });
+        crate::components::show_item_dialog(
+            window,
+            cx,
+            item_info.clone(),
+            config,
+            move |item, cx| {
+                item_info.update(cx, |_item_info, cx| {
+                    cx.emit(ItemInfoEvent::Updated());
+                    cx.notify();
+                });
+                view.update(cx, |_view, cx| {
+                    print!("iteminfo dialog: {:?}", item.clone());
+                    let event = if is_edit {
+                        ItemEvent::Modified(item.clone())
+                    } else {
+                        ItemEvent::Added(item.clone())
+                    };
+                    cx.emit(event);
+                    cx.notify();
+                });
+            },
+        );
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {

@@ -143,10 +143,20 @@ impl SectionsPanel {
             })
         };
 
+        let _config = crate::components::SectionDialogConfig::new(
+            if is_edit { "Edit Label" } else { "New Label" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        )
+        .with_overlay(false);
+
         let view = cx.entity().clone();
+        let color = self.color.clone();
+
+        // 注意：这个 dialog 包含颜色选择，所以需要自定义实现
+        // 暂时保留原有的实现，因为它包含额外的 ColorGroup 组件
         let dialog_title = if is_edit { "Edit Label" } else { "New Label" };
         let button_section = if is_edit { "Save" } else { "Add" };
-        let color = self.color.clone();
         window.open_dialog(cx, move |modal, _, _| {
             modal
                 .title(dialog_title)
