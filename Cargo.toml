@@ -36,7 +36,7 @@ sea-orm = { version = "1.1.19", features = [
     "with-rust_decimal",
     "runtime-tokio",
 ] }
-winresource = "0.1.29"
+winresource = "0.1.30"
 rodio = "0.21.1"
 tracing = { version = "0.1.44", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "chrono"] }
