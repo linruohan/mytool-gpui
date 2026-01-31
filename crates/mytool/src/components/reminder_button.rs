@@ -138,16 +138,22 @@ impl Render for ReminderButtonState {
 
         v_flex()
             .gap_2()
-            .child(h_flex().gap_2().items_center().child(
-                Button::new("add-reminder").small().outline().label("Add Reminder").on_click({
-                    let view = view.clone();
-                    move |_event, window, cx| {
-                        cx.update_entity(&view, |this, cx| {
-                            this.on_show_date_picker(window, cx);
-                        });
-                    }
-                }),
-            ))
+            .child(
+                h_flex().gap_2().items_center().child(
+                    Button::new("add-reminder")
+                        .small()
+                        .outline()
+                        .icon(IconName::AlarmSymbolic)
+                        .on_click({
+                            let view = view.clone();
+                            move |_event, window, cx| {
+                                cx.update_entity(&view, |this, cx| {
+                                    this.on_show_date_picker(window, cx);
+                                });
+                            }
+                        }),
+                ),
+            )
             .when(show_date_picker, {
                 let view = view.clone();
                 move |this| {

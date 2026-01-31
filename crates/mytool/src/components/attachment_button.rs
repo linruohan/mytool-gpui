@@ -110,16 +110,22 @@ impl Render for AttachmentButtonState {
 
         v_flex()
             .gap_2()
-            .child(h_flex().gap_2().items_center().child(
-                Button::new("add-attachment").small().outline().label("Add").on_click({
-                    let view = view.clone();
-                    move |_event, window, cx| {
-                        cx.update_entity(&view, |this, cx| {
-                            this.on_add_attachment(window, cx);
-                        });
-                    }
-                }),
-            ))
+            .child(
+                h_flex().gap_2().items_center().child(
+                    Button::new("add-attachment")
+                        .small()
+                        .outline()
+                        .icon(IconName::MailAttachmentSymbolic)
+                        .on_click({
+                            let view = view.clone();
+                            move |_event, window, cx| {
+                                cx.update_entity(&view, |this, cx| {
+                                    this.on_add_attachment(window, cx);
+                                });
+                            }
+                        }),
+                ),
+            )
             .children(self.attachments.iter().enumerate().map(|(idx, attachment)| {
                 let attachment_id = attachment.id.clone();
                 let view = view.clone();
