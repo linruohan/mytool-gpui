@@ -29,7 +29,6 @@ pub struct ReminderButtonState {
     pub item_id: String,
     popover_open: bool,
     date_input: Entity<InputState>,
-    time_input: Entity<InputState>,
     search_input: Entity<InputState>,
     search_query: String,
     current_date: String,
@@ -49,7 +48,6 @@ impl Focusable for ReminderButtonState {
 impl ReminderButtonState {
     pub fn new(item_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let date_input = cx.new(|cx| InputState::new(window, cx).placeholder("YYYY-MM-DD"));
-        let time_input = cx.new(|cx| InputState::new(window, cx).placeholder("HH:MM"));
         let search_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search reminders..."));
         let _subscriptions = vec![cx.subscribe_in(&search_input, window, Self::on_search_event)];
@@ -60,7 +58,6 @@ impl ReminderButtonState {
             item_id,
             popover_open: false,
             date_input,
-            time_input,
             search_input,
             search_query: String::new(),
             current_date: String::new(),
@@ -99,12 +96,6 @@ impl ReminderButtonState {
             self.search_query = query;
             cx.notify();
         }
-    }
-
-    fn on_date_input_change(&mut self, cx: &mut Context<Self>) {
-        let date = self.date_input.read(cx).value().to_string();
-        self.current_date = date;
-        cx.notify();
     }
 
     fn on_time_select(&mut self, time: &str, cx: &mut Context<Self>) {

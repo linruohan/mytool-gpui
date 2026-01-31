@@ -108,28 +108,27 @@ impl AttachmentButtonState {
         let item_id = self.item_id.clone();
 
         // 直接打开文件选择对话框（这是同步的）
-        if let Some(file_path) = rfd::FileDialog::new().pick_file() {
-            if let Some(file_name) = file_path.file_name() {
-                if let Some(file_name_str) = file_name.to_str() {
-                    let file_size = std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0);
+        if let Some(file_path) = rfd::FileDialog::new().pick_file()
+            && let Some(file_name) = file_path.file_name()
+            && let Some(file_name_str) = file_name.to_str()
+        {
+            let file_size = std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0);
 
-                    let file_type =
-                        file_path.extension().and_then(|ext| ext.to_str()).map(|s| s.to_string());
+            let file_type =
+                file_path.extension().and_then(|ext| ext.to_str()).map(|s| s.to_string());
 
-                    let attachment = AttachmentModel {
-                        id: Uuid::new_v4().to_string(),
-                        item_id: item_id.clone(),
-                        file_name: file_name_str.to_string(),
-                        file_path: file_path.to_string_lossy().to_string(),
-                        file_type,
-                        file_size,
-                    };
+            let attachment = AttachmentModel {
+                id: Uuid::new_v4().to_string(),
+                item_id: item_id.clone(),
+                file_name: file_name_str.to_string(),
+                file_path: file_path.to_string_lossy().to_string(),
+                file_type,
+                file_size,
+            };
 
-                    // 添加到列表并保存到数据库
-                    self.add_attachment(Rc::new(attachment.clone()), cx);
-                    crate::todo_actions::add_attachment(attachment, cx);
-                }
-            }
+            // 添加到列表并保存到数据库
+            self.add_attachment(Rc::new(attachment.clone()), cx);
+            crate::todo_actions::add_attachment(attachment, cx);
         }
     }
 

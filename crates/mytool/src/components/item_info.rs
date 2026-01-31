@@ -312,8 +312,18 @@ impl ItemInfoState {
                 let item = Rc::make_mut(&mut self.item);
                 item.due = None;
             },
+            // ScheduleButtonEvent::DueDateChanged => {
+            //     let schedule_state = _state.read(cx);
+            //     let item = Rc::make_mut(&mut self.item);
+            //     if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
+            //         item.due = Some(json_value);
+            //     }
+            // },
+            // ScheduleButtonEvent::PickerOpened(_) => {
+            //     // 不需要更新 item 数据，只需要处理 UI 状态
+            // },
         }
-        println!("schedule changed: {:?}", self.item.due);
+        // println!("schedule changed: {:?}", self.item.due);
 
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();
@@ -478,11 +488,11 @@ impl ItemInfoState {
         });
 
         self.schedule_button_state.update(cx, |this, cx| {
-            if let Some(due) = item.due.clone() {
-                if let Ok(due_date) = serde_json::from_value::<todos::objects::DueDate>(due) {
-                    this.set_due_date(due_date, window, cx);
-                    return;
-                }
+            if let Some(due) = item.due.clone()
+                && let Ok(due_date) = serde_json::from_value::<todos::objects::DueDate>(due)
+            {
+                this.set_due_date(due_date, window, cx);
+                return;
             }
             this.set_due_date(todos::objects::DueDate::default(), window, cx);
         });
@@ -500,14 +510,14 @@ impl ItemInfoState {
             let attachments =
                 crate::service::load_attachments_by_item(&item_id, (*db).clone()).await;
             let rc_attachments = attachments.iter().map(|a| Rc::new(a.clone())).collect::<Vec<_>>();
-            let _ = cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
+            cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
                 state.set_attachments(rc_attachments, cx);
             });
 
             // 加载提醒
             let reminders = crate::service::load_reminders_by_item(&item_id, (*db).clone()).await;
             let rc_reminders = reminders.iter().map(|r| Rc::new(r.clone())).collect::<Vec<_>>();
-            let _ = cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
+            cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
                 state.set_reminders(rc_reminders, cx);
             });
         })
