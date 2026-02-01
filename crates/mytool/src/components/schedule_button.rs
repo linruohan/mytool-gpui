@@ -5,10 +5,11 @@ use gpui::{
     SharedString, StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    IconName, Side, Sizable, Size, StyleSized, StyledExt as _,
-    button::Button,
+    ActiveTheme, IconName, Sizable, Size, StyleSized, StyledExt as _,
+    button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    menu::{DropdownMenu, PopupMenu},
+    h_flex,
+    menu::DropdownMenu,
     v_flex,
 };
 use serde::Deserialize;
@@ -16,13 +17,30 @@ use todos::{enums::RecurrencyType, objects::DueDate};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = schedule_button, no_json)]
-struct ScheduleAction(String);
+struct SetTimeAction(String);
+
+#[derive(Action, Clone, PartialEq, Deserialize)]
+#[action(namespace = schedule_button, no_json)]
+struct SetRecurrencyAction(RecurrencyType);
+
+#[derive(Action, Clone, PartialEq, Deserialize)]
+#[action(namespace = schedule_button, no_json)]
+struct ToggleCustomRecurrencyAction;
+
+#[derive(Action, Clone, PartialEq, Deserialize)]
+#[action(namespace = schedule_button, no_json)]
+struct ClearAction;
+
+#[derive(Action, Clone, PartialEq, Deserialize)]
+#[action(namespace = schedule_button, no_json)]
+struct DoneAction;
 
 pub enum ScheduleButtonEvent {
     DateSelected(String),
     TimeSelected(String),
     RecurrencySelected(RecurrencyType),
     Cleared,
+    Done(DueDate),
 }
 
 pub struct ScheduleButtonState {
@@ -30,7 +48,8 @@ pub struct ScheduleButtonState {
     pub due_date: DueDate,
     selected_time: Option<String>,
     date_picker_state: Entity<DatePickerState>,
-    show_date_picker: bool,
+    show_popover: bool,
+    show_custom_recurrency: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -39,6 +58,23 @@ impl EventEmitter<ScheduleButtonEvent> for ScheduleButtonState {}
 impl Focusable for ScheduleButtonState {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
+    }
+}
+
+impl ScheduleButtonState {
+    fn on_action(&mut self, action: &dyn Action, _window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(action) = action.as_any().downcast_ref::<SetTimeAction>() {
+            self.set_time(&action.0, cx);
+        } else if let Some(action) = action.as_any().downcast_ref::<SetRecurrencyAction>() {
+            self.set_recurrency(action.0.clone(), cx);
+        } else if let Some(_) = action.as_any().downcast_ref::<ToggleCustomRecurrencyAction>() {
+            self.show_custom_recurrency = !self.show_custom_recurrency;
+            cx.notify();
+        } else if let Some(_) = action.as_any().downcast_ref::<ClearAction>() {
+            self.clear(cx);
+        } else if let Some(_) = action.as_any().downcast_ref::<DoneAction>() {
+            self.done(cx);
+        }
     }
 }
 
@@ -52,7 +88,8 @@ impl ScheduleButtonState {
             due_date: DueDate::default(),
             selected_time: None,
             date_picker_state,
-            show_date_picker: false,
+            show_popover: false,
+            show_custom_recurrency: false,
             _subscriptions,
         }
     }
@@ -84,127 +121,45 @@ impl ScheduleButtonState {
         if let Some(date_str) = date.format("%Y-%m-%d").map(|s| s.to_string()) {
             let time_str = self.resolve_time_str();
             self.due_date.date = format!("{} {}:00", date_str, time_str);
-            self.show_date_picker = false;
             cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
             cx.notify();
         }
     }
 
-    fn on_select_action(
-        &mut self,
-        action: &ScheduleAction,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let today = Local::now().naive_local().date();
-        let time_str = self.resolve_time_str();
-
-        match action.0.as_str() {
-            "today" => {
-                let date_str = today.format("%Y-%m-%d").to_string();
-                self.due_date.date = format!("{} {}:00", date_str, time_str);
-                self.date_picker_state.update(cx, |picker, cx| {
-                    picker.set_date(today, window, cx);
-                });
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected("Today".to_string()));
-            },
-            "tomorrow" => {
-                let tomorrow = today.succ_opt().unwrap_or(today);
-                let date_str = tomorrow.format("%Y-%m-%d").to_string();
-                self.due_date.date = format!("{} {}:00", date_str, time_str);
-                self.date_picker_state.update(cx, |picker, cx| {
-                    picker.set_date(tomorrow, window, cx);
-                });
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected("Tomorrow".to_string()));
-            },
-            "next_week" => {
-                let next_week = today + chrono::Duration::days(7);
-                let date_str = next_week.format("%Y-%m-%d").to_string();
-                self.due_date.date = format!("{} {}:00", date_str, time_str);
-                self.date_picker_state.update(cx, |picker, cx| {
-                    picker.set_date(next_week, window, cx);
-                });
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected("Next week".to_string()));
-            },
-            "choose_date" => {
-                self.show_date_picker = true;
-                if self.due_date.date.is_empty() {
-                    self.date_picker_state.update(cx, |picker, cx| {
-                        picker.set_date(today, window, cx);
-                    });
-                }
-            },
-            "daily" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryDay;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryDay));
-            },
-            "weekdays" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.recurrency_weeks = "1,2,3,4,5".to_string();
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryWeek));
-            },
-            "weekends" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.recurrency_weeks = "0,6".to_string();
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryWeek));
-            },
-            "weekly" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryWeek));
-            },
-            "monthly" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryMonth;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryMonth));
-            },
-            "yearly" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryYear;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryYear));
-            },
-            "none" => {
-                self.due_date.is_recurring = false;
-                self.due_date.recurrency_supported = false;
-                self.due_date.recurrency_type = RecurrencyType::NONE;
-                self.due_date.recurrency_interval = 0;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::NONE));
-            },
-            s if s.starts_with("time_") => {
-                let time = s.strip_prefix("time_").unwrap_or("00:00");
-                self.apply_time_to_due_date(time);
-                cx.emit(ScheduleButtonEvent::TimeSelected(time.to_string()));
-            },
-            "clear" => {
-                self.due_date = DueDate::default();
-                self.selected_time = None;
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::Cleared);
-            },
-            "done" => {
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
-            },
-            _ => {},
+    fn set_time(&mut self, time: &str, cx: &mut Context<Self>) {
+        self.selected_time = Some(time.to_string());
+        if let Some((date_part, _)) = self.due_date.date.split_once(' ') {
+            self.due_date.date = format!("{} {}:00", date_part, time);
+        } else {
+            let today = Local::now().naive_local().date();
+            let date_str = today.format("%Y-%m-%d").to_string();
+            self.due_date.date = format!("{} {}:00", date_str, time);
         }
+        cx.emit(ScheduleButtonEvent::TimeSelected(time.to_string()));
+        cx.notify();
+    }
+
+    fn set_recurrency(&mut self, recurrency_type: RecurrencyType, cx: &mut Context<Self>) {
+        self.due_date.is_recurring = true;
+        self.due_date.recurrency_supported = true;
+        self.due_date.recurrency_type = recurrency_type.clone();
+        self.due_date.recurrency_interval = 1;
+        self.show_custom_recurrency = false;
+        cx.emit(ScheduleButtonEvent::RecurrencySelected(recurrency_type));
+        cx.notify();
+    }
+
+    fn clear(&mut self, cx: &mut Context<Self>) {
+        self.due_date = DueDate::default();
+        self.selected_time = None;
+        self.show_custom_recurrency = false;
+        cx.emit(ScheduleButtonEvent::Cleared);
+        cx.notify();
+    }
+
+    fn done(&mut self, cx: &mut Context<Self>) {
+        self.show_popover = false;
+        cx.emit(ScheduleButtonEvent::Done(self.due_date.clone()));
         cx.notify();
     }
 
@@ -228,22 +183,13 @@ impl ScheduleButtonState {
         }
     }
 
-    #[allow(dead_code)]
     fn get_repeat_text(&self) -> String {
         if !self.due_date.is_recurring {
             "None".to_string()
         } else {
             match self.due_date.recurrency_type {
                 RecurrencyType::EveryDay => "Daily".to_string(),
-                RecurrencyType::EveryWeek => {
-                    if self.due_date.recurrency_weeks == "1,2,3,4,5" {
-                        "Weekdays".to_string()
-                    } else if self.due_date.recurrency_weeks == "0,6" {
-                        "Weekends".to_string()
-                    } else {
-                        "Weekly".to_string()
-                    }
-                },
+                RecurrencyType::EveryWeek => "Weekly".to_string(),
                 RecurrencyType::EveryMonth => "Monthly".to_string(),
                 RecurrencyType::EveryYear => "Yearly".to_string(),
                 _ => "None".to_string(),
@@ -251,16 +197,8 @@ impl ScheduleButtonState {
         }
     }
 
-    #[allow(dead_code)]
     fn get_time_text(&self) -> String {
         self.resolve_time_str()
-    }
-
-    fn apply_time_to_due_date(&mut self, time: &str) {
-        self.selected_time = Some(time.to_string());
-        if let Some((date_part, _)) = self.due_date.date.split_once(' ') {
-            self.due_date.date = format!("{} {}:00", date_part, time);
-        }
     }
 
     fn resolve_time_str(&self) -> String {
@@ -274,13 +212,143 @@ impl ScheduleButtonState {
         self.selected_time =
             self.due_date.datetime().map(|dt| dt.time().format("%H:%M").to_string());
     }
+}
 
-    fn get_choose_date_label(&self) -> String {
-        if let Some(dt) = self.due_date.datetime() {
-            format!("📅 Choose a date: {}", dt.date().format("%b %e"))
-        } else {
-            "📅 Choose a date".to_string()
-        }
+impl Render for ScheduleButtonState {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let date_picker = self.date_picker_state.clone();
+        let entity = cx.entity();
+        let show_popover = self.show_popover;
+        let show_custom_recurrency = self.show_custom_recurrency;
+        let time_text = self.get_time_text();
+        let repeat_text = self.get_repeat_text();
+        let background_color = cx.theme().background;
+        let border_color = cx.theme().border;
+        let entity_id = cx.entity_id();
+
+        v_flex()
+                .child(
+                    Button::new(("item-schedule", entity_id))
+                        .outline()
+                        .tooltip("set schedule")
+                        .icon(IconName::Calendar)
+                        .label(SharedString::from(self.get_display_text()))
+                        .on_click({
+                            let entity = entity.clone();
+                            move |_ev, _window, app| {
+                                app.update_entity(&entity, |this, cx| {
+                                    this.show_popover = !this.show_popover;
+                                    cx.notify();
+                                });
+                            }
+                        }),
+                )
+                .when(show_popover, move |this| {
+                    this.child(
+                        div()
+                            .bg(background_color)
+                            .border_1()
+                            .border_color(border_color)
+                            .rounded_lg()
+                            .p_3()
+                            .gap_3()
+                            .flex_col()
+                            .w(px(320.))
+                            // Part 1: Date and Time Selection
+                            .child(
+                                v_flex()
+                                    .gap_2()
+                                    .child(
+                                        h_flex()
+                                            .gap_2()
+                                            .items_center()
+                                            .child(
+                                                DatePicker::new(&date_picker)
+                                                    .small()
+                                                    .w(px(180.)),
+                                            )
+                                            .child(
+                                                Button::new(("time-dropdown", entity_id))
+                                                    .small()
+                                                    .label(format!("⏰ {}", time_text))
+                                                    .dropdown_menu_with_anchor(Corner::BottomLeft, {
+                                                        move |menu, _window, _cx| {
+                                                            menu.menu("09:00", Box::new(SetTimeAction("09:00".to_string())))
+                                                                .menu("12:00", Box::new(SetTimeAction("12:00".to_string())))
+                                                                .menu("14:00", Box::new(SetTimeAction("14:00".to_string())))
+                                                                .menu("17:30", Box::new(SetTimeAction("17:30".to_string())))
+                                                                .menu("18:00", Box::new(SetTimeAction("18:00".to_string())))
+                                                                .menu("20:00", Box::new(SetTimeAction("20:00".to_string())))
+                                                        }
+                                                    }),
+                                            ),
+                                    )
+                            )
+                            // Part 2: Recurrency Selection
+                            .child(
+                                v_flex()
+                                    .gap_2()
+                                    .child(
+                                        Button::new(("repeat-dropdown", entity_id))
+                                            .small()
+                                            .label(format!("⟳ Repeat: {}", repeat_text))
+                                            .dropdown_menu_with_anchor(Corner::BottomLeft, {
+                                                move |menu, _window, _cx| {
+                                                    menu.menu("Daily", Box::new(SetRecurrencyAction(RecurrencyType::EveryDay)))
+                                                        .menu("Weekly", Box::new(SetRecurrencyAction(RecurrencyType::EveryWeek)))
+                                                        .menu("Monthly", Box::new(SetRecurrencyAction(RecurrencyType::EveryMonth)))
+                                                        .menu("Yearly", Box::new(SetRecurrencyAction(RecurrencyType::EveryYear)))
+                                                        .menu("Custom Date", Box::new(ToggleCustomRecurrencyAction))
+                                                }
+                                            }),
+                                    ),
+                            )
+                            .when(show_custom_recurrency, move |this: gpui::Div| {
+                                this.child(
+                                    div()
+                                        .border_t_1()
+                                        .border_color(border_color)
+                                        .pt_2()
+                                        .child(
+                                            DatePicker::new(&date_picker)
+                                                .small()
+                                                .w(px(300.)),
+                                        ),
+                                )
+                            })
+                            // Bottom buttons
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .justify_between()
+                                    .child(
+                                        Button::new(("clear-btn", entity_id))
+                                            .label("Clear")
+                                            .on_click({
+                                                let entity = entity.clone();
+                                                move |_, _window, app: &mut App| {
+                                                    app.update_entity(&entity, |this: &mut ScheduleButtonState, cx: &mut Context<ScheduleButtonState>| {
+                                                        this.clear(cx);
+                                                    });
+                                                }
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new(("done-btn", entity_id))
+                                            .primary()
+                                            .label("Done")
+                                            .on_click({
+                                                let entity = entity.clone();
+                                                move |_, _window, app: &mut App| {
+                                                    app.update_entity(&entity, |this: &mut ScheduleButtonState, cx: &mut Context<ScheduleButtonState>| {
+                                                        this.done(cx);
+                                                    });
+                                                }
+                                            }),
+                                    ),
+                            ),
+                    )
+                })
     }
 }
 
@@ -309,103 +377,6 @@ impl Focusable for ScheduleButton {
 impl Styled for ScheduleButton {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
-    }
-}
-
-impl Render for ScheduleButtonState {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let choose_date_label = self.get_choose_date_label();
-        let repeat_hint = self.get_repeat_text();
-        let time_hint = self.get_time_text();
-        let date_picker = self.date_picker_state.clone();
-
-        v_flex()
-            .on_action(cx.listener(Self::on_select_action))
-            .child(
-                Button::new(("item-schedule", cx.entity_id()))
-                    .outline()
-                    .tooltip("set schedule")
-                    .icon(IconName::Calendar)
-                    .label(SharedString::from(self.get_display_text()))
-                    .dropdown_menu_with_anchor(Corner::TopLeft, move |this, window, cx| {
-                        let choose_date_label = choose_date_label.clone();
-                        let repeat_hint = repeat_hint.clone();
-                        let time_hint = time_hint.clone();
-
-                        this.check_side(Side::Left)
-                            .min_w(px(260.))
-                            .menu("★ Today", Box::new(ScheduleAction("today".to_string())))
-                            .menu("☐ Tomorrow", Box::new(ScheduleAction("tomorrow".to_string())))
-                            .menu("↷ Next week", Box::new(ScheduleAction("next_week".to_string())))
-                            .separator()
-                            .menu(
-                                choose_date_label,
-                                Box::new(ScheduleAction("choose_date".to_string())),
-                            )
-                            .separator()
-                            .submenu(
-                                format!("⟳ Repeat   {}", repeat_hint),
-                                window,
-                                cx,
-                                |this: PopupMenu, _window, _cx| {
-                                    this.menu(
-                                        "Every day",
-                                        Box::new(ScheduleAction("daily".to_string())),
-                                    )
-                                    .menu(
-                                        "Weekdays",
-                                        Box::new(ScheduleAction("weekdays".to_string())),
-                                    )
-                                    .menu(
-                                        "Weekends",
-                                        Box::new(ScheduleAction("weekends".to_string())),
-                                    )
-                                    .menu("Weekly", Box::new(ScheduleAction("weekly".to_string())))
-                                    .menu(
-                                        "Monthly",
-                                        Box::new(ScheduleAction("monthly".to_string())),
-                                    )
-                                    .menu("Yearly", Box::new(ScheduleAction("yearly".to_string())))
-                                    .menu("None", Box::new(ScheduleAction("none".to_string())))
-                                },
-                            )
-                            .separator()
-                            .submenu(
-                                format!("⏰ Time   {}", time_hint),
-                                window,
-                                cx,
-                                |this: PopupMenu, _window, _cx| {
-                                    this.menu(
-                                        "17:30",
-                                        Box::new(ScheduleAction("time_17:30".to_string())),
-                                    )
-                                    .menu(
-                                        "09:00",
-                                        Box::new(ScheduleAction("time_09:00".to_string())),
-                                    )
-                                    .menu(
-                                        "12:00",
-                                        Box::new(ScheduleAction("time_12:00".to_string())),
-                                    )
-                                    .menu(
-                                        "14:00",
-                                        Box::new(ScheduleAction("time_14:00".to_string())),
-                                    )
-                                    .menu(
-                                        "18:00",
-                                        Box::new(ScheduleAction("time_18:00".to_string())),
-                                    )
-                                    .menu(
-                                        "20:00",
-                                        Box::new(ScheduleAction("time_20:00".to_string())),
-                                    )
-                                },
-                            )
-                    }),
-            )
-            .when(self.show_date_picker, move |this| {
-                this.child(DatePicker::new(&date_picker).cleanable(true).w(px(260.)))
-            })
     }
 }
 

@@ -312,6 +312,12 @@ impl ItemInfoState {
                 let item = Rc::make_mut(&mut self.item);
                 item.due = None;
             },
+            ScheduleButtonEvent::Done(due_date) => {
+                let item = Rc::make_mut(&mut self.item);
+                if let Ok(json_value) = serde_json::to_value(due_date) {
+                    item.due = Some(json_value);
+                }
+            },
             // ScheduleButtonEvent::DueDateChanged => {
             //     let schedule_state = _state.read(cx);
             //     let item = Rc::make_mut(&mut self.item);
