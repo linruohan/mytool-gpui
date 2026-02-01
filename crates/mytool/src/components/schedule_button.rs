@@ -63,10 +63,18 @@ impl Focusable for ScheduleButtonState {
 
 impl ScheduleButtonState {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let date_picker_state = cx.new(|cx| DatePickerState::new(window, cx));
-        let recurrency_date_picker_state = cx.new(|cx| DatePickerState::new(window, cx));
+        let date_picker_state =
+            cx.new(|cx| DatePickerState::new(window, cx).date_format("%Y-%m-%d"));
+        let recurrency_date_picker_state =
+            cx.new(|cx| DatePickerState::new(window, cx).date_format("%Y-%m-%d"));
         let recurrency_interval_input = cx.new(|cx| InputState::new(window, cx).placeholder("1"));
         let recurrency_count_input = cx.new(|cx| InputState::new(window, cx).placeholder("1"));
+
+        // Set default date for date picker to today
+        let today = Local::now().naive_local().date();
+        date_picker_state.update(cx, |picker, ctx| {
+            picker.set_date(today, window, ctx);
+        });
 
         let _subscriptions = vec![
             cx.subscribe_in(&date_picker_state, window, Self::on_date_event),
@@ -133,13 +141,12 @@ impl ScheduleButtonState {
         }
 
         // Sync recurrency end date picker if end type is OnDate
-        if due_date.end_type() == RecurrencyEndType::OnDate {
-            if let Some(end_dt) = due_date.end_datetime() {
-                let end_date = end_dt.date();
-                self.recurrency_date_picker_state.update(cx, |picker, ctx| {
-                    picker.set_date(end_date, window, ctx);
-                });
-            }
+        if due_date.end_type() == RecurrencyEndType::OnDate
+            && let Some(end_dt) = due_date.end_datetime() {
+            let end_date = end_dt.date();
+            self.recurrency_date_picker_state.update(cx, |picker, ctx| {
+                picker.set_date(end_date, window, ctx);
+            });
         }
 
         // Sync main date picker
@@ -241,16 +248,13 @@ impl ScheduleButtonState {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            InputEvent::Change => {
-                let value = _state.read(cx).value().to_string();
-                if let Ok(interval) = value.parse::<i64>() {
-                    self.recurrency_interval = if interval > 0 { interval } else { 1 };
-                    self.due_date.recurrency_interval = self.recurrency_interval;
-                }
-                cx.notify();
-            },
-            _ => {},
+        if let InputEvent::Change = event {
+            let value = _state.read(cx).value().to_string();
+            if let Ok(interval) = value.parse::<i64>() {
+                self.recurrency_interval = if interval > 0 { interval } else { 1 };
+                self.due_date.recurrency_interval = self.recurrency_interval;
+            }
+            cx.notify();
         }
     }
 
@@ -262,16 +266,13 @@ impl ScheduleButtonState {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            InputEvent::Change => {
-                let value = _state.read(cx).value().to_string();
-                if let Ok(count) = value.parse::<i64>() {
-                    self.recurrency_count = if count > 0 { count } else { 0 };
-                    self.due_date.recurrency_count = self.recurrency_count;
-                }
-                cx.notify();
-            },
-            _ => {},
+        if let InputEvent::Change = event {
+            let value = _state.read(cx).value().to_string();
+            if let Ok(count) = value.parse::<i64>() {
+                self.recurrency_count = if count > 0 { count } else { 0 };
+                self.due_date.recurrency_count = self.recurrency_count;
+            }
+            cx.notify();
         }
     }
 
@@ -419,20 +420,26 @@ impl Render for ScheduleButtonState {
                                 this.show_popover = !this.show_popover;
                                 // Sync date picker when opening popover
                                 if this.show_popover {
+                                    // Sync date picker when opening popover
                                     if let Some(dt) = this.due_date.datetime() {
                                         let date = dt.date();
                                         this.date_picker_state.update(cx, |picker, ctx| {
                                             picker.set_date(date, window, ctx);
                                         });
+                                    } else {
+                                        // Set today's date if no due date
+                                        let today = Local::now().naive_local().date();
+                                        this.date_picker_state.update(cx, |picker, ctx| {
+                                            picker.set_date(today, window, ctx);
+                                        });
                                     }
                                     // Also sync recurrency date picker if needed
-                                    if this.due_date.end_type() == RecurrencyEndType::OnDate {
-                                        if let Some(end_dt) = this.due_date.end_datetime() {
-                                            let end_date = end_dt.date();
-                                            this.recurrency_date_picker_state.update(cx, |picker, ctx| {
-                                                picker.set_date(end_date, window, ctx);
-                                            });
-                                        }
+                                    if this.due_date.end_type() == RecurrencyEndType::OnDate
+                                        && let Some(end_dt) = this.due_date.end_datetime() {
+                                        let end_date = end_dt.date();
+                                        this.recurrency_date_picker_state.update(cx, |picker, ctx| {
+                                            picker.set_date(end_date, window, ctx);
+                                        });
                                     }
                                     // Sync input fields
                                     this.recurrency_interval_input.update(cx, |input, ctx| {
