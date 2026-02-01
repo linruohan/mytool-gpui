@@ -82,7 +82,15 @@ impl ItemInfoState {
         let priority_state = cx.new(|cx| PriorityState::new(window, cx));
         let project_state = cx.new(|cx| ProjectButtonState::new(window, cx));
         let section_state = cx.new(|cx| SectionState::new(window, cx));
-        let schedule_button_state = cx.new(|cx| ScheduleButtonState::new(window, cx));
+        let schedule_button_state = cx.new(|cx| {
+            let mut state = ScheduleButtonState::new(window, cx);
+            if let Some(due_date) = item.due.as_ref().and_then(|json| {
+                serde_json::from_value::<todos::objects::DueDate>(json.clone()).ok()
+            }) {
+                state.sync_from_due_date(due_date, window, cx);
+            }
+            state
+        });
         let attachment_state = cx.new(|cx| AttachmentButtonState::new(item.id.clone(), window, cx));
         let reminder_state = cx.new(|cx| ReminderButtonState::new(item.id.clone(), window, cx));
 

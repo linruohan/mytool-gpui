@@ -13,7 +13,15 @@ use gpui_component::{
     menu::DropdownMenu,
     v_flex,
 };
-use todos::{enums::RecurrencyType, objects::DueDate};
+use todos::{
+    enums::{RecurrencyEndType, RecurrencyType},
+    objects::DueDate,
+};
+
+const DEFAULT_TIME: &str = "17:30";
+const TIME_OPTIONS: &[&str] = &["09:00", "12:00", "14:00", "17:30", "18:00", "20:00"];
+const RECURRENCY_UNITS: &[&str] =
+    &["Minute(s)", "Hour(s)", "Day(s)", "Week(s)", "Month(s)", "Year(s)"];
 
 pub enum ScheduleButtonEvent {
     DateSelected(String),
@@ -75,18 +83,68 @@ impl ScheduleButtonState {
             show_popover: false,
             show_custom_recurrency: false,
             recurrency_interval_input,
-            recurrency_unit: "Day(s)".to_string(),
+            recurrency_unit: RECURRENCY_UNITS[2].to_string(), // "Day(s)"
             recurrency_end_type: "Never".to_string(),
             recurrency_count_input,
-            time_options: vec![
-                "09:00".to_string(),
-                "12:00".to_string(),
-                "14:00".to_string(),
-                "17:30".to_string(),
-                "18:00".to_string(),
-                "20:00".to_string(),
-            ],
+            time_options: TIME_OPTIONS.iter().map(|s| s.to_string()).collect(),
             _subscriptions,
+        }
+    }
+
+    pub fn from_due_date(due_date: DueDate, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let mut state = Self::new(window, cx);
+        state.sync_from_due_date(due_date, window, cx);
+        state
+    }
+
+    pub fn sync_from_due_date(
+        &mut self,
+        due_date: DueDate,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.due_date = due_date.clone();
+        self.sync_selected_time_from_due_date();
+        self.recurrency_unit =
+            Self::get_recurrency_unit_from_type(&due_date.recurrency_type).to_string();
+        self.recurrency_end_type = Self::get_recurrency_end_type_string(&due_date).to_string();
+
+        if let Some(dt) = due_date.datetime() {
+            self.date_picker_state.update(cx, |picker, ctx| {
+                picker.set_date(dt.date(), window, ctx);
+            });
+        }
+    }
+
+    fn get_recurrency_unit_from_type(recurrency_type: &RecurrencyType) -> &'static str {
+        match recurrency_type {
+            RecurrencyType::MINUTELY => "Minute(s)",
+            RecurrencyType::HOURLY => "Hour(s)",
+            RecurrencyType::EveryDay => "Day(s)",
+            RecurrencyType::EveryWeek => "Week(s)",
+            RecurrencyType::EveryMonth => "Month(s)",
+            RecurrencyType::EveryYear => "Year(s)",
+            _ => "Day(s)",
+        }
+    }
+
+    fn get_recurrency_end_type_string(due_date: &DueDate) -> &'static str {
+        match due_date.end_type() {
+            RecurrencyEndType::OnDate => "OnDate",
+            RecurrencyEndType::AFTER => "After",
+            RecurrencyEndType::NEVER => "Never",
+        }
+    }
+
+    fn recurrency_type_from_unit(unit: &str) -> RecurrencyType {
+        match unit {
+            "Minute(s)" => RecurrencyType::MINUTELY,
+            "Hour(s)" => RecurrencyType::HOURLY,
+            "Day(s)" => RecurrencyType::EveryDay,
+            "Week(s)" => RecurrencyType::EveryWeek,
+            "Month(s)" => RecurrencyType::EveryMonth,
+            "Year(s)" => RecurrencyType::EveryYear,
+            _ => RecurrencyType::EveryDay,
         }
     }
 
@@ -160,6 +218,9 @@ impl ScheduleButtonState {
         self.due_date.recurrency_type = recurrency_type.clone();
         self.due_date.recurrency_interval = 1;
         self.due_date.recurrency_end = String::new();
+        self.due_date.recurrency_count = 0;
+        self.recurrency_unit = Self::get_recurrency_unit_from_type(&recurrency_type).to_string();
+        self.recurrency_end_type = "Never".to_string();
         self.show_custom_recurrency = false;
         cx.emit(ScheduleButtonEvent::RecurrencySelected(recurrency_type));
         cx.notify();
@@ -170,7 +231,7 @@ impl ScheduleButtonState {
         self.due_date = DueDate::default();
         self.selected_time = None;
         self.show_custom_recurrency = false;
-        self.recurrency_unit = "Day(s)".to_string();
+        self.recurrency_unit = RECURRENCY_UNITS[2].to_string(); // "Day(s)"
         self.recurrency_end_type = "Never".to_string();
         cx.emit(ScheduleButtonEvent::Cleared);
         cx.notify();
@@ -236,7 +297,7 @@ impl ScheduleButtonState {
         self.selected_time
             .clone()
             .or_else(|| self.due_date.datetime().map(|dt| dt.time().format("%H:%M").to_string()))
-            .unwrap_or_else(|| "17:30".to_string())
+            .unwrap_or_else(|| DEFAULT_TIME.to_string())
     }
 
     fn sync_selected_time_from_due_date(&mut self) {
@@ -305,24 +366,18 @@ impl Render for ScheduleButtonState {
                                         .label(format!("⏰ {}", time_text))
                                         .dropdown_menu_with_anchor(Corner::BottomLeft, {
                                             let ent_clone = ent.clone();
-                                            let times = self.time_options.clone();
                                             move |menu, _window, _cx| {
-                                                let mut menu = menu;
-                                                for time in times.iter() {
-                                                    let time_str = time.clone();
-                                                    menu = menu.item(gpui_component::menu::PopupMenuItem::new(time_str.clone()).on_click({
-                                                        let e = ent_clone.clone();
-                                                        let t = time_str.clone();
-                                                        move |_, _window, app| {
-                                                            let value = t.clone();
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time(&value, cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }));
-                                                }
-                                                menu
+                                                TIME_OPTIONS.iter().fold(menu, |m, time| {
+                                                    let e = ent_clone.clone();
+                                                    let t = time.to_string();
+                                                    m.item(gpui_component::menu::PopupMenuItem::new(*time).on_click(move |_, _window, app| {
+                                                        let value = t.clone();
+                                                        app.update_entity(&e, move |this, cx| {
+                                                            this.set_time(&value, cx);
+                                                            cx.notify();
+                                                        });
+                                                    }))
+                                                })
                                             }
                                         }),
                                 )
@@ -402,7 +457,7 @@ impl Render for ScheduleButtonState {
                                                             .items_center()
                                                             .child(
                                                                 NumberInput::new(&recurrency_interval_input)
-                                                                    .w(px(80.))
+                                                                    .w(px(20.))
                                                             )
                                                             .child(
                                                                 Button::new(("unit-dropdown", entity_id))
@@ -411,29 +466,19 @@ impl Render for ScheduleButtonState {
                                                                     .dropdown_menu_with_anchor(Corner::BottomLeft, {
                                                                         let ent_unit = ent_clone.clone();
                                                                         move |menu, _window, _cx| {
-                                                                            let units = vec![
-                                                                                "Minute(s)",
-                                                                                "Hour(s)",
-                                                                                "Day(s)",
-                                                                                "Week(s)",
-                                                                                "Month(s)",
-                                                                                "Year(s)",
-                                                                            ];
-                                                                            let mut menu = menu;
-                                                                            for unit in units {
-                                                                                menu = menu.item(gpui_component::menu::PopupMenuItem::new(unit).on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    let u = unit.to_string();
-                                                                                    move |_, _window, app| {
-                                                                                        let u_clone = u.clone();
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = u_clone;
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }));
-                                                                            }
-                                                                            menu
+                                                                            RECURRENCY_UNITS.iter().fold(menu, |m, unit| {
+                                                                                let e = ent_unit.clone();
+                                                                                let u = unit.to_string();
+                                                                                m.item(gpui_component::menu::PopupMenuItem::new(*unit).on_click(move |_, _window, app| {
+                                                                                    let u_clone = u.clone();
+                                                                                    app.update_entity(&e, move |this, cx| {
+                                                                                        this.recurrency_unit = u_clone.clone();
+                                                                                        let recurrency_type = Self::recurrency_type_from_unit(&u_clone);
+                                                                                        this.due_date.recurrency_type = recurrency_type;
+                                                                                        cx.notify();
+                                                                                    });
+                                                                                }))
+                                                                            })
                                                                         }
                                                                     }),
                                                             ),
@@ -457,6 +502,8 @@ impl Render for ScheduleButtonState {
                                                                         move |_, _window, app| {
                                                                             app.update_entity(&e, move |this, cx| {
                                                                                 this.recurrency_end_type = "Never".to_string();
+                                                                                this.due_date.recurrency_end = String::new();
+                                                                                this.due_date.recurrency_count = 0;
                                                                                 cx.notify();
                                                                             });
                                                                         }
@@ -470,11 +517,10 @@ impl Render for ScheduleButtonState {
                                                                     .on_click({
                                                                         let e = ent_clone.clone();
                                                                         move |_, window, app| {
-                                                                            // initialize the recurrency date picker safely here (we have `window` and the update `cx`)
                                                                             app.update_entity(&e, move |this, cx| {
                                                                                 this.recurrency_end_type = "OnDate".to_string();
+                                                                                this.due_date.recurrency_count = 0;
                                                                                 let date = this.due_date.datetime().map(|dt| dt.date()).unwrap_or_else(|| Local::now().naive_local().date());
-                                                                                // update the recurrency picker with a safe call (we are in a component update context)
                                                                                 this.recurrency_date_picker_state.update(cx, |picker, ctx| { picker.set_date(date, window, ctx); });
                                                                                 cx.notify();
                                                                             });
@@ -491,6 +537,7 @@ impl Render for ScheduleButtonState {
                                                                         move |_, _window, app| {
                                                                             app.update_entity(&e, move |this, cx| {
                                                                                 this.recurrency_end_type = "After".to_string();
+                                                                                this.due_date.recurrency_end = String::new();
                                                                                 cx.notify();
                                                                             });
                                                                         }
@@ -503,7 +550,7 @@ impl Render for ScheduleButtonState {
                                                 this.child(DatePicker::new(&recurrency_date_picker).small().w(px(280.)))
                                             })
                                             .when(recurrency_end_type == "After", move |this| {
-                                                this.child(h_flex().gap_2().items_center().child(div().text_sm().text_color(cx.theme().foreground).child("Occurrences:")).child(NumberInput::new(&recurrency_count_input).w(px(80.))))
+                                                this.child(h_flex().gap_2().items_center().child(div().text_sm().text_color(cx.theme().foreground).child("Occurrences:")).child(NumberInput::new(&recurrency_count_input).w(px(20.))))
                                             }),
                                     ),
                             )

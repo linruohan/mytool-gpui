@@ -26,7 +26,7 @@ pub(crate) use object_event_type::ObjectEventType;
 pub(crate) use object_type::ObjectType;
 pub(crate) use project_icon_style::ProjectIconStyle;
 pub(crate) use project_view_style::ProjectViewStyle;
-pub(crate) use recurrency_end_type::RecurrencyEndType;
+pub use recurrency_end_type::RecurrencyEndType;
 pub use recurrency_type::RecurrencyType;
 pub(crate) use reminder_type::ReminderType;
 pub(crate) use source_type::SourceType;
