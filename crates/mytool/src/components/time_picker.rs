@@ -171,7 +171,7 @@ impl TimePickerState {
                         min_opt = Some(m);
                     }
                 },
-                4 | _ => {
+                4 => {
                     // take first two as hour, last two as minute (for 4+ digits)
                     let h_s = &digits[0..2];
                     let m_s = &digits[2..4];
@@ -180,6 +180,7 @@ impl TimePickerState {
                         min_opt = Some(m);
                     }
                 },
+                _ => {},
             }
         }
 

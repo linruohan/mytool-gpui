@@ -9,7 +9,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
-    input::InputState,
+    input::{InputState, NumberInput},
     menu::DropdownMenu,
     v_flex,
 };
@@ -39,6 +39,9 @@ pub struct ScheduleButtonState {
     recurrency_unit: String,
     recurrency_end_type: String, // "Never", "OnDate", "After"
     recurrency_count_input: Entity<InputState>,
+
+    // Custom time options
+    time_options: Vec<String>,
 
     _subscriptions: Vec<Subscription>,
 }
@@ -75,6 +78,14 @@ impl ScheduleButtonState {
             recurrency_unit: "Day(s)".to_string(),
             recurrency_end_type: "Never".to_string(),
             recurrency_count_input,
+            time_options: vec![
+                "09:00".to_string(),
+                "12:00".to_string(),
+                "14:00".to_string(),
+                "17:30".to_string(),
+                "18:00".to_string(),
+                "20:00".to_string(),
+            ],
             _subscriptions,
         }
     }
@@ -294,62 +305,24 @@ impl Render for ScheduleButtonState {
                                         .label(format!("⏰ {}", time_text))
                                         .dropdown_menu_with_anchor(Corner::BottomLeft, {
                                             let ent_clone = ent.clone();
+                                            let times = self.time_options.clone();
                                             move |menu, _window, _cx| {
+                                                let mut menu = menu;
+                                                for time in times.iter() {
+                                                    let time_str = time.clone();
+                                                    menu = menu.item(gpui_component::menu::PopupMenuItem::new(time_str.clone()).on_click({
+                                                        let e = ent_clone.clone();
+                                                        let t = time_str.clone();
+                                                        move |_, _window, app| {
+                                                            let value = t.clone();
+                                                            app.update_entity(&e, move |this, cx| {
+                                                                this.set_time(&value, cx);
+                                                                cx.notify();
+                                                            });
+                                                        }
+                                                    }));
+                                                }
                                                 menu
-                                                    .item(gpui_component::menu::PopupMenuItem::new("09:00").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time("09:00", cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("12:00").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time("12:00", cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("14:00").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time("14:00", cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("17:30").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time("17:30", cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("18:00").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time("18:00", cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("20:00").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_time("20:00", cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
                                             }
                                         }),
                                 )
@@ -447,41 +420,8 @@ impl Render for ScheduleButtonState {
                                                             .gap_2()
                                                             .items_center()
                                                             .child(
-                                                                Button::new(("interval-decr", entity_id))
-                                                                    .small()
-                                                                    .label("-")
-                                                                    .on_click({
-                                                                        let e = ent_clone.clone();
-                                                                        move |_, window, app| {
-                                                                            let e2 = e.clone();
-                                                                            app.update_entity(&e2, move |this, cx| {
-                                                                                let cur = this.recurrency_interval_input.read(cx).value().trim().parse::<i64>().unwrap_or(1);
-                                                                                let newv = (cur - 1).max(1);
-                                                                                this.recurrency_interval_input.update(cx, |view, ctx| { view.set_value(newv.to_string(), window, ctx); });
-                                                                                this.due_date.recurrency_interval = newv;
-                                                                                cx.notify();
-                                                                            });
-                                                                        }
-                                                                    }),
-                                                            )
-                                                            .child(div().w(px(80.)).child(recurrency_interval_input.clone()))
-                                                            .child(
-                                                                Button::new(("interval-incr", entity_id))
-                                                                    .small()
-                                                                    .label("+")
-                                                                    .on_click({
-                                                                        let e = ent_clone.clone();
-                                                                        move |_, window, app| {
-                                                                            let e2 = e.clone();
-                                                                            app.update_entity(&e2, move |this, cx| {
-                                                                                let cur = this.recurrency_interval_input.read(cx).value().trim().parse::<i64>().unwrap_or(1);
-                                                                                let newv = (cur + 1).max(1);
-                                                                                this.recurrency_interval_input.update(cx, |view, ctx| { view.set_value(newv.to_string(), window, ctx); });
-                                                                                this.due_date.recurrency_interval = newv;
-                                                                                cx.notify();
-                                                                            });
-                                                                        }
-                                                                    }),
+                                                                NumberInput::new(&recurrency_interval_input)
+                                                                    .w(px(80.))
                                                             )
                                                             .child(
                                                                 Button::new(("unit-dropdown", entity_id))
@@ -614,7 +554,7 @@ impl Render for ScheduleButtonState {
                                                 this.child(DatePicker::new(&recurrency_date_picker).small().w(px(280.)))
                                             })
                                             .when(recurrency_end_type == "After", move |this| {
-                                                this.child(h_flex().gap_2().items_center().child(div().text_sm().text_color(cx.theme().foreground).child("Occurrences:")).child(div().w(px(80.)).child(recurrency_count_input.clone())))
+                                                this.child(h_flex().gap_2().items_center().child(div().text_sm().text_color(cx.theme().foreground).child("Occurrences:")).child(NumberInput::new(&recurrency_count_input).w(px(80.))))
                                             }),
                                     ),
                             )
