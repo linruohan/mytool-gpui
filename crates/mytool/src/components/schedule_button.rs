@@ -44,12 +44,11 @@ pub struct ScheduleButtonState {
     show_custom_recurrency: bool,
 
     recurrency_interval_input: Entity<InputState>,
+    recurrency_interval: i64, // Store the value
     recurrency_unit: String,
     recurrency_end_type: String, // "Never", "OnDate", "After"
     recurrency_count_input: Entity<InputState>,
-
-    // Custom time options
-    time_options: Vec<String>,
+    recurrency_count: i64, // Store the value
 
     _subscriptions: Vec<Subscription>,
 }
@@ -83,10 +82,11 @@ impl ScheduleButtonState {
             show_popover: false,
             show_custom_recurrency: false,
             recurrency_interval_input,
+            recurrency_interval: 1,
             recurrency_unit: RECURRENCY_UNITS[2].to_string(), // "Day(s)"
             recurrency_end_type: "Never".to_string(),
             recurrency_count_input,
-            time_options: TIME_OPTIONS.iter().map(|s| s.to_string()).collect(),
+            recurrency_count: 0,
             _subscriptions,
         }
     }
@@ -109,9 +109,34 @@ impl ScheduleButtonState {
             Self::get_recurrency_unit_from_type(&due_date.recurrency_type).to_string();
         self.recurrency_end_type = Self::get_recurrency_end_type_string(&due_date).to_string();
 
+        // Sync recurrency interval
+        self.recurrency_interval =
+            if due_date.recurrency_interval > 0 { due_date.recurrency_interval } else { 1 };
+
+        // Sync recurrency count
+        self.recurrency_count =
+            if due_date.recurrency_count > 0 { due_date.recurrency_count } else { 0 };
+
+        // Show custom recurrency panel if recurring
+        if due_date.is_recurring {
+            self.show_custom_recurrency = true;
+        }
+
+        // Sync recurrency end date picker if end type is OnDate
+        if due_date.end_type() == RecurrencyEndType::OnDate {
+            if let Some(end_dt) = due_date.end_datetime() {
+                let end_date = end_dt.date();
+                self.recurrency_date_picker_state.update(cx, |picker, ctx| {
+                    picker.set_date(end_date, window, ctx);
+                });
+            }
+        }
+
+        // Sync main date picker
         if let Some(dt) = due_date.datetime() {
+            let date = dt.date();
             self.date_picker_state.update(cx, |picker, ctx| {
-                picker.set_date(dt.date(), window, ctx);
+                picker.set_date(date, window, ctx);
             });
         }
     }
@@ -158,7 +183,6 @@ impl ScheduleButtonState {
 
         if let Some(dt) = self.due_date.datetime() {
             let date = dt.date();
-            // safe to set date here because we are already in a context with `window` & `cx`
             self.date_picker_state.update(cx, |picker, ctx| {
                 picker.set_date(date, window, ctx);
             });
@@ -219,6 +243,8 @@ impl ScheduleButtonState {
         self.due_date.recurrency_interval = 1;
         self.due_date.recurrency_end = String::new();
         self.due_date.recurrency_count = 0;
+        self.recurrency_interval = 1;
+        self.recurrency_count = 0;
         self.recurrency_unit = Self::get_recurrency_unit_from_type(&recurrency_type).to_string();
         self.recurrency_end_type = "Never".to_string();
         self.show_custom_recurrency = false;
@@ -233,6 +259,8 @@ impl ScheduleButtonState {
         self.show_custom_recurrency = false;
         self.recurrency_unit = RECURRENCY_UNITS[2].to_string(); // "Day(s)"
         self.recurrency_end_type = "Never".to_string();
+        self.recurrency_interval = 1;
+        self.recurrency_count = 0;
         cx.emit(ScheduleButtonEvent::Cleared);
         cx.notify();
     }
@@ -334,9 +362,27 @@ impl Render for ScheduleButtonState {
                     .label(SharedString::from(self.get_display_text()))
                     .on_click({
                         let ent = entity.clone();
-                        move |_ev, _window, app| {
+                        move |_ev, window, app| {
                             app.update_entity(&ent, |this, cx| {
                                 this.show_popover = !this.show_popover;
+                                // Sync date picker when opening popover
+                                if this.show_popover {
+                                    if let Some(dt) = this.due_date.datetime() {
+                                        let date = dt.date();
+                                        this.date_picker_state.update(cx, |picker, ctx| {
+                                            picker.set_date(date, window, ctx);
+                                        });
+                                    }
+                                    // Also sync recurrency date picker if needed
+                                    if this.due_date.end_type() == RecurrencyEndType::OnDate {
+                                        if let Some(end_dt) = this.due_date.end_datetime() {
+                                            let end_date = end_dt.date();
+                                            this.recurrency_date_picker_state.update(cx, |picker, ctx| {
+                                                picker.set_date(end_date, window, ctx);
+                                            });
+                                        }
+                                    }
+                                }
                                 cx.notify();
                             });
                         }
@@ -459,6 +505,7 @@ impl Render for ScheduleButtonState {
                                                                 NumberInput::new(&recurrency_interval_input)
                                                                     .w(px(20.))
                                                             )
+                                                            .child(div().text_sm().text_color(cx.theme().foreground).child(format!("({})", self.recurrency_interval)))
                                                             .child(
                                                                 Button::new(("unit-dropdown", entity_id))
                                                                     .small()
@@ -550,7 +597,7 @@ impl Render for ScheduleButtonState {
                                                 this.child(DatePicker::new(&recurrency_date_picker).small().w(px(280.)))
                                             })
                                             .when(recurrency_end_type == "After", move |this| {
-                                                this.child(h_flex().gap_2().items_center().child(div().text_sm().text_color(cx.theme().foreground).child("Occurrences:")).child(NumberInput::new(&recurrency_count_input).w(px(20.))))
+                                                this.child(h_flex().gap_2().items_center().child(div().text_sm().text_color(cx.theme().foreground).child("Occurrences:")).child(NumberInput::new(&recurrency_count_input).w(px(20.))).child(div().text_sm().text_color(cx.theme().foreground).child(format!("({})", self.recurrency_count))))
                                             }),
                                     ),
                             )
