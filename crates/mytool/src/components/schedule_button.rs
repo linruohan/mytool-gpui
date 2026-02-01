@@ -9,7 +9,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
-    input::{InputState, NumberInput},
+    input::{InputEvent, InputState, NumberInput},
     menu::DropdownMenu,
     v_flex,
 };
@@ -71,6 +71,8 @@ impl ScheduleButtonState {
         let _subscriptions = vec![
             cx.subscribe_in(&date_picker_state, window, Self::on_date_event),
             cx.subscribe_in(&recurrency_date_picker_state, window, Self::on_recurrency_date_event),
+            cx.subscribe_in(&recurrency_interval_input, window, Self::on_recurrency_interval_event),
+            cx.subscribe_in(&recurrency_count_input, window, Self::on_recurrency_count_event),
         ];
 
         Self {
@@ -116,6 +118,14 @@ impl ScheduleButtonState {
         // Sync recurrency count
         self.recurrency_count =
             if due_date.recurrency_count > 0 { due_date.recurrency_count } else { 0 };
+
+        // Sync input fields with the values
+        self.recurrency_interval_input.update(cx, |input, ctx| {
+            input.set_value(self.recurrency_interval.to_string(), window, ctx);
+        });
+        self.recurrency_count_input.update(cx, |input, ctx| {
+            input.set_value(self.recurrency_count.to_string(), window, ctx);
+        });
 
         // Show custom recurrency panel if recurring
         if due_date.is_recurring {
@@ -221,6 +231,48 @@ impl ScheduleButtonState {
             cx.emit(ScheduleButtonEvent::DateSelected(format!("Repeat until: {}", date_str)));
         }
         cx.notify();
+    }
+
+    // Handle recurrency interval input changes
+    fn on_recurrency_interval_event(
+        &mut self,
+        _state: &Entity<InputState>,
+        event: &InputEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            InputEvent::Change => {
+                let value = _state.read(cx).value().to_string();
+                if let Ok(interval) = value.parse::<i64>() {
+                    self.recurrency_interval = if interval > 0 { interval } else { 1 };
+                    self.due_date.recurrency_interval = self.recurrency_interval;
+                }
+                cx.notify();
+            },
+            _ => {},
+        }
+    }
+
+    // Handle recurrency count input changes
+    fn on_recurrency_count_event(
+        &mut self,
+        _state: &Entity<InputState>,
+        event: &InputEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            InputEvent::Change => {
+                let value = _state.read(cx).value().to_string();
+                if let Ok(count) = value.parse::<i64>() {
+                    self.recurrency_count = if count > 0 { count } else { 0 };
+                    self.due_date.recurrency_count = self.recurrency_count;
+                }
+                cx.notify();
+            },
+            _ => {},
+        }
     }
 
     fn set_time(&mut self, time: &str, cx: &mut Context<Self>) {
@@ -382,6 +434,17 @@ impl Render for ScheduleButtonState {
                                             });
                                         }
                                     }
+                                    // Sync input fields
+                                    this.recurrency_interval_input.update(cx, |input, ctx| {
+                                        input.set_value(this.recurrency_interval.to_string(), window, ctx);
+                                    });
+                                    this.recurrency_count_input.update(cx, |input, ctx| {
+                                        input.set_value(this.recurrency_count.to_string(), window, ctx);
+                                    });
+                                } else {
+                                    // When closing popover, ensure data is synced to due_date
+                                    this.due_date.recurrency_interval = this.recurrency_interval;
+                                    this.due_date.recurrency_count = this.recurrency_count;
                                 }
                                 cx.notify();
                             });
