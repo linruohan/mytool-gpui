@@ -339,60 +339,41 @@ impl Render for ScheduleButtonState {
                                         .dropdown_menu_with_anchor(Corner::BottomLeft, {
                                             let ent_clone = ent.clone();
                                             move |menu, _window, _cx| {
-                                                menu
-                                                    .item(gpui_component::menu::PopupMenuItem::new("Daily").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_recurrency(RecurrencyType::EveryDay, cx);
-                                                                cx.notify();
-                                                            });
+                                                // Create menu items from a vector for cleaner initialization
+                                                let menu_items = vec![
+                                                    ("Daily", RecurrencyType::EveryDay),
+                                                    ("Weekly", RecurrencyType::EveryWeek),
+                                                    ("Monthly", RecurrencyType::EveryMonth),
+                                                    ("Yearly", RecurrencyType::EveryYear),
+                                                ];
+
+                                                // Build the menu with items from the vector
+                                                let mut m = menu;
+                                                for (label, recurrency_type) in menu_items {
+                                                    let e = ent_clone.clone();
+                                                    let recurrency_type_clone = recurrency_type.clone();
+                                                    m = m.item(gpui_component::menu::PopupMenuItem::new(label).on_click(move |_, _window, app| {
+                                                        let recurrency_type = recurrency_type_clone.clone();
+                                                        app.update_entity(&e, move |this, cx| {
+                                                            this.set_recurrency(recurrency_type, cx);
+                                                            cx.notify();
+                                                        });
+                                                    }));
+                                                }
+
+                                                // Add the Custom Date item separately since it has different logic
+                                                let e = ent_clone.clone();
+                                                m.item(gpui_component::menu::PopupMenuItem::new("Custom Date").on_click(move |_, _window, app| {
+                                                    app.update_entity(&e, move |this, cx| {
+                                                        this.show_custom_recurrency = !this.show_custom_recurrency;
+                                                        if this.show_custom_recurrency {
+                                                            this.due_date.is_recurring = true;
+                                                            this.due_date.recurrency_supported = true;
+                                                            this.recurrency_end_type = "OnDate".to_string();
                                                         }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("Weekly").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_recurrency(RecurrencyType::EveryWeek, cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("Monthly").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_recurrency(RecurrencyType::EveryMonth, cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("Yearly").on_click({
-                                                        let e = ent_clone.clone();
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.set_recurrency(RecurrencyType::EveryYear, cx);
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
-                                                    .item(gpui_component::menu::PopupMenuItem::new("Custom Date").on_click({
-                                                        let e = ent_clone.clone();
-                                                        // Toggle the inline custom recurrency panel. Initialization of
-                                                        // the recurrency picker is done when user clicks 'On Date' to avoid
-                                                        // unsafe set_date during menu draw.
-                                                        move |_, _window, app| {
-                                                            app.update_entity(&e, move |this, cx| {
-                                                                this.show_custom_recurrency = !this.show_custom_recurrency;
-                                                                if this.show_custom_recurrency {
-                                                                    this.due_date.is_recurring = true;
-                                                                    this.due_date.recurrency_supported = true;
-                                                                    this.recurrency_end_type = "OnDate".to_string();
-                                                                }
-                                                                cx.notify();
-                                                            });
-                                                        }
-                                                    }))
+                                                        cx.notify();
+                                                    });
+                                                }))
                                             }
                                         }),
                                 ),
@@ -430,61 +411,29 @@ impl Render for ScheduleButtonState {
                                                                     .dropdown_menu_with_anchor(Corner::BottomLeft, {
                                                                         let ent_unit = ent_clone.clone();
                                                                         move |menu, _window, _cx| {
+                                                                            let units = vec![
+                                                                                "Minute(s)",
+                                                                                "Hour(s)",
+                                                                                "Day(s)",
+                                                                                "Week(s)",
+                                                                                "Month(s)",
+                                                                                "Year(s)",
+                                                                            ];
+                                                                            let mut menu = menu;
+                                                                            for unit in units {
+                                                                                menu = menu.item(gpui_component::menu::PopupMenuItem::new(unit).on_click({
+                                                                                    let e = ent_unit.clone();
+                                                                                    let u = unit.to_string();
+                                                                                    move |_, _window, app| {
+                                                                                        let u_clone = u.clone();
+                                                                                        app.update_entity(&e, move |this, cx| {
+                                                                                            this.recurrency_unit = u_clone;
+                                                                                            cx.notify();
+                                                                                        });
+                                                                                    }
+                                                                                }));
+                                                                            }
                                                                             menu
-                                                                                .item(gpui_component::menu::PopupMenuItem::new("Minute(s)").on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    move |_, _window, app| {
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = "Minute(s)".to_string();
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }))
-                                                                                .item(gpui_component::menu::PopupMenuItem::new("Hour(s)").on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    move |_, _window, app| {
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = "Hour(s)".to_string();
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }))
-                                                                                .item(gpui_component::menu::PopupMenuItem::new("Day(s)").on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    move |_, _window, app| {
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = "Day(s)".to_string();
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }))
-                                                                                .item(gpui_component::menu::PopupMenuItem::new("Week(s)").on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    move |_, _window, app| {
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = "Week(s)".to_string();
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }))
-                                                                                .item(gpui_component::menu::PopupMenuItem::new("Month(s)").on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    move |_, _window, app| {
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = "Month(s)".to_string();
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }))
-                                                                                .item(gpui_component::menu::PopupMenuItem::new("Year(s)").on_click({
-                                                                                    let e = ent_unit.clone();
-                                                                                    move |_, _window, app| {
-                                                                                        app.update_entity(&e, move |this, cx| {
-                                                                                            this.recurrency_unit = "Year(s)".to_string();
-                                                                                            cx.notify();
-                                                                                        });
-                                                                                    }
-                                                                                }))
                                                                         }
                                                                     }),
                                                             ),
