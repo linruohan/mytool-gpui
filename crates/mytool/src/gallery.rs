@@ -51,7 +51,7 @@ impl Gallery {
         this
     }
 
-    fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
+    fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
         let name = name.to_string();
         self.search_input.update(cx, |this, cx| {
             this.set_value(&name, window, cx);

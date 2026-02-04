@@ -87,7 +87,7 @@ impl ItemInfoState {
             if let Some(due_date) = item.due.as_ref().and_then(|json| {
                 serde_json::from_value::<todos::objects::DueDate>(json.clone()).ok()
             }) {
-                state.sync_from_due_date(due_date, window, cx);
+                state.set_due_date(due_date, window, cx);
             }
             state
         });
@@ -319,12 +319,6 @@ impl ItemInfoState {
             ScheduleButtonEvent::Cleared => {
                 let item = Rc::make_mut(&mut self.item);
                 item.due = None;
-            },
-            ScheduleButtonEvent::Done(due_date) => {
-                let item = Rc::make_mut(&mut self.item);
-                if let Ok(json_value) = serde_json::to_value(due_date) {
-                    item.due = Some(json_value);
-                }
             },
             // ScheduleButtonEvent::DueDateChanged => {
             //     let schedule_state = _state.read(cx);
