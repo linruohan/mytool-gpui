@@ -1,11 +1,11 @@
 use chrono::Local;
 use gpui::{
-    Action, App, AppContext, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
-    SharedString, StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    Action, App, AppContext, Context, Corner, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, ParentElement, Render, SharedString, Styled, Subscription, Window,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    IconName, Side, Sizable, Size, StyleSized, StyledExt as _,
+    IconName, Side,
     button::Button,
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     menu::{DropdownMenu, PopupMenu},
@@ -13,6 +13,8 @@ use gpui_component::{
 };
 use serde::Deserialize;
 use todos::{enums::RecurrencyType, objects::DueDate};
+
+use crate::create_button_wrapper;
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = schedule_button, no_json)]
@@ -284,34 +286,6 @@ impl ScheduleButtonState {
     }
 }
 
-/// A ScheduleButton element.
-#[derive(IntoElement)]
-pub struct ScheduleButton {
-    id: ElementId,
-    style: StyleRefinement,
-    size: Size,
-    state: Entity<ScheduleButtonState>,
-}
-
-impl Sizable for ScheduleButton {
-    fn with_size(mut self, size: impl Into<Size>) -> Self {
-        self.size = size.into();
-        self
-    }
-}
-
-impl Focusable for ScheduleButton {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
-        self.state.focus_handle(cx)
-    }
-}
-
-impl Styled for ScheduleButton {
-    fn style(&mut self) -> &mut StyleRefinement {
-        &mut self.style
-    }
-}
-
 impl Render for ScheduleButtonState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let choose_date_label = self.get_choose_date_label();
@@ -410,27 +384,4 @@ impl Render for ScheduleButtonState {
     }
 }
 
-impl ScheduleButton {
-    /// Create a new ScheduleButton with the given [`ScheduleButtonState`].
-    pub fn new(state: &Entity<ScheduleButtonState>) -> Self {
-        Self {
-            id: ("item-schedule", state.entity_id()).into(),
-            state: state.clone(),
-            size: Size::default(),
-            style: StyleRefinement::default(),
-        }
-    }
-}
-
-impl RenderOnce for ScheduleButton {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        div()
-            .id(self.id.clone())
-            .track_focus(&self.focus_handle(cx).tab_stop(true))
-            .flex_none()
-            .relative()
-            .input_text_size(self.size)
-            .refine_style(&self.style)
-            .child(self.state.clone())
-    }
-}
+create_button_wrapper!(ScheduleButton, ScheduleButtonState, "item-schedule");

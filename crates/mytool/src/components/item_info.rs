@@ -450,7 +450,7 @@ impl ItemInfoState {
             if let Some(project_id) = &item.project_id {
                 let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
                 if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
-                    this.set_project(Some(project.clone()), window, cx);
+                    this.set_project(Some(project.id.clone()), window, cx);
                 }
             }
         });
@@ -484,7 +484,7 @@ impl ItemInfoState {
                     cx.global::<crate::todo_state::SectionState>().sections.clone()
                 };
                 if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
-                    section_state.set_section(Some(section.clone()), window, cx);
+                    section_state.set_section(Some(section.id.clone()), window, cx);
                 }
             }
         });
@@ -650,15 +650,9 @@ impl Render for ItemInfoState {
                             .gap_1()
                             .overflow_x_hidden()
                             .flex_nowrap()
-                            .child(ProjectButton::new(
-                                &self.project_state,
-                                cx.global::<crate::todo_state::ProjectState>().projects.clone(),
-                            ))
+                            .child(ProjectButton::new(&self.project_state))
                             .child("——>")
-                            .child(SectionButton::new(
-                                &self.section_state,
-                                cx.global::<crate::todo_state::SectionState>().sections.clone(),
-                            )),
+                            .child(SectionButton::new(&self.section_state)),
                     ),
                 ),
             )
