@@ -3,6 +3,7 @@ use std::rc::Rc;
 use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::LabelModel;
+use tracing::error;
 
 use crate::todo_state::{DBState, LabelState};
 
@@ -15,34 +16,28 @@ async fn refresh_labels(cx: &mut AsyncApp, db: DatabaseConnection) {
 }
 // 添加label
 pub fn add_label(label: Rc<LabelModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::add_label(label.clone(), db.clone()).await.is_ok() {
-            refresh_labels(cx, db.clone()).await;
-        }
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| match crate::service::add_label(label.clone(), db.clone()).await {
+        Ok(_) => refresh_labels(cx, db.clone()).await,
+        Err(e) => error!("add_label failed: {:?}", e),
     })
     .detach();
 }
 // 修改label
 pub fn update_label(label: Rc<LabelModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::mod_label(label.clone(), db.clone()).await.is_ok() {
-            refresh_labels(cx, db.clone()).await;
-        }
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| match crate::service::mod_label(label.clone(), db.clone()).await {
+        Ok(_) => refresh_labels(cx, db.clone()).await,
+        Err(e) => error!("update_label failed: {:?}", e),
     })
     .detach();
 }
 // 删除label
 pub fn delete_label(label: Rc<LabelModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::del_label(label.clone(), db.clone()).await.is_ok() {
-            refresh_labels(cx, db.clone()).await;
-        }
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| match crate::service::del_label(label.clone(), db.clone()).await {
+        Ok(_) => refresh_labels(cx, db.clone()).await,
+        Err(e) => error!("delete_label failed: {:?}", e),
     })
     .detach();
 }

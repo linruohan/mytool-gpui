@@ -12,12 +12,9 @@ pub fn load_project_items(project: Rc<ProjectModel>, cx: &mut App) {
         state.active_project = Some(project.clone());
     });
 
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        refresh_project_items(&project.id.clone(), cx, db.clone()).await
-    })
-    .detach();
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| refresh_project_items(&project.id.clone(), cx, db.clone()).await)
+        .detach();
 }
 // 刷新items
 async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
@@ -35,9 +32,8 @@ async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: Database
 }
 // 添加item
 pub fn add_project_item(project: Rc<ProjectModel>, item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
         if crate::service::add_item(item.clone(), db.clone()).await.is_ok() {
             refresh_project_items(&project.id.clone(), cx, db.clone()).await;
         }
@@ -46,9 +42,8 @@ pub fn add_project_item(project: Rc<ProjectModel>, item: Rc<ItemModel>, cx: &mut
 }
 // 修改item
 pub fn update_project_item(project: Rc<ProjectModel>, item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
         if crate::service::mod_item(item.clone(), db.clone()).await.is_ok() {
             refresh_project_items(&project.id.clone(), cx, db.clone()).await;
         }
@@ -57,9 +52,8 @@ pub fn update_project_item(project: Rc<ProjectModel>, item: Rc<ItemModel>, cx: &
 }
 // 删除item
 pub fn delete_project_item(project: Rc<ProjectModel>, item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
         if let Ok(_store) = crate::service::del_item(item.clone(), db.clone()).await {
             refresh_project_items(&project.id.clone(), cx, db.clone()).await;
         }

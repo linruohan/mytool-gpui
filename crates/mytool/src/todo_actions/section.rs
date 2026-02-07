@@ -20,9 +20,8 @@ async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
 // 添加section
 #[allow(unused)]
 pub fn add_section(section: Rc<SectionModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
         if crate::service::add_section(section.clone(), db.clone()).await.is_ok() {
             refresh_sections(cx, db.clone()).await;
         }
@@ -32,9 +31,8 @@ pub fn add_section(section: Rc<SectionModel>, cx: &mut App) {
 // 修改section
 #[allow(unused)]
 pub fn update_section(section: Rc<SectionModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
         if crate::service::mod_section(section.clone(), db.clone()).await.is_ok() {
             refresh_sections(cx, db.clone()).await;
         }
@@ -44,9 +42,8 @@ pub fn update_section(section: Rc<SectionModel>, cx: &mut App) {
 // 删除section
 #[allow(unused)]
 pub fn delete_section(section: Rc<SectionModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
         if let Ok(_store) = crate::service::del_section(section.clone(), db.clone()).await {
             refresh_sections(cx, db.clone()).await;
         }

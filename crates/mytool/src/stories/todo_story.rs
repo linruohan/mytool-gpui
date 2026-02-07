@@ -116,7 +116,7 @@ impl TodoStory {
     }
 
     fn add_project(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
-        play_ogg_file("assets/sounds/success.ogg");
+        let _ = play_ogg_file("assets/sounds/success.ogg");
         self.project_panel.update(cx, |project_panel, cx| {
             project_panel.open_project_dialog(Rc::new(ProjectModel::default()), window, cx);
             cx.notify();

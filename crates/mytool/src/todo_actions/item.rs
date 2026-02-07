@@ -3,6 +3,7 @@ use std::rc::Rc;
 use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
+use tracing::error;
 
 use crate::todo_state::{DBState, ItemState};
 
@@ -16,66 +17,82 @@ async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {
 }
 // 添加item
 pub fn add_item(item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::add_item(item.clone(), db.clone()).await.is_ok() {
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| match crate::service::add_item(item.clone(), db.clone()).await {
+        Ok(_) => {
             refresh_items(cx, db.clone()).await;
-        }
+        },
+        Err(e) => {
+            error!("add_item failed: {:?}", e);
+        },
     })
     .detach();
 }
 // 修改item
 pub fn update_item(item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::mod_item(item.clone(), db.clone()).await.is_ok() {
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| match crate::service::mod_item(item.clone(), db.clone()).await {
+        Ok(_) => {
             refresh_items(cx, db.clone()).await;
-        }
+        },
+        Err(e) => {
+            error!("update_item failed: {:?}", e);
+        },
     })
     .detach();
 }
 // 删除item
 pub fn delete_item(item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
-    cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if let Ok(_store) = crate::service::del_item(item.clone(), db.clone()).await {
+    let db = cx.global::<DBState>().conn.clone();
+    cx.spawn(async move |cx| match crate::service::del_item(item.clone(), db.clone()).await {
+        Ok(_store) => {
             refresh_items(cx, db.clone()).await;
-        }
+        },
+        Err(e) => {
+            error!("delete_item failed: {:?}", e);
+        },
     })
     .detach();
 }
 pub fn completed_item(item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::finish_item(item.clone(), true, false, db.clone()).await.is_ok() {
-            refresh_items(cx, db.clone()).await;
+        match crate::service::finish_item(item.clone(), true, false, db.clone()).await {
+            Ok(_) => {
+                refresh_items(cx, db.clone()).await;
+            },
+            Err(e) => {
+                error!("completed_item failed: {:?}", e);
+            },
         }
     })
     .detach();
 }
 pub fn uncompleted_item(item: Rc<ItemModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if let Ok(_store) =
-            crate::service::finish_item(item.clone(), false, false, db.clone()).await
-        {
-            refresh_items(cx, db.clone()).await;
+        match crate::service::finish_item(item.clone(), false, false, db.clone()).await {
+            Ok(_store) => {
+                refresh_items(cx, db.clone()).await;
+            },
+            Err(e) => {
+                error!("uncompleted_item failed: {:?}", e);
+            },
         }
     })
     .detach();
 }
 
 pub fn set_item_pinned(item: Rc<ItemModel>, pinned: bool, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if let Ok(_store) = crate::service::pin_item(item.clone(), pinned, db.clone()).await {
-            refresh_items(cx, db.clone()).await;
+        match crate::service::pin_item(item.clone(), pinned, db.clone()).await {
+            Ok(_store) => {
+                refresh_items(cx, db.clone()).await;
+            },
+            Err(e) => {
+                error!("set_item_pinned failed: {:?}", e);
+            },
         }
     })
     .detach();

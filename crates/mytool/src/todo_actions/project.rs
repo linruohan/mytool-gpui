@@ -3,6 +3,7 @@ use std::rc::Rc;
 use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
 use todos::entity::ProjectModel;
+use tracing::error;
 
 use crate::todo_state::{DBState, ProjectState};
 
@@ -18,11 +19,11 @@ async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
 // 添加project
 #[allow(unused)]
 pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::add_project(project.clone(), db.clone()).await.is_ok() {
-            refresh_projects(cx, db.clone()).await;
+        match crate::service::add_project(project.clone(), db.clone()).await {
+            Ok(_) => refresh_projects(cx, db.clone()).await,
+            Err(e) => error!("add_project failed: {:?}", e),
         }
     })
     .detach();
@@ -30,11 +31,11 @@ pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
 // 修改project
 #[allow(unused)]
 pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if crate::service::mod_project(project.clone(), db.clone()).await.is_ok() {
-            refresh_projects(cx, db.clone()).await;
+        match crate::service::mod_project(project.clone(), db.clone()).await {
+            Ok(_) => refresh_projects(cx, db.clone()).await,
+            Err(e) => error!("update_project failed: {:?}", e),
         }
     })
     .detach();
@@ -42,11 +43,11 @@ pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
 // 删除project
 #[allow(unused)]
 pub fn delete_project(project: Rc<ProjectModel>, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        let db = conn.lock().await;
-        if let Ok(_store) = crate::service::del_project(project.clone(), db.clone()).await {
-            refresh_projects(cx, db.clone()).await;
+        match crate::service::del_project(project.clone(), db.clone()).await {
+            Ok(_store) => refresh_projects(cx, db.clone()).await,
+            Err(e) => error!("delete_project failed: {:?}", e),
         }
     })
     .detach();

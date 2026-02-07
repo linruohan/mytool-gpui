@@ -509,21 +509,18 @@ impl ItemInfoState {
         let item_id = item.id.clone();
         let attachment_state = self.attachment_state.clone();
         let reminder_state = self.reminder_state.clone();
-        let conn = cx.global::<DBState>().conn.clone();
+        let db = cx.global::<DBState>().conn.clone();
 
         cx.spawn(async move |_this, cx| {
-            let db = conn.lock().await;
-
             // 加载附件
-            let attachments =
-                crate::service::load_attachments_by_item(&item_id, (*db).clone()).await;
+            let attachments = crate::service::load_attachments_by_item(&item_id, db.clone()).await;
             let rc_attachments = attachments.iter().map(|a| Rc::new(a.clone())).collect::<Vec<_>>();
             cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
                 state.set_attachments(rc_attachments, cx);
             });
 
             // 加载提醒
-            let reminders = crate::service::load_reminders_by_item(&item_id, (*db).clone()).await;
+            let reminders = crate::service::load_reminders_by_item(&item_id, db.clone()).await;
             let rc_reminders = reminders.iter().map(|r| Rc::new(r.clone())).collect::<Vec<_>>();
             cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
                 state.set_reminders(rc_reminders, cx);

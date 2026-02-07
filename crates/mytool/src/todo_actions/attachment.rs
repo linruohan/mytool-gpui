@@ -4,19 +4,17 @@ use todos::entity::AttachmentModel;
 use crate::todo_state::DBState;
 
 pub fn add_attachment(attachment: AttachmentModel, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |_cx| {
-        let db = conn.lock().await;
-        let _ = crate::service::add_attachment(attachment, (*db).clone()).await;
+        let _ = crate::service::add_attachment(attachment, db.clone()).await;
     })
     .detach();
 }
 
 pub fn delete_attachment(attachment_id: String, cx: &mut App) {
-    let conn = cx.global::<DBState>().conn.clone();
+    let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |_cx| {
-        let db = conn.lock().await;
-        let _ = crate::service::delete_attachment(&attachment_id, (*db).clone()).await;
+        let _ = crate::service::delete_attachment(&attachment_id, db.clone()).await;
     })
     .detach();
 }

@@ -1,15 +1,12 @@
-use std::sync::Arc;
-
 use gpui::Global;
 use sea_orm::DatabaseConnection;
-use tokio::sync::Mutex;
+
 pub struct DBState {
-    pub conn: Arc<Mutex<DatabaseConnection>>,
+    pub conn: DatabaseConnection,
 }
 impl Global for DBState {}
-pub async fn get_todo_conn() -> Arc<Mutex<DatabaseConnection>> {
-    let conn = todos::init_db().await.expect("init db failed");
-    Arc::new(Mutex::new(conn))
+pub async fn get_todo_conn() -> DatabaseConnection {
+    todos::init_db().await.expect("init db failed")
 }
 
 impl DBState {

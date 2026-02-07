@@ -135,27 +135,33 @@ pub fn create_new_window_with_size<F, E>(
             ..Default::default()
         };
 
-        let window = cx
-            .open_window(options, |window, cx| {
-                let view = crate_view_fn(window, cx);
-                let story_root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
+        let window_result = cx.open_window(options, |window, cx| {
+            let view = crate_view_fn(window, cx);
+            let story_root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
 
-                // Set focus to the StoryRoot to enable it's actions.
-                let focus_handle = story_root.focus_handle(cx);
-                window.defer(cx, move |window, cx| {
-                    focus_handle.focus(window, cx);
-                });
+            // Set focus to the StoryRoot to enable it's actions.
+            let focus_handle = story_root.focus_handle(cx);
+            window.defer(cx, move |window, cx| {
+                focus_handle.focus(window, cx);
+            });
 
-                cx.new(|cx| Root::new(story_root, window, cx))
-            })
-            .expect("failed to open window");
+            cx.new(|cx| Root::new(story_root, window, cx))
+        });
 
-        window
-            .update(cx, |_, window, _| {
-                window.activate_window();
-                window.set_window_title(&title);
-            })
-            .expect("failed to update window");
+        let window = match window_result {
+            Ok(win) => win,
+            Err(e) => {
+                tracing::error!("failed to open window: {:?}", e);
+                return Ok::<_, anyhow::Error>(());
+            },
+        };
+
+        if let Err(e) = window.update(cx, |_, window, _| {
+            window.activate_window();
+            window.set_window_title(&title);
+        }) {
+            tracing::error!("failed to update window: {:?}", e);
+        }
 
         Ok::<_, anyhow::Error>(())
     })

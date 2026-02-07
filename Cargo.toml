@@ -2,16 +2,16 @@
 publish = false
 edition = "2024"
 [workspace]
-members = ["crates/mytool", "crates/todos", "crates/config"]
+members = ["crates/mytool", "crates/todos", "crates/gconfig"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
 
 [workspace.dependencies]
 # inner crates
-todos = { path = "crates/todos" }
-mytool = { path = "crates/mytool" }
-config = { path = "crates/config" }
+todos = { path = "crates/todos" } # todos库，提供核心的任务管理功能
+mytool = { path = "crates/mytool" } # 主工具库，包含核心功能和命令行接口
+gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui-macros = "0.2.2"
@@ -45,7 +45,6 @@ chrono = { version = "0.4.43", features = ["serde"] }
 smallvec = { version = "1.15", features = ["union"] }
 rfd = "0.14"
 # Additional dependencies used by multiple crates
-config-lib = "0.15.19"
 thiserror = "2.0.18"
 async-trait = "0.1.89"
 futures = "0.3.31"

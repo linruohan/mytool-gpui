@@ -24,9 +24,8 @@ impl ItemState {
         let this = ItemState { items: vec![] };
         cx.set_global(this);
 
-        let conn = cx.global::<DBState>().conn.clone();
+        let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
-            let db = conn.lock().await;
             let list = load_items(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state items: {}", list.len());

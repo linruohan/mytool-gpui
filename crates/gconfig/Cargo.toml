@@ -1,5 +1,5 @@
 [package]
-name = "config"
+name = "gconfig"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -12,6 +12,7 @@ base64.workspace = true
 pbkdf2.workspace = true
 aes-gcm.workspace = true
 password-hash.workspace = true
+thiserror.workspace = true
 
 [lib]
 doc = false

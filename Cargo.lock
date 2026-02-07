@@ -1239,19 +1239,6 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "base64",
- "config 0.15.19",
- "password-hash",
- "pbkdf2",
- "serde",
-]
-
-[[package]]
-name = "config"
 version = "0.15.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b30fa8254caad766fc03cb0ccae691e14bf3bd72bfff27f72802ce729551b3d6"
@@ -2456,6 +2443,20 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
+]
+
+[[package]]
+name = "gconfig"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "base64",
+ "config",
+ "password-hash",
+ "pbkdf2",
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3818,7 +3819,6 @@ version = "0.2.2"
 dependencies = [
  "anyhow",
  "chrono",
- "config 0.1.0",
  "embed-resource",
  "gpui",
  "gpui-component",
@@ -7098,8 +7098,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "chrono-humanize",
- "config 0.1.0",
  "futures",
+ "gconfig",
  "num_cpus",
  "paste",
  "rand 0.8.5",

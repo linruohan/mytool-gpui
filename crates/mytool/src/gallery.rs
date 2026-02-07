@@ -82,10 +82,12 @@ impl Render for Gallery {
             .collect();
 
         let active_group = self.active_group_index.and_then(|index| stories.get(index));
-        let active_story = self
-            .active_index
-            .and(active_group)
-            .and_then(|group| group.1.get(self.active_index.unwrap()));
+        let active_story =
+            if let (Some(active_group), Some(active_idx)) = (active_group, self.active_index) {
+                active_group.1.get(active_idx)
+            } else {
+                None
+            };
         let (_story_name, _description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())

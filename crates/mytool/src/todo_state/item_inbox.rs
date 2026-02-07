@@ -24,9 +24,8 @@ impl InboxItemState {
         let this = InboxItemState { items: vec![] };
         cx.set_global(this);
 
-        let conn = cx.global::<DBState>().conn.clone();
+        let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
-            let db = conn.lock().await;
             let list = get_inbox_items(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state inbox_items: {}", list.len());
@@ -38,9 +37,8 @@ impl InboxItemState {
 
         // 订阅ItemState的变化，当ItemState改变时更新InboxItemState
         cx.observe_global::<crate::todo_state::ItemState>(move |cx| {
-            let conn = cx.global::<DBState>().conn.clone();
+            let db = cx.global::<DBState>().conn.clone();
             cx.spawn(async move |cx| {
-                let db = conn.lock().await;
                 let list = get_inbox_items(db.clone()).await;
                 let rc_list: Vec<Rc<ItemModel>> =
                     list.iter().map(|pro| Rc::new(pro.clone())).collect();

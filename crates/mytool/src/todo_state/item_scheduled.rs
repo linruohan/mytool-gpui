@@ -24,9 +24,8 @@ impl ScheduledItemState {
         let this = ScheduledItemState { items: vec![] };
         cx.set_global(this);
 
-        let conn = cx.global::<DBState>().conn.clone();
+        let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
-            let db = conn.lock().await;
             let list = get_items_scheduled(db.clone()).await;
             let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
             println!("state scheduled_items: {}", list.len());
