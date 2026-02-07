@@ -16,10 +16,6 @@ impl StoryState {
         })
     }
 
-    pub(crate) fn from_value(value: serde_json::Value) -> Self {
-        serde_json::from_value(value).unwrap()
-    }
-
     pub(crate) fn to_story(
         &self,
         window: &mut Window,

@@ -16,7 +16,7 @@ use sea_orm::prelude::Uuid;
 use todos::entity::AttachmentModel;
 
 use crate::{
-    components::{PopoverListMixin, PopoverSearchMixin, SubscriptionManager},
+    components::{PopoverListMixin, PopoverSearchMixin},
     create_button_wrapper,
     todo_actions::delete_attachment,
 };
@@ -51,7 +51,6 @@ pub struct AttachmentButtonState {
     pub item_id: String,
     search: PopoverSearchMixin,
     items: PopoverListMixin<Rc<AttachmentModel>>,
-    subscription_manager: SubscriptionManager,
 }
 
 impl EventEmitter<AttachmentButtonEvent> for AttachmentButtonState {}
@@ -67,8 +66,8 @@ impl AttachmentButtonState {
         let search_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search attachments..."));
 
-        let mut manager = SubscriptionManager::new();
-        manager.add(cx.subscribe_in(&search_input, window, Self::on_search_event));
+        // Subscribe to search events directly
+        let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);
 
         let filter_fn = |attachment: &Rc<AttachmentModel>, query: &str| {
             attachment.file_name.to_lowercase().contains(&query.to_lowercase())
@@ -79,7 +78,6 @@ impl AttachmentButtonState {
             item_id,
             search: PopoverSearchMixin::new(search_input),
             items: PopoverListMixin::new(filter_fn),
-            subscription_manager: manager,
         }
     }
 

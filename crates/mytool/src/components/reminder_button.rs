@@ -16,7 +16,7 @@ use sea_orm::prelude::Uuid;
 use todos::entity::ReminderModel;
 
 use crate::{
-    components::{PopoverListMixin, PopoverSearchMixin, SubscriptionManager},
+    components::{PopoverListMixin, PopoverSearchMixin},
     create_button_wrapper,
     todo_actions::{add_reminder, delete_reminder},
 };
@@ -55,7 +55,6 @@ pub struct ReminderButtonState {
     current_date: String,
     current_time: String,
     show_time_dropdown: bool,
-    subscription_manager: SubscriptionManager,
 }
 
 impl EventEmitter<ReminderButtonEvent> for ReminderButtonState {}
@@ -72,8 +71,8 @@ impl ReminderButtonState {
         let search_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search reminders..."));
 
-        let mut manager = SubscriptionManager::new();
-        manager.add(cx.subscribe_in(&search_input, window, Self::on_search_event));
+        // Subscribe to search events directly
+        let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);
 
         let filter_fn = |reminder: &Rc<ReminderModel>, query: &str| {
             reminder
@@ -92,7 +91,6 @@ impl ReminderButtonState {
             current_date: String::new(),
             current_time: "09:00".to_string(),
             show_time_dropdown: false,
-            subscription_manager: manager,
         }
     }
 
@@ -131,6 +129,10 @@ impl ReminderButtonState {
         self.current_time = time.to_string();
         self.show_time_dropdown = false;
         cx.notify();
+    }
+
+    fn get_time_options() -> Vec<&'static str> {
+        vec!["09:00", "12:00", "17:30", "20:00"]
     }
 
     fn on_add_reminder(&mut self, cx: &mut Context<Self>) {
@@ -243,58 +245,24 @@ impl Render for ReminderButtonState {
                     .when(show_time_dropdown, {
                         let view = view.clone();
                         move |this| {
-                            this.child(
-                                v_flex()
-                                    .gap_1()
-                                    .child(
-                                        Button::new("time-09:00").small().label("09:00").on_click(
-                                            {
-                                                let view = view.clone();
-                                                move |_event, _window, cx| {
-                                                    cx.update_entity(&view, |this, cx| {
-                                                        this.on_time_select("09:00", cx);
-                                                    });
-                                                }
-                                            },
-                                        ),
-                                    )
-                                    .child(
-                                        Button::new("time-12:00").small().label("12:00").on_click(
-                                            {
-                                                let view = view.clone();
-                                                move |_event, _window, cx| {
-                                                    cx.update_entity(&view, |this, cx| {
-                                                        this.on_time_select("12:00", cx);
-                                                    });
-                                                }
-                                            },
-                                        ),
-                                    )
-                                    .child(
-                                        Button::new("time-17:30").small().label("17:30").on_click(
-                                            {
-                                                let view = view.clone();
-                                                move |_event, _window, cx| {
-                                                    cx.update_entity(&view, |this, cx| {
-                                                        this.on_time_select("17:30", cx);
-                                                    });
-                                                }
-                                            },
-                                        ),
-                                    )
-                                    .child(
-                                        Button::new("time-20:00").small().label("20:00").on_click(
-                                            {
-                                                let view = view.clone();
-                                                move |_event, _window, cx| {
-                                                    cx.update_entity(&view, |this, cx| {
-                                                        this.on_time_select("20:00", cx);
-                                                    });
-                                                }
-                                            },
-                                        ),
-                                    ),
-                            )
+                            this.child(v_flex().gap_1().children(
+                                Self::get_time_options().iter().map(|time| {
+                                    let view = view.clone();
+                                    let time = *time;
+                                    Button::new(format!("time-{}", time))
+                                        .small()
+                                        .label(time)
+                                        .on_click({
+                                            let view = view.clone();
+                                            let time = time.to_string();
+                                            move |_event, _window, cx| {
+                                                cx.update_entity(&view, |this, cx| {
+                                                    this.on_time_select(&time, cx);
+                                                });
+                                            }
+                                        })
+                                }),
+                            ))
                         }
                     })
                     .child(v_flex().gap_2().children(filtered_reminders.iter().enumerate().map(

@@ -22,9 +22,9 @@ use todos::{
 
 use super::{
     AttachmentButton, AttachmentButtonState, PriorityButton, PriorityEvent, PriorityState,
-    ProjectButton, ProjectButtonEvent, ProjectButtonState, ReminderButton, ReminderButtonState,
-    ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton, SectionEvent,
-    SectionState,
+    ProjectButton, ProjectButtonEvent, ProjectButtonState, ReminderButton, ReminderButtonEvent,
+    ReminderButtonState, ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton,
+    SectionEvent, SectionState,
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
@@ -102,6 +102,7 @@ impl ItemInfoState {
             cx.subscribe_in(&project_state, window, Self::on_project_event),
             cx.subscribe_in(&section_state, window, Self::on_section_event),
             cx.subscribe_in(&schedule_button_state, window, Self::on_schedule_event),
+            cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
         ];
         let mut this = Self {
             focus_handle: cx.focus_handle(),
@@ -343,6 +344,36 @@ impl ItemInfoState {
             // },
         }
         // println!("schedule changed: {:?}", self.item.due);
+
+        cx.emit(ItemInfoEvent::Updated());
+        cx.notify();
+    }
+
+    pub fn on_reminder_event(
+        &mut self,
+        _state: &Entity<ReminderButtonState>,
+        event: &ReminderButtonEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            ReminderButtonEvent::Added(reminder) => {
+                // 这里可以更新 item 的 reminders 字段
+                // 由于提醒已经通过 todo_actions::add_reminder 保存到数据库
+                // 这里只需要确保 UI 状态正确即可
+                println!("Reminder added: {:?}", reminder.id);
+            },
+            ReminderButtonEvent::Removed(reminder_id) => {
+                // 这里可以更新 item 的 reminders 字段
+                // 由于提醒已经通过 todo_actions::delete_reminder 从数据库删除
+                // 这里只需要确保 UI 状态正确即可
+                println!("Reminder removed: {:?}", reminder_id);
+            },
+            ReminderButtonEvent::Error(error) => {
+                // 处理错误
+                println!("Reminder error: {:?}", error);
+            },
+        }
 
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();

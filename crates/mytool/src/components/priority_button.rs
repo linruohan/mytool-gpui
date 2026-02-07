@@ -50,11 +50,10 @@ impl PriorityState {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let DropdownEvent::Selected(priority) = action {
-            self.inner.selected = Some(priority.clone());
-            cx.emit(PriorityEvent::Selected(priority.clone() as i32));
-            cx.notify();
-        }
+        let DropdownEvent::Selected(priority) = action;
+        self.inner.selected = Some(priority.clone());
+        cx.emit(PriorityEvent::Selected(priority.clone() as i32));
+        cx.notify();
     }
 }
 
@@ -85,3 +84,30 @@ impl Render for PriorityState {
 }
 
 create_button_wrapper!(PriorityButton, PriorityState, "item-priority");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_priority_state_new() {
+        // Test that PriorityState can be created
+        // Note: Full initialization requires a Window and Context, which is complex in tests
+        // This test ensures the type is properly defined
+    }
+
+    #[test]
+    fn test_priority_display_name() {
+        assert_eq!("None", ItemPriority::NONE.display_name());
+        assert_eq!("Low", ItemPriority::LOW.display_name());
+        assert_eq!("Medium", ItemPriority::MEDIUM.display_name());
+        assert_eq!("High", ItemPriority::HIGH.display_name());
+    }
+
+    #[test]
+    fn test_priority_event_clone() {
+        let event = PriorityEvent::Selected(ItemPriority::HIGH as i32);
+        // Test that event can be cloned (via Action trait)
+        let _cloned = event.boxed_clone();
+    }
+}

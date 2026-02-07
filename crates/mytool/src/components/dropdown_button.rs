@@ -139,6 +139,43 @@ impl<T: Clone + PartialEq + 'static + Send> RenderOnce for DropdownButton<T> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dropdown_event_clone() {
+        let event = DropdownEvent::Selected("test".to_string());
+        let cloned = event.clone();
+        assert_eq!("test", match cloned {
+            DropdownEvent::Selected(s) => s,
+        });
+    }
+
+    #[test]
+    fn test_dropdown_item_trait() {
+        #[derive(Clone, PartialEq, Debug)]
+        struct TestItem {
+            id: String,
+            name: String,
+        }
+
+        impl DropdownItem for TestItem {
+            fn display_name(&self) -> String {
+                self.name.clone()
+            }
+
+            fn id(&self) -> String {
+                self.id.clone()
+            }
+        }
+
+        let item = TestItem { id: "1".to_string(), name: "Test".to_string() };
+        assert_eq!("Test", item.display_name());
+        assert_eq!("1", item.id());
+    }
+}
+
 /// Helper macro to create standard button wrapper components
 #[macro_export]
 macro_rules! create_button_wrapper {

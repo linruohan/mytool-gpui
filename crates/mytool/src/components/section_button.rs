@@ -64,11 +64,10 @@ impl SectionState {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let DropdownEvent::Selected(section_id) = action {
-            self.inner.selected = Some(section_id.clone());
-            cx.emit(SectionEvent::Selected(section_id.clone()));
-            cx.notify();
-        }
+        let DropdownEvent::Selected(section_id) = action;
+        self.inner.selected = Some(section_id.clone());
+        cx.emit(SectionEvent::Selected(section_id.clone()));
+        cx.notify();
     }
 }
 

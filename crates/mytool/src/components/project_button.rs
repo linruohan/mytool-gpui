@@ -49,11 +49,10 @@ impl ProjectButtonState {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let DropdownEvent::Selected(project_id) = action {
-            self.inner.selected = Some(project_id.clone());
-            cx.emit(ProjectButtonEvent::Selected(project_id.clone()));
-            cx.notify();
-        }
+        let DropdownEvent::Selected(project_id) = action;
+        self.inner.selected = Some(project_id.clone());
+        cx.emit(ProjectButtonEvent::Selected(project_id.clone()));
+        cx.notify();
     }
 }
 
