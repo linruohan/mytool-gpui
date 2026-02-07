@@ -4,25 +4,20 @@ use gpui::{
     Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    IconName, WindowExt,
-    dock::{PanelControl, PanelEvent},
-    notification::Notification,
+    ActiveTheme, IconName, WindowExt,
+    button::Button,
+    dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
+    menu::PopupMenu,
     v_flex,
 };
 
-use crate::{ShowPanelInfo, ToggleSearch};
-#[derive(Debug)]
-pub enum BoardContainerEvent {
-    Close,
-}
+use crate::ShowPanelInfo;
 
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
     pub name: SharedString,
     pub title_bg: Option<Hsla>,
     pub description: SharedString,
-    width: Option<gpui::Pixels>,
-    height: Option<gpui::Pixels>,
     board: Option<AnyView>,
     pub(crate) board_klass: Option<SharedString>,
     closable: bool,
@@ -32,8 +27,6 @@ pub struct BoardContainer {
     pub count: usize,
     pub icon: IconName,
 }
-
-impl EventEmitter<BoardContainerEvent> for BoardContainer {}
 
 pub trait Board: Render + Sized {
     fn icon() -> IconName;
@@ -92,8 +85,6 @@ impl BoardContainer {
             name: "".into(),
             title_bg: None,
             description: "".into(),
-            width: None,
-            height: None,
             board: None,
             board_klass: None,
             closable: true,
@@ -132,16 +123,6 @@ impl BoardContainer {
         })
     }
 
-    pub fn width(mut self, width: gpui::Pixels) -> Self {
-        self.width = Some(width);
-        self
-    }
-
-    pub fn height(mut self, height: gpui::Pixels) -> Self {
-        self.height = Some(height);
-        self
-    }
-
     pub fn board(mut self, board: AnyView, board_klass: impl Into<SharedString>) -> Self {
         self.board = Some(board);
         self.board_klass = Some(board_klass.into());
@@ -152,37 +133,6 @@ impl BoardContainer {
         self.on_active = Some(on_active);
         self
     }
-
-    fn on_action_panel_info(
-        &mut self,
-        _: &ShowPanelInfo,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        struct Info;
-        let note = Notification::new()
-            .message(format!("You have clicked panel info on: {}", self.name))
-            .id::<Info>();
-        window.push_notification(note, cx);
-    }
-
-    fn on_action_toggle_search(
-        &mut self,
-        _: &ToggleSearch,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        cx.propagate();
-        if window.has_focused_input(cx) {
-            return;
-        }
-
-        struct Search;
-        let note = Notification::new()
-            .message(format!("You have toggled search on: {}", self.name))
-            .id::<Search>();
-        window.push_notification(note, cx);
-    }
 }
 impl EventEmitter<PanelEvent> for BoardContainer {}
 impl Focusable for BoardContainer {
@@ -191,16 +141,87 @@ impl Focusable for BoardContainer {
     }
 }
 impl Render for BoardContainer {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .id("board-container")
             .size_full()
             .overflow_y_scroll()
             .track_focus(&self.focus_handle)
-            .on_action(cx.listener(Self::on_action_panel_info))
-            .on_action(cx.listener(Self::on_action_toggle_search))
             .when_some(self.board.clone(), |this, board| {
                 this.child(v_flex().id("board-children").w_full().flex_1().p_4().child(board))
             })
+    }
+}
+
+// Implement Panel for BoardContainer so it integrates with the dock system like StoryContainer
+impl Panel for BoardContainer {
+    fn panel_name(&self) -> &'static str {
+        "BoardContainer"
+    }
+
+    fn title(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        self.name.clone().into_any_element()
+    }
+
+    fn title_style(&self, cx: &App) -> Option<TitleStyle> {
+        self.title_bg.map(|bg| TitleStyle { background: bg, foreground: cx.theme().foreground })
+    }
+
+    fn closable(&self, _cx: &App) -> bool {
+        self.closable
+    }
+
+    fn zoomable(&self, _cx: &App) -> Option<PanelControl> {
+        self.zoomable
+    }
+
+    fn visible(&self, cx: &App) -> bool {
+        // Mirror StoryContainer: visible when not listed in AppState::invisible_panels
+        !crate::AppState::global(cx).invisible_panels.read(cx).contains(&self.name)
+    }
+
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
+        println!("panel: {} zoomed: {}", self.name, zoomed);
+    }
+
+    fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
+        println!("panel: {} active: {}", self.name, active);
+        if let Some(on_active) = self.on_active
+            && let Some(board) = self.board.clone()
+        {
+            on_active(board, active, _window, cx);
+        }
+    }
+
+    fn dropdown_menu(
+        &mut self,
+        menu: PopupMenu,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> PopupMenu {
+        menu.menu("Info", Box::new(ShowPanelInfo))
+    }
+
+    fn toolbar_buttons(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Vec<Button>> {
+        Some(vec![
+            Button::new("info").icon(IconName::Info).on_click(|_, window, cx| {
+                window.push_notification("You have clicked info button", cx);
+            }),
+            Button::new("search").icon(IconName::Search).on_click(|_, window, cx| {
+                window.push_notification("You have clicked search button", cx);
+            }),
+        ])
+    }
+
+    fn dump(&self, _cx: &App) -> PanelState {
+        let mut state = PanelState::new(self);
+        let story_state =
+            crate::story_state::StoryState { story_klass: self.board_klass.clone().unwrap() };
+        state.info = PanelInfo::panel(story_state.to_value());
+        state
     }
 }

@@ -184,7 +184,9 @@ impl ProjectsPanel {
                                             name: input1.read(cx).value().to_string(),
                                             due_date: view.project_due.clone(),
                                             color: Some(
-                                                view.selected_color.unwrap_or_default().to_hex(),
+                                                view.selected_color
+                                                    .map(|c| c.to_hex())
+                                                    .unwrap_or_default(),
                                             ),
                                             ..ori_project.clone()
                                         });

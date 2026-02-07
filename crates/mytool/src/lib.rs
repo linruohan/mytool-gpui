@@ -173,10 +173,9 @@ impl Global for AppState {}
 pub fn init(cx: &mut App) {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("gpui_component=trace".parse().unwrap()),
-        )
+        .with(tracing_subscriber::EnvFilter::from_default_env().add_directive(
+            "gpui_component=trace".parse().expect("failed to parse env filter directive"),
+        ))
         .init();
 
     gpui_component::init(cx);
@@ -216,14 +215,28 @@ pub fn init(cx: &mut App) {
                             cx,
                         );
                     })
-                    .unwrap();
+                    .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
+                    .ok();
             });
         }
     });
 
     register_panel(cx, PANEL_NAME, |_, _, info, window, cx| {
         let story_state = match info {
-            PanelInfo::Panel(value) => StoryState::from_value(value.clone()),
+            PanelInfo::Panel(value) => {
+                match serde_json::from_value::<StoryState>(value.clone()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::error!(
+                            "failed to deserialize panel StoryState: {:?}. Falling back to \
+                             ListStory",
+                            e
+                        );
+                        // Fallback to a default StoryState that points to ListStory
+                        StoryState { story_klass: SharedString::from("ListStory") }
+                    },
+                }
+            },
             _ => {
                 unreachable!("Invalid PanelInfo: {:?}", info)
             },
@@ -241,8 +254,8 @@ pub fn init(cx: &mut App) {
             })
             .detach();
 
-            container.name = title.into();
-            container.description = description.into();
+            container.name = SharedString::from(title);
+            container.description = SharedString::from(description);
             container.closable = closable;
             container.zoomable = zoomable;
             container

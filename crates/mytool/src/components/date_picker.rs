@@ -1,12 +1,16 @@
+                (now, now.checked_add_days(Days::new(4)).unwrap()),
+                now.checked_sub_days(Days::new(1)).unwrap_or_default(),
+use std::task::Context;
+use std::time::Duration;
 use chrono::{Datelike, Days, Duration, Utc};
 use gpui::{
-    App, AppContext, Context, Entity, Focusable, IntoElement, ParentElement as _, Render,
-    Styled as _, Subscription, Window, div, px,
+    div, px, App, AppContext, Context, Entity, Focusable, IntoElement,
+    ParentElement as _, Render, Styled as _, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme as _, Sizable as _, calendar,
-    date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset},
-    v_flex,
+    calendar, date_picker::{DatePicker, DatePickerEvent, DatePickerState, DateRangePreset}, v_flex,
+    ActiveTheme as _,
+    Sizable as _,
 };
 
 use crate::section;
@@ -56,11 +60,7 @@ impl DatePickerStory {
                     Some(now),
                     now.checked_add_days(Days::new(7)),
                 ));
-            picker.set_date(
-                now.checked_sub_days(Days::new(1)).unwrap_or_default(),
-                window,
-                cx,
-            );
+            picker.set_date(now.checked_sub_days(Days::new(1)).unwrap_or(now), window, cx);
             picker
         });
         let date_picker_small = cx.new(|cx| {
@@ -78,11 +78,7 @@ impl DatePickerStory {
         });
         let date_range_picker = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx);
-            picker.set_date(
-                (now, now.checked_add_days(Days::new(4)).unwrap()),
-                window,
-                cx,
-            );
+            picker.set_date((now, now.checked_add_days(Days::new(4)).unwrap_or(now)), window, cx);
             picker
         });
 
@@ -94,17 +90,17 @@ impl DatePickerStory {
             cx.subscribe(&date_picker, |this, _, ev, _| match ev {
                 DatePickerEvent::Change(date) => {
                     this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
-                }
+                },
             }),
             cx.subscribe(&date_range_picker, |this, _, ev, _| match ev {
                 DatePickerEvent::Change(date) => {
                     this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
-                }
+                },
             }),
             cx.subscribe(&default_range_mode_picker, |this, _, ev, _| match ev {
                 DatePickerEvent::Change(date) => {
                     this.date_picker_value = date.format("%Y-%m-%d").map(|s| s.to_string());
-                }
+                },
             }),
         ];
 
@@ -170,11 +166,9 @@ impl Render for DatePickerStory {
         v_flex()
             .gap_3()
             .child(
-                section("Normal").max_w_128().child(
-                    DatePicker::new(&self.date_picker)
-                        .cleanable(true)
-                        .presets(presets),
-                ),
+                section("Normal")
+                    .max_w_128()
+                    .child(DatePicker::new(&self.date_picker).cleanable(true).presets(presets)),
             )
             .child(
                 section("Small with 180px width")
