@@ -34,5 +34,21 @@ impl TodayItemState {
             });
         })
         .detach();
+
+        // 订阅ItemState的变化，当ItemState改变时更新TodayItemState
+        cx.observe_global::<crate::todo_state::ItemState>(move |cx| {
+            let db = cx.global::<DBState>().conn.clone();
+            cx.spawn(async move |cx| {
+                let list = get_items_today(db.clone()).await;
+                let rc_list: Vec<Rc<ItemModel>> =
+                    list.iter().map(|pro| Rc::new(pro.clone())).collect();
+                println!("state today_items updated: {}", list.len());
+                cx.update_global::<TodayItemState, _>(|state, _cx| {
+                    state.items = rc_list;
+                });
+            })
+            .detach();
+        })
+        .detach();
     }
 }

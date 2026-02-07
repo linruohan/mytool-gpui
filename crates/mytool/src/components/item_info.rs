@@ -226,55 +226,45 @@ impl ItemInfoState {
         match event {
             ProjectButtonEvent::Selected(project_id) => {
                 let item = Rc::make_mut(&mut self.item);
-                item.project_id =
+                let old_project_id = item.project_id.clone();
+                let new_project_id =
                     if project_id.is_empty() { None } else { Some(project_id.clone()) };
 
-                // 根据project_id更新section_state的sections
-                self.section_state.update(cx, |section_state, cx| {
-                    if project_id.is_empty() {
-                        // 如果是Inbox，使用全局的SectionState
-                        println!("Project changed to Inbox, using global sections");
-                        section_state.set_sections(None, window, cx);
-                    } else {
-                        // 根据project_id获取对应的sections
-                        let projects =
-                            cx.global::<crate::todo_state::ProjectState>().projects.clone();
-                        let all_sections =
-                            cx.global::<crate::todo_state::ProjectState>().sections.clone();
-                        println!(
-                            "Project changed to: {}, total sections: {}",
-                            project_id,
-                            all_sections.len()
-                        );
+                // 只有当project_id实际变化时才更新sections
+                if old_project_id != new_project_id {
+                    item.project_id = new_project_id.clone();
 
-                        if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
-                            // 获取该project的sections
-                            let filtered_sections: Vec<Rc<todos::entity::SectionModel>> =
-                                all_sections
-                                    .iter()
-                                    .filter(|s| {
-                                        let matches = s.project_id.as_ref() == Some(&project.id);
-                                        if matches {
-                                            println!(
-                                                "Found section: {} for project: {}",
-                                                s.name, project.name
-                                            );
-                                        }
-                                        matches
-                                    })
-                                    .cloned()
-                                    .collect();
-                            println!(
-                                "Filtered sections for project {}: {}",
-                                project.name,
-                                filtered_sections.len()
-                            );
-                            section_state.set_sections(Some(filtered_sections), window, cx);
+                    // 根据project_id更新section_state的sections
+                    self.section_state.update(cx, |section_state, cx| {
+                        if project_id.is_empty() {
+                            // 如果是Inbox，使用全局的SectionState
+                            section_state.set_sections(None, window, cx);
                         } else {
-                            println!("Project not found: {}", project_id);
+                            // 根据project_id获取对应的sections
+                            let projects =
+                                cx.global::<crate::todo_state::ProjectState>().projects.clone();
+                            let all_sections =
+                                cx.global::<crate::todo_state::ProjectState>().sections.clone();
+
+                            if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
+                                // 获取该project的sections
+                                let filtered_sections: Vec<Rc<todos::entity::SectionModel>> =
+                                    all_sections
+                                        .iter()
+                                        .filter(|s| s.project_id.as_ref() == Some(&project.id))
+                                        .cloned()
+                                        .collect();
+                                section_state.set_sections(Some(filtered_sections), window, cx);
+                            }
                         }
-                    }
-                });
+                    });
+
+                    // 当project变更时，重置section_id
+                    item.section_id = None;
+                    self.section_state.update(cx, |section_state, cx| {
+                        section_state.set_section(None, window, cx);
+                    });
+                }
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -511,6 +501,15 @@ impl ItemInfoState {
                         .filter(|s| s.project_id.as_ref() == Some(&project.id))
                         .cloned()
                         .collect();
+
+                    // 确保section_id属于当前project，在移动之前检查
+                    if let Some(section_id) = &item.section_id
+                        && !filtered_sections.iter().any(|s| &s.id == section_id)
+                    {
+                        let item = Rc::make_mut(&mut self.item);
+                        item.section_id = None;
+                    }
+
                     section_state.set_sections(Some(filtered_sections), window, cx);
                 }
             } else {
@@ -528,6 +527,8 @@ impl ItemInfoState {
                 if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
                     section_state.set_section(Some(section.id.clone()), window, cx);
                 }
+            } else {
+                section_state.set_section(None, window, cx);
             }
         });
 

@@ -8,7 +8,8 @@ use todos::{
 };
 
 pub async fn load_items(db: DatabaseConnection) -> Vec<ItemModel> {
-    Store::new(db).await.items().await
+    let store = Store::new(db).await;
+    store.items().await
 }
 pub async fn add_item(item: Rc<ItemModel>, db: DatabaseConnection) -> Result<ItemModel, TodoError> {
     Store::new(db).await.insert_item(item.as_ref().clone(), true).await

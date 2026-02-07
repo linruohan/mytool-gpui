@@ -95,8 +95,17 @@ impl ReminderButtonState {
     }
 
     pub fn set_reminders(&mut self, reminders: Vec<Rc<ReminderModel>>, cx: &mut Context<Self>) {
+        // 检查是否有实际变化
+        let old_reminders = self.items.items.clone();
+        let has_changed = old_reminders.len() != reminders.len()
+            || old_reminders.iter().zip(reminders.iter()).any(|(a, b)| a.id != b.id);
+
         self.items.set_items(reminders);
-        cx.notify();
+
+        // 只有在有实际变化时才通知UI刷新
+        if has_changed {
+            cx.notify();
+        }
     }
 
     pub fn add_reminder(&mut self, reminder: Rc<ReminderModel>, cx: &mut Context<Self>) {

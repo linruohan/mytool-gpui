@@ -41,7 +41,11 @@ impl Section {
     }
 
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store().await.get_project(self.model.project_id.as_ref()?).await // Assuming Store has a method to get project by ID
+        if let Some(project_id) = self.model.project_id.as_ref() {
+            self.store().await.get_project(project_id).await
+        } else {
+            None
+        }
     }
 
     pub async fn items(&self) -> Vec<ItemModel> {

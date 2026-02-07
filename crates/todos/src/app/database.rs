@@ -5,7 +5,8 @@ use sea_orm::{
 };
 
 pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
-    let database_config = &gconfig::get().database();
+    let config_guard = gconfig::get().read().expect("读取配置失败");
+    let database_config = config_guard.database();
 
     let base_url = "sqlite://db.sqlite?mode=rwc".to_owned();
 

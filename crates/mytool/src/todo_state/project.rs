@@ -4,7 +4,7 @@ use gpui::{App, Global};
 use todos::entity::{ItemModel, ProjectModel, SectionModel};
 
 use crate::{
-    service::{load_projects, load_sections},
+    service::{get_items_by_project_id, load_projects, load_sections},
     todo_state::DBState,
 };
 
@@ -48,6 +48,25 @@ impl ProjectState {
             cx.update_global::<ProjectState, _>(|state, _cx| {
                 state.sections = rc_list;
             });
+        })
+        .detach();
+
+        // 订阅ItemState的变化，当ItemState改变时更新ProjectState中的items
+        cx.observe_global::<crate::todo_state::ItemState>(move |cx| {
+            let db = cx.global::<DBState>().conn.clone();
+            let active_project = cx.global::<ProjectState>().active_project.clone();
+            cx.spawn(async move |cx| {
+                if let Some(active_project) = active_project {
+                    let list = get_items_by_project_id(&active_project.id, db.clone()).await;
+                    let rc_list: Vec<Rc<ItemModel>> =
+                        list.iter().map(|item| Rc::new(item.clone())).collect();
+                    println!("state project items updated: {}", list.len());
+                    cx.update_global::<ProjectState, _>(|state, _cx| {
+                        state.items = rc_list;
+                    });
+                }
+            })
+            .detach();
         })
         .detach();
     }

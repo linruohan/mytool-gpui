@@ -10,6 +10,7 @@ use crate::{
     create_button_wrapper,
 };
 
+#[derive(Clone)]
 pub enum PriorityEvent {
     Selected(i32),
 }
@@ -107,7 +108,7 @@ mod tests {
     #[test]
     fn test_priority_event_clone() {
         let event = PriorityEvent::Selected(ItemPriority::HIGH as i32);
-        // Test that event can be cloned (via Action trait)
-        let _cloned = event.boxed_clone();
+        // Test that event can be cloned (simple clone)
+        let _cloned = event.clone();
     }
 }

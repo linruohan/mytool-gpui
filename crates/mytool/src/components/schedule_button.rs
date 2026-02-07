@@ -64,6 +64,10 @@ impl ScheduleButtonState {
     }
 
     pub fn set_due_date(&mut self, due_date: DueDate, window: &mut Window, cx: &mut Context<Self>) {
+        // 检查是否有实际变化
+        let old_due_date = self.due_date.clone();
+        let has_changed = old_due_date != due_date;
+
         self.due_date = due_date;
         self.sync_selected_time_from_due_date();
         if let Some(dt) = self.due_date.datetime() {
@@ -72,7 +76,11 @@ impl ScheduleButtonState {
                 picker.set_date(date, window, cx);
             });
         }
-        cx.notify()
+
+        // 只有在有实际变化时才通知UI刷新
+        if has_changed {
+            cx.notify();
+        }
     }
 
     fn on_date_event(
@@ -104,12 +112,16 @@ impl ScheduleButtonState {
         match action.0.as_str() {
             "today" => {
                 let date_str = today.format("%Y-%m-%d").to_string();
-                self.due_date.date = format!("{} {}:00", date_str, time_str);
-                self.date_picker_state.update(cx, |picker, cx| {
-                    picker.set_date(today, window, cx);
-                });
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected("Today".to_string()));
+                let new_date = format!("{} {}:00", date_str, time_str);
+                if self.due_date.date != new_date {
+                    self.due_date.date = new_date;
+                    self.date_picker_state.update(cx, |picker, cx| {
+                        picker.set_date(today, window, cx);
+                    });
+                    self.show_date_picker = false;
+                    cx.emit(ScheduleButtonEvent::DateSelected("Today".to_string()));
+                    cx.notify();
+                }
             },
             "tomorrow" => {
                 let tomorrow = today.succ_opt().unwrap_or(today);
@@ -196,10 +208,13 @@ impl ScheduleButtonState {
                 cx.emit(ScheduleButtonEvent::TimeSelected(time.to_string()));
             },
             "clear" => {
-                self.due_date = DueDate::default();
-                self.selected_time = None;
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::Cleared);
+                if !self.due_date.date.is_empty() {
+                    self.due_date = DueDate::default();
+                    self.selected_time = None;
+                    self.show_date_picker = false;
+                    cx.emit(ScheduleButtonEvent::Cleared);
+                    cx.notify();
+                }
             },
             "done" => {
                 self.show_date_picker = false;

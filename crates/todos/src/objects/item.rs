@@ -578,10 +578,10 @@ impl Item {
         Ok(())
     }
 
-    pub fn update_date(&mut self, date: &NaiveDateTime) {
+    pub async fn update_date(&mut self, date: &NaiveDateTime) {
         if let Some(mut due) = self.due() {
             due.date = utils::DateTime::default().get_todoist_datetime_format(date);
-            self.update_due(due); // Move due into update_due
+            self.update_due(due).await; // Move due into update_due
         }
     }
 
@@ -589,28 +589,28 @@ impl Item {
         self.store().await.update_item(self.model.clone(), update_id);
     }
 
-    pub fn update_due(&mut self, due_date: DueDate) {
+    pub async fn update_due(&mut self, due_date: DueDate) {
         if self.has_time() {
-            self.remove_all_relative_reminders();
+            self.remove_all_relative_reminders().await.ok();
             let mut reminder = ReminderModel {
                 reminder_type: Some(ReminderType::RELATIVE.to_string()),
                 mm_offset: Some(Util::get_default().get_reminders_mm_offset()),
                 ..Default::default()
             };
-            self.add_reminder(&mut reminder);
+            self.add_reminder(&mut reminder).await.ok();
         }
         if let Some(mut due) = self.due() {
             due.date = due_date.date.to_string();
 
             if due.date.is_empty() {
                 due.reset();
-                self.remove_all_relative_reminders();
+                self.remove_all_relative_reminders().await.ok();
             }
         }
         if !self.has_time() {
-            self.remove_all_relative_reminders();
+            self.remove_all_relative_reminders().await.ok();
         }
-        self.update_sync("");
+        self.update_sync("").await;
     }
 
     pub async fn get_reminder(&self, reminder: &ReminderModel) -> Option<ReminderModel> {
@@ -651,9 +651,12 @@ impl Item {
         }
     }
 
-    pub fn add_reminder(&self, reminder: &mut ReminderModel) {
+    pub async fn add_reminder(
+        &self,
+        reminder: &mut ReminderModel,
+    ) -> Result<ReminderModel, TodoError> {
         reminder.item_id = Some(self.model.id.clone());
-        self.add_reminder_if_not_exists(reminder);
+        self.add_reminder_if_not_exists(reminder).await
     }
 
     pub async fn complete_item(&self) {

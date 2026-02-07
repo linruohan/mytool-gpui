@@ -1,10 +1,8 @@
-use anyhow;
 use gpui::{
     Action, App, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement, Render, RenderOnce, StyleRefinement, Styled, Window, div,
 };
 use gpui_component::{Sizable, Size, StyleSized, StyledExt as _};
-use serde_json;
 
 // Generic dropdown state
 pub struct DropdownState<T: Clone + PartialEq + 'static + Send> {

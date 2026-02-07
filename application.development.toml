@@ -1,0 +1,23 @@
+# 开发环境配置示例
+
+[server]
+port = 3000
+host = "127.0.0.1"
+
+[database]
+host = "127.0.0.1"
+port = 5432
+user = "postgres"
+password = "postgres"
+database = "myapp_dev"
+schema = "public"
+pool_size = 5
+
+[app]
+language = "zh"
+theme = "light"
+clock_format = "24h"
+
+[logging]
+level = "debug"
+# file = "logs/dev.log"  # 可选：输出到文件
