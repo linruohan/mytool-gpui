@@ -10,24 +10,20 @@ sea-orm.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
-num_cpus = "1.17.0"
-chrono-humanize = "0.2.3"
-uuid = { version = "1.20.0", features = [
-    "v4", # Lets you generate random UUIDs
-    "fast-rng", # Use a faster (but still sufficiently random) RNG
-    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-] }
+num_cpus.workspace = true
+chrono-humanize.workspace = true
+uuid.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-config = "0.15.19" # 用于读取配置文件
-strum = { version = "0.27.2", features = ["derive"] }
+config.workspace = true # 用于读取配置文件
+strum.workspace = true
 rand.workspace = true
-paste = "1.0.15"
+paste.workspace = true
 rust-embed.workspace = true
-thiserror = "2.0.18"
-async-trait = "0.1.89"
-futures = "0.3.31"
+thiserror.workspace = true
+async-trait.workspace = true
+futures.workspace = true
 
 
 [dev-dependencies]

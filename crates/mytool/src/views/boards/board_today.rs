@@ -1,21 +1,18 @@
-use std::rc::Rc;
-
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, MouseButton, ParentElement, Render, StatefulInteractiveElement as _,
-    Styled, Subscription, Window, div, prelude::FluentBuilder,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement as _,
+    MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
-    dock::PanelControl,
     h_flex,
     scroll::ScrollableElement,
     v_flex,
 };
 
 use crate::{
-    Board, ItemInfoState, ItemRow, ItemRowState, section,
+    Board, BoardBase, ItemRow, ItemRowState, section,
     todo_actions::{add_item, delete_item, update_item},
     todo_state::{SectionState, TodayItemState},
 };
@@ -28,14 +25,7 @@ pub enum ItemClickEvent {
 impl EventEmitter<ItemClickEvent> for TodayBoard {}
 
 pub struct TodayBoard {
-    _subscriptions: Vec<Subscription>,
-    focus_handle: FocusHandle,
-    pub active_index: Option<usize>,
-    item_rows: Vec<Entity<ItemRowState>>,
-    item_info: Entity<ItemInfoState>,
-    no_section_items: Vec<(usize, Rc<todos::entity::ItemModel>)>,
-    section_items_map:
-        std::collections::HashMap<String, Vec<(usize, Rc<todos::entity::ItemModel>)>>,
+    base: BoardBase,
 }
 
 impl TodayBoard {
@@ -44,58 +34,25 @@ impl TodayBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item = std::rc::Rc::new(todos::entity::ItemModel::default());
-        let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
-        let item_rows = vec![];
-        let no_section_items = vec![];
-        let section_items_map = std::collections::HashMap::new();
+        let mut base = BoardBase::new(window, cx);
 
-        let _subscriptions = vec![
+        base._subscriptions = vec![
             cx.observe_global_in::<TodayItemState>(window, move |this, window, cx| {
                 let state_items = cx.global::<TodayItemState>().items.clone();
-                this.item_rows = state_items
+                this.base.item_rows = state_items
                     .iter()
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
-                // 重新计算no_section_items和section_items_map
-                this.no_section_items.clear();
-                this.section_items_map.clear();
-
-                for (i, item) in state_items.iter().enumerate() {
-                    match item.section_id.as_deref() {
-                        None | Some("") => this.no_section_items.push((i, item.clone())),
-                        Some(sid) => {
-                            this.section_items_map
-                                .entry(sid.to_string())
-                                .or_default()
-                                .push((i, item.clone()));
-                        },
-                    }
-                }
-
-                if let Some(ix) = this.active_index {
-                    if ix >= this.item_rows.len() {
-                        this.active_index = if this.item_rows.is_empty() { None } else { Some(0) };
-                    }
-                } else if !this.item_rows.is_empty() {
-                    this.active_index = Some(0);
-                }
+                this.base.update_items(&state_items);
                 cx.notify();
             }),
             cx.observe_global_in::<SectionState>(window, move |_, _, cx| {
                 cx.notify();
             }),
         ];
-        Self {
-            focus_handle: cx.focus_handle(),
-            _subscriptions,
-            active_index: Some(0),
-            item_rows,
-            item_info,
-            no_section_items,
-            section_items_map,
-        }
+
+        Self { base }
     }
 
     pub(crate) fn get_selected_item(
@@ -115,14 +72,14 @@ impl TodayBoard {
         section_id: Option<String>,
     ) {
         let item_info = if is_edit {
-            if let Some(active_index) = self.active_index {
-                if let Some(item_row) = self.item_rows.get(active_index) {
+            if let Some(active_index) = self.base.active_index {
+                if let Some(item_row) = self.base.item_rows.get(active_index) {
                     item_row.read(cx).item_info.clone()
                 } else {
-                    self.item_info.clone()
+                    self.base.item_info.clone()
                 }
             } else {
-                self.item_info.clone()
+                self.base.item_info.clone()
             }
         } else {
             let mut ori_item = todos::entity::ItemModel::default();
@@ -132,11 +89,11 @@ impl TodayBoard {
                 ori_item.section_id = Some(sid);
             }
 
-            self.item_info.update(cx, |state, cx| {
+            self.base.item_info.update(cx, |state, cx| {
                 state.set_item(std::rc::Rc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
-            self.item_info.clone()
+            self.base.item_info.clone()
         };
 
         let config = crate::components::ItemDialogConfig::new(
@@ -155,7 +112,7 @@ impl TodayBoard {
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.active_index {
+        if let Some(active_index) = self.base.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
                 let view = cx.entity().clone();
@@ -190,11 +147,11 @@ impl Board for TodayBoard {
         IconName::StarOutlineThickSymbolic
     }
 
-    fn colors() -> Vec<Hsla> {
+    fn colors() -> Vec<gpui::Hsla> {
         vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
     }
 
-    fn count(cx: &mut App) -> usize {
+    fn count(cx: &mut gpui::App) -> usize {
         cx.global::<TodayItemState>().items.len()
     }
 
@@ -206,18 +163,18 @@ impl Board for TodayBoard {
         "今天需要完成的任务"
     }
 
-    fn zoomable() -> Option<PanelControl> {
+    fn zoomable() -> Option<gpui_component::dock::PanelControl> {
         None
     }
 
-    fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
+    fn new_view(window: &mut Window, cx: &mut gpui::App) -> Entity<impl gpui::Render> {
         Self::view(window, cx)
     }
 }
 
 impl Focusable for TodayBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
-        self.focus_handle.clone()
+        self.base.focus_handle.clone()
     }
 }
 
@@ -229,11 +186,11 @@ impl Render for TodayBoard {
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
         let sections = cx.global::<SectionState>().sections.clone();
-        let no_section_items = self.no_section_items.clone();
-        let section_items_map = self.section_items_map.clone();
+        let no_section_items = self.base.no_section_items.clone();
+        let section_items_map = self.base.section_items_map.clone();
 
         v_flex()
-            .track_focus(&self.focus_handle)
+            .track_focus(&self.base.focus_handle)
             .size_full()
             .gap_4()
             .child(
@@ -347,13 +304,13 @@ impl Render for TodayBoard {
                                     .child(v_flex().gap_2().w_full().children(
                                         no_section_items.into_iter().map(|(i, _item)| {
                                             let view = view_clone.clone();
-                                            let is_active = self.active_index == Some(i);
-                                            let item_row = self.item_rows.get(i).cloned();
+                                            let is_active = self.base.active_index == Some(i);
+                                            let item_row = self.base.item_rows.get(i).cloned();
                                             div()
                                                 .id(("item", i))
                                                 .on_click(move |_, _, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.active_index = Some(i);
+                                                        this.base.active_index = Some(i);
                                                         cx.notify();
                                                     });
                                                 })
@@ -408,13 +365,13 @@ impl Render for TodayBoard {
                                         |(i, _item)| {
                                             let view = view_clone.clone();
                                             let i = *i;
-                                            let is_active = self.active_index == Some(i);
-                                            let item_row = self.item_rows.get(i).cloned();
+                                            let is_active = self.base.active_index == Some(i);
+                                            let item_row = self.base.item_rows.get(i).cloned();
                                             div()
                                                 .id(("item", i))
                                                 .on_click(move |_, _, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.active_index = Some(i);
+                                                        this.base.active_index = Some(i);
                                                         cx.notify();
                                                     });
                                                 })

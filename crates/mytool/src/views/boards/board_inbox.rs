@@ -1,9 +1,7 @@
-use std::rc::Rc;
-
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, MouseButton, ParentElement, Render, StatefulInteractiveElement as _,
-    Styled, Subscription, Window, div, prelude::FluentBuilder,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement as _,
+    MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
@@ -18,7 +16,7 @@ use gpui_component::{
 use sea_orm::sqlx::types::uuid;
 
 use crate::{
-    Board, ItemInfoState, ItemRow, ItemRowState, section,
+    Board, BoardBase, ItemRow, ItemRowState, section,
     todo_actions::{
         add_item, add_section, delete_item, delete_section, update_item, update_section,
     },
@@ -33,14 +31,7 @@ pub enum ItemClickEvent {
 impl EventEmitter<ItemClickEvent> for InboxBoard {}
 
 pub struct InboxBoard {
-    _subscriptions: Vec<Subscription>,
-    focus_handle: FocusHandle,
-    pub active_index: Option<usize>,
-    item_rows: Vec<Entity<ItemRowState>>,
-    item_info: Entity<ItemInfoState>,
-    no_section_items: Vec<(usize, Rc<todos::entity::ItemModel>)>,
-    section_items_map:
-        std::collections::HashMap<String, Vec<(usize, Rc<todos::entity::ItemModel>)>>,
+    base: BoardBase,
 }
 
 impl InboxBoard {
@@ -49,31 +40,28 @@ impl InboxBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item = std::rc::Rc::new(todos::entity::ItemModel::default());
-        let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
-        let item_rows = vec![];
-        let no_section_items = vec![];
-        let section_items_map = std::collections::HashMap::new();
+        let mut base = BoardBase::new(window, cx);
 
-        let _subscriptions = vec![
+        base._subscriptions = vec![
             cx.observe_global_in::<InboxItemState>(window, move |this, window, cx| {
                 let state_items = cx.global::<InboxItemState>().items.clone();
-                this.item_rows = state_items
+                this.base.item_rows = state_items
                     .iter()
                     .filter(|item| !item.checked)
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
                 // 重新计算no_section_items和section_items_map
-                this.no_section_items.clear();
-                this.section_items_map.clear();
+                this.base.no_section_items.clear();
+                this.base.section_items_map.clear();
 
                 for (i, item) in state_items.iter().enumerate() {
                     if !item.checked {
                         match item.section_id.as_deref() {
-                            None | Some("") => this.no_section_items.push((i, item.clone())),
+                            None | Some("") => this.base.no_section_items.push((i, item.clone())),
                             Some(sid) => {
-                                this.section_items_map
+                                this.base
+                                    .section_items_map
                                     .entry(sid.to_string())
                                     .or_default()
                                     .push((i, item.clone()));
@@ -82,15 +70,16 @@ impl InboxBoard {
                     }
                 }
 
-                println!("no_section_items:{:?}", this.no_section_items.len());
-                println!("section_items_map:{:?}", this.section_items_map.len());
+                println!("no_section_items:{:?}", this.base.no_section_items.len());
+                println!("section_items_map:{:?}", this.base.section_items_map.len());
 
-                if let Some(ix) = this.active_index {
-                    if ix >= this.item_rows.len() {
-                        this.active_index = if this.item_rows.is_empty() { None } else { Some(0) };
+                if let Some(ix) = this.base.active_index {
+                    if ix >= this.base.item_rows.len() {
+                        this.base.active_index =
+                            if this.base.item_rows.is_empty() { None } else { Some(0) };
                     }
-                } else if !this.item_rows.is_empty() {
-                    this.active_index = Some(0);
+                } else if !this.base.item_rows.is_empty() {
+                    this.base.active_index = Some(0);
                 }
                 cx.notify();
             }),
@@ -103,15 +92,8 @@ impl InboxBoard {
                 cx.notify();
             }),
         ];
-        Self {
-            focus_handle: cx.focus_handle(),
-            _subscriptions,
-            active_index: Some(0),
-            item_rows,
-            item_info,
-            no_section_items,
-            section_items_map,
-        }
+
+        Self { base }
     }
 
     pub(crate) fn get_selected_item(
@@ -132,15 +114,15 @@ impl InboxBoard {
     ) {
         // 获取当前选中的 ItemRow 的 item_info（如果是编辑模式）
         let item_info = if is_edit {
-            if let Some(active_index) = self.active_index {
-                if let Some(item_row) = self.item_rows.get(active_index) {
+            if let Some(active_index) = self.base.active_index {
+                if let Some(item_row) = self.base.item_rows.get(active_index) {
                     // 从选中的 ItemRow 中读取 item_info
                     item_row.read(cx).item_info.clone()
                 } else {
-                    self.item_info.clone()
+                    self.base.item_info.clone()
                 }
             } else {
-                self.item_info.clone()
+                self.base.item_info.clone()
             }
         } else {
             // 新增模式使用默认的 item_info，并重置为空数据
@@ -151,11 +133,11 @@ impl InboxBoard {
                 ori_item.section_id = Some(sid);
             }
 
-            self.item_info.update(cx, |state, cx| {
+            self.base.item_info.update(cx, |state, cx| {
                 state.set_item(std::rc::Rc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
-            self.item_info.clone()
+            self.base.item_info.clone()
         };
 
         let config = crate::components::ItemDialogConfig::new(
@@ -174,7 +156,7 @@ impl InboxBoard {
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.active_index {
+        if let Some(active_index) = self.base.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
                 crate::components::show_item_delete_dialog(
@@ -190,7 +172,7 @@ impl InboxBoard {
     }
 
     pub fn show_finish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.active_index {
+        if let Some(active_index) = self.base.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
                 let view = cx.entity().clone();
@@ -357,7 +339,7 @@ impl Board for InboxBoard {
 
 impl Focusable for InboxBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
-        self.focus_handle.clone()
+        self.base.focus_handle.clone()
     }
 }
 
@@ -369,11 +351,11 @@ impl Render for InboxBoard {
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
         let sections = cx.global::<SectionState>().sections.clone();
-        let no_section_items = self.no_section_items.clone();
-        let section_items_map = self.section_items_map.clone();
+        let no_section_items = self.base.no_section_items.clone();
+        let section_items_map = self.base.section_items_map.clone();
 
         v_flex()
-            .track_focus(&self.focus_handle)
+            .track_focus(&self.base.focus_handle)
             .size_full()
             .gap_4()
             .child(
@@ -536,13 +518,13 @@ impl Render for InboxBoard {
                                     .child(v_flex().gap_2().w_full().children(
                                         no_section_items.into_iter().map(|(i, _item)| {
                                             let view = view_clone.clone();
-                                            let is_active = self.active_index == Some(i);
-                                            let item_row = self.item_rows.get(i).cloned();
+                                            let is_active = self.base.active_index == Some(i);
+                                            let item_row = self.base.item_rows.get(i).cloned();
                                             div()
                                                 .id(("item", i))
                                                 .on_click(move |_, _, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.active_index = Some(i);
+                                                        this.base.active_index = Some(i);
                                                         cx.notify();
                                                     });
                                                 })
@@ -741,13 +723,13 @@ impl Render for InboxBoard {
                                         |(i, _item)| {
                                             let view = view_clone.clone();
                                             let i = *i;
-                                            let is_active = self.active_index == Some(i);
-                                            let item_row = self.item_rows.get(i).cloned();
+                                            let is_active = self.base.active_index == Some(i);
+                                            let item_row = self.base.item_rows.get(i).cloned();
                                             div()
                                                 .id(("item", i))
                                                 .on_click(move |_, _, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.active_index = Some(i);
+                                                        this.base.active_index = Some(i);
                                                         cx.notify();
                                                     });
                                                 })

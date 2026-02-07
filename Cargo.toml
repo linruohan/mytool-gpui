@@ -2,7 +2,7 @@
 publish = false
 edition = "2024"
 [workspace]
-members = ["crates/mytool", "crates/todos"]
+members = ["crates/mytool", "crates/todos", "crates/config"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
@@ -11,6 +11,7 @@ resolver = "2"
 # inner crates
 todos = { path = "crates/todos" }
 mytool = { path = "crates/mytool" }
+config = { path = "crates/config" }
 # gpui
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui-macros = "0.2.2"
@@ -43,6 +44,26 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter", "chrono"] }
 chrono = { version = "0.4.43", features = ["serde"] }
 smallvec = { version = "1.15", features = ["union"] }
 rfd = "0.14"
+# Additional dependencies used by multiple crates
+config-lib = "0.15.19"
+thiserror = "2.0.18"
+async-trait = "0.1.89"
+futures = "0.3.31"
+strum = { version = "0.27.2", features = ["derive"] }
+chrono-humanize = "0.2.3"
+num_cpus = "1.17.0"
+uuid = { version = "1.20.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+] }
+itertools = "0.14.0"
+toml = "0.8.10"
+base64 = "0.22.1"
+pbkdf2 = { version = "0.12.2", features = ["simple"] }
+aes-gcm = "0.10.3"
+password-hash = "0.5.0"
+embed-resource = "3.0.6"
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"

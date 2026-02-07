@@ -1,3 +1,8 @@
+#[macro_use]
+extern crate rust_i18n;
+
+i18n!("locales");
+
 use gpui::{
     Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, KeyBinding, Pixels,
     SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
@@ -11,9 +16,10 @@ use gpui_component::{
 use serde::Deserialize;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 mod app_menus;
+mod component_manager; // 组件管理
 mod components; // 我的组件库
-mod crypto; // 加解密
 mod gallery;
+mod plugins; // 插件系统
 mod service;
 mod stories;
 mod story_container;
@@ -28,8 +34,10 @@ mod utils;
 mod views; // 任务管理视图
 mod widgets; // 部件库
 
+pub use component_manager::ComponentManager;
 pub use components::*;
 pub use gallery::Gallery;
+pub use plugins::*;
 pub use stories::*;
 pub use story_section::StorySection;
 pub use title_bar::AppTitleBar;

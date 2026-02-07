@@ -24,9 +24,21 @@ pub struct Item {
     base: BaseObject,
     db: DatabaseConnection,
     store: OnceCell<Store>,
+    labels: OnceCell<Vec<LabelModel>>,
+    attachments: OnceCell<Vec<AttachmentModel>>,
+    reminders: OnceCell<Vec<ReminderModel>>,
+    subitems: OnceCell<Vec<ItemModel>>,
     label_count: Option<usize>,
     custom_order: bool,
     show_item: bool,
+}
+
+impl Drop for Item {
+    fn drop(&mut self) {
+        // Clean up any resources here if needed
+        // The database connection will be automatically cleaned up
+        // as it's managed by the connection pool
+    }
 }
 impl Item {
     pub fn due(&self) -> Option<DueDate> {
@@ -52,18 +64,28 @@ impl Item {
     }
 
     pub async fn labels(&self) -> Vec<LabelModel> {
-        if let Some(labels_str) = &self.model.labels {
-            let all_labels = self.store().await.labels().await;
-            let label_ids: Vec<&str> = labels_str.split(';').collect();
-            all_labels.into_iter().filter(|label| label_ids.contains(&label.id.as_str())).collect()
-        } else {
-            vec![]
-        }
+        self.labels
+            .get_or_init(|| async {
+                if let Some(labels_str) = &self.model.labels {
+                    let all_labels = self.store().await.labels().await;
+                    let label_ids: Vec<&str> = labels_str.split(';').collect();
+                    all_labels
+                        .into_iter()
+                        .filter(|label| label_ids.contains(&label.id.as_str()))
+                        .collect()
+                } else {
+                    vec![]
+                }
+            })
+            .await
+            .clone()
     }
 
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
         let label_ids = labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";");
         self.model.labels = Some(label_ids);
+        // Clear the cache
+        self.labels = OnceCell::new();
         self
     }
 
@@ -98,6 +120,10 @@ impl Item {
             base,
             db,
             store: OnceCell::new(),
+            labels: OnceCell::new(),
+            attachments: OnceCell::new(),
+            reminders: OnceCell::new(),
+            subitems: OnceCell::new(),
             label_count: None,
             custom_order: false,
             show_item: false,
@@ -242,9 +268,14 @@ impl Item {
 
     // subitems
     pub async fn items(&self) -> Vec<ItemModel> {
-        let mut items = self.store().await.get_subitems(&self.model.id).await;
-        items.sort_by_key(|a| a.child_order);
-        items
+        self.subitems
+            .get_or_init(|| async {
+                let mut items = self.store().await.get_subitems(&self.model.id).await;
+                items.sort_by_key(|a| a.child_order);
+                items
+            })
+            .await
+            .clone()
     }
 
     pub async fn items_uncomplete(&self) -> Vec<ItemModel> {
@@ -252,11 +283,21 @@ impl Item {
     }
 
     pub async fn reminders(&self) -> Vec<ReminderModel> {
-        self.store().await.get_reminders_by_item(&self.model.id).await
+        self.reminders
+            .get_or_init(|| async {
+                self.store().await.get_reminders_by_item(&self.model.id).await
+            })
+            .await
+            .clone()
     }
 
     pub async fn attachments(&self) -> Vec<AttachmentModel> {
-        self.store().await.get_attachments_by_itemid(&self.model.id).await
+        self.attachments
+            .get_or_init(|| async {
+                self.store().await.get_attachments_by_itemid(&self.model.id).await
+            })
+            .await
+            .clone()
     }
 
     pub async fn has_labels(&self) -> bool {

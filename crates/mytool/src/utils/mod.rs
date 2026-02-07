@@ -2,6 +2,7 @@ use std::{fs::File, io::BufReader, thread};
 
 use rodio::Decoder;
 
+/// 播放ogg音频文件
 pub fn play_ogg_file(path: &str) -> thread::JoinHandle<()> {
     let path = path.to_owned();
     thread::spawn(move || {

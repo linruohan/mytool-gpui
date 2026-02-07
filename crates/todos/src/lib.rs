@@ -10,7 +10,6 @@ pub mod error;
 mod filters;
 pub mod objects;
 pub mod services;
-pub mod settings;
 pub mod utils;
 
 pub use app::init_db;

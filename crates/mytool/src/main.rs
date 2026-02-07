@@ -3,7 +3,7 @@
 use gpui::Application;
 use gpui_component_assets::Assets;
 use mytool::{
-    Gallery,
+    MainView, init_plugins,
     todo_state::{DBState, get_todo_conn, state_init},
 };
 
@@ -18,10 +18,11 @@ async fn main() {
         mytool::init(cx);
         cx.set_global(DBState { conn: db });
         state_init(cx);
+        init_plugins(cx);
         cx.activate(true);
         mytool::create_new_window(
             "MyTool-GPUI",
-            move |window, cx| Gallery::view(name.as_deref(), window, cx),
+            move |window, cx| MainView::view(name.as_deref(), window, cx),
             cx,
         );
     });

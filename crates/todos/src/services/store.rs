@@ -15,17 +15,23 @@ use crate::{
     },
     error::TodoError,
     objects::{BaseTrait, Item, Section},
+    services::EventBus,
     utils::DateTime,
 };
 
 #[derive(Clone, Debug)]
 pub struct Store {
     db: DatabaseConnection,
+    event_bus: EventBus,
 }
 
 impl Store {
     pub async fn new(db: DatabaseConnection) -> Store {
-        Self { db }
+        Self { db, event_bus: EventBus::new() }
+    }
+
+    pub fn event_bus(&self) -> &EventBus {
+        &self.event_bus
     }
 
     // attachments
@@ -364,12 +370,21 @@ impl Store {
         let mut active_model: ItemActiveModel = item.into();
         let item_model = active_model.insert(&self.db).await?;
         self.add_item(item_model.clone(), insert);
+        self.event_bus
+            .publish(crate::services::event_bus::Event::ItemCreated(item_model.id.clone()));
         Ok(item_model)
     }
 
     pub async fn add_item(&self, item: ItemModel, insert: bool) {
-        // Services.EventBus.get_default ().update_items_position (item.project_id,
-        // item.section_id);
+        // Publish event for items position update
+        if let Some(project_id) = &item.project_id
+            && let Some(section_id) = &item.section_id
+        {
+            self.event_bus.publish(crate::services::event_bus::Event::ItemsPositionUpdated(
+                project_id.clone(),
+                section_id.clone(),
+            ));
+        }
     }
 
     pub async fn update_item(
@@ -377,9 +392,12 @@ impl Store {
         item: ItemModel,
         update_id: &str,
     ) -> Result<ItemModel, TodoError> {
+        let item_id = item.id.clone();
         let mut active_model: ItemActiveModel =
             <ItemModel as Into<ItemActiveModel>>::into(item).reset_all();
-        Ok(active_model.update(&self.db).await?)
+        let result = active_model.update(&self.db).await?;
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
+        Ok(result)
     }
 
     pub async fn update_item_pin(&self, item_id: &str, pinned: bool) -> Result<(), TodoError> {
@@ -418,10 +436,19 @@ impl Store {
             .filter(items::Column::ParentId.eq(item_id.to_string()))
             .exec(&self.db)
             .await?;
+
+        // Publish events
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+        self.event_bus.publish(crate::services::event_bus::Event::ItemsPositionUpdated(
+            project_id.to_string(),
+            section_id.to_string(),
+        ));
+
         Ok(())
     }
 
     pub async fn delete_item(&self, item_id: &str) -> Result<(), TodoError> {
+        let item_id_clone = item_id.to_string();
         Box::pin(async move {
             let result = ItemEntity::delete_by_id(item_id).exec(&self.db).await?;
             let mut subitems = ItemEntity::find()
@@ -431,12 +458,14 @@ impl Store {
             for item in subitems {
                 self.delete_item(&item.id).await?
             }
+            self.event_bus.publish(crate::services::event_bus::Event::ItemDeleted(item_id_clone));
             Ok(())
         })
         .await
     }
 
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
+        let item_id_clone = item_id.to_string();
         Box::pin(async move {
             let item = Item::from_db(self.db.clone(), item_id).await?;
             if archived {
@@ -451,6 +480,8 @@ impl Store {
             for item in subitems {
                 self.archive_item(&item.id, archived).await?
             }
+            // Publish event
+            self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id_clone));
             Ok(())
         })
         .await
@@ -462,6 +493,7 @@ impl Store {
         checked: bool,
         complete_subitems: bool,
     ) -> Result<(), TodoError> {
+        let item_id_clone = item_id.to_string();
         Box::pin(async move {
             let active_model = ItemActiveModel {
                 id: Set(item_id.to_string()),
@@ -488,6 +520,8 @@ impl Store {
             {
                 self.complete_item(&parent.id, item_model.checked, false).await?
             };
+            // Publish event
+            self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id_clone));
             Ok(())
         })
         .await
