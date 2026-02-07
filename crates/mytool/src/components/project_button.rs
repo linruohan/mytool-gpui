@@ -1,6 +1,6 @@
 use gpui::{
-    App, Context, Corner, EventEmitter, FocusHandle, Focusable, ParentElement, Render,
-    SharedString, Window, px,
+    App, Context, Corner, EventEmitter, FocusHandle, Focusable, InteractiveElement, ParentElement,
+    Render, SharedString, Window, px,
 };
 use gpui_component::{button::Button, menu::DropdownMenu, v_flex};
 
@@ -67,7 +67,7 @@ impl Render for ProjectButtonState {
             .map(|p| p.name.clone())
             .unwrap_or_else(|| "Inbox".to_string());
 
-        v_flex().child(
+        v_flex().on_action(cx.listener(Self::on_action_select)).child(
             Button::new("project")
                 .outline()
                 .tooltip("select project")

@@ -169,6 +169,17 @@ impl ItemInfoState {
         changed
     }
 
+    /// 保存所有修改到数据库
+    pub fn save_all_changes(&mut self, cx: &mut Context<Self>) {
+        // 同步输入框内容
+        let has_input_changes = self.sync_inputs(cx);
+
+        // 触发更新事件
+        if has_input_changes {
+            cx.emit(ItemInfoEvent::Updated());
+        }
+    }
+
     pub fn on_labels_event(
         &mut self,
         _state: &Entity<LabelsPopoverList>,

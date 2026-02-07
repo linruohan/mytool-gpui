@@ -1,6 +1,6 @@
 use gpui::{
-    App, Context, Corner, EventEmitter, FocusHandle, Focusable, ParentElement, Render,
-    SharedString, Window, px,
+    App, Context, Corner, EventEmitter, FocusHandle, Focusable, InteractiveElement, ParentElement,
+    Render, SharedString, Window, px,
 };
 use gpui_component::{IconName, button::Button, menu::DropdownMenu, v_flex};
 use todos::enums::item_priority::ItemPriority;
@@ -61,7 +61,7 @@ impl PriorityState {
 impl Render for PriorityState {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let selected = self.inner.selected.clone();
-        v_flex().child(
+        v_flex().on_action(_cx.listener(Self::on_action_select)).child(
             Button::new("priority")
                 .outline()
                 .tooltip("set priority")

@@ -45,7 +45,6 @@ impl ItemRowState {
                     this.item_info.update(cx, |this_info, cx| {
                         this_info.set_item(updated_item.clone(), window, cx);
                     });
-                    // println!("[ItemState changed]itemRow.item : {:?}", this.item);
                     cx.notify();
                 }
             }),
@@ -62,6 +61,13 @@ impl ItemRowState {
         ];
 
         Self { item, item_info, is_open: false, _subscriptions, update_version: 0 }
+    }
+
+    /// 保存所有修改
+    fn save_all_changes(&mut self, cx: &mut Context<Self>) {
+        self.item_info.update(cx, |state, cx| {
+            state.save_all_changes(cx);
+        });
     }
 }
 
@@ -94,21 +100,17 @@ impl Render for ItemRowState {
                             false,
                         ))
                         .child(
-                            Button::new("toggle2")
+                            Button::new("toggle-edit")
                                 .small()
                                 .outline()
                                 .icon(IconName::ChevronDown)
                                 .when(is_open, |this| this.icon(IconName::ChevronUp))
+                                .tooltip(if is_open { "Close editor" } else { "Open editor" })
                                 .on_click(move |_event, _window, cx| {
                                     cx.update_entity(&view, |this, cx| {
-                                        // 如果当前是展开状态，收缩时触发保存
+                                        // 如果当前是展开状态，收缩时保存所有修改
                                         if this.is_open {
-                                            // 先同步输入框内容，再触发保存
-                                            this.item_info.update(cx, |state, cx| {
-                                                if state.sync_inputs(cx) {
-                                                    cx.emit(ItemInfoEvent::Updated());
-                                                }
-                                            });
+                                            this.save_all_changes(cx);
                                         }
                                         this.is_open = !this.is_open;
                                         cx.notify();

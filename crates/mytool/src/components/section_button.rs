@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Context, Corner, EventEmitter, FocusHandle, Focusable, ParentElement, Render,
-    SharedString, Window, px,
+    App, Context, Corner, EventEmitter, FocusHandle, Focusable, InteractiveElement, ParentElement,
+    Render, SharedString, Window, px,
 };
 use gpui_component::{button::Button, menu::DropdownMenu, v_flex};
 use todos::entity::SectionModel;
@@ -85,7 +85,7 @@ impl Render for SectionState {
             .map(|s| s.name.clone())
             .unwrap_or_else(|| "No Section".to_string());
 
-        v_flex().child(
+        v_flex().on_action(cx.listener(Self::on_action_select)).child(
             Button::new("section")
                 .outline()
                 .tooltip("select section")
