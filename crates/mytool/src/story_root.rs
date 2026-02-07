@@ -2,9 +2,9 @@ use gpui::{
     AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement, Render, SharedString, Styled, Window, div,
 };
-use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
+use gpui_component::{Root, v_flex};
 
-use crate::{AppTitleBar, ShowPanelInfo, ToggleSearch};
+use crate::AppTitleBar;
 pub struct StoryRoot {
     focus_handle: FocusHandle,
     title_bar: Entity<AppTitleBar>,
@@ -20,33 +20,6 @@ impl StoryRoot {
     ) -> Self {
         let title_bar = cx.new(|cx| AppTitleBar::new(title, window, cx));
         Self { focus_handle: cx.focus_handle(), title_bar, view: view.into() }
-    }
-
-    fn on_action_panel_info(
-        &mut self,
-        _: &ShowPanelInfo,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        struct Info;
-        let note = Notification::new().message("You have clicked panel info.").id::<Info>();
-        window.push_notification(note, cx);
-    }
-
-    fn on_action_toggle_search(
-        &mut self,
-        _: &ToggleSearch,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        cx.propagate();
-        if window.has_focused_input(cx) {
-            return;
-        }
-
-        struct Search;
-        let note = Notification::new().message("You have toggled search.").id::<Search>();
-        window.push_notification(note, cx);
     }
 }
 
@@ -64,8 +37,8 @@ impl Render for StoryRoot {
 
         div()
             .id("story-root")
-            .on_action(cx.listener(Self::on_action_panel_info))
-            .on_action(cx.listener(Self::on_action_toggle_search))
+            // Global ShowPanelInfo / ToggleSearch actions are handled centrally by the app
+            // (so we don't attach local listeners here to avoid duplication).
             .size_full()
             .child(
                 v_flex()

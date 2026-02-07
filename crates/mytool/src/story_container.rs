@@ -4,7 +4,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName, WindowExt,
+    ActiveTheme, IconName,
     button::Button,
     dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
@@ -150,18 +150,19 @@ impl Panel for StoryContainer {
         _cx: &mut Context<Self>,
     ) -> Option<Vec<Button>> {
         Some(vec![
-            Button::new("info").icon(IconName::Info).on_click(|_, window, cx| {
-                window.push_notification("You have clicked info button", cx);
+            Button::new("info").icon(IconName::Info).on_click(|_, _window, cx| {
+                cx.dispatch_action(&crate::ShowPanelInfo);
             }),
-            Button::new("search").icon(IconName::Search).on_click(|_, window, cx| {
-                window.push_notification("You have clicked search button", cx);
+            Button::new("search").icon(IconName::Search).on_click(|_, _window, cx| {
+                cx.dispatch_action(&crate::ToggleSearch);
             }),
         ])
     }
 
     fn dump(&self, _cx: &App) -> PanelState {
         let mut state = PanelState::new(self);
-        let story_state = StoryState { story_klass: self.story_klass.clone().unwrap() };
+        let klass = self.story_klass.clone().unwrap_or_else(|| SharedString::from("ListStory"));
+        let story_state = StoryState { story_klass: klass };
         state.info = PanelInfo::panel(story_state.to_value());
         state
     }

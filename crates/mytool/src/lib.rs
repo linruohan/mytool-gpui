@@ -8,7 +8,7 @@ use gpui::{
     SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
 };
 use gpui_component::{
-    Root, TitleBar,
+    Root, TitleBar, WindowExt,
     dock::{PanelInfo, register_panel},
     h_flex,
     scroll::ScrollbarShow,
@@ -214,6 +214,38 @@ pub fn init(cx: &mut App) {
                             window,
                             cx,
                         );
+                    })
+                    .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
+                    .ok();
+            });
+        }
+    });
+
+    // Central handlers for panel info and toggle search actions. Panels emit these actions;
+    // Handle them globally by finding the active Root window and pushing a notification.
+    cx.on_action(|_: &ShowPanelInfo, cx: &mut App| {
+        if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
+            cx.defer(move |cx| {
+                window
+                    .update(cx, |root, window, cx| {
+                        root.push_notification("You have clicked panel info.", window, cx);
+                    })
+                    .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
+                    .ok();
+            });
+        }
+    });
+
+    cx.on_action(|_: &ToggleSearch, cx: &mut App| {
+        if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
+            cx.defer(move |cx| {
+                window
+                    .update(cx, |_root, window, cx| {
+                        // Respect focused input: if an input is focused, ignore toggle
+                        if window.has_focused_input(cx) {
+                            return;
+                        }
+                        window.push_notification("You have toggled search.", cx);
                     })
                     .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
                     .ok();
