@@ -1,7 +1,5 @@
-                (now, now.checked_add_days(Days::new(4)).unwrap()),
-                now.checked_sub_days(Days::new(1)).unwrap_or_default(),
-use std::task::Context;
-use std::time::Duration;
+use std::{task::Context, time::Duration};
+
 use chrono::{Datelike, Days, Duration, Utc};
 use gpui::{
     div, px, App, AppContext, Context, Entity, Focusable, IntoElement,
@@ -54,12 +52,10 @@ impl DatePickerStory {
             picker
         });
         let date_picker_large = cx.new(|cx| {
-            let mut picker = DatePickerState::new(window, cx)
-                .date_format("%Y-%m-%d")
-                .disabled_matcher(calendar::Matcher::range(
-                    Some(now),
-                    now.checked_add_days(Days::new(7)),
-                ));
+            let mut picker =
+                DatePickerState::new(window, cx).date_format("%Y-%m-%d").disabled_matcher(
+                    calendar::Matcher::range(Some(now), now.checked_add_days(Days::new(7))),
+                );
             picker.set_date(now.checked_sub_days(Days::new(1)).unwrap_or(now), window, cx);
             picker
         });
