@@ -187,7 +187,6 @@ impl ProjectItemsPanel {
                     cx.notify();
                 });
                 view.update(cx, |_view, cx| {
-                    // 将 Rc<ItemModel> 转换为 Arc<ItemModel>
                     let arc_item = Arc::new((*item).clone());
                     let event = if is_edit {
                         ProjectItemEvent::Modified(arc_item.clone())

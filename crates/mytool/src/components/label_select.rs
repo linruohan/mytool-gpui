@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{App, IntoElement, ParentElement, SharedString, Window};
 use gpui_component::{checkbox::Checkbox, h_flex, select::SelectItem};
@@ -8,13 +8,13 @@ use todos::entity::LabelModel;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct LabelSelect {
-    label: Rc<LabelModel>,
+    label: Arc<LabelModel>,
     selected: bool,
     pub checked: bool,
 }
 #[allow(dead_code)]
 impl LabelSelect {
-    fn new(label: Rc<LabelModel>, checked: bool) -> Self {
+    fn new(label: Arc<LabelModel>, checked: bool) -> Self {
         Self { label, selected: false, checked }
     }
 
@@ -27,7 +27,7 @@ impl LabelSelect {
     }
 }
 impl SelectItem for LabelSelect {
-    type Value = Rc<LabelModel>;
+    type Value = Arc<LabelModel>;
 
     fn title(&self) -> SharedString {
         self.label.name.clone().into()

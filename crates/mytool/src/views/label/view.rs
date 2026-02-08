@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
@@ -77,7 +77,7 @@ impl LabelsPanel {
         }
     }
 
-    fn get_selected_label(&self, ix: IndexPath, cx: &App) -> Option<Rc<LabelModel>> {
+    fn get_selected_label(&self, ix: IndexPath, cx: &App) -> Option<Arc<LabelModel>> {
         self.label_list
             .read(cx)
             .delegate()
@@ -160,7 +160,7 @@ impl LabelsPanel {
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |view, cx| {
-                                        let label = Rc::new(LabelModel {
+                                        let label = Arc::new(LabelModel {
                                             name: name_input_clone1.read(cx).value().to_string(),
                                             color: view.selected_color.unwrap_or_default().to_hex(),
                                             ..ori_label.clone()

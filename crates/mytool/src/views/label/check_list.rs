@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
@@ -16,14 +16,14 @@ use crate::LabelsPopoverList;
 
 actions!(label, [SelectedCheckLabel, UnSelectedCheckLabel]);
 pub enum LabelCheckEvent {
-    Checked(Rc<LabelModel>),
+    Checked(Arc<LabelModel>),
 }
 
 impl EventEmitter<LabelCheckEvent> for LabelCheckListItem {}
 #[derive(IntoElement)]
 pub struct LabelCheckListItem {
     base: ListItem,
-    label: Rc<LabelModel>,
+    label: Arc<LabelModel>,
     selected: bool,
     checked: bool,
 }
@@ -31,7 +31,7 @@ pub struct LabelCheckListItem {
 impl LabelCheckListItem {
     pub fn new(
         id: impl Into<ElementId>,
-        label: Rc<LabelModel>,
+        label: Arc<LabelModel>,
         selected: bool,
         checked: bool,
     ) -> Self {
@@ -93,9 +93,9 @@ impl RenderOnce for LabelCheckListItem {
 pub struct LabelCheckListDelegate {
     #[allow(dead_code)]
     parent: Entity<LabelsPopoverList>,
-    pub _labels: Vec<Rc<LabelModel>>,
-    pub checked_list: Vec<Rc<LabelModel>>,
-    pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
+    pub _labels: Vec<Arc<LabelModel>>,
+    pub checked_list: Vec<Arc<LabelModel>>,
+    pub matched_labels: Vec<Vec<Arc<LabelModel>>>,
     #[allow(dead_code)]
     checked: bool,
     selected_index: Option<IndexPath>,
@@ -119,7 +119,7 @@ impl LabelCheckListDelegate {
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let labels: Vec<Rc<LabelModel>> = self
+        let labels: Vec<Arc<LabelModel>> = self
             ._labels
             .iter()
             .filter(|label| label.name.to_lowercase().contains(&self.query.to_lowercase()))
@@ -130,7 +130,7 @@ impl LabelCheckListDelegate {
         }
     }
 
-    pub fn update_labels(&mut self, labels: Vec<Rc<LabelModel>>) {
+    pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
         self._labels = labels;
         self.matched_labels = vec![self._labels.clone()];
         if !self.matched_labels.is_empty() && self.selected_index.is_none() {
@@ -141,14 +141,14 @@ impl LabelCheckListDelegate {
     // set_checked_labels:设置checked标签
     pub fn set_item_checked_labels(
         &mut self,
-        labels: Vec<Rc<LabelModel>>,
+        labels: Vec<Arc<LabelModel>>,
         _window: &mut Window,
         _cx: &mut Context<ListState<Self>>,
     ) {
         self.checked_list = labels.clone();
     }
 
-    pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
+    pub fn selected_label(&self) -> Option<Arc<LabelModel>> {
         let ix = self.selected_index?;
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }

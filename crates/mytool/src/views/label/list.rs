@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
@@ -14,18 +14,18 @@ use crate::UnSelectedCheckLabel;
 
 actions!(label, [SelectedLabel, UnSelectedLabel]);
 pub enum LabelEvent {
-    Checked(Rc<LabelModel>),
-    UnChecked(Rc<LabelModel>),
+    Checked(Arc<LabelModel>),
+    UnChecked(Arc<LabelModel>),
     Loaded,
-    Added(Rc<LabelModel>),
-    Modified(Rc<LabelModel>),
-    Deleted(Rc<LabelModel>),
+    Added(Arc<LabelModel>),
+    Modified(Arc<LabelModel>),
+    Deleted(Arc<LabelModel>),
 }
 
 #[derive(IntoElement)]
 pub struct LabelListItem {
     base: ListItem,
-    label: Rc<LabelModel>,
+    label: Arc<LabelModel>,
     selected: bool,
     checked: bool,
 }
@@ -33,7 +33,7 @@ pub struct LabelListItem {
 impl LabelListItem {
     pub fn new(
         id: impl Into<ElementId>,
-        label: Rc<LabelModel>,
+        label: Arc<LabelModel>,
         selected: bool,
         checked: bool,
     ) -> Self {
@@ -95,9 +95,9 @@ impl RenderOnce for LabelListItem {
 }
 
 pub struct LabelListDelegate {
-    pub _labels: Vec<Rc<LabelModel>>,
-    pub checked_labels: Vec<Rc<LabelModel>>,
-    pub matched_labels: Vec<Vec<Rc<LabelModel>>>,
+    pub _labels: Vec<Arc<LabelModel>>,
+    pub checked_labels: Vec<Arc<LabelModel>>,
+    pub matched_labels: Vec<Vec<Arc<LabelModel>>>,
     pub(crate) selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -121,18 +121,18 @@ impl LabelListDelegate {
     }
 
     // 获取已选中的标签
-    pub fn checked_labels(&mut self) -> Vec<Rc<LabelModel>> {
+    pub fn checked_labels(&mut self) -> Vec<Arc<LabelModel>> {
         self.checked_labels.clone()
     }
 
     // 获取已选中的标签
-    pub fn set_checked_labels(mut self, labels: Vec<Rc<LabelModel>>) -> Self {
+    pub fn set_checked_labels(mut self, labels: Vec<Arc<LabelModel>>) -> Self {
         self.checked_labels = labels;
         self
     }
 
     // 添加已选中的标签
-    pub fn add_selected_label(&mut self, label: Rc<LabelModel>) {
+    pub fn add_selected_label(&mut self, label: Arc<LabelModel>) {
         // 避免重复添加
         if !self.checked_labels.contains(&label) {
             self.checked_labels.push(label.clone());
@@ -140,13 +140,13 @@ impl LabelListDelegate {
     }
 
     // 删除已选中的标签
-    pub fn del_selected_label(&mut self, label: Rc<LabelModel>) {
+    pub fn del_selected_label(&mut self, label: Arc<LabelModel>) {
         self.checked_labels.retain(|l| l != &label);
     }
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let labels: Vec<Rc<LabelModel>> = self
+        let labels: Vec<Arc<LabelModel>> = self
             ._labels
             .iter()
             .filter(|label| label.name.to_lowercase().contains(&self.query.to_lowercase()))
@@ -157,7 +157,7 @@ impl LabelListDelegate {
         }
     }
 
-    pub fn update_labels(&mut self, labels: Vec<Rc<LabelModel>>) {
+    pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
         self._labels = labels;
         self.matched_labels = vec![self._labels.clone()];
         if !self.matched_labels.is_empty() && self.selected_index.is_none() {
@@ -165,7 +165,7 @@ impl LabelListDelegate {
         }
     }
 
-    pub fn selected_label(&self) -> Option<Rc<LabelModel>> {
+    pub fn selected_label(&self) -> Option<Arc<LabelModel>> {
         let ix = self.selected_index?;
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }

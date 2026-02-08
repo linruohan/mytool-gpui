@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
@@ -55,7 +55,7 @@ impl RenderOnce for ItemListItem {
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         let labels = cx.global::<LabelState>().labels.clone();
-        let label_map: HashMap<&str, &Rc<LabelModel>> =
+        let label_map: HashMap<&str, &Arc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
         let item_labels = &self.item.labels;
 

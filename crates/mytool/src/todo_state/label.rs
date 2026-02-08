@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{App, Global};
 use todos::entity::LabelModel;
@@ -6,7 +6,7 @@ use todos::entity::LabelModel;
 use crate::{service::load_labels, todo_state::DBState};
 
 pub struct LabelState {
-    pub labels: Vec<Rc<LabelModel>>,
+    pub labels: Vec<Arc<LabelModel>>,
 }
 
 impl Global for LabelState {}
@@ -19,8 +19,8 @@ impl LabelState {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
             let list = load_labels(db.clone()).await;
-            let rc_list: Vec<Rc<LabelModel>> =
-                list.iter().map(|pro| Rc::new(pro.clone())).collect();
+            let rc_list: Vec<Arc<LabelModel>> =
+                list.iter().map(|pro| Arc::new(pro.clone())).collect();
             println!("state labels: {}", list.len());
             cx.update_global::<LabelState, _>(|state, _cx| {
                 state.labels = rc_list;

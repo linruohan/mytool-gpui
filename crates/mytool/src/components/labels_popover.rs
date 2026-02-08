@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, InteractiveElement,
@@ -16,14 +16,14 @@ use todos::entity::LabelModel;
 use crate::{LabelCheckListDelegate, SelectedCheckLabel, todo_state::LabelState};
 
 pub enum LabelsPopoverEvent {
-    Selected(Rc<LabelModel>),
-    DeSelected(Rc<LabelModel>),
+    Selected(Arc<LabelModel>),
+    DeSelected(Arc<LabelModel>),
 }
 
 pub struct LabelsPopoverList {
     focus_handle: FocusHandle,
     pub label_list: Entity<ListState<LabelCheckListDelegate>>,
-    pub selected_labels: Vec<Rc<LabelModel>>,
+    pub selected_labels: Vec<Arc<LabelModel>>,
     pub(crate) list_popover_open: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -74,7 +74,7 @@ impl LabelsPopoverList {
                 if trimmed_id.is_empty() {
                     return None;
                 }
-                all_labels.iter().find(|label| label.id == trimmed_id).map(Rc::clone)
+                all_labels.iter().find(|label| label.id == trimmed_id).map(Arc::clone)
             })
             .collect();
         self.label_list.update(cx, |list, cx| {

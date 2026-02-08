@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ParentElement, Render,
@@ -41,7 +41,7 @@ impl std::fmt::Display for AttachmentError {
 }
 
 pub enum AttachmentButtonEvent {
-    Added(Rc<AttachmentModel>),
+    Added(Arc<AttachmentModel>),
     Removed(String),
     Error(AttachmentError),
 }
@@ -50,7 +50,7 @@ pub struct AttachmentButtonState {
     focus_handle: FocusHandle,
     pub item_id: String,
     search: PopoverSearchMixin,
-    items: PopoverListMixin<Rc<AttachmentModel>>,
+    items: PopoverListMixin<Arc<AttachmentModel>>,
 }
 
 impl EventEmitter<AttachmentButtonEvent> for AttachmentButtonState {}
@@ -69,7 +69,7 @@ impl AttachmentButtonState {
         // Subscribe to search events directly
         let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);
 
-        let filter_fn = |attachment: &Rc<AttachmentModel>, query: &str| {
+        let filter_fn = |attachment: &Arc<AttachmentModel>, query: &str| {
             attachment.file_name.to_lowercase().contains(&query.to_lowercase())
         };
 
@@ -83,14 +83,14 @@ impl AttachmentButtonState {
 
     pub fn set_attachments(
         &mut self,
-        attachments: Vec<Rc<AttachmentModel>>,
+        attachments: Vec<Arc<AttachmentModel>>,
         cx: &mut Context<Self>,
     ) {
         self.items.set_items(attachments);
         cx.notify();
     }
 
-    pub fn add_attachment(&mut self, attachment: Rc<AttachmentModel>, cx: &mut Context<Self>) {
+    pub fn add_attachment(&mut self, attachment: Arc<AttachmentModel>, cx: &mut Context<Self>) {
         self.items.add_item(attachment.clone());
         cx.emit(AttachmentButtonEvent::Added(attachment));
         cx.notify();
@@ -116,7 +116,7 @@ impl AttachmentButtonState {
         }
     }
 
-    fn get_filtered_attachments(&self) -> Vec<Rc<AttachmentModel>> {
+    fn get_filtered_attachments(&self) -> Vec<Arc<AttachmentModel>> {
         self.items.get_filtered(&self.search.search_query)
     }
 
@@ -151,7 +151,7 @@ impl AttachmentButtonState {
             file_size,
         };
 
-        self.add_attachment(Rc::new(attachment.clone()), cx);
+        self.add_attachment(Arc::new(attachment.clone()), cx);
         crate::todo_actions::add_attachment(attachment, cx);
         Ok(())
     }

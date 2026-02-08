@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ParentElement, Render,
@@ -41,7 +41,7 @@ impl std::fmt::Display for ReminderError {
 }
 
 pub enum ReminderButtonEvent {
-    Added(Rc<ReminderModel>),
+    Added(Arc<ReminderModel>),
     Removed(String),
     Error(ReminderError),
 }
@@ -50,7 +50,7 @@ pub struct ReminderButtonState {
     focus_handle: FocusHandle,
     pub item_id: String,
     search: PopoverSearchMixin,
-    items: PopoverListMixin<Rc<ReminderModel>>,
+    items: PopoverListMixin<Arc<ReminderModel>>,
     date_input: Entity<InputState>,
     current_date: String,
     current_time: String,
@@ -74,7 +74,7 @@ impl ReminderButtonState {
         // Subscribe to search events directly
         let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);
 
-        let filter_fn = |reminder: &Rc<ReminderModel>, query: &str| {
+        let filter_fn = |reminder: &Arc<ReminderModel>, query: &str| {
             reminder
                 .due
                 .as_ref()
@@ -94,7 +94,7 @@ impl ReminderButtonState {
         }
     }
 
-    pub fn set_reminders(&mut self, reminders: Vec<Rc<ReminderModel>>, cx: &mut Context<Self>) {
+    pub fn set_reminders(&mut self, reminders: Vec<Arc<ReminderModel>>, cx: &mut Context<Self>) {
         // 检查是否有实际变化
         let old_reminders = self.items.items.clone();
         let has_changed = old_reminders.len() != reminders.len()
@@ -108,7 +108,7 @@ impl ReminderButtonState {
         }
     }
 
-    pub fn add_reminder(&mut self, reminder: Rc<ReminderModel>, cx: &mut Context<Self>) {
+    pub fn add_reminder(&mut self, reminder: Arc<ReminderModel>, cx: &mut Context<Self>) {
         self.items.add_item(reminder.clone());
         cx.emit(ReminderButtonEvent::Added(reminder));
         cx.notify();
@@ -165,7 +165,7 @@ impl ReminderButtonState {
             ..Default::default()
         };
 
-        self.add_reminder(Rc::new(reminder.clone()), cx);
+        self.add_reminder(Arc::new(reminder.clone()), cx);
         add_reminder(reminder, cx);
 
         self.current_date.clear();
@@ -178,7 +178,7 @@ impl ReminderButtonState {
         delete_reminder(reminder_id.to_string(), cx);
     }
 
-    fn get_filtered_reminders(&self) -> Vec<Rc<ReminderModel>> {
+    fn get_filtered_reminders(&self) -> Vec<Arc<ReminderModel>> {
         self.items.get_filtered(&self.search.search_query)
     }
 }

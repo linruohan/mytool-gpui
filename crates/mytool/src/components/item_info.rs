@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
@@ -194,12 +194,10 @@ impl ItemInfoState {
     ) {
         match event {
             LabelsPopoverEvent::Selected(label) => {
-                // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
                 let label_model = (**label).clone();
                 self.add_checked_labels(Arc::new(label_model));
             },
             LabelsPopoverEvent::DeSelected(label) => {
-                // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
                 let label_model = (**label).clone();
                 self.rm_checked_labels(Arc::new(label_model));
             },
@@ -587,14 +585,15 @@ impl ItemInfoState {
         cx.spawn(async move |_this, cx| {
             // 加载附件
             let attachments = crate::service::load_attachments_by_item(&item_id, db.clone()).await;
-            let rc_attachments = attachments.iter().map(|a| Rc::new(a.clone())).collect::<Vec<_>>();
+            let rc_attachments =
+                attachments.iter().map(|a| Arc::new(a.clone())).collect::<Vec<_>>();
             cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
                 state.set_attachments(rc_attachments, cx);
             });
 
             // 加载提醒
             let reminders = crate::service::load_reminders_by_item(&item_id, db.clone()).await;
-            let rc_reminders = reminders.iter().map(|r| Rc::new(r.clone())).collect::<Vec<_>>();
+            let rc_reminders = reminders.iter().map(|r| Arc::new(r.clone())).collect::<Vec<_>>();
             cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
                 state.set_reminders(rc_reminders, cx);
             });

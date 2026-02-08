@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     AnyElement, App, AppContext, Context, Corner, Entity, FocusHandle, InteractiveElement as _,
@@ -19,7 +19,7 @@ use crate::{SelectFont, SelectRadius, SelectScrollbarShow, ToggleListActiveHighl
 pub struct AppTitleBar {
     app_menu_bar: Entity<AppMenuBar>,
     font_size_selector: Entity<FontSizeSelector>,
-    child: Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
+    child: Arc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -35,7 +35,7 @@ impl AppTitleBar {
         Self {
             app_menu_bar,
             font_size_selector,
-            child: Rc::new(|_, _| div().into_any_element()),
+            child: Arc::new(|_, _| div().into_any_element()),
             _subscriptions: vec![],
         }
     }
@@ -45,7 +45,7 @@ impl AppTitleBar {
         E: IntoElement,
         F: Fn(&mut Window, &mut App) -> E + 'static,
     {
-        self.child = Rc::new(move |window, cx| f(window, cx).into_any_element());
+        self.child = Arc::new(move |window, cx| f(window, cx).into_any_element());
         self
     }
 }
