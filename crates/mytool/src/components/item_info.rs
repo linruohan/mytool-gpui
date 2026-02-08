@@ -215,7 +215,7 @@ impl ItemInfoState {
     ) {
         match event {
             PriorityEvent::Selected(priority) => {
-                self.set_priority(*priority);
+                self.set_priority(priority.clone() as i32);
             },
         }
         cx.emit(ItemInfoEvent::Updated());

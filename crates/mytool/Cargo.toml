@@ -3,8 +3,6 @@ edition = "2024"
 name = "mytool"
 publish = false
 version = "0.2.2"
-[features]
-inspector = ["gpui-component/inspector"]
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true

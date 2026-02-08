@@ -12,6 +12,7 @@ use crate::{
     create_button_wrapper,
 };
 
+#[derive(Clone)]
 pub enum SectionEvent {
     Selected(String),
 }
@@ -30,8 +31,8 @@ impl Focusable for SectionState {
 }
 
 impl SectionState {
-    pub(crate) fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { inner: DropdownState::new(_window, cx), sections: None }
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        Self { inner: DropdownState::new(window, cx), sections: None }
     }
 
     pub fn section_id(&self) -> Option<String> {
@@ -41,10 +42,10 @@ impl SectionState {
     pub fn set_section(
         &mut self,
         section_id: Option<String>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.inner.set_selected(section_id, _window, cx);
+        self.inner.set_selected(section_id, window, cx);
     }
 
     pub fn set_sections(

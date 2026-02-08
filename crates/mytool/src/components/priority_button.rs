@@ -12,7 +12,7 @@ use crate::{
 
 #[derive(Clone)]
 pub enum PriorityEvent {
-    Selected(i32),
+    Selected(ItemPriority),
 }
 
 pub struct PriorityState {
@@ -28,8 +28,8 @@ impl Focusable for PriorityState {
 }
 
 impl PriorityState {
-    pub(crate) fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { inner: DropdownState::new(_window, cx) }
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        Self { inner: DropdownState::new(window, cx) }
     }
 
     pub fn priority(&self) -> ItemPriority {
@@ -39,10 +39,10 @@ impl PriorityState {
     pub fn set_priority(
         &mut self,
         priority: impl Into<ItemPriority>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.inner.set_selected(Some(priority.into()), _window, cx);
+        self.inner.set_selected(Some(priority.into()), window, cx);
     }
 
     fn on_action_select(
@@ -53,20 +53,20 @@ impl PriorityState {
     ) {
         let DropdownEvent::Selected(priority) = action;
         self.inner.selected = Some(priority.clone());
-        cx.emit(PriorityEvent::Selected(priority.clone() as i32));
+        cx.emit(PriorityEvent::Selected(priority.clone()));
         cx.notify();
     }
 }
 
 impl Render for PriorityState {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let selected = self.inner.selected.clone();
-        v_flex().on_action(_cx.listener(Self::on_action_select)).child(
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let selected = self.priority();
+        v_flex().on_action(cx.listener(Self::on_action_select)).child(
             Button::new("priority")
                 .outline()
                 .tooltip("set priority")
                 .icon(IconName::FlagOutlineThickSymbolic)
-                .label(SharedString::from(selected.unwrap_or(ItemPriority::NONE).display_name()))
+                .label(SharedString::from(selected.display_name()))
                 .dropdown_menu_with_anchor(
                     Corner::TopLeft,
                     move |this: gpui_component::menu::PopupMenu, _, _| {
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn test_priority_event_clone() {
-        let event = PriorityEvent::Selected(ItemPriority::HIGH as i32);
+        let event = PriorityEvent::Selected(ItemPriority::HIGH);
         // Test that event can be cloned (simple clone)
         let _cloned = event.clone();
     }

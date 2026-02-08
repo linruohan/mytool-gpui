@@ -256,18 +256,14 @@ pub fn init(cx: &mut App) {
     register_panel(cx, PANEL_NAME, |_, _, info, window, cx| {
         let story_state = match info {
             PanelInfo::Panel(value) => {
-                match serde_json::from_value::<StoryState>(value.clone()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        tracing::error!(
-                            "failed to deserialize panel StoryState: {:?}. Falling back to \
-                             ListStory",
-                            e
-                        );
-                        // Fallback to a default StoryState that points to ListStory
-                        StoryState { story_klass: SharedString::from("ListStory") }
-                    },
-                }
+                serde_json::from_value::<StoryState>(value.clone()).unwrap_or_else(|e| {
+                    tracing::error!(
+                        "failed to deserialize panel StoryState: {:?}. Falling back to ListStory",
+                        e
+                    );
+                    // Fallback to a default StoryState that points to ListStory
+                    StoryState { story_klass: SharedString::from("ListStory") }
+                })
             },
             _ => {
                 unreachable!("Invalid PanelInfo: {:?}", info)

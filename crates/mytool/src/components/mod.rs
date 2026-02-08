@@ -1,6 +1,5 @@
 mod attachment_button;
 mod button_factory;
-mod button_macros;
 mod color_group;
 mod dialog;
 mod dropdown_button;

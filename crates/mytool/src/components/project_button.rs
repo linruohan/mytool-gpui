@@ -9,6 +9,7 @@ use crate::{
     create_button_wrapper,
 };
 
+#[derive(Clone)]
 pub enum ProjectButtonEvent {
     Selected(String),
 }
@@ -26,8 +27,8 @@ impl Focusable for ProjectButtonState {
 }
 
 impl ProjectButtonState {
-    pub(crate) fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { inner: DropdownState::new(_window, cx) }
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        Self { inner: DropdownState::new(window, cx) }
     }
 
     pub fn project_id(&self) -> Option<String> {
@@ -37,10 +38,10 @@ impl ProjectButtonState {
     pub fn set_project(
         &mut self,
         project_id: Option<String>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.inner.set_selected(project_id, _window, cx);
+        self.inner.set_selected(project_id, window, cx);
     }
 
     fn on_action_select(
