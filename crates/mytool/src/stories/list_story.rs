@@ -101,6 +101,7 @@ impl ListStory {
                     println!("label_popover_list select: {:?}", label);
                 },
                 LabelsPopoverEvent::DeSelected(_model) => {},
+                LabelsPopoverEvent::LabelsChanged(_labels) => {},
             }),
             cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
                 ListEvent::Select(ix) => {

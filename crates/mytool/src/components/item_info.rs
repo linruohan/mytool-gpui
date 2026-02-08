@@ -201,6 +201,16 @@ impl ItemInfoState {
                 let label_model = (**label).clone();
                 self.rm_checked_labels(Arc::new(label_model));
             },
+            LabelsPopoverEvent::LabelsChanged(label_ids) => {
+                // 直接更新 item.labels 字段
+                let mut item_model = (*self.item).clone();
+                if label_ids.is_empty() {
+                    item_model.labels = None;
+                } else {
+                    item_model.labels = Some(label_ids.clone());
+                }
+                self.item = Arc::new(item_model);
+            },
         }
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();

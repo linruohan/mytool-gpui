@@ -125,27 +125,45 @@ impl LabelCheckListDelegate {
             .filter(|label| label.name.to_lowercase().contains(&self.query.to_lowercase()))
             .cloned()
             .collect();
+
+        // 清空之前的匹配结果
+        self.matched_labels.clear();
+
+        // 添加新的匹配结果
         for label in labels.into_iter() {
             self.matched_labels.push(vec![label]);
+        }
+
+        // 如果没有匹配结果，创建一个空的 section
+        if self.matched_labels.is_empty() {
+            self.matched_labels.push(vec![]);
+            self.selected_index = None;
         }
     }
 
     pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
         self._labels = labels;
-        self.matched_labels = vec![self._labels.clone()];
-        if !self.matched_labels.is_empty() && self.selected_index.is_none() {
-            self.selected_index = Some(IndexPath::default());
+        // 如果没有标签，创建一个空的 section
+        if self._labels.is_empty() {
+            self.matched_labels = vec![vec![]];
+            self.selected_index = None;
+        } else {
+            self.matched_labels = vec![self._labels.clone()];
+            if self.selected_index.is_none() {
+                self.selected_index = Some(IndexPath::default());
+            }
         }
+        // 保持 checked_list 不变，确保选中状态在标签更新后仍然保留
     }
 
     // set_checked_labels:设置checked标签
     pub fn set_item_checked_labels(
         &mut self,
         labels: Vec<Arc<LabelModel>>,
-        _window: &mut Window,
-        _cx: &mut Context<ListState<Self>>,
+        cx: &mut Context<ListState<Self>>,
     ) {
         self.checked_list = labels.clone();
+        cx.notify();
     }
 
     pub fn selected_label(&self) -> Option<Arc<LabelModel>> {
@@ -187,7 +205,8 @@ impl ListDelegate for LabelCheckListDelegate {
     }
 
     fn items_count(&self, section: usize, _: &App) -> usize {
-        self.matched_labels[section].len()
+        // 检查 section 是否在范围内
+        if section < self.matched_labels.len() { self.matched_labels[section].len() } else { 0 }
     }
 
     fn render_item(
@@ -196,10 +215,16 @@ impl ListDelegate for LabelCheckListDelegate {
         _: &mut Window,
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
+        // 检查 matched_labels 是否为空或索引是否越界
+        if ix.section >= self.matched_labels.len() {
+            return None;
+        }
+
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        let checked =
-            self.selected_label().map(|label| self.checked_list.contains(&label)).unwrap_or(false);
-        if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
+        if let Some(label) =
+            self.matched_labels.get(ix.section).and_then(|section| section.get(ix.row))
+        {
+            let checked = self.checked_list.iter().any(|l| l.id == label.id);
             return Some(LabelCheckListItem::new(ix, label.clone(), selected, checked));
         }
 
@@ -217,10 +242,25 @@ impl ListDelegate for LabelCheckListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
-        if secondary {
-            window.dispatch_action(Box::new(UnSelectedCheckLabel), cx);
+        if let Some(label) = self.selected_label() {
+            let is_checked = self.checked_list.iter().any(|l| l.id == label.id);
+
+            if secondary {
+                // Shift+Enter: 取消选中
+                if is_checked {
+                    self.checked_list.retain(|l| l.id != label.id);
+                    window.dispatch_action(Box::new(UnSelectedCheckLabel), cx);
+                }
+            } else {
+                // Enter: 切换选中状态
+                if is_checked {
+                    self.checked_list.retain(|l| l.id != label.id);
+                    window.dispatch_action(Box::new(UnSelectedCheckLabel), cx);
+                } else {
+                    self.checked_list.push(label.clone());
+                    window.dispatch_action(Box::new(SelectedCheckLabel), cx);
+                }
+            }
         }
-        window.dispatch_action(Box::new(SelectedCheckLabel), cx);
     }
 }
