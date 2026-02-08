@@ -2,7 +2,7 @@ use gpui::{Context, Focusable, ParentElement, Render, Window};
 
 use crate::{
     components::drop_btn::{
-        render_dropdown_button, DropdownButtonStateTrait, DropdownEvent, DropdownState,
+        DropdownButtonStateTrait, DropdownEvent, DropdownState, render_dropdown_button,
     },
     create_button_wrapper,
 };

@@ -138,7 +138,7 @@ macro_rules! create_button_wrapper {
 
                 gpui::div()
                     .id(self.id.clone())
-                    .track_focus(&self.focus_handle(cx).tab_stop(true))
+                    .track_focus(&gpui::Focusable::focus_handle(&self, cx).tab_stop(true))
                     .flex_none()
                     .relative()
                     .input_text_size(self.size)
@@ -299,6 +299,90 @@ impl<T: Clone + PartialEq + 'static + Send> gpui::RenderOnce for DropdownButton<
             .refine_style(&self.style)
             .child(self.state.clone())
     }
+}
+
+/// 宏用于创建复杂的按钮组件，减少重复代码
+/// 这个宏生成按钮包装器和基础的trait实现
+#[macro_export]
+macro_rules! create_complex_button {
+    (
+        $button_name:ident,
+        $state_name:ident,
+        $event_type:ty,
+        $button_id:expr
+    ) => {
+        #[derive(gpui::IntoElement)]
+        pub struct $button_name {
+            id: gpui::ElementId,
+            style: gpui::StyleRefinement,
+            size: gpui_component::Size,
+            state: gpui::Entity<$state_name>,
+        }
+
+        impl gpui_component::Sizable for $button_name {
+            fn with_size(mut self, size: impl Into<gpui_component::Size>) -> Self {
+                self.size = size.into();
+                self
+            }
+        }
+
+        impl gpui::Focusable for $button_name {
+            fn focus_handle(&self, cx: &gpui::App) -> gpui::FocusHandle {
+                self.state.focus_handle(cx)
+            }
+        }
+
+        impl gpui::Styled for $button_name {
+            fn style(&mut self) -> &mut gpui::StyleRefinement {
+                &mut self.style
+            }
+        }
+
+        impl $button_name {
+            pub fn new(state: &gpui::Entity<$state_name>) -> Self {
+                Self {
+                    id: ($button_id, state.entity_id()).into(),
+                    state: state.clone(),
+                    size: gpui_component::Size::default(),
+                    style: gpui::StyleRefinement::default(),
+                }
+            }
+        }
+
+        impl gpui::RenderOnce for $button_name {
+            fn render(
+                self,
+                _window: &mut gpui::Window,
+                cx: &mut gpui::App,
+            ) -> impl gpui::IntoElement {
+                use gpui::{InteractiveElement, Styled};
+                use gpui_component::{StyleSized, StyledExt};
+
+                gpui::div()
+                    .id(self.id.clone())
+                    .track_focus(&gpui::Focusable::focus_handle(&self, cx).tab_stop(true))
+                    .flex_none()
+                    .relative()
+                    .input_text_size(self.size)
+                    .refine_style(&self.style)
+                    .child(self.state.clone())
+            }
+        }
+    };
+}
+
+/// 宏用于简化状态结构体的基础实现
+#[macro_export]
+macro_rules! impl_button_state_base {
+    ($state_name:ident, $event_type:ty) => {
+        impl gpui::EventEmitter<$event_type> for $state_name {}
+
+        impl gpui::Focusable for $state_name {
+            fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
+                self.focus_handle.clone()
+            }
+        }
+    };
 }
 
 #[cfg(test)]

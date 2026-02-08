@@ -16,7 +16,10 @@ use sea_orm::prelude::Uuid;
 use todos::entity::AttachmentModel;
 
 use crate::{
-    components::{PopoverListMixin, PopoverSearchMixin},
+    components::{
+        PopoverListMixin, PopoverSearchMixin, create_list_item_element, handle_search_input_change,
+        manage_popover_state,
+    },
     create_button_wrapper,
     todo_actions::delete_attachment,
 };
@@ -40,10 +43,13 @@ impl std::fmt::Display for AttachmentError {
     }
 }
 
+impl std::error::Error for AttachmentError {}
+
+#[derive(Debug)]
 pub enum AttachmentButtonEvent {
     Added(Arc<AttachmentModel>),
     Removed(String),
-    Error(AttachmentError),
+    Error(Box<dyn std::error::Error + Send + Sync>),
 }
 
 pub struct AttachmentButtonState {
@@ -110,9 +116,11 @@ impl AttachmentButtonState {
         cx: &mut Context<Self>,
     ) {
         if let InputEvent::Change = event {
-            let query = self.search.search_input.read(cx).value().to_string();
-            self.search.update_search_query(query);
-            cx.notify();
+            handle_search_input_change(
+                &self.search.search_input,
+                &mut self.search.search_query,
+                cx,
+            );
         }
     }
 
@@ -122,7 +130,7 @@ impl AttachmentButtonState {
 
     fn on_add_attachment(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         if let Err(e) = self.try_add_attachment(cx) {
-            cx.emit(AttachmentButtonEvent::Error(e));
+            cx.emit(AttachmentButtonEvent::Error(Box::new(e)));
         }
     }
 
@@ -173,10 +181,11 @@ impl Render for AttachmentButtonState {
             .text_sm()
             .open(self.search.popover_open)
             .on_open_change(cx.listener(move |this, open, _, cx| {
-                this.search.popover_open = *open;
-                if !*open {
-                    this.search.clear_search();
-                }
+                manage_popover_state(
+                    &mut this.search.popover_open,
+                    &mut this.search.search_query,
+                    *open,
+                );
                 cx.notify();
             }))
             .trigger(
@@ -215,34 +224,19 @@ impl Render for AttachmentButtonState {
                         |(idx, attachment)| {
                             let attachment_id = attachment.id.clone();
                             let view = view.clone();
+                            let display_text = attachment.file_name.clone();
 
-                            h_flex()
-                                .gap_2()
-                                .items_center()
-                                .justify_between()
-                                .px_2()
-                                .py_2()
-                                .border_b_1()
-                                .child(
-                                    gpui_component::label::Label::new(attachment.file_name.clone())
-                                        .text_sm(),
-                                )
-                                .child(
-                                    Button::new(format!("remove-attachment-dialog-{}", idx))
-                                        .small()
-                                        .ghost()
-                                        .compact()
-                                        .icon(IconName::UserTrashSymbolic)
-                                        .on_click({
-                                            let attachment_id = attachment_id.clone();
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |this, cx| {
-                                                    this.on_remove_attachment(&attachment_id, cx);
-                                                });
-                                            }
-                                        }),
-                                )
+                            create_list_item_element(
+                                idx,
+                                display_text,
+                                attachment_id,
+                                view,
+                                move |item_id, view, cx| {
+                                    cx.update_entity(&view, |this, cx| {
+                                        this.on_remove_attachment(&item_id, cx);
+                                    });
+                                },
+                            )
                         },
                     ))),
             )

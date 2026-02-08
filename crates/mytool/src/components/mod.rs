@@ -11,10 +11,10 @@ mod item_row;
 mod label_select;
 mod labels_popover;
 mod list_select;
-mod popover_list_mixin;
+mod popover_base;
 
-mod reminder_button;
-mod schedule_button;
+mod popover_reminder;
+mod popover_schedule;
 
 mod subscription_manager;
 
@@ -29,7 +29,7 @@ pub use dropbtn_section::*;
 pub use item_info::*;
 pub use item_row::*;
 pub use labels_popover::*;
-pub use popover_list_mixin::*;
-pub use reminder_button::*;
-pub use schedule_button::*;
+pub use popover_base::*;
+pub use popover_reminder::*;
+pub use popover_schedule::*;
 pub use subscription_manager::*;
