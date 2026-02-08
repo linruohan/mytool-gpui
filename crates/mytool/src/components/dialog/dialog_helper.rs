@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{Context, ParentElement, Render, Styled, Window};
 use gpui_component::{
@@ -68,7 +68,7 @@ pub fn show_item_dialog<T, F>(
     on_save: F,
 ) where
     T: Render + 'static,
-    F: Fn(Rc<todos::entity::ItemModel>, &mut gpui::App) + Clone + 'static,
+    F: Fn(Arc<todos::entity::ItemModel>, &mut gpui::App) + Clone + 'static,
 {
     let dialog_config = DialogConfig::new(&config.title);
 

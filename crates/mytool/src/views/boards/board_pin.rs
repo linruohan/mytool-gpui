@@ -69,7 +69,7 @@ impl PinBoard {
         &self,
         ix: IndexPath,
         cx: &App,
-    ) -> Option<std::rc::Rc<todos::entity::ItemModel>> {
+    ) -> Option<std::sync::Arc<todos::entity::ItemModel>> {
         let item_list = cx.global::<PinnedItemState>().items.clone();
         item_list.get(ix.row).cloned()
     }
@@ -100,7 +100,7 @@ impl PinBoard {
             }
 
             self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::rc::Rc::new(ori_item.clone()), window, cx);
+                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
             self.base.item_info.clone()

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
@@ -23,7 +23,7 @@ actions!(list_story, [SelectedCompany]);
 pub struct ListStory {
     focus_handle: FocusHandle,
     company_list: Entity<ListState<ItemListDelegate>>,
-    selected_company: Option<Rc<ItemModel>>,
+    selected_company: Option<Arc<ItemModel>>,
     _subscriptions: Vec<Subscription>,
     item_rows: HashMap<String, Entity<ItemRowState>>,
     pub popover_list: Entity<PopoverList>,
@@ -69,7 +69,7 @@ impl ListStory {
                 let state_items = cx.global::<ItemState>().items.clone();
 
                 // 将state_items转换为HashMap便于快速查找
-                let items_by_id: HashMap<String, Rc<ItemModel>> =
+                let items_by_id: HashMap<String, Arc<ItemModel>> =
                     state_items.iter().map(|item| (item.id.clone(), item.clone())).collect();
 
                 // 更新或删除现有的item_infos
@@ -118,8 +118,8 @@ impl ListStory {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
             let labels = load_items(db.clone()).await;
-            let rc_labels: Vec<Rc<ItemModel>> =
-                labels.iter().map(|label| Rc::new(label.clone())).collect();
+            let rc_labels: Vec<Arc<ItemModel>> =
+                labels.iter().map(|label| Arc::new(label.clone())).collect();
             println!("list_story: len labels: {}", rc_labels.len());
             cx.update_entity(&company_list_clone, |list, cx| {
                 list.delegate_mut().update_items(rc_labels);

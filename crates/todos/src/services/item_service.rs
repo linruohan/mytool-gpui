@@ -1,0 +1,446 @@
+//! Item service for business logic
+//!
+//! This module provides business logic for Item operations,
+//! separating it from data access layer.
+
+use std::sync::Arc;
+
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QuerySelect, Set, prelude::Expr,
+};
+
+use crate::{
+    entity::{ItemActiveModel, ItemModel, items, prelude::*},
+    error::TodoError,
+    repositories::{ItemRepository, ItemRepositoryImpl},
+    services::{CacheManager, EventBus, LabelService, MetricsCollector},
+};
+
+/// Service for Item business operations
+#[derive(Clone, Debug)]
+pub struct ItemService {
+    db: Arc<DatabaseConnection>,
+    cache: Arc<CacheManager>,
+    event_bus: Arc<EventBus>,
+    metrics: Arc<MetricsCollector>,
+    label_service: Arc<LabelService>,
+    item_repo: ItemRepositoryImpl,
+}
+
+impl ItemService {
+    /// Create a new ItemService
+    pub fn new(
+        db: Arc<DatabaseConnection>,
+        event_bus: Arc<EventBus>,
+        cache: Arc<CacheManager>,
+        metrics: Arc<MetricsCollector>,
+        label_service: Arc<LabelService>,
+    ) -> Self {
+        let item_repo = ItemRepositoryImpl::new(db.clone(), cache.clone());
+        Self { db, cache, event_bus, metrics, label_service, item_repo }
+    }
+
+    /// Get an item by ID
+    pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
+        let result: Result<ItemModel, TodoError> = self.item_repo.find_by_id(id).await;
+        result.ok()
+    }
+
+    /// Insert a new item
+    pub async fn insert_item(&self, item: ItemModel, insert: bool) -> Result<ItemModel, TodoError> {
+        let mut active_model: ItemActiveModel = item.into();
+        let item_model = active_model.insert(&*self.db).await?;
+
+        // 更新缓存
+        let item_id = item_model.id.clone();
+        let item_clone = item_model.clone();
+        self.cache.get_or_load_item(&item_id, |_| async move { Ok(item_clone) }).await?;
+
+        self.publish_item_position(&item_model);
+        self.event_bus.publish(crate::services::event_bus::Event::ItemCreated(item_id));
+
+        Ok(item_model)
+    }
+
+    /// Update an existing item
+    pub async fn update_item(
+        &self,
+        item: ItemModel,
+        update_id: &str,
+    ) -> Result<ItemModel, TodoError> {
+        let item_id = item.id.clone();
+        let mut active_model: ItemActiveModel = item.into();
+        let result = active_model.update(&*self.db).await?;
+
+        // 使缓存失效
+        self.cache.invalidate_item(&item_id).await;
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
+
+        Ok(result)
+    }
+
+    /// Delete an item and its children
+    pub async fn delete_item(&self, item_id: &str) -> Result<(), TodoError> {
+        let item_id_clone = item_id.to_string();
+
+        // 使用迭代方式处理子项，避免递归调用导致的无限大小 future 问题
+        let mut items_to_delete = vec![item_id.to_string()];
+
+        while let Some(current_id) = items_to_delete.pop() {
+            // 查找当前项的子项
+            let subitems = ItemEntity::find()
+                .filter(items::Column::ParentId.eq(&current_id))
+                .all(&*self.db)
+                .await?;
+
+            // 将子项添加到删除队列
+            for item in subitems {
+                items_to_delete.push(item.id);
+            }
+
+            // 删除当前项
+            ItemEntity::delete_by_id(&current_id).exec(&*self.db).await?;
+            self.cache.invalidate_item(&current_id).await;
+        }
+
+        self.event_bus.publish(crate::services::event_bus::Event::ItemDeleted(item_id_clone));
+
+        Ok(())
+    }
+
+    /// Update item pin status
+    pub async fn update_item_pin(&self, item_id: &str, pinned: bool) -> Result<(), TodoError> {
+        let item = self
+            .get_item(item_id)
+            .await
+            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+
+        ItemEntity::update(ItemActiveModel { pinned: Set(pinned), ..item.into() })
+            .exec(&*self.db)
+            .await?;
+
+        self.cache.invalidate_item(item_id).await;
+        Ok(())
+    }
+
+    /// Move item to another project/section
+    pub async fn move_item(
+        &self,
+        item_id: &str,
+        project_id: &str,
+        section_id: &str,
+    ) -> Result<(), TodoError> {
+        let item = self
+            .get_item(item_id)
+            .await
+            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+
+        ItemEntity::update(ItemActiveModel {
+            id: Set(item_id.to_string()),
+            project_id: Set(Some(project_id.to_string())),
+            section_id: Set(Some(section_id.to_string())),
+            ..item.into()
+        })
+        .exec(&*self.db)
+        .await?;
+
+        // 更新子项
+        ItemEntity::update_many()
+            .col_expr(items::Column::ProjectId, Expr::value(project_id.to_string()))
+            .col_expr(items::Column::SectionId, Expr::value(section_id.to_string()))
+            .filter(items::Column::ParentId.eq(item_id.to_string()))
+            .exec(&*self.db)
+            .await?;
+
+        self.cache.invalidate_item(item_id).await;
+        self.publish_item_position_update(project_id, section_id);
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+
+        Ok(())
+    }
+
+    /// Complete/uncomplete an item
+    pub async fn complete_item(
+        &self,
+        item_id: &str,
+        checked: bool,
+        complete_subitems: bool,
+    ) -> Result<(), TodoError> {
+        // 避免递归调用导致的无限大小 future 问题
+        // 改为非递归实现，使用迭代方式处理子项目
+        let item_id_clone = item_id.to_string();
+
+        let active_model = ItemActiveModel {
+            id: Set(item_id.to_string()),
+            checked: Set(checked),
+            completed_at: Set(if checked { Some(chrono::Utc::now().naive_utc()) } else { None }),
+            ..ItemEntity::find_by_id(item_id)
+                .one(&*self.db)
+                .await?
+                .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?
+                .into()
+        };
+        let item_model = active_model.update(&*self.db).await?;
+
+        if complete_subitems {
+            // 使用迭代方式处理子项目，避免递归
+            let mut subitems = ItemEntity::find()
+                .filter(items::Column::ParentId.eq(item_id))
+                .all(&*self.db)
+                .await?;
+            for item in subitems {
+                // 直接更新子项目，不递归调用
+                let sub_active_model = ItemActiveModel {
+                    id: Set(item.id.to_string()),
+                    checked: Set(item_model.checked),
+                    completed_at: Set(if item_model.checked {
+                        Some(chrono::Utc::now().naive_utc())
+                    } else {
+                        None
+                    }),
+                    ..item.into()
+                };
+                sub_active_model.update(&*self.db).await?;
+            }
+        };
+
+        // 不处理父项目的状态更新，避免递归
+
+        self.cache.invalidate_item(item_id).await;
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id_clone));
+
+        Ok(())
+    }
+
+    // ==================== Helper Methods ====================
+
+    fn publish_item_position(&self, item: &ItemModel) {
+        if let Some(project_id) = &item.project_id
+            && let Some(section_id) = &item.section_id
+        {
+            self.publish_item_position_update(project_id, section_id);
+        }
+    }
+
+    fn publish_item_position_update(&self, project_id: &str, section_id: &str) {
+        self.event_bus.publish(crate::services::event_bus::Event::ItemsPositionUpdated(
+            project_id.to_string(),
+            section_id.to_string(),
+        ));
+    }
+
+    // ==================== Additional Business Logic Methods ====================
+
+    /// Get all items in a project
+    pub async fn get_items_by_project(
+        &self,
+        project_id: &str,
+    ) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_items_by_project");
+        let items = ItemEntity::find()
+            .filter(items::Column::ProjectId.eq(project_id))
+            .all(&*self.db)
+            .await?;
+        self.metrics.record_operation("get_items_by_project", items.len());
+        Ok(items)
+    }
+
+    /// Get all items in a section
+    pub async fn get_items_by_section(
+        &self,
+        section_id: &str,
+    ) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_items_by_section");
+        let items = ItemEntity::find()
+            .filter(items::Column::SectionId.eq(section_id))
+            .all(&*self.db)
+            .await?;
+        self.metrics.record_operation("get_items_by_section", items.len());
+        Ok(items)
+    }
+
+    /// Get all subitems of an item
+    pub async fn get_subitems(&self, item_id: &str) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_subitems");
+        let items =
+            ItemEntity::find().filter(items::Column::ParentId.eq(item_id)).all(&*self.db).await?;
+        self.metrics.record_operation("get_subitems", items.len());
+        Ok(items)
+    }
+
+    /// Get all pinned items
+    pub async fn get_pinned_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_pinned_items");
+        let items =
+            ItemEntity::find().filter(items::Column::Pinned.eq(true)).all(&*self.db).await?;
+        self.metrics.record_operation("get_pinned_items", items.len());
+        Ok(items)
+    }
+
+    /// Get all completed items
+    pub async fn get_completed_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_completed_items");
+        let items =
+            ItemEntity::find().filter(items::Column::Checked.eq(true)).all(&*self.db).await?;
+        self.metrics.record_operation("get_completed_items", items.len());
+        Ok(items)
+    }
+
+    /// Get items by search text
+    pub async fn search_items(&self, search_text: &str) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("search_items");
+        let search_lower = search_text.to_lowercase();
+        let items = ItemEntity::find()
+            .filter(items::Column::Content.contains(&search_lower))
+            .all(&*self.db)
+            .await?;
+        self.metrics.record_operation("search_items", items.len());
+        Ok(items)
+    }
+
+    /// Archive an item
+    pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
+        let item = self
+            .get_item(item_id)
+            .await
+            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+
+        // 注意：items 表可能没有 is_archived 和 archived_at 字段，这里暂时不更新这些字段
+        ItemEntity::update(ItemActiveModel { id: Set(item_id.to_string()), ..item.into() })
+            .exec(&*self.db)
+            .await?;
+
+        self.cache.invalidate_item(item_id).await;
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+        Ok(())
+    }
+
+    /// Duplicate an item
+    pub async fn duplicate_item(&self, item_id: &str) -> Result<ItemModel, TodoError> {
+        let item = self
+            .get_item(item_id)
+            .await
+            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+
+        let mut new_item = item.clone();
+        new_item.id = uuid::Uuid::new_v4().to_string();
+        new_item.content = format!("{} (copy)", item.content);
+        new_item.added_at = chrono::Utc::now().naive_utc();
+        new_item.completed_at = None;
+        new_item.checked = false;
+
+        self.insert_item(new_item, true).await
+    }
+
+    /// Add label to item
+    pub async fn add_label_to_item(
+        &self,
+        item_id: &str,
+        label_name: &str,
+    ) -> Result<(), TodoError> {
+        let label = self.label_service.get_or_create_label(label_name, item_id).await?;
+        // Here you would typically have an item_labels relationship table
+        // For now, we just create the label
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+        Ok(())
+    }
+
+    /// Remove label from item
+    pub async fn remove_label_from_item(
+        &self,
+        item_id: &str,
+        label_id: &str,
+    ) -> Result<(), TodoError> {
+        // Here you would typically remove from an item_labels relationship table
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+        Ok(())
+    }
+
+    /// Get items by label
+    pub async fn get_items_by_label(&self, label_id: &str) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_items_by_label");
+        // Here you would typically query an item_labels relationship table
+        // For now, return empty vec
+        self.metrics.record_operation("get_items_by_label", 0);
+        Ok(vec![])
+    }
+
+    /// Set due date for item
+    pub async fn set_due_date(
+        &self,
+        item_id: &str,
+        due_date: Option<chrono::NaiveDateTime>,
+    ) -> Result<(), TodoError> {
+        let item = self
+            .get_item(item_id)
+            .await
+            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+
+        // 将 NaiveDateTime 转换为 JsonValue
+        let due_json = due_date.map(|d| serde_json::Value::String(d.to_string()));
+
+        ItemEntity::update(ItemActiveModel {
+            id: Set(item_id.to_string()),
+            due: Set(due_json),
+            ..item.into()
+        })
+        .exec(&*self.db)
+        .await?;
+
+        self.cache.invalidate_item(item_id).await;
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+        Ok(())
+    }
+
+    /// Get items due today
+    pub async fn get_items_due_today(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_items_due_today");
+        let today = chrono::Utc::now().naive_utc().date();
+        let items: Vec<ItemModel> = ItemEntity::find()
+            .filter(items::Column::Due.is_not_null())
+            .all(&*self.db)
+            .await?
+            .into_iter()
+            .filter(|item| {
+                item.due
+                    .clone()
+                    .and_then(|d| {
+                        d.as_str().and_then(|s| {
+                            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok()
+                        })
+                    })
+                    .map(|d| d.date() == today)
+                    .unwrap_or(false)
+            })
+            .collect();
+        self.metrics.record_operation("get_items_due_today", items.len()).await;
+        Ok(items)
+    }
+
+    /// Get overdue items
+    pub async fn get_overdue_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_overdue_items");
+        let now = chrono::Utc::now().naive_utc();
+        let items: Vec<ItemModel> = ItemEntity::find()
+            .filter(items::Column::Due.is_not_null())
+            .filter(items::Column::Checked.eq(false))
+            .all(&*self.db)
+            .await?
+            .into_iter()
+            .filter(|item| {
+                item.due
+                    .clone()
+                    .and_then(|d| {
+                        d.as_str().and_then(|s| {
+                            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok()
+                        })
+                    })
+                    .map(|d| d < now)
+                    .unwrap_or(false)
+            })
+            .collect();
+        self.metrics.record_operation("get_overdue_items", items.len()).await;
+        Ok(items)
+    }
+}

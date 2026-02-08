@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
@@ -14,8 +14,8 @@ use todos::entity::ItemModel;
 use crate::{ItemListDelegate, todo_actions::set_item_pinned, todo_state::PinnedItemState};
 
 pub enum ItemsPinnedEvent {
-    Pinned(Rc<ItemModel>),
-    UnPinned(Rc<ItemModel>),
+    Pinned(Arc<ItemModel>),
+    UnPinned(Arc<ItemModel>),
 }
 
 impl EventEmitter<ItemsPinnedEvent> for ItemsPinnedPanel {}
@@ -59,13 +59,13 @@ impl ItemsPinnedPanel {
         Self { input_esc, item_list, active_index: Some(0), _subscriptions }
     }
 
-    fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
+    fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Arc<ItemModel>> {
         self.item_list
             .read(cx)
             .delegate()
             .matched_items
             .get(ix.section)
-            .and_then(|c| c.get(ix.row))
+            .and_then(|c: &Vec<Arc<ItemModel>>| c.get(ix.row))
             .cloned()
     }
 
@@ -104,11 +104,12 @@ impl ItemsPinnedPanel {
                             let item = item.clone();
                             move |_, window, cx| {
                                 let view = view.clone();
-                                let mut item = item.clone();
-                                let item_mut = Rc::make_mut(&mut item);
-                                item_mut.pinned = true; //切换为未完成状态
+                                // 创建一个新的 ItemModel 实例并修改它
+                                let mut item_model = (*item).clone();
+                                item_model.pinned = true; //切换为未完成状态
+                                let updated_item = Arc::new(item_model);
                                 view.update(cx, |_view, cx| {
-                                    cx.emit(ItemsPinnedEvent::Pinned(item.clone()));
+                                    cx.emit(ItemsPinnedEvent::Pinned(updated_item.clone()));
                                     cx.notify();
                                 });
                                 window.push_notification("You have pinned item ok.", cx);

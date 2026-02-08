@@ -57,6 +57,7 @@ uuid = { version = "1.20.0", features = [
     "macro-diagnostics",
 ] }
 itertools = "0.14.0"
+lru = "0.12.0"
 toml = "0.8.10"
 base64 = "0.22.1"
 pbkdf2 = { version = "0.12.2", features = ["simple"] }

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, Context, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
@@ -15,20 +15,20 @@ use todos::entity::ProjectModel;
 actions!(project, [SelectedProject]);
 pub enum ProjectEvent {
     Loaded,
-    Added(Rc<ProjectModel>),
-    Modified(Rc<ProjectModel>),
-    Deleted(Rc<ProjectModel>),
+    Added(Arc<ProjectModel>),
+    Modified(Arc<ProjectModel>),
+    Deleted(Arc<ProjectModel>),
 }
 
 #[derive(IntoElement)]
 pub struct ProjectListItem {
     base: ListItem,
-    project: Rc<ProjectModel>,
+    project: Arc<ProjectModel>,
     selected: bool,
 }
 
 impl ProjectListItem {
-    pub fn new(id: impl Into<ElementId>, project: Rc<ProjectModel>, selected: bool) -> Self {
+    pub fn new(id: impl Into<ElementId>, project: Arc<ProjectModel>, selected: bool) -> Self {
         ProjectListItem { project, base: ListItem::new(id), selected }
     }
 }
@@ -105,8 +105,8 @@ impl RenderOnce for ProjectListItem {
 }
 
 pub struct ProjectListDelegate {
-    pub _projects: Vec<Rc<ProjectModel>>,
-    pub matched_projects: Vec<Vec<Rc<ProjectModel>>>,
+    pub _projects: Vec<Arc<ProjectModel>>,
+    pub matched_projects: Vec<Vec<Arc<ProjectModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -130,7 +130,7 @@ impl ProjectListDelegate {
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let projects: Vec<Rc<ProjectModel>> = self
+        let projects: Vec<Arc<ProjectModel>> = self
             ._projects
             .iter()
             .filter(|project| project.name.to_lowercase().contains(&self.query.to_lowercase()))
@@ -141,7 +141,7 @@ impl ProjectListDelegate {
         }
     }
 
-    pub fn update_projects(&mut self, projects: Vec<Rc<ProjectModel>>) {
+    pub fn update_projects(&mut self, projects: Vec<Arc<ProjectModel>>) {
         self._projects = projects;
         self.matched_projects = vec![self._projects.clone()];
         if !self.matched_projects.is_empty() && self.selected_index.is_none() {
@@ -149,7 +149,7 @@ impl ProjectListDelegate {
         }
     }
 
-    pub fn selected_project(&self) -> Option<Rc<ProjectModel>> {
+    pub fn selected_project(&self) -> Option<Arc<ProjectModel>> {
         let ix = self.selected_index?;
         self.matched_projects.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }

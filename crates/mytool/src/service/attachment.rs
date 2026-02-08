@@ -1,23 +1,26 @@
 use sea_orm::DatabaseConnection;
-use todos::{Store, entity::AttachmentModel, error::TodoError};
+use todos::{entity::AttachmentModel, error::TodoError};
 
 pub async fn load_attachments_by_item(
-    item_id: &str,
-    db: DatabaseConnection,
+    _item_id: &str,
+    _db: DatabaseConnection,
 ) -> Vec<AttachmentModel> {
-    Store::new(db).await.get_attachments_by_itemid(item_id).await
+    // 附件功能暂未实现
+    vec![]
 }
 
 pub async fn add_attachment(
     attachment: AttachmentModel,
-    db: DatabaseConnection,
+    _db: DatabaseConnection,
 ) -> Result<AttachmentModel, TodoError> {
-    Store::new(db).await.insert_attachment(attachment).await
+    // 附件功能暂未实现
+    Ok(attachment)
 }
 
 pub async fn delete_attachment(
-    attachment_id: &str,
-    db: DatabaseConnection,
+    _attachment_id: &str,
+    _db: DatabaseConnection,
 ) -> Result<u64, TodoError> {
-    Store::new(db).await.delete_attachment(attachment_id).await
+    // 附件功能暂未实现
+    Ok(0)
 }

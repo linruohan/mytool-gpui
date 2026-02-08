@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
@@ -27,7 +27,7 @@ pub struct ItemsPanel {
 
 impl ItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item = Rc::new(ItemModel::default());
+        let item = Arc::new(ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_list =
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
@@ -62,13 +62,13 @@ impl ItemsPanel {
         Self { is_checked: false, item_list, item_info, active_index: Some(0), _subscriptions }
     }
 
-    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
+    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Arc<ItemModel>> {
         self.item_list
             .read(cx)
             .delegate()
             .matched_items
             .get(ix.section)
-            .and_then(|c| c.get(ix.row))
+            .and_then(|c: &Vec<Arc<ItemModel>>| c.get(ix.row))
             .cloned()
     }
 
@@ -112,7 +112,7 @@ impl ItemsPanel {
         let ori_item = self.initialize_item_model(is_edit, window, cx);
         if is_edit {
             item_info.update(cx, |state, cx| {
-                state.set_item(Rc::new(ori_item.clone()), window, cx);
+                state.set_item(Arc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
         }
@@ -129,7 +129,7 @@ impl ItemsPanel {
             cx,
             item_info.clone(),
             config,
-            move |item, cx| {
+            move |item: Arc<ItemModel>, cx| {
                 item_info.update(cx, |_item_info, cx| {
                     cx.emit(ItemInfoEvent::Updated());
                     cx.notify();
@@ -198,13 +198,13 @@ impl ItemsPanel {
                             let item = item.clone();
                             move |_, window, cx| {
                                 let view = view.clone();
-                                let mut item = item.clone();
-                                let item_mut = Rc::make_mut(&mut item);
-                                item_mut.checked = true; //切换为完成状态
-                                println!("item_mut: {:?}", item_mut);
-                                println!("item before: {:?}", item);
+                                // 创建一个新的 ItemModel 实例并修改它
+                                let mut item_model = (*item).clone();
+                                item_model.checked = true; //切换为完成状态
+                                let updated_item = Arc::new(item_model);
+                                println!("updated_item: {:?}", updated_item);
                                 view.update(cx, |_view, cx| {
-                                    cx.emit(ItemEvent::Finished(item));
+                                    cx.emit(ItemEvent::Finished(updated_item));
                                     cx.notify();
                                 });
                                 window.push_notification("You have finished item ok.", cx);
@@ -220,11 +220,10 @@ impl ItemsPanel {
         }
     }
 
-    pub fn finish_item(&mut self, cx: &mut Context<Self>, item: Rc<ItemModel>) {
-        let mut binding = item.clone();
-        let item = Rc::make_mut(&mut binding);
-        item.checked = true;
-        update_item(binding, cx);
+    pub fn finish_item(&mut self, cx: &mut Context<Self>, item: Arc<ItemModel>) {
+        let mut item_data = (*item).clone();
+        item_data.checked = true;
+        update_item(Arc::new(item_data), cx);
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{option::Option, rc::Rc};
+use std::{option::Option, sync::Arc};
 
 use gpui::{prelude::*, *};
 use gpui_component::{
@@ -29,7 +29,7 @@ pub struct TodoStory {
     board_panel: Entity<BoardPanel>,
     // projects
     project_panel: Entity<ProjectsPanel>,
-    active_project: Option<Rc<ProjectModel>>,
+    active_project: Option<Arc<ProjectModel>>,
     project_items_panel: Entity<ProjectItemsPanel>,
 }
 
@@ -118,7 +118,7 @@ impl TodoStory {
     fn add_project(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         let _ = play_ogg_file("assets/sounds/success.ogg");
         self.project_panel.update(cx, |project_panel, cx| {
-            project_panel.open_project_dialog(Rc::new(ProjectModel::default()), window, cx);
+            project_panel.open_project_dialog(Arc::new(ProjectModel::default()), window, cx);
             cx.notify();
         });
     }

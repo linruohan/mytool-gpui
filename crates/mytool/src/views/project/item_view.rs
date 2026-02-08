@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
@@ -28,9 +28,9 @@ use crate::{
 
 pub enum ProjectItemEvent {
     Loaded,
-    Added(Rc<ItemModel>),
-    Modified(Rc<ItemModel>),
-    Deleted(Rc<ItemModel>),
+    Added(Arc<ItemModel>),
+    Modified(Arc<ItemModel>),
+    Deleted(Arc<ItemModel>),
 }
 
 impl EventEmitter<ProjectItemEvent> for ProjectItemsPanel {}
@@ -38,19 +38,19 @@ impl EventEmitter<ItemInfoEvent> for ProjectItemsPanel {}
 impl EventEmitter<ItemEvent> for ProjectItemsPanel {}
 
 pub struct ProjectItemsPanel {
-    project: Rc<ProjectModel>,
+    project: Arc<ProjectModel>,
     pub active_index: Option<usize>,
     item_rows: Vec<Entity<ItemRowState>>,
     item_info: Entity<ItemInfoState>,
     _subscriptions: Vec<Subscription>,
     focus_handle: FocusHandle,
-    no_section_items: Vec<(usize, Rc<ItemModel>)>,
-    section_items_map: std::collections::HashMap<String, Vec<(usize, Rc<ItemModel>)>>,
+    no_section_items: Vec<(usize, Arc<ItemModel>)>,
+    section_items_map: std::collections::HashMap<String, Vec<(usize, Arc<ItemModel>)>>,
 }
 
 impl ProjectItemsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item = Rc::new(ItemModel::default());
+        let item = Arc::new(ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_rows = vec![];
         let no_section_items = vec![];
@@ -95,14 +95,14 @@ impl ProjectItemsPanel {
             item_rows,
             item_info,
             _subscriptions,
-            project: Rc::new(ProjectModel::default()),
+            project: Arc::new(ProjectModel::default()),
             focus_handle: cx.focus_handle(),
             no_section_items,
             section_items_map,
         }
     }
 
-    pub fn set_project(&mut self, project: Rc<ProjectModel>, cx: &mut Context<Self>) {
+    pub fn set_project(&mut self, project: Arc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project.clone();
         cx.update_global::<ProjectState, _>(|state, _| {
             state.items.clear();
@@ -111,7 +111,7 @@ impl ProjectItemsPanel {
         load_project_items(project.clone(), cx);
     }
 
-    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
+    pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Arc<ItemModel>> {
         let item_list = cx.global::<ProjectState>().items.clone();
         item_list.get(ix.row).cloned()
     }
@@ -165,7 +165,7 @@ impl ProjectItemsPanel {
         }
 
         item_info.update(cx, |state, cx| {
-            state.set_item(Rc::new(ori_item.clone()), window, cx);
+            state.set_item(Arc::new(ori_item.clone()), window, cx);
             cx.notify();
         });
 
@@ -187,10 +187,12 @@ impl ProjectItemsPanel {
                     cx.notify();
                 });
                 view.update(cx, |_view, cx| {
+                    // 将 Rc<ItemModel> 转换为 Arc<ItemModel>
+                    let arc_item = Arc::new((*item).clone());
                     let event = if is_edit {
-                        ProjectItemEvent::Modified(item.clone())
+                        ProjectItemEvent::Modified(arc_item.clone())
                     } else {
-                        ProjectItemEvent::Added(item.clone())
+                        ProjectItemEvent::Added(arc_item.clone())
                     };
                     cx.emit(event);
                     cx.notify();
@@ -254,8 +256,7 @@ impl ProjectItemsPanel {
         let view = cx.entity().clone();
         crate::components::show_section_dialog(window, cx, name_input, config, move |name, cx| {
             view.update(cx, |_view, cx| {
-                let section =
-                    std::rc::Rc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
+                let section = Arc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
                 if is_edit {
                     update_section(section, cx);
                 } else {
@@ -301,7 +302,7 @@ impl ProjectItemsPanel {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
             new_section.name = format!("{} (copy)", new_section.name);
-            add_section(std::rc::Rc::new(new_section), cx);
+            add_section(Arc::new(new_section), cx);
             window.push_notification("Section duplicated successfully.", cx);
         }
     }
@@ -316,7 +317,7 @@ impl ProjectItemsPanel {
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
-            update_section(std::rc::Rc::new(updated_section), cx);
+            update_section(Arc::new(updated_section), cx);
             window.push_notification("Section archived successfully.", cx);
         }
     }

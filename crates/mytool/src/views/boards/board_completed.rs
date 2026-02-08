@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement as _,
     MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
@@ -69,7 +71,7 @@ impl CompletedBoard {
         &self,
         ix: IndexPath,
         cx: &App,
-    ) -> Option<std::rc::Rc<todos::entity::ItemModel>> {
+    ) -> Option<std::sync::Arc<todos::entity::ItemModel>> {
         let item_list = cx.global::<CompleteItemState>().items.clone();
         item_list.get(ix.row).cloned()
     }
@@ -100,7 +102,7 @@ impl CompletedBoard {
             }
 
             self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::rc::Rc::new(ori_item.clone()), window, cx);
+                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
             self.base.item_info.clone()
@@ -137,10 +139,10 @@ impl CompletedBoard {
                             let item = item.clone();
                             move |_, window, cx| {
                                 let _view = view.clone();
-                                let mut item = item.clone();
-                                let item_mut = std::rc::Rc::make_mut(&mut item);
-                                item_mut.checked = false;
-                                update_item(item, cx);
+                                // 创建一个新的 ItemModel 实例并修改它
+                                let mut item_model = (*item).clone();
+                                item_model.checked = false;
+                                update_item(Arc::new(item_model), cx);
                                 window.push_notification("Item marked as unfinished.", cx);
                                 true
                             }

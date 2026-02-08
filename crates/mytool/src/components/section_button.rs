@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, Context, Corner, EventEmitter, FocusHandle, Focusable, InteractiveElement, ParentElement,
@@ -18,7 +18,7 @@ pub enum SectionEvent {
 
 pub struct SectionState {
     inner: DropdownState<String>,
-    pub sections: Option<Vec<Rc<SectionModel>>>,
+    pub sections: Option<Vec<Arc<SectionModel>>>,
 }
 
 impl EventEmitter<SectionEvent> for SectionState {}
@@ -49,7 +49,7 @@ impl SectionState {
 
     pub fn set_sections(
         &mut self,
-        sections: Option<Vec<Rc<SectionModel>>>,
+        sections: Option<Vec<Arc<SectionModel>>>,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {

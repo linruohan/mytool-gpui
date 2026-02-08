@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
@@ -13,19 +13,19 @@ use todos::entity::SectionModel;
 actions!(section, [SelectedSection, UnSelectedSection]);
 #[allow(unused)]
 pub enum SectionEvent {
-    Checked(Rc<SectionModel>),
-    UnChecked(Rc<SectionModel>),
+    Checked(Arc<SectionModel>),
+    UnChecked(Arc<SectionModel>),
     Loaded,
-    Added(Rc<SectionModel>),
-    Modified(Rc<SectionModel>),
-    Deleted(Rc<SectionModel>),
+    Added(Arc<SectionModel>),
+    Modified(Arc<SectionModel>),
+    Deleted(Arc<SectionModel>),
 }
 
 #[derive(IntoElement)]
 #[allow(dead_code)]
 pub struct SectionListItem {
     base: ListItem,
-    section: Rc<SectionModel>,
+    section: Arc<SectionModel>,
     selected: bool,
     checked: bool,
 }
@@ -34,7 +34,7 @@ pub struct SectionListItem {
 impl SectionListItem {
     pub fn new(
         id: impl Into<ElementId>,
-        section: Rc<SectionModel>,
+        section: Arc<SectionModel>,
         selected: bool,
         checked: bool,
     ) -> Self {
@@ -100,9 +100,9 @@ impl RenderOnce for SectionListItem {
 
 #[allow(dead_code)]
 pub struct SectionListDelegate {
-    pub _sections: Vec<Rc<SectionModel>>,
-    pub checked_sections: Vec<Rc<SectionModel>>,
-    pub matched_sections: Vec<Vec<Rc<SectionModel>>>,
+    pub _sections: Vec<Arc<SectionModel>>,
+    pub checked_sections: Vec<Arc<SectionModel>>,
+    pub matched_sections: Vec<Vec<Arc<SectionModel>>>,
     pub(crate) selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -122,18 +122,18 @@ impl SectionListDelegate {
     }
 
     // 获取已选中的标签
-    pub fn checked_sections(&mut self) -> Vec<Rc<SectionModel>> {
+    pub fn checked_sections(&mut self) -> Vec<Arc<SectionModel>> {
         self.checked_sections.clone()
     }
 
     // 获取已选中的标签
-    pub fn set_checked_sections(mut self, sections: Vec<Rc<SectionModel>>) -> Self {
+    pub fn set_checked_sections(mut self, sections: Vec<Arc<SectionModel>>) -> Self {
         self.checked_sections = sections;
         self
     }
 
     // 添加已选中的标签
-    pub fn add_selected_section(&mut self, section: Rc<SectionModel>) {
+    pub fn add_selected_section(&mut self, section: Arc<SectionModel>) {
         // 避免重复添加
         if !self.checked_sections.contains(&section) {
             self.checked_sections.push(section.clone());
@@ -141,13 +141,13 @@ impl SectionListDelegate {
     }
 
     // 删除已选中的标签
-    pub fn del_selected_section(&mut self, section: Rc<SectionModel>) {
+    pub fn del_selected_section(&mut self, section: Arc<SectionModel>) {
         self.checked_sections.retain(|l| l != &section);
     }
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let sections: Vec<Rc<SectionModel>> = self
+        let sections: Vec<Arc<SectionModel>> = self
             ._sections
             .iter()
             .filter(|section| section.name.to_lowercase().contains(&self.query.to_lowercase()))
@@ -158,7 +158,7 @@ impl SectionListDelegate {
         }
     }
 
-    pub fn update_sections(&mut self, sections: Vec<Rc<SectionModel>>) {
+    pub fn update_sections(&mut self, sections: Vec<Arc<SectionModel>>) {
         self._sections = sections;
         self.matched_sections = vec![self._sections.clone()];
         if !self.matched_sections.is_empty() && self.selected_index.is_none() {
@@ -166,7 +166,7 @@ impl SectionListDelegate {
         }
     }
 
-    pub fn selected_section(&self) -> Option<Rc<SectionModel>> {
+    pub fn selected_section(&self) -> Option<Arc<SectionModel>> {
         let ix = self.selected_index?;
         self.matched_sections.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }

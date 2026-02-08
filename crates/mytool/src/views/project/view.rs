@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
@@ -79,7 +79,11 @@ impl ProjectsPanel {
         }
     }
 
-    pub(crate) fn get_selected_project(&self, ix: IndexPath, cx: &App) -> Option<Rc<ProjectModel>> {
+    pub(crate) fn get_selected_project(
+        &self,
+        ix: IndexPath,
+        cx: &App,
+    ) -> Option<Arc<ProjectModel>> {
         self.project_list
             .read(cx)
             .delegate()
@@ -132,7 +136,7 @@ impl ProjectsPanel {
 
     pub fn open_project_dialog(
         &mut self,
-        _model: Rc<ProjectModel>,
+        _model: Arc<ProjectModel>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -180,7 +184,7 @@ impl ProjectsPanel {
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |view, cx| {
-                                        let project = Rc::new(ProjectModel {
+                                        let project = Arc::new(ProjectModel {
                                             name: input1.read(cx).value().to_string(),
                                             due_date: view.project_due.clone(),
                                             color: Some(
@@ -212,8 +216,8 @@ impl ProjectsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this, cx| {
             let projects = load_projects(db.clone()).await;
-            let rc_projects: Vec<Rc<ProjectModel>> =
-                projects.iter().map(|pro| Rc::new(pro.clone())).collect();
+            let rc_projects: Vec<Arc<ProjectModel>> =
+                projects.iter().map(|pro| Arc::new(pro.clone())).collect();
 
             this.update(cx, |this, cx| {
                 this.project_list.update(cx, |list, cx| {
@@ -228,7 +232,7 @@ impl ProjectsPanel {
         .detach();
     }
 
-    pub fn add_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
+    pub fn add_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
         if self.is_loading {
             return;
         }
@@ -248,7 +252,7 @@ impl ProjectsPanel {
         self.update_projects(cx);
     }
 
-    pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
+    pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
         if self.is_loading {
             return;
         }
@@ -268,7 +272,7 @@ impl ProjectsPanel {
         self.update_projects(cx);
     }
 
-    pub fn del_project(&mut self, cx: &mut Context<Self>, project: Rc<ProjectModel>) {
+    pub fn del_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
         if self.is_loading {
             return;
         }

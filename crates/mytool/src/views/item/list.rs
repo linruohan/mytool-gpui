@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use gpui::{
     App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
@@ -19,21 +19,21 @@ use crate::todo_state::LabelState;
 
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {
-    Finished(Rc<ItemModel>),
-    Added(Rc<ItemModel>),
-    Modified(Rc<ItemModel>),
-    Deleted(Rc<ItemModel>),
+    Finished(Arc<ItemModel>),
+    Added(Arc<ItemModel>),
+    Modified(Arc<ItemModel>),
+    Deleted(Arc<ItemModel>),
 }
 
 #[derive(IntoElement)]
 pub struct ItemListItem {
     base: ListItem,
-    item: Rc<ItemModel>,
+    item: Arc<ItemModel>,
     selected: bool,
 }
 
 impl ItemListItem {
-    pub fn new(id: impl Into<ElementId>, item: Rc<ItemModel>, selected: bool) -> Self {
+    pub fn new(id: impl Into<ElementId>, item: Arc<ItemModel>, selected: bool) -> Self {
         ItemListItem { item, base: ListItem::new(id), selected }
     }
 }
@@ -125,8 +125,8 @@ impl RenderOnce for ItemListItem {
 }
 
 pub struct ItemListDelegate {
-    pub _items: Vec<Rc<ItemModel>>,
-    pub matched_items: Vec<Vec<Rc<ItemModel>>>,
+    pub _items: Vec<Arc<ItemModel>>,
+    pub matched_items: Vec<Vec<Arc<ItemModel>>>,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
@@ -155,7 +155,7 @@ impl ItemListDelegate {
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let items: Vec<Rc<ItemModel>> = self
+        let items: Vec<Arc<ItemModel>> = self
             ._items
             .iter()
             .filter(|item| item.content.to_lowercase().contains(&self.query.to_lowercase()))
@@ -166,7 +166,7 @@ impl ItemListDelegate {
         }
     }
 
-    pub fn update_items(&mut self, items: Vec<Rc<ItemModel>>) {
+    pub fn update_items(&mut self, items: Vec<Arc<ItemModel>>) {
         self._items = items;
         self.matched_items = vec![self._items.clone()];
         if !self.matched_items.is_empty() && self.selected_index.is_none() {
@@ -174,15 +174,18 @@ impl ItemListDelegate {
         }
     }
 
-    pub fn selected_item(&self) -> Option<Rc<ItemModel>> {
+    pub fn selected_item(&self) -> Option<Arc<ItemModel>> {
         let ix = self.selected_index?;
-        self.matched_items.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
+        self.matched_items
+            .get(ix.section)
+            .and_then(|c: &Vec<Arc<ItemModel>>| c.get(ix.row))
+            .cloned()
     }
 
     // open_sheet_at_item: 点击任务，靠右显示任务详情
     fn open_sheet_at_item(
         &mut self,
-        item: Rc<ItemModel>,
+        item: Arc<ItemModel>,
         window: &mut Window,
         cx: &mut Context<ListState<Self>>,
     ) {
@@ -238,8 +241,9 @@ impl ListDelegate for ItemListDelegate {
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(company) = self.matched_items[ix.section].get(ix.row) {
-            return Some(ItemListItem::new(ix, company.clone(), selected));
+        if let Some(item) = self.matched_items[ix.section].get(ix.row) {
+            let item: &Arc<ItemModel> = item;
+            return Some(ItemListItem::new(ix, item.clone(), selected));
         }
         None
     }

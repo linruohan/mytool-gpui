@@ -24,7 +24,7 @@ impl Section {
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async { Store::new(self.db.clone()).await }).await
+        self.store.get_or_init(|| async { Store::new(self.db.clone()) }).await
     }
 
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
@@ -49,18 +49,21 @@ impl Section {
     }
 
     pub async fn items(&self) -> Vec<ItemModel> {
-        let mut items = self.store().await.items().await;
+        let mut items =
+            self.store().await.get_items_by_section(&self.model.id).await.unwrap_or_default();
         items.sort_by_key(|a| a.child_order);
         items
     }
 
     pub async fn section_count(&self) -> usize {
         let mut result = 0;
-        let items = self.store().await.get_items_by_section(&self.model.id).await;
-        result += items.len();
-        for item in &items {
-            let subitems = self.store().await.get_subitems(&item.id).await;
-            result += subitems.len();
+        if let Ok(items) = self.store().await.get_items_by_section(&self.model.id).await {
+            result += items.len();
+            for item in &items {
+                if let Ok(subitems) = self.store().await.get_subitems(&item.id).await {
+                    result += subitems.len();
+                }
+            }
         }
         result
     }
@@ -85,16 +88,18 @@ impl Section {
     pub async fn get_subitem_size(&self, item_id: &str) -> usize {
         let mut count = 0;
         Box::pin(async move {
-            let subitems = self.store().await.get_subitems(item_id).await;
-            count += subitems.len();
-            for subitem in subitems {
-                count += self.get_subitem_size(&subitem.id).await;
+            if let Ok(subitems) = self.store().await.get_subitems(item_id).await {
+                count += subitems.len();
+                for subitem in subitems {
+                    count += self.get_subitem_size(&subitem.id).await;
+                }
             }
 
-            let subitems_uncomplete = self.store().await.get_subitems_uncomplete(item_id).await;
-            count += subitems_uncomplete.len();
-            for subitem in subitems_uncomplete {
-                count += self.get_subitem_size(&subitem.id).await;
+            if let Ok(subitems_uncomplete) = self.store().await.get_subitems(item_id).await {
+                count += subitems_uncomplete.len();
+                for subitem in subitems_uncomplete {
+                    count += self.get_subitem_size(&subitem.id).await;
+                }
             }
         })
         .await;

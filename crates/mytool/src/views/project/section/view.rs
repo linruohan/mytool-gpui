@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
@@ -25,7 +25,7 @@ impl EventEmitter<SectionEvent> for SectionsPanel {}
 pub struct SectionsPanel {
     input_esc: Entity<InputState>,
     pub section_list: Entity<ListState<SectionListDelegate>>,
-    project: Rc<ProjectModel>,
+    project: Arc<ProjectModel>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
     color: Entity<ColorGroupState>,
@@ -73,7 +73,7 @@ impl SectionsPanel {
         Self {
             input_esc,
             section_list,
-            project: Rc::new(ProjectModel::default()),
+            project: Arc::new(ProjectModel::default()),
             active_index: Some(0),
             _subscriptions,
             color,
@@ -81,7 +81,7 @@ impl SectionsPanel {
         }
     }
 
-    fn get_selected_section(&self, ix: IndexPath, cx: &App) -> Option<Rc<SectionModel>> {
+    fn get_selected_section(&self, ix: IndexPath, cx: &App) -> Option<Arc<SectionModel>> {
         self.section_list
             .read(cx)
             .delegate()
@@ -179,7 +179,7 @@ impl SectionsPanel {
                                 move |_, window, cx| {
                                     window.close_dialog(cx);
                                     view.update(cx, |view, cx| {
-                                        let section = Rc::new(SectionModel {
+                                        let section = Arc::new(SectionModel {
                                             name: name_input_clone1.read(cx).value().to_string(),
                                             color: Option::from(
                                                 view.selected_color.unwrap_or_default().to_hex(),

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
@@ -13,12 +13,12 @@ async fn refresh_projects(cx: &mut AsyncApp, db: DatabaseConnection) {
     let projects = crate::service::load_projects(db).await;
     cx.update_global::<ProjectState, _>(|state, _| {
         state.projects =
-            projects.iter().map(|project| Rc::new(project.clone())).collect::<Vec<_>>();
+            projects.iter().map(|project| Arc::new(project.clone())).collect::<Vec<_>>();
     });
 }
 // 添加project
 #[allow(unused)]
-pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
+pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         match crate::service::add_project(project.clone(), db.clone()).await {
@@ -30,7 +30,7 @@ pub fn add_project(project: Rc<ProjectModel>, cx: &mut App) {
 }
 // 修改project
 #[allow(unused)]
-pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
+pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         match crate::service::mod_project(project.clone(), db.clone()).await {
@@ -42,7 +42,7 @@ pub fn update_project(project: Rc<ProjectModel>, cx: &mut App) {
 }
 // 删除project
 #[allow(unused)]
-pub fn delete_project(project: Rc<ProjectModel>, cx: &mut App) {
+pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         match crate::service::del_project(project.clone(), db.clone()).await {

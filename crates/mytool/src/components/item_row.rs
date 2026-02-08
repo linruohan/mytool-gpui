@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, ElementId, Entity, EventEmitter, InteractiveElement, IntoElement,
@@ -16,14 +16,14 @@ use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, todo_state::It
 const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
 pub enum ItemRowEvent {
-    Updated(Rc<ItemModel>),    // 更新任务
-    Added(Rc<ItemModel>),      // 新增任务
-    Finished(Rc<ItemModel>),   // 状态改为完成
-    UnFinished(Rc<ItemModel>), // 状态改为未完成
-    Deleted(Rc<ItemModel>),    // 删除任务
+    Updated(Arc<ItemModel>),    // 更新任务
+    Added(Arc<ItemModel>),      // 新增任务
+    Finished(Arc<ItemModel>),   // 状态改为完成
+    UnFinished(Arc<ItemModel>), // 状态改为未完成
+    Deleted(Arc<ItemModel>),    // 删除任务
 }
 pub struct ItemRowState {
-    pub item: Rc<ItemModel>,
+    pub item: Arc<ItemModel>,
     pub item_info: Entity<ItemInfoState>,
     is_open: bool,
     _subscriptions: Vec<Subscription>,
@@ -32,7 +32,7 @@ pub struct ItemRowState {
 
 impl EventEmitter<ItemRowEvent> for ItemRowState {}
 impl ItemRowState {
-    pub fn new(item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_id = item.id.clone();
 

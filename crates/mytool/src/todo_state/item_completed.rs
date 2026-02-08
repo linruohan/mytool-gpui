@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{App, Global};
 use todos::entity::ItemModel;
@@ -14,7 +14,7 @@ pub enum CompleteItemStatus {
 }
 
 pub struct CompleteItemState {
-    pub items: Vec<Rc<ItemModel>>,
+    pub items: Vec<Arc<ItemModel>>,
 }
 
 impl Global for CompleteItemState {}
@@ -27,10 +27,11 @@ impl CompleteItemState {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
             let list = get_items_completed(db.clone()).await;
-            let rc_list: Vec<Rc<ItemModel>> = list.iter().map(|pro| Rc::new(pro.clone())).collect();
+            let arc_list: Vec<Arc<ItemModel>> =
+                list.iter().map(|pro| Arc::new(pro.clone())).collect();
             println!("state completed_items: {}", list.len());
             cx.update_global::<CompleteItemState, _>(|state, _cx| {
-                state.items = rc_list;
+                state.items = arc_list;
             });
         })
         .detach();
@@ -40,11 +41,11 @@ impl CompleteItemState {
             let db = cx.global::<DBState>().conn.clone();
             cx.spawn(async move |cx| {
                 let list = get_items_completed(db.clone()).await;
-                let rc_list: Vec<Rc<ItemModel>> =
-                    list.iter().map(|pro| Rc::new(pro.clone())).collect();
+                let arc_list: Vec<Arc<ItemModel>> =
+                    list.iter().map(|pro| Arc::new(pro.clone())).collect();
                 println!("state completed_items updated: {}", list.len());
                 cx.update_global::<CompleteItemState, _>(|state, _cx| {
-                    state.items = rc_list;
+                    state.items = arc_list;
                 });
             })
             .detach();

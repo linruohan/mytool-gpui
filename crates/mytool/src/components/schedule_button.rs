@@ -12,7 +12,7 @@ use gpui_component::{
     v_flex,
 };
 use serde::Deserialize;
-use todos::{enums::RecurrencyType, objects::DueDate};
+use todos::{DueDate, enums::RecurrencyType};
 
 use crate::create_button_wrapper;
 

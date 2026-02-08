@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
@@ -18,8 +18,8 @@ use crate::{
 };
 
 pub enum ItemCompletedEvent {
-    UnFinished(Rc<ItemModel>),
-    Finished(Rc<ItemModel>),
+    UnFinished(Arc<ItemModel>),
+    Finished(Arc<ItemModel>),
 }
 
 impl EventEmitter<ItemCompletedEvent> for ItemsCompletedPanel {}
@@ -63,13 +63,13 @@ impl ItemsCompletedPanel {
         Self { input_esc, item_list, active_index: Some(0), _subscriptions }
     }
 
-    fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Rc<ItemModel>> {
+    fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Arc<ItemModel>> {
         self.item_list
             .read(cx)
             .delegate()
             .matched_items
             .get(ix.section)
-            .and_then(|c| c.get(ix.row))
+            .and_then(|c: &Vec<Arc<ItemModel>>| c.get(ix.row))
             .cloned()
     }
 
@@ -108,11 +108,12 @@ impl ItemsCompletedPanel {
                             let item = item.clone();
                             move |_, window, cx| {
                                 let view = view.clone();
-                                let mut item = item.clone();
-                                let item_mut = Rc::make_mut(&mut item);
-                                item_mut.checked = false; //切换为未完成状态
+                                // 创建一个新的 ItemModel 实例并修改它
+                                let mut item_model = (*item).clone();
+                                item_model.checked = false; //切换为未完成状态
+                                let updated_item = Arc::new(item_model);
                                 view.update(cx, |_view, cx| {
-                                    cx.emit(ItemCompletedEvent::UnFinished(item.clone()));
+                                    cx.emit(ItemCompletedEvent::UnFinished(updated_item.clone()));
                                     cx.notify();
                                 });
                                 window.push_notification("You have unfinished item ok.", cx);

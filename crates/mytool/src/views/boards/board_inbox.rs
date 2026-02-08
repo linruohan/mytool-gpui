@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement as _,
     MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
@@ -100,7 +102,7 @@ impl InboxBoard {
         &self,
         ix: IndexPath,
         cx: &App,
-    ) -> Option<std::rc::Rc<todos::entity::ItemModel>> {
+    ) -> Option<std::sync::Arc<todos::entity::ItemModel>> {
         let item_list = cx.global::<InboxItemState>().items.clone();
         item_list.get(ix.row).cloned()
     }
@@ -134,7 +136,7 @@ impl InboxBoard {
             }
 
             self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::rc::Rc::new(ori_item.clone()), window, cx);
+                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
             self.base.item_info.clone()
@@ -187,10 +189,10 @@ impl InboxBoard {
                             let item = item.clone();
                             move |_, window, cx| {
                                 let _view = view.clone();
-                                let mut item = item.clone();
-                                let item_mut = std::rc::Rc::make_mut(&mut item);
-                                item_mut.checked = true; //切换为完成状态
-                                update_item(item, cx);
+                                // 创建一个新的 ItemModel 实例并修改它
+                                let mut item_model = (*item).clone();
+                                item_model.checked = true; //切换为完成状态
+                                update_item(Arc::new(item_model), cx);
                                 window.push_notification("You have finished item ok.", cx);
                                 true
                             }
@@ -240,8 +242,10 @@ impl InboxBoard {
         let view = cx.entity().clone();
         crate::components::show_section_dialog(window, cx, name_input, config, move |name, cx| {
             view.update(cx, |_view, cx| {
-                let section =
-                    std::rc::Rc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
+                let section = std::sync::Arc::new(todos::entity::SectionModel {
+                    name,
+                    ..ori_section.clone()
+                });
                 if is_edit {
                     update_section(section, cx);
                 } else {
@@ -287,7 +291,7 @@ impl InboxBoard {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
             new_section.name = format!("{} (copy)", new_section.name);
-            add_section(std::rc::Rc::new(new_section), cx);
+            add_section(std::sync::Arc::new(new_section), cx);
             window.push_notification("Section duplicated successfully.", cx);
         }
     }
@@ -302,7 +306,7 @@ impl InboxBoard {
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
-            update_section(std::rc::Rc::new(updated_section), cx);
+            update_section(std::sync::Arc::new(updated_section), cx);
             window.push_notification("Section archived successfully.", cx);
         }
     }

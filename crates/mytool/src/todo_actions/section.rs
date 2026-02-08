@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::{App, AsyncApp};
 use sea_orm::DatabaseConnection;
@@ -9,7 +9,7 @@ use crate::todo_state::{DBState, ProjectState, SectionState};
 // 刷新sections
 async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
     let sections = crate::service::load_sections(db).await;
-    let rc_sections = sections.iter().map(|section| Rc::new(section.clone())).collect::<Vec<_>>();
+    let rc_sections = sections.iter().map(|section| Arc::new(section.clone())).collect::<Vec<_>>();
     cx.update_global::<ProjectState, _>(|state, _| {
         state.sections = rc_sections.clone();
     });
@@ -19,7 +19,7 @@ async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
 }
 // 添加section
 #[allow(unused)]
-pub fn add_section(section: Rc<SectionModel>, cx: &mut App) {
+pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         if crate::service::add_section(section.clone(), db.clone()).await.is_ok() {
@@ -30,7 +30,7 @@ pub fn add_section(section: Rc<SectionModel>, cx: &mut App) {
 }
 // 修改section
 #[allow(unused)]
-pub fn update_section(section: Rc<SectionModel>, cx: &mut App) {
+pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         if crate::service::mod_section(section.clone(), db.clone()).await.is_ok() {
@@ -41,7 +41,7 @@ pub fn update_section(section: Rc<SectionModel>, cx: &mut App) {
 }
 // 删除section
 #[allow(unused)]
-pub fn delete_section(section: Rc<SectionModel>, cx: &mut App) {
+pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
         if let Ok(_store) = crate::service::del_section(section.clone(), db.clone()).await {

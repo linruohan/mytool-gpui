@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use gpui::{AppContext, Context, Entity, FocusHandle, Subscription, Window};
 
 use crate::{ItemInfoState, ItemRowState};
@@ -11,15 +9,15 @@ pub struct BoardBase {
     pub active_index: Option<usize>,
     pub item_rows: Vec<Entity<ItemRowState>>,
     pub item_info: Entity<ItemInfoState>,
-    pub no_section_items: Vec<(usize, Rc<todos::entity::ItemModel>)>,
+    pub no_section_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
     pub section_items_map:
-        std::collections::HashMap<String, Vec<(usize, Rc<todos::entity::ItemModel>)>>,
+        std::collections::HashMap<String, Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>>,
 }
 
 impl BoardBase {
     /// 创建一个新的 BoardBase 实例
     pub fn new(window: &mut Window, cx: &mut Context<impl gpui::Render>) -> Self {
-        let item = std::rc::Rc::new(todos::entity::ItemModel::default());
+        let item = std::sync::Arc::new(todos::entity::ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_rows = vec![];
         let no_section_items = vec![];
@@ -39,14 +37,14 @@ impl BoardBase {
     /// 更新项目列表和部分映射
     pub fn update_items<T>(&mut self, items: &[T])
     where
-        T: Into<Rc<todos::entity::ItemModel>> + Clone,
+        T: Into<std::sync::Arc<todos::entity::ItemModel>> + Clone,
     {
         // 重新计算no_section_items和section_items_map
         self.no_section_items.clear();
         self.section_items_map.clear();
 
         for (i, item) in items.iter().enumerate() {
-            let item_model: Rc<todos::entity::ItemModel> = item.clone().into();
+            let item_model: std::sync::Arc<todos::entity::ItemModel> = item.clone().into();
             match item_model.section_id.as_deref() {
                 None | Some("") => self.no_section_items.push((i, item_model)),
                 Some(sid) => {

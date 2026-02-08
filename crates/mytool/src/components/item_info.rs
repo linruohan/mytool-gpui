@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{collections::HashSet, rc::Rc, sync::Arc};
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
@@ -46,7 +46,7 @@ pub enum ItemInfoEvent {
 }
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
-    pub item: Rc<ItemModel>,
+    pub item: Arc<ItemModel>,
     _subscriptions: Vec<Subscription>,
     // item view
     #[allow(dead_code)]
@@ -69,7 +69,7 @@ impl Focusable for ItemInfoState {
 }
 impl EventEmitter<ItemInfoEvent> for ItemInfoState {}
 impl ItemInfoState {
-    pub fn new(item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
 
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("To-do Name"));
@@ -84,9 +84,11 @@ impl ItemInfoState {
         let section_state = cx.new(|cx| SectionState::new(window, cx));
         let schedule_button_state = cx.new(|cx| {
             let mut state = ScheduleButtonState::new(window, cx);
-            if let Some(due_date) = item.due.as_ref().and_then(|json| {
-                serde_json::from_value::<todos::objects::DueDate>(json.clone()).ok()
-            }) {
+            if let Some(due_date) = item
+                .due
+                .as_ref()
+                .and_then(|json| serde_json::from_value::<todos::DueDate>(json.clone()).ok())
+            {
                 state.set_due_date(due_date, window, cx);
             }
             state
@@ -133,12 +135,13 @@ impl ItemInfoState {
         match event {
             InputEvent::Change => {
                 let text = state.read(cx).value().to_string();
-                let item = Rc::make_mut(&mut self.item);
+                let mut item_data = (*self.item).clone();
                 if state == &self.name_input {
-                    item.content = text;
+                    item_data.content = text;
                 } else {
-                    item.description = Some(text);
+                    item_data.description = Some(text);
                 }
+                self.item = Arc::new(item_data);
                 // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
@@ -161,11 +164,12 @@ impl ItemInfoState {
         let desc = self.desc_input.read(cx).value().to_string();
         let new_desc = if desc.is_empty() { None } else { Some(desc) };
 
-        let item = Rc::make_mut(&mut self.item);
-        let changed = item.content != name || item.description != new_desc;
+        let mut item_data = (*self.item).clone();
+        let changed = item_data.content != name || item_data.description != new_desc;
         if changed {
-            item.content = name;
-            item.description = new_desc;
+            item_data.content = name;
+            item_data.description = new_desc;
+            self.item = Arc::new(item_data);
         }
         changed
     }
@@ -190,10 +194,14 @@ impl ItemInfoState {
     ) {
         match event {
             LabelsPopoverEvent::Selected(label) => {
-                self.add_checked_labels(label.clone());
+                // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
+                let label_model = (**label).clone();
+                self.add_checked_labels(Arc::new(label_model));
             },
             LabelsPopoverEvent::DeSelected(label) => {
-                self.rm_checked_labels(label.clone());
+                // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
+                let label_model = (**label).clone();
+                self.rm_checked_labels(Arc::new(label_model));
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -225,14 +233,17 @@ impl ItemInfoState {
     ) {
         match event {
             ProjectButtonEvent::Selected(project_id) => {
-                let item = Rc::make_mut(&mut self.item);
+                let item = self.item.clone();
                 let old_project_id = item.project_id.clone();
                 let new_project_id =
                     if project_id.is_empty() { None } else { Some(project_id.clone()) };
 
                 // 只有当project_id实际变化时才更新sections
                 if old_project_id != new_project_id {
-                    item.project_id = new_project_id.clone();
+                    // 创建一个新的 ItemModel 实例并修改它
+                    let mut item_model = (*item).clone();
+                    item_model.project_id = new_project_id.clone();
+                    self.item = Arc::new(item_model);
 
                     // 根据project_id更新section_state的sections
                     self.section_state.update(cx, |section_state, cx| {
@@ -248,7 +259,7 @@ impl ItemInfoState {
 
                             if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
                                 // 获取该project的sections
-                                let filtered_sections: Vec<Rc<todos::entity::SectionModel>> =
+                                let filtered_sections: Vec<Arc<todos::entity::SectionModel>> =
                                     all_sections
                                         .iter()
                                         .filter(|s| s.project_id.as_ref() == Some(&project.id))
@@ -260,7 +271,9 @@ impl ItemInfoState {
                     });
 
                     // 当project变更时，重置section_id
-                    item.section_id = None;
+                    let mut item_model = (*self.item).clone();
+                    item_model.section_id = None;
+                    self.item = Arc::new(item_model);
                     self.section_state.update(cx, |section_state, cx| {
                         section_state.set_section(None, window, cx);
                     });
@@ -280,9 +293,10 @@ impl ItemInfoState {
     ) {
         match event {
             SectionEvent::Selected(section_id) => {
-                let item = Rc::make_mut(&mut self.item);
-                item.section_id =
+                let mut item_data = (*self.item).clone();
+                item_data.section_id =
                     if section_id.is_empty() { None } else { Some(section_id.clone()) };
+                self.item = Arc::new(item_data);
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -299,28 +313,32 @@ impl ItemInfoState {
         match event {
             ScheduleButtonEvent::DateSelected(_date_str) => {
                 let schedule_state = _state.read(cx);
-                let item = Rc::make_mut(&mut self.item);
+                let mut item_data = (*self.item).clone();
                 if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-                    item.due = Some(json_value);
+                    item_data.due = Some(json_value);
                 }
+                self.item = Arc::new(item_data);
             },
             ScheduleButtonEvent::TimeSelected(_time_str) => {
                 let schedule_state = _state.read(cx);
-                let item = Rc::make_mut(&mut self.item);
+                let mut item_data = (*self.item).clone();
                 if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-                    item.due = Some(json_value);
+                    item_data.due = Some(json_value);
                 }
+                self.item = Arc::new(item_data);
             },
             ScheduleButtonEvent::RecurrencySelected(_recurrency_type) => {
                 let schedule_state = _state.read(cx);
-                let item = Rc::make_mut(&mut self.item);
+                let mut item_data = (*self.item).clone();
                 if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-                    item.due = Some(json_value);
+                    item_data.due = Some(json_value);
                 }
+                self.item = Arc::new(item_data);
             },
             ScheduleButtonEvent::Cleared => {
-                let item = Rc::make_mut(&mut self.item);
-                item.due = None;
+                let mut item_data = (*self.item).clone();
+                item_data.due = None;
+                self.item = Arc::new(item_data);
             },
             // ScheduleButtonEvent::DueDateChanged => {
             //     let schedule_state = _state.read(cx);
@@ -390,9 +408,10 @@ impl ItemInfoState {
         cx.notify();
     }
 
-    pub fn add_checked_labels(&mut self, label: Rc<LabelModel>) {
-        let item = Rc::make_mut(&mut self.item);
-        let mut labels_set = match &item.labels {
+    pub fn add_checked_labels(&mut self, label: Arc<LabelModel>) {
+        // 创建一个新的 ItemModel 实例并修改它
+        let mut item_model = (*self.item).clone();
+        let mut labels_set = match &item_model.labels {
             Some(current) => {
                 current.split(';').filter(|s: &&str| !s.is_empty()).collect::<HashSet<&str>>()
             },
@@ -405,14 +424,17 @@ impl ItemInfoState {
         // 重新拼接成字符串
         let new_labels = labels_set.into_iter().collect::<Vec<&str>>().join(";");
 
-        item.labels = Some(new_labels);
+        item_model.labels = Some(new_labels);
+        self.item = Arc::new(item_model);
     }
 
-    pub fn rm_checked_labels(&mut self, label: Rc<LabelModel>) {
-        let item = Rc::make_mut(&mut self.item);
-        if let Some(current_labels) = &item.labels {
+    pub fn rm_checked_labels(&mut self, label: Arc<LabelModel>) {
+        // 创建一个新的 ItemModel 实例并修改它
+        let mut item_model = (*self.item).clone();
+        if let Some(current_labels) = &item_model.labels {
             if current_labels.is_empty() {
-                item.labels = None;
+                item_model.labels = None;
+                self.item = Arc::new(item_model);
                 return;
             }
 
@@ -423,11 +445,12 @@ impl ItemInfoState {
                 .collect::<Vec<_>>()
                 .join(";");
 
-            item.labels = if new_labels.is_empty() { None } else { Some(new_labels) };
+            item_model.labels = if new_labels.is_empty() { None } else { Some(new_labels) };
+            self.item = Arc::new(item_model);
         }
     }
 
-    pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Rc<LabelModel>> {
+    pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Arc<LabelModel>> {
         let Some(label_ids) = &self.item.labels else {
             return Vec::new();
         };
@@ -439,7 +462,10 @@ impl ItemInfoState {
                 if trimmed_id.is_empty() {
                     return None;
                 }
-                all_labels.iter().find(|label| label.id == trimmed_id).map(Rc::clone)
+                all_labels.iter().find(|label| label.id == trimmed_id).map(|rc_label| {
+                    let label = (**rc_label).clone();
+                    Arc::new(label)
+                })
             })
             .collect()
     }
@@ -449,14 +475,16 @@ impl ItemInfoState {
     }
 
     pub fn set_priority(&mut self, priority: i32) {
-        let item = Rc::make_mut(&mut self.item);
-        item.priority = Some(priority);
+        let mut item_data = (*self.item).clone();
+        item_data.priority = Some(priority);
+        self.item = Arc::new(item_data);
     }
 
     fn toggle_finished(&mut self, _: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        let item = Rc::make_mut(&mut self.item);
-        item.checked = !item.checked;
-        if item.checked {
+        let mut item_data = (*self.item).clone();
+        item_data.checked = !item_data.checked;
+        self.item = Arc::new(item_data);
+        if self.item.checked {
             cx.emit(ItemInfoEvent::Finished());
         } else {
             cx.emit(ItemInfoEvent::UnFinished());
@@ -465,7 +493,7 @@ impl ItemInfoState {
     }
 
     // set item of item_info
-    pub fn set_item(&mut self, item: Rc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn set_item(&mut self, item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
         self.item = item.clone();
         self.name_input.update(cx, |this, cx| {
             this.set_value(item.content.clone(), window, cx);
@@ -496,7 +524,7 @@ impl ItemInfoState {
                     // 获取该project的sections
                     let project_sections =
                         cx.global::<crate::todo_state::ProjectState>().sections.clone();
-                    let filtered_sections: Vec<Rc<todos::entity::SectionModel>> = project_sections
+                    let filtered_sections: Vec<Arc<todos::entity::SectionModel>> = project_sections
                         .iter()
                         .filter(|s| s.project_id.as_ref() == Some(&project.id))
                         .cloned()
@@ -506,8 +534,10 @@ impl ItemInfoState {
                     if let Some(section_id) = &item.section_id
                         && !filtered_sections.iter().any(|s| &s.id == section_id)
                     {
-                        let item = Rc::make_mut(&mut self.item);
-                        item.section_id = None;
+                        // 创建一个新的 ItemModel 实例并修改它
+                        let mut item_model = (*self.item).clone();
+                        item_model.section_id = None;
+                        self.item = Arc::new(item_model);
                     }
 
                     section_state.set_sections(Some(filtered_sections), window, cx);
@@ -540,12 +570,12 @@ impl ItemInfoState {
 
         self.schedule_button_state.update(cx, |this, cx| {
             if let Some(due) = item.due.clone()
-                && let Ok(due_date) = serde_json::from_value::<todos::objects::DueDate>(due)
+                && let Ok(due_date) = serde_json::from_value::<todos::DueDate>(due)
             {
                 this.set_due_date(due_date, window, cx);
                 return;
             }
-            this.set_due_date(todos::objects::DueDate::default(), window, cx);
+            this.set_due_date(todos::DueDate::default(), window, cx);
         });
 
         // 异步加载附件和提醒
@@ -575,7 +605,7 @@ impl ItemInfoState {
     // label_toggle_checked：label选中或取消选中
     fn label_toggle_checked(
         &mut self,
-        label: Rc<LabelModel>,
+        label: Arc<LabelModel>,
         selected: &bool,
         _: &mut Window,
         cx: &mut Context<Self>,
@@ -618,8 +648,9 @@ impl Render for ItemInfoState {
                                 let view = view.clone();
                                 move |_event, _window, cx| {
                                     cx.update_entity(&view, |this, cx| {
-                                        let item = Rc::make_mut(&mut this.item);
-                                        item.pinned = !item.pinned;
+                                        let mut item_model = (*this.item).clone();
+                                        item_model.pinned = !item_model.pinned;
+                                        this.item = Arc::new(item_model);
                                         cx.emit(ItemInfoEvent::Updated());
                                         cx.notify();
                                     });
@@ -634,7 +665,9 @@ impl Render for ItemInfoState {
                     .label(label.name.clone())
                     .checked(self.selected_labels(cx).iter().any(|l| l.id == label.id))
                     .on_click(cx.listener(move |view, checked: &bool, window, cx| {
-                        view.label_toggle_checked(label_clone.clone(), checked, window, cx);
+                        // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
+                        let label_model = label_clone.as_ref().clone();
+                        view.label_toggle_checked(Arc::new(label_model), checked, window, cx);
                     }))
             })))
             .child(

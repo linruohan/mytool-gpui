@@ -25,7 +25,7 @@ impl Source {
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async { Store::new(self.db.clone()).await }).await
+        self.store.get_or_init(|| async { Store::new(self.db.clone()) }).await
     }
 
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
@@ -101,8 +101,13 @@ impl Source {
         Ok(())
     }
 
-    pub async fn delete_source(&self) -> Result<u64, TodoError> {
-        self.store().await.delete_source(&self.model.id).await
+    pub async fn delete_source(&self) -> Result<(), TodoError> {
+        use crate::entity::prelude::SourceEntity;
+        SourceEntity::delete_by_id(self.model.id.clone())
+            .exec(&self.db)
+            .await
+            .map_err(|e| TodoError::DbError(e))?;
+        Ok(())
     }
 }
 
