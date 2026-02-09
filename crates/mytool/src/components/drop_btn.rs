@@ -2,8 +2,9 @@ use gpui::{
     Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
-use gpui_component::{IconName, Size, StyledExt, button::Button, menu::DropdownMenu, v_flex};
-
+use gpui_component::{
+    Icon, IconName, Sizable, Size, StyledExt, button::Button, menu::DropdownMenu, v_flex,button::ButtonVariants
+};
 // Generic dropdown state
 pub struct DropdownState<T: Clone + PartialEq + 'static + Send> {
     focus_handle: FocusHandle,
@@ -199,6 +200,11 @@ pub trait DropdownButtonStateTrait<T: Clone + PartialEq + 'static + Send>:
         None
     }
 
+    /// 获取按钮图标颜色（可选）
+    fn button_icon_color(&self) -> Option<u32> {
+        None
+    }
+
     /// 获取按钮的最小宽度
     fn min_width(&self) -> f32 {
         100.0
@@ -222,11 +228,19 @@ where
     let min_width = state.min_width();
     let options = state.menu_options(cx);
 
-    let mut button =
-        Button::new(button_id).outline().tooltip(tooltip).label(SharedString::from(selected_name));
+    let mut button = Button::new(button_id)
+        .small()
+        .ghost()
+        .compact()
+        .outline()
+        .tooltip(tooltip)
+        .label(SharedString::from(selected_name));
 
     if let Some(icon_name) = icon {
-        button = button.icon(icon_name);
+        button = button.icon(
+            Icon::new(icon_name)
+                .text_color(gpui::rgb(state.button_icon_color().unwrap_or(0x333333))),
+        );
     }
 
     v_flex().on_action(cx.listener(S::on_action_select)).child(button.dropdown_menu_with_anchor(

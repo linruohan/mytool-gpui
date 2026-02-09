@@ -206,6 +206,42 @@ impl InboxBoard {
         }
     }
 
+    pub fn show_pin_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(active_index) = self.base.active_index {
+            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
+            if let Some(item) = item_some {
+                let view = cx.entity().clone();
+                window.open_dialog(cx, move |dialog, _, _| {
+                    dialog
+                        .confirm()
+                        .overlay(true)
+                        .overlay_closable(true)
+                        .child(if item.pinned { "Unpin this item?" } else { "Pin this item?" })
+                        .on_ok({
+                            let view = view.clone();
+                            let item = item.clone();
+                            move |_, window, cx| {
+                                let _view = view.clone();
+                                // 切换置顶状态
+                                let mut item_model = (*item).clone();
+                                item_model.pinned = !item.pinned;
+                                update_item(Arc::new(item_model), cx);
+                                window.push_notification(
+                                    if item.pinned { "Item unpinned." } else { "Item pinned." },
+                                    cx,
+                                );
+                                true
+                            }
+                        })
+                        .on_cancel(|_, window, cx| {
+                            window.push_notification("Operation canceled.", cx);
+                            true
+                        })
+                });
+            };
+        }
+    }
+
     pub fn show_section_dialog(
         &mut self,
         window: &mut Window,
@@ -355,6 +391,7 @@ impl Render for InboxBoard {
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
         let sections = cx.global::<SectionState>().sections.clone();
+        let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
 
@@ -403,6 +440,22 @@ impl Render for InboxBoard {
                                         move |_event, window, cx| {
                                             view.update(cx, |this, cx| {
                                                 this.show_finish_item_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("pin-item")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PinSymbolic)
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_pin_item_dialog(window, cx);
                                                 cx.notify();
                                             })
                                         }
@@ -461,6 +514,31 @@ impl Render for InboxBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap_4()
+                        .when(!pinned_items.is_empty(), |this| {
+                            let view_clone = view.clone();
+                            this.child(
+                                section("Pinned")
+                                    .child(v_flex().gap_2().w_full().children(
+                                        pinned_items.into_iter().map(|(i, _item)| {
+                                            let view = view_clone.clone();
+                                            let is_active = self.base.active_index == Some(i);
+                                            let item_row = self.base.item_rows.get(i).cloned();
+                                            div()
+                                                .id(("item", i))
+                                                .on_click(move |_, _, cx| {
+                                                    view.update(cx, |this, cx| {
+                                                        this.base.active_index = Some(i);
+                                                        cx.notify();
+                                                    });
+                                                })
+                                                .when(is_active, |this| {
+                                                    this.border_color(cx.theme().list_active_border)
+                                                })
+                                                .children(item_row.map(|row| ItemRow::new(&row)))
+                                        }),
+                                    )),
+                            )
+                        })
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(

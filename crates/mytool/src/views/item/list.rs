@@ -13,7 +13,11 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
     red_400, v_flex,
 };
-use todos::entity::{ItemModel, LabelModel};
+use todos::{
+    DueDate,
+    entity::{ItemModel, LabelModel},
+    utils::datetime::DateTime,
+};
 
 use crate::todo_state::LabelState;
 
@@ -75,9 +79,20 @@ impl RenderOnce for ItemListItem {
                     .text_color(text_color)
                     .child(Checkbox::new("item-finished").checked(self.item.checked))
                     .child(
-                        Label::new("Tomorrow").when(self.item.checked, |this| {
-                            this.line_through().text_color(red_400())
-                        }),
+                        Label::new(
+                            self.item
+                                .due
+                                .as_ref()
+                                .and_then(|due_json: &serde_json::Value| {
+                                    serde_json::from_value::<DueDate>(due_json.clone()).ok()
+                                })
+                                .and_then(|due_date: DueDate| due_date.datetime())
+                                .map(|datetime| {
+                                    DateTime::default().get_relative_date_from_date(&datetime)
+                                })
+                                .unwrap_or_else(|| "No date".to_string()),
+                        )
+                        .when(self.item.checked, |this| this.line_through().text_color(red_400())),
                     )
                     .child(
                         v_flex().overflow_x_hidden().flex_nowrap().child(

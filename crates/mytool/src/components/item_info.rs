@@ -10,7 +10,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     divider::Divider,
-    h_flex,
+    gray_200, h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,
 };
@@ -28,7 +28,9 @@ use super::{
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
-    todo_actions::{add_item, completed_item, delete_item, uncompleted_item, update_item},
+    todo_actions::{
+        add_item, completed_item, delete_item, set_item_pinned, uncompleted_item, update_item,
+    },
     todo_state::{DBState, LabelState},
 };
 
@@ -60,6 +62,8 @@ pub struct ItemInfoState {
     label_popover_list: Entity<LabelsPopoverList>,
     attachment_state: Entity<AttachmentButtonState>,
     reminder_state: Entity<ReminderButtonState>,
+    // 避免重复更新数据库的标志
+    skip_next_update: bool,
 }
 
 impl Focusable for ItemInfoState {
@@ -120,6 +124,7 @@ impl ItemInfoState {
             label_popover_list,
             attachment_state,
             reminder_state,
+            skip_next_update: false,
         };
         this.set_item(item, window, cx);
         this
@@ -302,12 +307,23 @@ impl ItemInfoState {
         match event {
             SectionEvent::Selected(section_id) => {
                 let mut item_data = (*self.item).clone();
-                item_data.section_id =
+                let new_section_id =
                     if section_id.is_empty() { None } else { Some(section_id.clone()) };
-                self.item = Arc::new(item_data);
+
+                // 只有当section_id实际变化时才更新
+                if item_data.section_id != new_section_id {
+                    item_data.section_id = new_section_id;
+                    self.item = Arc::new(item_data);
+                    // 立即保存更改，这样相关的board会立即更新
+                    update_item(self.item.clone(), cx);
+                    // 设置标志以避免在 handle_item_info_event 中重复更新
+                    self.skip_next_update = true;
+                    // 立即通知UI更新
+                    cx.notify();
+                }
+                cx.emit(ItemInfoEvent::Updated());
             },
         }
-        cx.emit(ItemInfoEvent::Updated());
         cx.notify();
     }
 
@@ -326,6 +342,11 @@ impl ItemInfoState {
                     item_data.due = Some(json_value);
                 }
                 self.item = Arc::new(item_data);
+                // 立即保存更改，这样相关的board（如TodayBoard）会立即更新
+                update_item(self.item.clone(), cx);
+                // 设置标志以避免在 handle_item_info_event 中重复更新
+                self.skip_next_update = true;
+                cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::TimeSelected(_time_str) => {
                 let schedule_state = _state.read(cx);
@@ -334,6 +355,11 @@ impl ItemInfoState {
                     item_data.due = Some(json_value);
                 }
                 self.item = Arc::new(item_data);
+                // 立即保存更改
+                update_item(self.item.clone(), cx);
+                // 设置标志以避免在 handle_item_info_event 中重复更新
+                self.skip_next_update = true;
+                cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::RecurrencySelected(_recurrency_type) => {
                 let schedule_state = _state.read(cx);
@@ -342,11 +368,21 @@ impl ItemInfoState {
                     item_data.due = Some(json_value);
                 }
                 self.item = Arc::new(item_data);
+                // 立即保存更改
+                update_item(self.item.clone(), cx);
+                // 设置标志以避免在 handle_item_info_event 中重复更新
+                self.skip_next_update = true;
+                cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::Cleared => {
                 let mut item_data = (*self.item).clone();
                 item_data.due = None;
                 self.item = Arc::new(item_data);
+                // 立即保存更改
+                update_item(self.item.clone(), cx);
+                // 设置标志以避免在 handle_item_info_event 中重复更新
+                self.skip_next_update = true;
+                cx.emit(ItemInfoEvent::Updated());
             },
             // ScheduleButtonEvent::DueDateChanged => {
             //     let schedule_state = _state.read(cx);
@@ -361,7 +397,6 @@ impl ItemInfoState {
         }
         // println!("schedule changed: {:?}", self.item.due);
 
-        cx.emit(ItemInfoEvent::Updated());
         cx.notify();
     }
 
@@ -404,7 +439,12 @@ impl ItemInfoState {
                 add_item(self.item.clone(), cx);
             },
             ItemInfoEvent::Updated() => {
-                update_item(self.item.clone(), cx);
+                // 检查是否需要跳过此次更新（避免重复调用）
+                if !self.skip_next_update {
+                    update_item(self.item.clone(), cx);
+                }
+                // 重置标志
+                self.skip_next_update = false;
             },
             ItemInfoEvent::Deleted() => {
                 delete_item(self.item.clone(), cx);
@@ -633,6 +673,7 @@ impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
         let labels = cx.global::<LabelState>().labels.clone();
+        let pinned_color = if self.item.pinned { gpui::red() } else { gray_200() };
         v_flex()
             .border_2()
             .border_color(blue())
@@ -652,17 +693,12 @@ impl Render for ItemInfoState {
                             .ghost()
                             .compact()
                             .icon(IconName::PinSymbolic)
+                            .text_color(pinned_color)
                             .tooltip("Pin item")
                             .on_click({
-                                let view = view.clone();
+                                let item = self.item.clone();
                                 move |_event, _window, cx| {
-                                    cx.update_entity(&view, |this, cx| {
-                                        let mut item_model = (*this.item).clone();
-                                        item_model.pinned = !item_model.pinned;
-                                        this.item = Arc::new(item_model);
-                                        cx.emit(ItemInfoEvent::Updated());
-                                        cx.notify();
-                                    });
+                                    set_item_pinned(item.clone(), !item.pinned, cx);
                                 }
                             }),
                     ),

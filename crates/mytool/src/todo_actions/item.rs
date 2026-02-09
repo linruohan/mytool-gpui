@@ -16,6 +16,24 @@ async fn refresh_items(cx: &mut AsyncApp, db: DatabaseConnection) {
     });
 }
 
+// 刷新ScheduledItemState
+async fn refresh_scheduled_items(cx: &mut AsyncApp, db: DatabaseConnection) {
+    let items = crate::service::get_items_scheduled(db).await;
+    let arc_items = items.iter().map(|item| Arc::new(item.clone())).collect::<Vec<_>>();
+    cx.update_global::<crate::todo_state::ScheduledItemState, _>(|state, _| {
+        state.items = arc_items;
+    });
+}
+
+// 刷新TodayItemState
+async fn refresh_today_items(cx: &mut AsyncApp, db: DatabaseConnection) {
+    let items = crate::service::get_items_today(db).await;
+    let arc_items = items.iter().map(|item| Arc::new(item.clone())).collect::<Vec<_>>();
+    cx.update_global::<crate::todo_state::TodayItemState, _>(|state, _| {
+        state.items = arc_items;
+    });
+}
+
 // 刷新指定项目的items
 async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
     let items = crate::service::get_items_by_project_id(project_id, db).await;
@@ -53,6 +71,12 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
         Ok(_) => {
             // 更新全局items
             refresh_items(cx, db.clone()).await;
+
+            // 刷新ScheduledItemState
+            refresh_scheduled_items(cx, db.clone()).await;
+
+            // 刷新TodayItemState
+            refresh_today_items(cx, db.clone()).await;
 
             // 如果当前有活跃项目，也刷新该项目
             if let Some(active_project) = active_project {

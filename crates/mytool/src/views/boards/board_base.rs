@@ -12,6 +12,9 @@ pub struct BoardBase {
     pub no_section_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
     pub section_items_map:
         std::collections::HashMap<String, Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>>,
+    pub pinned_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
+    pub overdue_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
+    pub is_today_board: bool,
 }
 
 impl BoardBase {
@@ -22,6 +25,8 @@ impl BoardBase {
         let item_rows = vec![];
         let no_section_items = vec![];
         let section_items_map = std::collections::HashMap::new();
+        let pinned_items = vec![];
+        let overdue_items = vec![];
 
         Self {
             focus_handle: cx.focus_handle(),
@@ -31,6 +36,9 @@ impl BoardBase {
             item_info,
             no_section_items,
             section_items_map,
+            pinned_items,
+            overdue_items,
+            is_today_board: false,
         }
     }
 
@@ -39,22 +47,51 @@ impl BoardBase {
     where
         T: Into<std::sync::Arc<todos::entity::ItemModel>> + Clone,
     {
-        // 重新计算no_section_items和section_items_map
+        self.update_items_ordered(items);
+    }
+
+    /// 更新项目列表和部分映射，按照正确的顺序组织
+    pub fn update_items_ordered<T>(&mut self, items: &[T])
+    where
+        T: Into<std::sync::Arc<todos::entity::ItemModel>> + Clone,
+    {
+        // 重新计算各项
+        self.pinned_items.clear();
+        self.overdue_items.clear();
         self.no_section_items.clear();
         self.section_items_map.clear();
 
+        let mut non_pinned_overdue = vec![];
+        let mut non_pinned_non_overdue_no_section = vec![];
+        let mut non_pinned_non_overdue_sections = std::collections::HashMap::new();
+
         for (i, item) in items.iter().enumerate() {
             let item_model: std::sync::Arc<todos::entity::ItemModel> = item.clone().into();
-            match item_model.section_id.as_deref() {
-                None | Some("") => self.no_section_items.push((i, item_model)),
-                Some(sid) => {
-                    self.section_items_map
-                        .entry(sid.to_string())
-                        .or_default()
-                        .push((i, item_model));
-                },
+
+            if item_model.pinned {
+                // 置顶任务放在最上方（无论是否过期）
+                self.pinned_items.push((i, item_model));
+            } else if self.is_today_board && self.is_overdue(&item_model) {
+                // 非置顶但过期的任务
+                non_pinned_overdue.push((i, item_model));
+            } else {
+                // 非置顶且非过期的任务，按section分类
+                match item_model.section_id.as_deref() {
+                    None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
+                    Some(sid) => {
+                        non_pinned_non_overdue_sections
+                            .entry(sid.to_string())
+                            .or_insert_with(Vec::new)
+                            .push((i, item_model));
+                    },
+                }
             }
         }
+
+        // 组织数据结构
+        self.overdue_items = non_pinned_overdue;
+        self.no_section_items = non_pinned_non_overdue_no_section;
+        self.section_items_map = non_pinned_non_overdue_sections;
 
         // 更新活动索引
         if let Some(ix) = self.active_index {
@@ -64,6 +101,21 @@ impl BoardBase {
         } else if !self.item_rows.is_empty() {
             self.active_index = Some(0);
         }
+    }
+
+    /// 检查任务是否过期
+    fn is_overdue(&self, item: &std::sync::Arc<todos::entity::ItemModel>) -> bool {
+        if let Some(due) = &item.due {
+            if let Some(due_str) = due.as_str() {
+                if let Ok(due_datetime) =
+                    chrono::NaiveDateTime::parse_from_str(due_str, "%Y-%m-%d %H:%M")
+                {
+                    let now = chrono::Utc::now().naive_utc();
+                    return due_datetime < now;
+                }
+            }
+        }
+        false
     }
 }
 

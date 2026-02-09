@@ -238,8 +238,20 @@ impl Store {
         self.item_service.get_pinned_items().await
     }
 
+    pub async fn get_incomplete_pinned_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        self.item_service.get_incomplete_pinned_items().await
+    }
+
     pub async fn get_completed_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         self.item_service.get_completed_items().await
+    }
+
+    pub async fn get_incomplete_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        self.item_service.get_incomplete_items().await
+    }
+
+    pub async fn get_scheduled_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        self.item_service.get_scheduled_items().await
     }
 
     pub async fn search_items(&self, search_text: &str) -> Result<Vec<ItemModel>, TodoError> {

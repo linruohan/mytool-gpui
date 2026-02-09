@@ -51,9 +51,8 @@ pub async fn get_project_items(
 ) -> Vec<ItemModel> {
     Store::new(db).get_items_by_project(&project.id).await.unwrap_or_default()
 }
-pub async fn get_inbox_items(_db: DatabaseConnection) -> Vec<ItemModel> {
-    // 暂时返回空向量，实际实现需要获取未检查的项目
-    vec![]
+pub async fn get_inbox_items(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).get_incomplete_items().await.unwrap_or_default()
 }
 pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).get_items_by_project(project_id).await.unwrap_or_default()
@@ -67,7 +66,10 @@ pub async fn get_items_today(db: DatabaseConnection) -> Vec<ItemModel> {
 pub async fn get_items_pinned(db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).get_pinned_items().await.unwrap_or_default()
 }
-pub async fn get_items_scheduled(_db: DatabaseConnection) -> Vec<ItemModel> {
-    // 暂时返回空向量，实际实现需要获取计划的项目
-    vec![]
+
+pub async fn get_incomplete_pinned_items(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).get_incomplete_pinned_items().await.unwrap_or_default()
+}
+pub async fn get_items_scheduled(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).get_scheduled_items().await.unwrap_or_default()
 }

@@ -185,6 +185,39 @@ impl CompletedBoard {
             };
         }
     }
+
+    pub fn show_unpin_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(active_index) = self.base.active_index {
+            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
+            if let Some(item) = item_some {
+                let view = cx.entity().clone();
+                window.open_dialog(cx, move |dialog, _, _| {
+                    dialog
+                        .confirm()
+                        .overlay(true)
+                        .overlay_closable(true)
+                        .child("Unpin this item?")
+                        .on_ok({
+                            let view = view.clone();
+                            let item = item.clone();
+                            move |_, window, cx| {
+                                let _view = view.clone();
+                                // 取消置顶
+                                let mut item_model = (*item).clone();
+                                item_model.pinned = false;
+                                update_item(Arc::new(item_model), cx);
+                                window.push_notification("Item unpinned.", cx);
+                                true
+                            }
+                        })
+                        .on_cancel(|_, window, cx| {
+                            window.push_notification("Operation canceled.", cx);
+                            true
+                        })
+                });
+            };
+        }
+    }
 }
 
 impl Board for CompletedBoard {
@@ -231,6 +264,7 @@ impl Render for CompletedBoard {
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
         let sections = cx.global::<SectionState>().sections.clone();
+        let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
 
@@ -284,6 +318,22 @@ impl Render for CompletedBoard {
                                     }),
                             )
                             .child(
+                                Button::new("unpin-item")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::PinSymbolic)
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_unpin_item_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
                                 Button::new("delete-item")
                                     .icon(IconName::UserTrashSymbolic)
                                     .small()
@@ -304,6 +354,28 @@ impl Render for CompletedBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap_4()
+                        .when(!pinned_items.is_empty(), |this| {
+                            let view_clone = view.clone();
+                            this.child(section("Pinned").child(v_flex().gap_2().w_full().children(
+                                pinned_items.into_iter().map(|(i, _item)| {
+                                    let view = view_clone.clone();
+                                    let is_active = self.base.active_index == Some(i);
+                                    let item_row = self.base.item_rows.get(i).cloned();
+                                    div()
+                                        .id(("item", i))
+                                        .on_click(move |_, _, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.base.active_index = Some(i);
+                                                cx.notify();
+                                            });
+                                        })
+                                        .when(is_active, |this| {
+                                            this.border_color(cx.theme().list_active_border)
+                                        })
+                                        .children(item_row.map(|row| ItemRow::new(&row)))
+                                }),
+                            )))
+                        })
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(section("No Section").child(

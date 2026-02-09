@@ -278,12 +278,57 @@ impl ItemService {
         Ok(items)
     }
 
+    /// Get all incomplete pinned items
+    pub async fn get_incomplete_pinned_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_incomplete_pinned_items");
+        let items = ItemEntity::find()
+            .filter(items::Column::Pinned.eq(true))
+            .filter(items::Column::Checked.eq(false))
+            .all(&*self.db)
+            .await?;
+        self.metrics.record_operation("get_incomplete_pinned_items", items.len());
+        Ok(items)
+    }
+
     /// Get all completed items
     pub async fn get_completed_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_completed_items");
         let items =
             ItemEntity::find().filter(items::Column::Checked.eq(true)).all(&*self.db).await?;
         self.metrics.record_operation("get_completed_items", items.len());
+        Ok(items)
+    }
+
+    /// Get all incomplete items
+    pub async fn get_incomplete_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_incomplete_items");
+        let items =
+            ItemEntity::find().filter(items::Column::Checked.eq(false)).all(&*self.db).await?;
+        self.metrics.record_operation("get_incomplete_items", items.len());
+        Ok(items)
+    }
+
+    /// Get all scheduled items (items with due date that are not completed)
+    pub async fn get_scheduled_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_scheduled_items");
+        let mut items: Vec<ItemModel> = ItemEntity::find()
+            .filter(items::Column::Due.is_not_null())
+            .filter(items::Column::Checked.eq(false))
+            .all(&*self.db)
+            .await?;
+        // Sort by due date
+        items.sort_by(|a, b| {
+            let a_date = a.due.clone().and_then(|d| {
+                d.as_str()
+                    .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok())
+            });
+            let b_date = b.due.clone().and_then(|d| {
+                d.as_str()
+                    .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok())
+            });
+            a_date.cmp(&b_date)
+        });
+        self.metrics.record_operation("get_scheduled_items", items.len());
         Ok(items)
     }
 
@@ -393,12 +438,13 @@ impl ItemService {
         Ok(())
     }
 
-    /// Get items due today
+    /// Get items due today and overdue items
     pub async fn get_items_due_today(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_items_due_today");
         let today = chrono::Utc::now().naive_utc().date();
         let items: Vec<ItemModel> = ItemEntity::find()
             .filter(items::Column::Due.is_not_null())
+            .filter(items::Column::Checked.eq(false)) // 只返回未完成的任务
             .all(&*self.db)
             .await?
             .into_iter()
@@ -406,11 +452,22 @@ impl ItemService {
                 item.due
                     .clone()
                     .and_then(|d| {
-                        d.as_str().and_then(|s| {
-                            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok()
-                        })
+                        // due字段是JSON格式，提取date字段
+                        d.get("date")
+                            .and_then(|date_val| date_val.as_str())
+                            .and_then(|s| {
+                                // 如果date为空字符串，跳过
+                                if s.is_empty() {
+                                    None
+                                } else {
+                                    // 支持两种格式：带秒数和不带秒数
+                                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+                                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M"))
+                                        .ok()
+                                }
+                            })
                     })
-                    .map(|d| d.date() == today)
+                    .map(|d| d.date() <= today) // 获取due日期小于等于今天的任务（包括过期的和今天到期的）
                     .unwrap_or(false)
             })
             .collect();

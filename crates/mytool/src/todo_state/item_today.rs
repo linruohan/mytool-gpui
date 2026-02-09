@@ -26,10 +26,18 @@ impl TodayItemState {
 
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |cx| {
-            let list = get_items_today(db.clone()).await;
+            // 只获取今天到期的任务
+            let today_items = get_items_today(db.clone()).await;
+
             let arc_list: Vec<Arc<ItemModel>> =
-                list.iter().map(|pro| Arc::new(pro.clone())).collect();
-            println!("state today_items: {}", list.len());
+                today_items.iter().map(|pro| Arc::new(pro.clone())).collect();
+            println!("state today_items: {}", today_items.len());
+            for item in &today_items {
+                println!(
+                    "  today item: {} - due: {:?}, checked: {}, pinned: {}",
+                    item.content, item.due, item.checked, item.pinned
+                );
+            }
             cx.update_global::<TodayItemState, _>(|state, _cx| {
                 state.items = arc_list;
             });
@@ -40,10 +48,18 @@ impl TodayItemState {
         cx.observe_global::<crate::todo_state::ItemState>(move |cx| {
             let db = cx.global::<DBState>().conn.clone();
             cx.spawn(async move |cx| {
-                let list = get_items_today(db.clone()).await;
+                // 只获取今天到期的任务
+                let today_items = get_items_today(db.clone()).await;
+
                 let arc_list: Vec<Arc<ItemModel>> =
-                    list.iter().map(|pro| Arc::new(pro.clone())).collect();
-                println!("state today_items updated: {}", list.len());
+                    today_items.iter().map(|pro| Arc::new(pro.clone())).collect();
+                println!("state today_items updated: {}", today_items.len());
+                for item in &today_items {
+                    println!(
+                        "  updated today item: {} - due: {:?}, checked: {}, pinned: {}",
+                        item.content, item.due, item.checked, item.pinned
+                    );
+                }
                 cx.update_global::<TodayItemState, _>(|state, _cx| {
                     state.items = arc_list;
                 });

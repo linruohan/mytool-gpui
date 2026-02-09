@@ -68,7 +68,11 @@ impl DropdownButtonStateTrait<ItemPriority> for PriorityState {
     }
 
     fn selected_display_name(&self, _cx: &mut Context<Self>) -> String {
-        self.priority().display_name().to_string()
+        "".to_string()
+    }
+
+    fn button_icon_color(&self) -> Option<u32> {
+        Some(self.priority().get_color())
     }
 
     fn menu_options(&self, _cx: &mut Context<Self>) -> Vec<(String, ItemPriority)> {
