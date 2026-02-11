@@ -129,39 +129,52 @@ impl AttachmentButtonState {
     }
 
     fn on_add_attachment(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        if let Err(e) = self.try_add_attachment(cx) {
-            cx.emit(AttachmentButtonEvent::Error(Box::new(e)));
-        }
+        self.try_add_attachment(cx);
     }
 
-    fn try_add_attachment(&mut self, cx: &mut Context<Self>) -> AttachmentResult<()> {
-        let file_path = rfd::FileDialog::new().pick_file();
-        let file_path = file_path
-            .ok_or_else(|| AttachmentError::FileNotFound("No file selected".to_string()))?;
+    fn try_add_attachment(&mut self, cx: &mut Context<Self>) {
+        let item_id = self.item_id.clone();
+        let view = cx.entity();
 
-        let file_name = file_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or(AttachmentError::InvalidFileName)?;
+        cx.spawn(async move |_this, cx| {
+            let file_handle = rfd::AsyncFileDialog::new().pick_file().await;
+            let file_handle = match file_handle {
+                Some(handle) => handle,
+                None => return, // User cancelled
+            };
 
-        let file_size = std::fs::metadata(&file_path)
-            .map(|m| m.len())
-            .map_err(|e| AttachmentError::FileReadError(e.to_string()))?;
+            let file_path = file_handle.path().to_path_buf();
+            let file_name = file_handle.file_name();
+            let file_size = match std::fs::metadata(&file_path) {
+                Ok(metadata) => metadata.len(),
+                Err(e) => {
+                    cx.update_entity(&view, |_this, cx| {
+                        cx.emit(AttachmentButtonEvent::Error(Box::new(
+                            AttachmentError::FileReadError(e.to_string()),
+                        )));
+                    });
+                    return;
+                },
+            };
 
-        let file_type = file_path.extension().and_then(|ext| ext.to_str()).map(|s| s.to_string());
+            let file_type =
+                file_path.extension().and_then(|ext| ext.to_str()).map(|s| s.to_string());
 
-        let attachment = AttachmentModel {
-            id: Uuid::new_v4().to_string(),
-            item_id: self.item_id.clone(),
-            file_name: file_name.to_string(),
-            file_path: file_path.to_string_lossy().to_string(),
-            file_type,
-            file_size,
-        };
+            let attachment = AttachmentModel {
+                id: Uuid::new_v4().to_string(),
+                item_id,
+                file_name: file_name.to_string(),
+                file_path: file_path.to_string_lossy().to_string(),
+                file_type,
+                file_size,
+            };
 
-        self.add_attachment(Arc::new(attachment.clone()), cx);
-        crate::todo_actions::add_attachment(attachment, cx);
-        Ok(())
+            cx.update_entity(&view, |this: &mut AttachmentButtonState, cx| {
+                this.add_attachment(Arc::new(attachment.clone()), cx);
+                crate::todo_actions::add_attachment(attachment, cx);
+            });
+        })
+        .detach();
     }
 
     fn on_remove_attachment(&mut self, attachment_id: &str, cx: &mut Context<Self>) {

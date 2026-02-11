@@ -3,7 +3,10 @@ use gpui::{
     ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
-    Icon, IconName, Sizable, Size, StyledExt, button::Button, menu::DropdownMenu, v_flex,button::ButtonVariants
+    Icon, IconName, Sizable, Size, StyledExt,
+    button::{Button, ButtonVariants},
+    menu::DropdownMenu,
+    v_flex,
 };
 // Generic dropdown state
 pub struct DropdownState<T: Clone + PartialEq + 'static + Send> {

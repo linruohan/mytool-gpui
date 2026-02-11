@@ -7,6 +7,7 @@ use gpui::{
 use gpui_component::{
     IconName, Sizable,
     button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
     input::{Input, InputEvent, InputState},
     popover::Popover,
@@ -56,9 +57,10 @@ pub struct ReminderButtonState {
     pub item_id: String,
     search: PopoverSearchMixin,
     items: PopoverListMixin<Arc<ReminderModel>>,
-    date_input: Entity<InputState>,
+    date_picker_state: Entity<DatePickerState>,
     current_date: String,
     current_time: String,
+    show_date_picker: bool,
     show_time_dropdown: bool,
 }
 
@@ -66,12 +68,13 @@ impl_button_state_base!(ReminderButtonState, ReminderButtonEvent);
 
 impl ReminderButtonState {
     pub fn new(item_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let date_input = cx.new(|cx| InputState::new(window, cx).placeholder("YYYY-MM-DD"));
+        let date_picker_state = cx.new(|cx| DatePickerState::new(window, cx));
         let search_input =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search reminders..."));
 
         // Subscribe to search events directly
         let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);
+        let _ = cx.subscribe_in(&date_picker_state, window, Self::on_date_picker_event);
 
         let filter_fn = |reminder: &Arc<ReminderModel>, query: &str| {
             reminder
@@ -86,9 +89,10 @@ impl ReminderButtonState {
             item_id,
             search: PopoverSearchMixin::new(search_input),
             items: PopoverListMixin::new(filter_fn),
-            date_input,
+            date_picker_state,
             current_date: String::new(),
             current_time: "09:00".to_string(),
+            show_date_picker: false,
             show_time_dropdown: false,
         }
     }
@@ -132,6 +136,20 @@ impl ReminderButtonState {
                 &mut self.search.search_query,
                 cx,
             );
+        }
+    }
+
+    fn on_date_picker_event(
+        &mut self,
+        _state: &Entity<DatePickerState>,
+        event: &DatePickerEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let DatePickerEvent::Change(date) = event {
+            self.current_date = date.format("%Y-%m-%d").to_string();
+            self.show_date_picker = false;
+            cx.notify();
         }
     }
 
@@ -187,8 +205,9 @@ impl ReminderButtonState {
 impl Render for ReminderButtonState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
+        let show_date_picker = self.show_date_picker;
         let show_time_dropdown = self.show_time_dropdown;
-        let date_input = self.date_input.clone();
+        let date_picker_state = self.date_picker_state.clone();
         let search_input = self.search.search_input.clone();
         let filtered_reminders = self.get_filtered_reminders();
 
@@ -203,6 +222,7 @@ impl Render for ReminderButtonState {
                     *open,
                 );
                 if !*open {
+                    this.show_date_picker = false;
                     this.show_time_dropdown = false;
                 }
                 cx.notify();
@@ -217,67 +237,108 @@ impl Render for ReminderButtonState {
                     .p_3()
                     .w_96()
                     .child(Input::new(&search_input).flex_1())
+                    // Date and Time Selection Section
                     .child(
-                        h_flex()
+                        v_flex()
                             .gap_2()
-                            .items_center()
-                            .child(Input::new(&date_input).flex_1())
                             .child(
-                                Button::new("time-dropdown")
-                                    .small()
-                                    .outline()
-                                    .label(&self.current_time)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, _window, cx| {
-                                            cx.update_entity(&view, |this, cx| {
-                                                this.show_time_dropdown = !this.show_time_dropdown;
-                                                cx.notify();
-                                            });
-                                        }
-                                    }),
+                                h_flex()
+                                    .gap_2()
+                                    .items_center()
+                                    .child(
+                                        Button::new("date-picker-button")
+                                            .small()
+                                            .outline()
+                                            .flex_1()
+                                            .label(if self.current_date.is_empty() {
+                                                "Select Date".to_string()
+                                            } else {
+                                                self.current_date.clone()
+                                            })
+                                            .on_click({
+                                                let view = view.clone();
+                                                move |_event, _window, cx| {
+                                                    cx.update_entity(&view, |this, cx| {
+                                                        this.show_date_picker = !this.show_date_picker;
+                                                        if this.show_date_picker && this.current_date.is_empty() {
+                                                            // Set today as default
+                                                            let today = chrono::Utc::now().naive_utc().date();
+                                                            this.date_picker_state.update(cx, |picker, cx| {
+                                                                picker.set_date(today, &mut gpui::Window::new(cx), cx);
+                                                            });
+                                                        }
+                                                        cx.notify();
+                                                    });
+                                                }
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("time-dropdown")
+                                            .small()
+                                            .outline()
+                                            .label(&self.current_time)
+                                            .on_click({
+                                                let view = view.clone();
+                                                move |_event, _window, cx| {
+                                                    cx.update_entity(&view, |this, cx| {
+                                                        this.show_time_dropdown = !this.show_time_dropdown;
+                                                        cx.notify();
+                                                    });
+                                                }
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("add-reminder")
+                                            .small()
+                                            .primary()
+                                            .icon(IconName::Plus)
+                                            .on_click({
+                                                let view = view.clone();
+                                                move |_event, _window, cx| {
+                                                    cx.update_entity(&view, |this, cx| {
+                                                        this.on_add_reminder(cx);
+                                                    });
+                                                }
+                                            }),
+                                    ),
                             )
-                            .child(
-                                Button::new("add-reminder")
-                                    .small()
-                                    .primary()
-                                    .icon(IconName::Plus)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, _window, cx| {
-                                            cx.update_entity(&view, |this, cx| {
-                                                let date =
-                                                    this.date_input.read(cx).value().to_string();
-                                                this.current_date = date;
-                                                this.on_add_reminder(cx);
-                                            });
-                                        }
-                                    }),
-                            ),
-                    )
-                    .when(show_time_dropdown, {
-                        let view = view.clone();
-                        move |this| {
-                            this.child(v_flex().gap_1().children(
-                                Self::get_time_options().iter().map(|time| {
-                                    let view = view.clone();
-                                    let time = *time;
-                                    Button::new(format!("time-{}", time))
-                                        .small()
-                                        .label(time)
-                                        .on_click({
+                            // Date Picker
+                            .when(show_date_picker, {
+                                let date_picker = date_picker_state.clone();
+                                move |this| {
+                                    this.child(
+                                        DatePicker::new(&date_picker)
+                                            .cleanable(true)
+                                            .w(px(260.))
+                                    )
+                                }
+                            })
+                            // Time Dropdown
+                            .when(show_time_dropdown, {
+                                let view = view.clone();
+                                move |this| {
+                                    this.child(v_flex().gap_1().children(
+                                        Self::get_time_options().iter().map(|time| {
                                             let view = view.clone();
-                                            let time = time.to_string();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |this, cx| {
-                                                    this.on_time_select(&time, cx);
-                                                });
-                                            }
-                                        })
-                                }),
-                            ))
-                        }
-                    })
+                                            let time = *time;
+                                            Button::new(format!("time-{}", time))
+                                                .small()
+                                                .label(time)
+                                                .on_click({
+                                                    let view = view.clone();
+                                                    let time = time.to_string();
+                                                    move |_event, _window, cx| {
+                                                        cx.update_entity(&view, |this, cx| {
+                                                            this.on_time_select(&time, cx);
+                                                        });
+                                                    }
+                                                })
+                                        }),
+                                    ))
+                                }
+                            }),
+                    )
+                    // Reminders List
                     .child(v_flex().gap_2().children(filtered_reminders.iter().enumerate().map(
                         |(idx, reminder)| {
                             let reminder_id = reminder.id.clone();
