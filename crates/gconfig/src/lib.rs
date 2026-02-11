@@ -82,32 +82,35 @@ impl AppConfig {
     /// 按优先级查找配置文件：
     /// 1. 环境特定配置 (application.{env}.toml)
     /// 2. 默认配置 (application.toml)
+    ///
+    /// 配置文件应位于 workspace 根目录（与 crates 目录同级）
     fn find_config_file(env: Environment) -> Result<PathBuf> {
-        let search_paths = [".", "..", "../.."];
+        // workspace 根目录位于 crates/gconfig 的两级父目录
+        let workspace_root = Path::new("../../");
+
         let env_filename = format!("application.{}.toml", env.as_str());
-        let default_filename = "application.toml";
 
         // 优先查找环境特定配置
-        for base_path in &search_paths {
-            let env_path = Path::new(base_path).join(&env_filename);
-            if env_path.exists() {
-                return Ok(env_path);
-            }
+        let env_path = workspace_root.join(&env_filename);
+        if env_path.exists() {
+            return env_path
+                .canonicalize()
+                .map_err(|e| anyhow!("无法解析配置文件路径: {} ({:?})", env_path.display(), e));
         }
 
         // 查找默认配置
-        for base_path in &search_paths {
-            let default_path = Path::new(base_path).join(default_filename);
-            if default_path.exists() {
-                return Ok(default_path);
-            }
+        let default_path = workspace_root.join("application.toml");
+        if default_path.exists() {
+            return default_path.canonicalize().map_err(|e| {
+                anyhow!("无法解析配置文件路径: {} ({:?})", default_path.display(), e)
+            });
         }
 
         bail!(
-            "配置文件未找到。尝试查找: {} 或 {} 在路径: {:?}",
+            "配置文件未找到。尝试查找: {} 或 {} 在路径: {}",
             env_filename,
-            default_filename,
-            search_paths
+            "application.toml",
+            workspace_root.display()
         )
     }
 
@@ -209,6 +212,9 @@ impl AppConfig {
 static CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().expect("初始化配置失败")));
 
+// 初始化错误缓存（使用 String 存储）
+static INIT_ERROR: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
 /// 获取全局配置
 ///
 /// 返回一个静态引用到全局配置实例
@@ -226,12 +232,27 @@ pub fn get() -> &'static RwLock<AppConfig> {
 /// # Returns
 /// - 成功时返回Ok(&'static RwLock<AppConfig>)
 /// - 失败时返回Err(anyhow::Error)
+///
+/// 注意：此函数会尝试加载配置验证其有效性，
+/// 如果验证成功则返回全局配置引用。
 pub fn try_get() -> Result<&'static RwLock<AppConfig>> {
-    Ok(&CONFIG)
+    // 检查是否有缓存的初始化错误
+    if let Some(ref err) = *INIT_ERROR.lock().unwrap() {
+        return Err(anyhow::anyhow!("配置初始化失败: {}", err));
+    }
+
+    // 尝试加载配置以验证其有效性
+    match AppConfig::load() {
+        Ok(_) => Ok(&CONFIG),
+        Err(e) => {
+            // 缓存错误消息
+            *INIT_ERROR.lock().unwrap() = Some(format!("{}", e));
+            Err(e)
+        },
+    }
 }
 
 /// 重载全局配置
-///
 /// 重新从配置文件加载配置并更新全局实例
 ///
 /// # Returns

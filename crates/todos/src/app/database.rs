@@ -30,8 +30,11 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
         .acquire_timeout(Duration::from_secs(30))
         .idle_timeout(Duration::from_secs(60))
         .max_lifetime(Duration::from_secs(1800))
-        .sqlx_logging(false)
-        .set_schema_search_path(database_config.schema());
+        .sqlx_logging(false);
+
+    if let Some(schema) = database_config.schema() {
+        options.set_schema_search_path(schema);
+    }
     let db = Database::connect(options).await?;
     db.ping().await?;
     tracing::info!("Database connection successfully");

@@ -58,18 +58,22 @@ pub fn decrypt(encrypted: &str, password: &str) -> Result<String, CryptoError> {
     let iv = &buffer_slice[16..28];
     let data = &buffer_slice[28..];
 
+    // 将 iv 切片转换为固定大小数组
+    let iv: [u8; 12] = iv.try_into().map_err(|_| CryptoError::InvalidFormat)?;
+
     let derive_key = derive_key(password, salt)?;
     let key = derive_key.as_bytes();
     let key: &Key<Aes256Gcm> = key.into();
     let cipher = Aes256Gcm::new(key);
-    #[allow(deprecated)]
-    let nonce = Nonce::from_slice(iv);
-    let decrypted = cipher.decrypt(nonce, data).map_err(|_| CryptoError::AeadError)?;
+    let nonce = Nonce::from(iv);
+    let decrypted = cipher.decrypt(&nonce, data).map_err(|_| CryptoError::AeadError)?;
     Ok(String::from_utf8(decrypted)?)
 }
 
 fn derive_key(password: &str, salt: &[u8]) -> Result<Output, CryptoError> {
-    let params = Params { rounds: 12345, output_length: 32 };
+    // 使用 OWASP 推荐的迭代次数（至少 100,000 次）
+    // 参考: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+    let params = Params { rounds: 600_000, output_length: 32 };
 
     let salt_string = SaltString::encode_b64(salt).map_err(|_| CryptoError::PasswordHashError)?;
     let salt = Salt::from(&salt_string);
