@@ -13,7 +13,7 @@ use gpui_component::{
 use serde::Deserialize;
 use todos::{DueDate, enums::RecurrencyType};
 
-use crate::{create_complex_button, impl_button_state_base};
+use crate::{create_button_wrapper, impl_button_state_base};
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = schedule_button, no_json)]
@@ -392,4 +392,4 @@ impl Render for ScheduleButtonState {
     }
 }
 
-create_complex_button!(ScheduleButton, ScheduleButtonState, ScheduleButtonEvent, "item-schedule");
+create_button_wrapper!(ScheduleButton, ScheduleButtonState, "item-schedule");

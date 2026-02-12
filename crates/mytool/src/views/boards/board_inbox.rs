@@ -142,7 +142,7 @@ impl InboxBoard {
             self.base.item_info.clone()
         };
 
-        let config = crate::components::ItemDialogConfig::new(
+        let config = crate::components::EditDialogConfig::new(
             if is_edit { "Edit Item" } else { "New Item" },
             if is_edit { "Save" } else { "Add" },
             is_edit,
@@ -268,12 +268,11 @@ impl InboxBoard {
             })
         };
 
-        let config = crate::components::SectionDialogConfig::new(
+        let config = crate::components::EditDialogConfig::for_section(
             if is_edit { "Edit Section" } else { "New Section" },
             if is_edit { "Save" } else { "Add" },
             is_edit,
-        )
-        .with_overlay(false);
+        );
 
         let view = cx.entity().clone();
         crate::components::show_section_dialog(window, cx, name_input, config, move |name, cx| {

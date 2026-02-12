@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct DialogConfig {
     pub title: String,
     pub overlay: bool,

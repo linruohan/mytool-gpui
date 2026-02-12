@@ -109,26 +109,36 @@ impl LabelsPopoverList {
         });
     }
 
+    fn update_label_selection(&mut self, select: bool, cx: &mut Context<Self>) {
+        let picker = self.label_list.read(cx);
+        if let Some(label) = picker.delegate().selected_label() {
+            let contains = self.selected_labels.iter().any(|l| l.id == label.id);
+            if (select && !contains) || (!select && contains) {
+                if select {
+                    self.selected_labels.push(label.clone());
+                    cx.emit(LabelsPopoverEvent::Selected(label.clone()));
+                } else {
+                    self.selected_labels.retain(|l| l.id != label.id);
+                    cx.emit(LabelsPopoverEvent::DeSelected(label.clone()));
+                }
+                // 同步更新 LabelCheckListDelegate 的 checked_list
+                self.label_list.update(cx, |list, cx| {
+                    list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
+                });
+                // 发送标签ID字符串
+                self.emit_labels_changed(cx);
+            }
+            cx.notify();
+        }
+    }
+
     fn selected_label(
         &mut self,
         _: &SelectedCheckLabel,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let picker = self.label_list.read(cx);
-        if let Some(label) = picker.delegate().selected_label() {
-            if !self.selected_labels.iter().any(|l| l.id == label.id) {
-                self.selected_labels.push(label.clone());
-                // 同步更新 LabelCheckListDelegate 的 checked_list
-                self.label_list.update(cx, |list, cx| {
-                    list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
-                });
-                cx.emit(LabelsPopoverEvent::Selected(label.clone()));
-                // 发送标签ID字符串
-                self.emit_labels_changed(cx);
-            }
-            cx.notify();
-        }
+        self.update_label_selection(true, cx);
     }
 
     fn unselected_label(
@@ -137,20 +147,7 @@ impl LabelsPopoverList {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let picker = self.label_list.read(cx);
-        if let Some(label) = picker.delegate().selected_label() {
-            if self.selected_labels.iter().any(|l| l.id == label.id) {
-                self.selected_labels.retain(|l| l.id != label.id);
-                // 同步更新 LabelCheckListDelegate 的 checked_list
-                self.label_list.update(cx, |list, cx| {
-                    list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
-                });
-                cx.emit(LabelsPopoverEvent::DeSelected(label.clone()));
-                // 发送标签ID字符串
-                self.emit_labels_changed(cx);
-            }
-            cx.notify();
-        }
+        self.update_label_selection(false, cx);
     }
 
     // 处理新标签输入框事件

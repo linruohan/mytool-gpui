@@ -1,12 +1,25 @@
 use chrono::Local;
-use gpui::{prelude::FluentBuilder, px, Action, Context, Entity, FocusHandle, Render, SharedString, Subscription, Window};
-use gpui_component::{button::Button, date_picker::{DatePicker, DatePickerEvent, DatePickerState}, divider::Divider, h_flex, label::Label, number_input::NumberInput, popover::Popover, space::Space, text_input::TextInput, v_flex, IconName};
+use gpui::{
+    Action, AppContext, Context, Entity, FocusHandle, InteractiveElement, IntoElement,
+    ParentElement, Render, SharedString, Styled, Subscription, Window, prelude::FluentBuilder, px,
+};
+use gpui_component::{
+    ActiveTheme, IconName, Selectable, Sizable, StyleSized,
+    button::Button,
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    divider::Divider,
+    h_flex,
+    label::Label,
+    number_input::NumberInput,
+    popover::Popover,
+    space::Space,
+    text_input::TextInput,
+    v_flex,
+};
 use serde::Deserialize;
-use std::ascii::Char::Space;
-use std::task::Context;
-use todos::{enums::RecurrencyType, DueDate};
+use todos::{DueDate, enums::RecurrencyType};
 
-use crate::{create_complex_button, impl_button_state_base};
+use crate::{create_button_wrapper, impl_button_state_base};
 
 // Actions for the schedule button
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -89,14 +102,19 @@ impl ScheduleButtonState {
 
             // Initialize UI state based on due_date
             self.show_time_input = !due_date.date.is_empty() && due_date.date.contains(' ');
-            self.show_custom_recurrence = due_date.is_recurring && matches!(due_date.recurrency_type,
-                RecurrencyType::MINUTELY | RecurrencyType::HOURLY | RecurrencyType::SECONDLY |
-                RecurrencyType::EveryDay | RecurrencyType::EveryWeek | RecurrencyType::EveryMonth | RecurrencyType::EveryYear
-            );
+            self.show_custom_recurrence = due_date.is_recurring
+                && matches!(
+                    due_date.recurrency_type,
+                    RecurrencyType::MINUTELY
+                        | RecurrencyType::HOURLY
+                        | RecurrencyType::EveryDay
+                        | RecurrencyType::EveryWeek
+                        | RecurrencyType::EveryMonth
+                        | RecurrencyType::EveryYear
+                );
             self.custom_recurrence_type = match due_date.recurrency_type {
                 RecurrencyType::MINUTELY => "minutes".to_string(),
                 RecurrencyType::HOURLY => "hours".to_string(),
-                RecurrencyType::SECONDLY => "seconds".to_string(),
                 RecurrencyType::EveryDay => "days".to_string(),
                 RecurrencyType::EveryWeek => "weeks".to_string(),
                 RecurrencyType::EveryMonth => "months".to_string(),
@@ -131,12 +149,13 @@ impl ScheduleButtonState {
         cx: &mut Context<Self>,
     ) {
         if let DatePickerEvent::Change(date) = event {
-            let date_str = date.format("%Y-%m-%d").to_string();
-            let time_str = self.get_current_time();
-            self.due_date.date = format!("{} {}:00", date_str, time_str);
-            self.show_date_picker = false;
-            cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
-            cx.notify();
+            if let Some(date_str) = date.format("%Y-%m-%d") {
+                let time_str = self.get_current_time();
+                self.due_date.date = format!("{} {}:00", date_str, time_str);
+                self.show_date_picker = false;
+                cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
+                cx.notify();
+            }
         }
     }
 
@@ -149,9 +168,10 @@ impl ScheduleButtonState {
         cx: &mut Context<Self>,
     ) {
         if let DatePickerEvent::Change(date) = event {
-            let date_str = date.format("%Y-%m-%d").to_string();
-            self.due_date.recurrency_end = date_str;
-            cx.notify();
+            if let Some(date_str) = date.format("%Y-%m-%d") {
+                self.due_date.recurrency_end = date_str.to_string();
+                cx.notify();
+            }
         }
     }
 
@@ -255,7 +275,9 @@ impl ScheduleButtonState {
                     },
                     _ => {},
                 }
-                cx.emit(ScheduleButtonEvent::RecurrenceSelected(self.due_date.recurrency_type.clone()));
+                cx.emit(ScheduleButtonEvent::RecurrenceSelected(
+                    self.due_date.recurrency_type.clone(),
+                ));
                 cx.notify();
             },
             ScheduleAction::SetCustomRecurrenceType(rec_type) => {
@@ -267,16 +289,19 @@ impl ScheduleButtonState {
                     "weeks" => self.due_date.recurrency_type = RecurrencyType::EveryWeek,
                     "months" => self.due_date.recurrency_type = RecurrencyType::EveryMonth,
                     "years" => self.due_date.recurrency_type = RecurrencyType::EveryYear,
-                    "seconds" => self.due_date.recurrency_type = RecurrencyType::SECONDLY,
                     _ => {},
                 }
-                cx.emit(ScheduleButtonEvent::RecurrenceSelected(self.due_date.recurrency_type.clone()));
+                cx.emit(ScheduleButtonEvent::RecurrenceSelected(
+                    self.due_date.recurrency_type.clone(),
+                ));
                 cx.notify();
             },
             ScheduleAction::SetCustomRecurrenceInterval(interval) => {
                 self.custom_recurrence_interval = *interval;
                 self.due_date.recurrency_interval = *interval;
-                cx.emit(ScheduleButtonEvent::RecurrenceSelected(self.due_date.recurrency_type.clone()));
+                cx.emit(ScheduleButtonEvent::RecurrenceSelected(
+                    self.due_date.recurrency_type.clone(),
+                ));
                 cx.notify();
             },
             ScheduleAction::SetEndType(end_type) => {
@@ -365,6 +390,8 @@ impl ScheduleButtonState {
     }
 }
 
+impl_button_state_base!(ScheduleButtonState, ScheduleButtonEvent);
+
 impl Render for ScheduleButtonState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let date_picker_state = self.date_picker_state.clone();
@@ -375,11 +402,11 @@ impl Render for ScheduleButtonState {
             .child(
                 Popover::new(("schedule-popover", cx.entity_id()))
                     .open(self.popover_open)
-                    .on_open_change(cx.callback(|open, cx| {
+                    .on_open_change(move |open, cx| {
                         cx.update(|state, _| {
                             state.popover_open = open;
                         });
-                    }))
+                    })
                     .trigger(
                         Button::new(("schedule-button", cx.entity_id()))
                             .outline()
@@ -387,7 +414,7 @@ impl Render for ScheduleButtonState {
                             .icon(IconName::Calendar)
                             .label(SharedString::from(self.get_display_text()))
                     )
-                    .content(move |window, cx| {
+                    .content(move |_, window, cx| {
                         let date_picker = date_picker_state.clone();
                         let end_date_picker = end_date_picker_state.clone();
 
@@ -404,26 +431,26 @@ impl Render for ScheduleButtonState {
                                                 Button::new(("today-btn", cx.entity_id()))
                                                     .small()
                                                     .label(SharedString::from("Today"))
-                                                    .on_click(cx.action(ScheduleAction::SetDatePreset("today".to_string())))
+                                                    .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetDatePreset("today".to_string()), window, cx); }); } })
                                             )
                                             .child(
                                                 Button::new(("tomorrow-btn", cx.entity_id()))
                                                     .small()
                                                     .label(SharedString::from("Tomorrow"))
-                                                    .on_click(cx.action(ScheduleAction::SetDatePreset("tomorrow".to_string())))
+                                                    .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetDatePreset("tomorrow".to_string()), window, cx); }); } })
                                             )
                                             .child(
                                                 Button::new(("next-week-btn", cx.entity_id()))
                                                     .small()
                                                     .label(SharedString::from("Next Week"))
-                                                    .on_click(cx.action(ScheduleAction::SetDatePreset("next_week".to_string())))
+                                                    .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetDatePreset("next_week".to_string()), window, cx); }); } })
                                             )
                                             .child(
                                                 Button::new(("custom-date-btn", cx.entity_id()))
                                                     .outline()
                                                     .small()
                                                     .label(SharedString::from("Custom"))
-                                                    .on_click(cx.action(ScheduleAction::OpenDatePicker))
+                                                    .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::OpenDatePicker, window, cx); }); } })
                                             )
                                     )
                                     .when(self.show_date_picker, move |this| {
@@ -435,7 +462,7 @@ impl Render for ScheduleButtonState {
                                             )
                                     })
                             )
-                            .child(Divider::new())
+                            .child(Divider::horizontal())
                             // Recurrence Section
                             .child(
                                 v_flex()
@@ -450,22 +477,22 @@ impl Render for ScheduleButtonState {
                                                         Button::new(("daily-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Daily"))
-                                                            .active(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryDay && self.due_date.recurrency_interval == 1)
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("daily".to_string())))
+                                                            .selected(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryDay && self.due_date.recurrency_interval == 1)
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("daily".to_string()), window, cx); }); } })
                                                     )
                                                     .child(
                                                         Button::new(("weekdays-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Weekdays"))
-                                                            .active(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryWeek && self.due_date.recurrency_weeks == "1,2,3,4,5")
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("weekdays".to_string())))
+                                                            .selected(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryWeek && self.due_date.recurrency_weeks == "1,2,3,4,5")
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("weekdays".to_string()), window, cx); }); } })
                                                     )
                                                     .child(
                                                         Button::new(("weekends-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Weekends"))
-                                                            .active(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryWeek && self.due_date.recurrency_weeks == "0,6")
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("weekends".to_string())))
+                                                            .selected(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryWeek && self.due_date.recurrency_weeks == "0,6")
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("weekends".to_string()), window, cx); }); } })
                                                     )
                                             )
                                             .child(
@@ -475,22 +502,22 @@ impl Render for ScheduleButtonState {
                                                         Button::new(("weekly-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Weekly"))
-                                                            .active(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryWeek && self.due_date.recurrency_interval == 1 && self.due_date.recurrency_weeks.is_empty())
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("weekly".to_string())))
+                                                            .selected(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryWeek && self.due_date.recurrency_interval == 1 && self.due_date.recurrency_weeks.is_empty())
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("weekly".to_string()), window, cx); }); } })
                                                     )
                                                     .child(
                                                         Button::new(("monthly-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Monthly"))
-                                                            .active(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryMonth && self.due_date.recurrency_interval == 1)
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("monthly".to_string())))
+                                                            .selected(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryMonth && self.due_date.recurrency_interval == 1)
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("monthly".to_string()), window, cx); }); } })
                                                     )
                                                     .child(
                                                         Button::new(("yearly-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Yearly"))
-                                                            .active(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryYear && self.due_date.recurrency_interval == 1)
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("yearly".to_string())))
+                                                            .selected(self.due_date.is_recurring && self.due_date.recurrency_type == RecurrencyType::EveryYear && self.due_date.recurrency_interval == 1)
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("yearly".to_string()), window, cx); }); } })
                                                     )
                                             )
                                             .child(
@@ -500,31 +527,31 @@ impl Render for ScheduleButtonState {
                                                         Button::new(("none-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("None"))
-                                                            .active(!self.due_date.is_recurring)
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("none".to_string())))
+                                                            .selected(!self.due_date.is_recurring)
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("none".to_string()), window, cx); }); } })
                                                     )
                                                     .child(
                                                         Button::new(("custom-recurrence-btn", cx.entity_id()))
                                                             .small()
                                                             .label(SharedString::from("Custom"))
-                                                            .active(self.show_custom_recurrence)
-                                                            .on_click(cx.action(ScheduleAction::SetRecurrence("custom".to_string())))
+                                                            .selected(self.show_custom_recurrence)
+                                                            .on_click({ let view = cx.entity(); move |_, window, cx| { cx.update_entity(&view, |this, cx| { this.on_schedule_action(&ScheduleAction::SetRecurrence("custom".to_string()), window, cx); }); } })
                                                     )
                                             )
                                     )
-                                    .when(self.show_custom_recurrence, |this| {
+                                    .when(self.show_custom_recurrence, |this: &mut gpui_component::v_flex::VFlex| {
                                         this.child(Space::new(px(12.)))
                                             .child(
                                                 v_flex()
                                                     .p(px(12.))
-                                                    .bg(cx.theme().palette().background.surface_1)
-                                                    .border_radius(px(8.))
+                                                    .bg(cx.theme().background.surface_1)
+                                                    .border_r(px(8.))
                                                     .child(
                                                         h_flex()
-                                                            .align_items_center()
+                                                            .items_center()
                                                             .child(
                                                                 Label::new("Repeat every")
-                                                                    .font_size(px(12.))
+                                                                    .list_size(gpui_component::Size::Size(px(12.)))
                                                                     .mr(px(8.))
                                                             )
                                                             .child(
@@ -533,67 +560,60 @@ impl Render for ScheduleButtonState {
                                                                     .min(1)
                                                                     .max(999)
                                                                     .w(px(60.))
-                                                                    .on_change(cx.action(|value| ScheduleAction::SetCustomRecurrenceInterval(value)))
+                                                                    .on_change(cx.action(|value: i64| ScheduleAction::SetCustomRecurrenceInterval(value)))
                                                             )
                                                             .child(
                                                                 h_flex()
                                                                     .gap(px(2.))
                                                                     .child(
-                                                                        Button::new(("seconds-btn", cx.entity_id()))
-                                                                            .tiny()
-                                                                            .label(SharedString::from("seconds"))
-                                                                            .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("seconds".to_string())))
-                                                                            .active(self.custom_recurrence_type == "seconds")
-                                                                    )
-                                                                    .child(
                                                                         Button::new(("minutes-btn", cx.entity_id()))
-                                                                            .tiny()
+                                                                            .small()
                                                                             .label(SharedString::from("minutes"))
                                                                             .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("minutes".to_string())))
-                                                                            .active(self.custom_recurrence_type == "minutes")
+                                                                            .selected(self.custom_recurrence_type == "minutes")
                                                                     )
                                                                     .child(
                                                                         Button::new(("hours-btn", cx.entity_id()))
-                                                                            .tiny()
+                                                                            .small()
                                                                             .label(SharedString::from("hours"))
                                                                             .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("hours".to_string())))
-                                                                            .active(self.custom_recurrence_type == "hours")
+                                                                            .selected(self.custom_recurrence_type == "hours")
                                                                     )
                                                                     .child(
                                                                         Button::new(("days-btn", cx.entity_id()))
-                                                                            .tiny()
+                                                                            .small()
                                                                             .label(SharedString::from("days"))
                                                                             .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("days".to_string())))
-                                                                            .active(self.custom_recurrence_type == "days")
+                                                                            .selected(self.custom_recurrence_type == "days")
                                                                     )
                                                                     .child(
                                                                         Button::new(("weeks-btn", cx.entity_id()))
-                                                                            .tiny()
+                                                                            .small()
                                                                             .label(SharedString::from("weeks"))
                                                                             .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("weeks".to_string())))
-                                                                            .active(self.custom_recurrence_type == "weeks")
+                                                                            .selected(self.custom_recurrence_type == "weeks")
                                                                     )
                                                                     .child(
                                                                         Button::new(("months-btn", cx.entity_id()))
-                                                                            .tiny()
+                                                                            .small()
                                                                             .label(SharedString::from("months"))
                                                                             .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("months".to_string())))
-                                                                            .active(self.custom_recurrence_type == "months")
+                                                                            .selected(self.custom_recurrence_type == "months")
                                                                     )
                                                                     .child(
                                                                         Button::new(("years-btn", cx.entity_id()))
-                                                                            .tiny()
+                                                                            .small()
                                                                             .label(SharedString::from("years"))
                                                                             .on_click(cx.action(ScheduleAction::SetCustomRecurrenceType("years".to_string())))
-                                                                            .active(self.custom_recurrence_type == "years")
+                                                                            .selected(self.custom_recurrence_type == "years")
                                                                     )
                                                             )
                                                     )
                                                     .child(Space::new(px(12.)))
                                                     .child(
                                                         Label::new("End Repeat")
-                                                            .font_size(px(12.))
-                                                            .font_weight(500)
+                                                            .list_size(gpui_component::Size::Size(px(12.)))
+                                                            
                                                             .mb(px(8.))
                                                     )
                                                     .child(
@@ -604,72 +624,76 @@ impl Render for ScheduleButtonState {
                                                                     .small()
                                                                     .label(SharedString::from("Never"))
                                                                     .on_click(cx.action(ScheduleAction::SetEndType("never".to_string())))
-                                                                    .active(self.end_type == "never")
+                                                                    .selected(self.end_type == "never")
                                                             )
                                                             .child(
                                                                 Button::new(("on-date-btn", cx.entity_id()))
                                                                     .small()
                                                                     .label(SharedString::from("On Date"))
                                                                     .on_click(cx.action(ScheduleAction::SetEndType("on_date".to_string())))
-                                                                    .active(self.end_type == "on_date")
+                                                                    .selected(self.end_type == "on_date")
                                                             )
                                                             .child(
                                                                 Button::new(("after-btn", cx.entity_id()))
                                                                     .small()
                                                                     .label(SharedString::from("After"))
                                                                     .on_click(cx.action(ScheduleAction::SetEndType("after".to_string())))
-                                                                    .active(self.end_type == "after")
+                                                                    .selected(self.end_type == "after")
                                                             )
                                                     )
-                                                    .when(self.end_type == "on_date", |this| {
+                                                    .when(self.end_type == "on_date", |this: &mut gpui_component::v_flex::VFlex| {
                                                         this.child(Space::new(px(8.)))
                                                             .child(
                                                                 DatePicker::new(&date_picker)
                                                                     .cleanable(true)
                                                                     .w(px(200.))
-                                                                    .on_change(cx.action(|date| {
-                                                                        ScheduleAction::SetEndDate(date.format("%Y-%m-%d").to_string())
+                                                                    .on_date_change(cx.action(|date| {
+                                                                        if let Some(date) = date {
+                                                                            ScheduleAction::SetEndDate(date.format("%Y-%m-%d").to_string())
+                                                                        } else {
+                                                                            ScheduleAction::SetEndDate("".to_string())
+                                                                        }
                                                                     }))
                                                             )
                                                     })
-                                                    .when(self.end_type == "after", |this| {
+                                                    .when(self.end_type == "after", |this: &mut gpui_component::v_flex::VFlex| {
                                                         this.child(Space::new(px(8.)))
                                                             .child(
                                                                 h_flex()
-                                                                    .align_items_center()
+                                                                    .items_center()
                                                                     .child(
                                                                         NumberInput::new(("end-count-input", cx.entity_id()))
                                                                             .value(self.due_date.recurrency_count.max(1))
                                                                             .min(1)
                                                                             .max(999)
                                                                             .w(px(80.))
-                                                                            .on_change(cx.action(|value| ScheduleAction::SetEndCount(value)))
+                                                                            .on_change(cx.action(|value: i64| ScheduleAction::SetEndCount(value)))
                                                                     )
                                                                     .child(
                                                                         Label::new("occurrences")
-                                                                            .font_size(px(12.))
+                                                                            .list_size(gpui_component::Size::Size(px(12.)))
                                                                             .ml(px(8.))
                                                                     )
                                                             )
                                                     })
-                                            ),
-                                        )
-                                        )
-                                        .child(Divider::new())
+                                            )
+                                    })
+                            )
+                            .child(Divider::horizontal())
                             // Time Section
                             .child(
                                 v_flex()
                                     .p(px(16.))
                                     .child(
                                         h_flex()
-                                            .align_items_center()
+                                            .items_center()
                                             .child(
                                                 Label::new("Time:")
-                                                    .font_size(px(14.))
-                                                    .font_weight(500)
+                                                    .list_size(gpui_component::Size::Size(px(14.)))
+                                                    
                                                     .mr(px(8.))
                                             )
-                                            .when(!self.show_time_input, |this| {
+                                            .when(!self.show_time_input, |this: &mut gpui_component::h_flex::HFlex| {
                                                 this.child(
                                                     Button::new(("time-toggle", cx.entity_id()))
                                                         .small()
@@ -677,32 +701,32 @@ impl Render for ScheduleButtonState {
                                                         .on_click(cx.action(ScheduleAction::ToggleTimeInput))
                                                 )
                                             })
-                                            .when(!self.show_time_input, |this| {
+                                            .when(!self.show_time_input, |this: &mut gpui_component::h_flex::HFlex| {
                                                 this.child(
                                                     Label::new("None")
-                                                        .font_size(px(12.))
-                                                        .text_color(cx.theme().palette().foreground.muted)
+                                                        .list_size(gpui_component::Size::Size(px(12.)))
+                                                        .text_color(cx.theme().foreground.muted)
                                                         .ml(px(8.))
                                                 )
                                             })
-                                            .when(self.show_time_input, |this| {
-                                                this.child(Space::new(px(8.)))
-                                                    .child(
-                                                        TextInput::new(("time-input", cx.entity_id()))
-                                                            .placeholder(SharedString::from("10:12"))
-                                                            .value(SharedString::from(self.get_current_time()))
-                                                            .w(px(100.))
-                                                            .on_change(cx.action(|value| ScheduleAction::SetTime(value.to_string())))
-                                                    )
-                                            })
+                                            .when(self.show_time_input, |this: &mut gpui_component::v_flex::VFlex| {
+                        this.child(Space::new(px(8.)))
+                            .child(
+                                TextInput::new(("time-input", cx.entity_id()))
+                                    .placeholder(SharedString::from("10:12"))
+                                    .value(SharedString::from(self.get_current_time()))
+                                    .w(px(100.))
+                                    .on_change(cx.action(|value: gpui::SharedString| ScheduleAction::SetTime(value.to_string())))
+                            )
+                    })
                                     )
                             )
-                            .child(divider::Divider::new())
+                            .child(Divider::horizontal())
                             // Footer Buttons
                             .child(
                                 h_flex()
                                     .p(px(16.))
-                                    .justify_content_end()
+                                    .content_end()
                                     .gap(px(8.))
                                     .child(
                                         Button::new(("clear-btn", cx.entity_id()))
@@ -723,6 +747,5 @@ impl Render for ScheduleButtonState {
     }
 }
 
-// Create the complex button
-create_complex_button!(ScheduleButton, ScheduleButtonState, ScheduleButtonEvent, "item-schedule");
-
+// Create the button wrapper
+create_button_wrapper!(ScheduleButton, ScheduleButtonState, "item-schedule");

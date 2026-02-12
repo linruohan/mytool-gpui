@@ -1,5 +1,5 @@
 use gpui::{
-    Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    Action, App, AppContext, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
@@ -79,6 +79,21 @@ impl<T: Clone + PartialEq + 'static + Send> Render for DropdownState<T> {
 pub trait DropdownItem: Clone + PartialEq + 'static + Send {
     fn display_name(&self) -> String;
     fn id(&self) -> String;
+}
+
+/// 简化 Button on_click 模式的通用辅助函数
+pub fn make_click_handler<T, F>(
+    view: gpui::Entity<T>,
+    handler: F,
+) -> impl Fn(gpui::ClickEvent, &mut Window, &mut App) + 'static
+where
+    T: 'static,
+    F: Fn(&mut T, &mut Context<T>) + Clone + 'static,
+{
+    move |_event, _window, cx| {
+        let handler_clone = handler.clone();
+        cx.update_entity(&view, handler_clone);
+    }
 }
 
 // Base trait for button components
@@ -316,76 +331,6 @@ impl<T: Clone + PartialEq + 'static + Send> gpui::RenderOnce for DropdownButton<
             .refine_style(&self.style)
             .child(self.state.clone())
     }
-}
-
-/// 宏用于创建复杂的按钮组件，减少重复代码
-/// 这个宏生成按钮包装器和基础的trait实现
-#[macro_export]
-macro_rules! create_complex_button {
-    (
-        $button_name:ident,
-        $state_name:ident,
-        $event_type:ty,
-        $button_id:expr
-    ) => {
-        #[derive(gpui::IntoElement)]
-        pub struct $button_name {
-            id: gpui::ElementId,
-            style: gpui::StyleRefinement,
-            size: gpui_component::Size,
-            state: gpui::Entity<$state_name>,
-        }
-
-        impl gpui_component::Sizable for $button_name {
-            fn with_size(mut self, size: impl Into<gpui_component::Size>) -> Self {
-                self.size = size.into();
-                self
-            }
-        }
-
-        impl gpui::Focusable for $button_name {
-            fn focus_handle(&self, cx: &gpui::App) -> gpui::FocusHandle {
-                self.state.focus_handle(cx)
-            }
-        }
-
-        impl gpui::Styled for $button_name {
-            fn style(&mut self) -> &mut gpui::StyleRefinement {
-                &mut self.style
-            }
-        }
-
-        impl $button_name {
-            pub fn new(state: &gpui::Entity<$state_name>) -> Self {
-                Self {
-                    id: ($button_id, state.entity_id()).into(),
-                    state: state.clone(),
-                    size: gpui_component::Size::default(),
-                    style: gpui::StyleRefinement::default(),
-                }
-            }
-        }
-
-        impl gpui::RenderOnce for $button_name {
-            fn render(
-                self,
-                _window: &mut gpui::Window,
-                cx: &mut gpui::App,
-            ) -> impl gpui::IntoElement {
-                use gpui::{InteractiveElement, Styled};
-                use gpui_component::{StyleSized, StyledExt};
-
-                gpui::div()
-                    .id(self.id.clone())
-                    .track_focus(&gpui::Focusable::focus_handle(&self, cx).tab_stop(true))
-                    .flex_none()
-                    .relative()
-                    .input_text_size(self.size)
-                    .refine_style(&self.style)
-                    .child(self.state.clone())
-            }
-        }
-    };
 }
 
 /// 宏用于简化状态结构体的基础实现

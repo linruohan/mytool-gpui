@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     AppContext, Context, Entity, FocusHandle, ParentElement, Render, Styled, Window,
-    prelude::FluentBuilder,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
     IconName, Sizable,
@@ -21,7 +21,7 @@ use crate::{
         PopoverListMixin, PopoverSearchMixin, create_list_item_element, handle_search_input_change,
         manage_popover_state,
     },
-    create_complex_button, impl_button_state_base,
+    create_button_wrapper, impl_button_state_base,
     todo_actions::{add_reminder, delete_reminder},
 };
 
@@ -147,7 +147,9 @@ impl ReminderButtonState {
         cx: &mut Context<Self>,
     ) {
         if let DatePickerEvent::Change(date) = event {
-            self.current_date = date.format("%Y-%m-%d").to_string();
+            if let Some(date_str) = date.format("%Y-%m-%d") {
+                self.current_date = date_str.to_string();
+            }
             self.show_date_picker = false;
             cx.notify();
         }
@@ -255,16 +257,14 @@ impl Render for ReminderButtonState {
                                             } else {
                                                 self.current_date.clone()
                                             })
-                                            .on_click({
-                                                let view = view.clone();
-                                                move |_event, _window, cx| {
+                                            .on_click({ let view = view.clone(); move |_event, window, cx| {
                                                     cx.update_entity(&view, |this, cx| {
                                                         this.show_date_picker = !this.show_date_picker;
                                                         if this.show_date_picker && this.current_date.is_empty() {
                                                             // Set today as default
                                                             let today = chrono::Utc::now().naive_utc().date();
                                                             this.date_picker_state.update(cx, |picker, cx| {
-                                                                picker.set_date(today, &mut gpui::Window::new(cx), cx);
+                                                                picker.set_date(today, window, cx);
                                                             });
                                                         }
                                                         cx.notify();
@@ -363,4 +363,4 @@ impl Render for ReminderButtonState {
     }
 }
 
-create_complex_button!(ReminderButton, ReminderButtonState, ReminderButtonEvent, "item-reminder");
+create_button_wrapper!(ReminderButton, ReminderButtonState, "item-reminder");

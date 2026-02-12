@@ -143,12 +143,11 @@ impl SectionsPanel {
             })
         };
 
-        let _config = crate::components::SectionDialogConfig::new(
+        let _config = crate::components::EditDialogConfig::for_section(
             if is_edit { "Edit Label" } else { "New Label" },
             if is_edit { "Save" } else { "Add" },
             is_edit,
-        )
-        .with_overlay(false);
+        );
 
         let view = cx.entity().clone();
         let color = self.color.clone();

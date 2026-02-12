@@ -108,7 +108,7 @@ impl CompletedBoard {
             self.base.item_info.clone()
         };
 
-        let config = crate::components::ItemDialogConfig::new(
+        let config = crate::components::EditDialogConfig::new(
             if is_edit { "Edit Item" } else { "New Item" },
             if is_edit { "Save" } else { "Add" },
             is_edit,
