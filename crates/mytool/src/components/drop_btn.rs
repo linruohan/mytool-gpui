@@ -1,5 +1,5 @@
 use gpui::{
-    Action, App, AppContext, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
@@ -88,11 +88,10 @@ pub fn make_click_handler<T, F>(
 ) -> impl Fn(gpui::ClickEvent, &mut Window, &mut App) + 'static
 where
     T: 'static,
-    F: Fn(&mut T, &mut Context<T>) + Clone + 'static,
+    F: Fn(&mut T, &mut Context<T>) + 'static,
 {
     move |_event, _window, cx| {
-        let handler_clone = handler.clone();
-        cx.update_entity(&view, handler_clone);
+        cx.update_entity(&view, handler);
     }
 }
 

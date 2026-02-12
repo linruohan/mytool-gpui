@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{Context, IntoElement, ParentElement, Render, Styled, Window};
+use gpui::{Context, ParentElement, Render, Styled, Window};
 use gpui_component::{
     WindowExt,
     button::{Button, ButtonVariants},
@@ -119,7 +119,7 @@ pub fn show_item_dialog<T, F>(
         config,
         {
             let item_info = item_info.clone();
-            move || ItemInfo::new(&item_info).into_any_element()
+            move || ItemInfo::new(&item_info).into()
         },
         {
             let item_info = item_info.clone();
@@ -156,7 +156,7 @@ pub fn show_section_dialog<T, F>(
         config,
         {
             let name_input = name_input.clone();
-            move || v_flex().gap_3().child(Input::new(&name_input)).into_any_element()
+            move || v_flex().gap_3().child(Input::new(&name_input)).into()
         },
         {
             let name_input = name_input.clone();
