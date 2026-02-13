@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// 日志配置结构体
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct LoggingConfig {
     #[serde(default = "default_log_level")]
     level: String,
@@ -17,6 +17,12 @@ fn default_log_level() -> String {
 /// 默认日志文件
 fn default_log_file() -> Option<String> {
     None
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self { level: default_log_level(), file: default_log_file() }
+    }
 }
 
 impl LoggingConfig {

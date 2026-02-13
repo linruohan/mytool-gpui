@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{Context, ParentElement, Render, Styled, Window};
+use gpui::{Context, ParentElement, Render, Styled, Window, prelude::*};
 use gpui_component::{
     WindowExt,
     button::{Button, ButtonVariants},
@@ -21,6 +21,10 @@ pub struct EditDialogConfig {
     pub is_edit: bool,
     pub overlay: bool,
 }
+
+/// 向后兼容的类型别名
+pub type ItemDialogConfig = EditDialogConfig;
+pub type SectionDialogConfig = EditDialogConfig;
 
 impl EditDialogConfig {
     pub fn new(title: &str, button_label: &str, is_edit: bool) -> Self {
@@ -119,7 +123,10 @@ pub fn show_item_dialog<T, F>(
         config,
         {
             let item_info = item_info.clone();
-            move || ItemInfo::new(&item_info).into()
+            move || {
+                let info = ItemInfo::new(&item_info);
+                info.into_any_element()
+            }
         },
         {
             let item_info = item_info.clone();
@@ -156,7 +163,10 @@ pub fn show_section_dialog<T, F>(
         config,
         {
             let name_input = name_input.clone();
-            move || v_flex().gap_3().child(Input::new(&name_input)).into()
+            move || {
+                let div = v_flex().gap_3().child(Input::new(&name_input));
+                div.into_any_element()
+            }
         },
         {
             let name_input = name_input.clone();

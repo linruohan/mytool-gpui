@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// 应用设置结构体
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct AppSettings {
     #[serde(default = "default_language")]
     language: String,
@@ -24,6 +24,16 @@ fn default_theme() -> String {
 /// 默认时钟格式
 fn default_clock_format() -> String {
     "24h".to_string()
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            language: default_language(),
+            theme: default_theme(),
+            clock_format: default_clock_format(),
+        }
+    }
 }
 
 impl AppSettings {

@@ -1,4 +1,4 @@
-use gpui::{Context, Focusable, ParentElement, Render, Window};
+use gpui::{Context, EventEmitter, Focusable, ParentElement, Render, Window};
 
 use crate::{
     components::drop_btn::{
@@ -16,7 +16,7 @@ pub struct ProjectButtonState {
     inner: DropdownState<String>,
 }
 
-impl gpui::EventEmitter<ProjectButtonEvent> for ProjectButtonState {}
+impl EventEmitter<ProjectButtonEvent> for ProjectButtonState {}
 
 impl Focusable for ProjectButtonState {
     fn focus_handle(&self, cx: &gpui::App) -> gpui::FocusHandle {

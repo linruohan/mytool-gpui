@@ -67,6 +67,7 @@ pub async fn get_items_pinned(db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).get_pinned_items().await.unwrap_or_default()
 }
 
+#[allow(dead_code)]
 pub async fn get_incomplete_pinned_items(db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).get_incomplete_pinned_items().await.unwrap_or_default()
 }

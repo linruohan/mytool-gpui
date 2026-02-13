@@ -76,46 +76,32 @@ pub struct AppConfig {
     config_path: Option<PathBuf>,
 }
 
-impl AppConfig {
-    /// 查找配置文件路径
-    ///
-    /// 按优先级查找配置文件：
-    /// 1. 环境特定配置 (application.{env}.toml)
-    /// 2. 默认配置 (application.toml)
-    ///
-    /// 配置文件应位于 workspace 根目录（与 crates 目录同级）
-    fn find_config_file(env: Environment) -> Result<PathBuf> {
-        // workspace 根目录位于 crates/gconfig 的两级父目录
-        let workspace_root = Path::new("../../");
+/// 查找workspace根目录
+///
+/// 从当前目录向上查找，直到找到包含application.toml的目录
+fn find_workspace_root(current_dir: &Path) -> PathBuf {
+    let mut dir = current_dir.to_path_buf();
 
-        let env_filename = format!("application.{}.toml", env.as_str());
-
-        // 优先查找环境特定配置
-        let env_path = workspace_root.join(&env_filename);
-        if env_path.exists() {
-            return env_path
-                .canonicalize()
-                .map_err(|e| anyhow!("无法解析配置文件路径: {} ({:?})", env_path.display(), e));
+    // 最多向上查找5层
+    for _ in 0..5 {
+        // 检查当前目录是否有application.toml
+        if dir.join("application.toml").exists() {
+            return dir;
         }
 
-        // 查找默认配置
-        let default_path = workspace_root.join("application.toml");
-        if default_path.exists() {
-            return default_path.canonicalize().map_err(|e| {
-                anyhow!("无法解析配置文件路径: {} ({:?})", default_path.display(), e)
-            });
+        // 向上查找
+        if let Some(parent) = dir.parent() {
+            dir = parent.to_path_buf();
+        } else {
+            break;
         }
-
-        bail!(
-            "配置文件未找到。尝试查找: {} 或 {} 在路径: {}",
-            env_filename,
-            "application.toml",
-            workspace_root.display()
-        )
     }
 
-    /// 加载配置
-    ///
+    // 如果找不到，返回当前目录
+    dir
+}
+
+impl AppConfig {
     /// 从application.toml文件加载配置，并支持环境变量覆盖
     ///
     /// # Returns
@@ -154,6 +140,25 @@ impl AppConfig {
         config.validate()?;
 
         Ok(config)
+    }
+
+    /// 查找配置文件路径
+    ///
+    /// 根据环境查找对应的配置文件
+    fn find_config_file(env: Environment) -> Result<PathBuf> {
+        let workspace_root = find_workspace_root(Path::new("."));
+        let config_filename = match env {
+            Environment::Development => "application.toml",
+            Environment::Production => "application-prod.toml",
+            Environment::Test => "application-test.toml",
+        };
+
+        let config_path = workspace_root.join(config_filename);
+        if !config_path.exists() {
+            return Err(anyhow!("配置文件不存在: {:?}", config_path));
+        }
+
+        Ok(config_path)
     }
 
     /// 验证配置有效性
@@ -211,7 +216,6 @@ impl AppConfig {
 // 全局配置实例（支持重载）
 static CONFIG: LazyLock<RwLock<AppConfig>> =
     LazyLock::new(|| RwLock::new(AppConfig::load().expect("初始化配置失败")));
-
 // 初始化错误缓存（使用 String 存储）
 static INIT_ERROR: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
