@@ -20,7 +20,7 @@ gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git
 # External crates
 anyhow = "1.0.101"
 rand = "0.8.5"
-tokio = { version = "1.49.0", features = ["full"] }
+tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros", "fs", "io-util", "time", "sync"] }
 rust-embed = { version = "8.11.0", features = ["include-exclude", "interpolate-folder-path"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1"
@@ -81,7 +81,7 @@ todo = "deny"
 type_complexity = "allow"
 
 [profile.dev]
-codegen-units = 16
+codegen-units = 256
 split-debuginfo = "unpacked"
 opt-level = 2
 debug-assertions = true
@@ -95,6 +95,9 @@ debug = 0
 strip = "debuginfo"
 
 [profile.dev.package]
+# 对所有依赖使用最高优化级别以加速编译
+"*" = { opt-level = 3 }
+# 以下包保持原有配置，但已被上面的 "*" 覆盖
 resvg = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }
 taffy = { opt-level = 3 }
