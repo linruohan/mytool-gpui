@@ -22,7 +22,7 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     //     database_config.port(),
     //     database_config.database()
     // ));
-    let cpus = num_cpus::get() as u32;
+    let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
     options
         .min_connections(min(cpus, 5))
         .max_connections(cpus * 4)

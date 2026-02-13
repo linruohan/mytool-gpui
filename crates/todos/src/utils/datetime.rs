@@ -4,7 +4,6 @@ use anyhow::Result;
 use chrono::{
     Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,
 };
-use chrono_humanize::{Accuracy, HumanTime};
 use serde_json::Value;
 
 use crate::{Item, enums::RecurrencyType, objects::DueDate};
@@ -44,8 +43,47 @@ impl DateTime {
 
     pub fn get_relative_datetime(&self, datetime: NaiveDateTime) -> String {
         let now = Local::now().naive_local();
-        let human_time = HumanTime::from(now - datetime);
-        human_time.to_text_en(Accuracy::Rough, chrono_humanize::Tense::Past)
+        let diff = now - datetime;
+        let total_seconds = diff.num_seconds();
+
+        if total_seconds < 60 {
+            return "just now".to_string();
+        }
+
+        let total_minutes = total_seconds / 60;
+        if total_minutes < 60 {
+            return format!(
+                "{} {} ago",
+                total_minutes,
+                if total_minutes == 1 { "minute" } else { "minutes" }
+            );
+        }
+
+        let total_hours = total_minutes / 60;
+        if total_hours < 24 {
+            return format!(
+                "{} {} ago",
+                total_hours,
+                if total_hours == 1 { "hour" } else { "hours" }
+            );
+        }
+
+        let total_days = total_hours / 24;
+        if total_days < 30 {
+            return format!("{} {} ago", total_days, if total_days == 1 { "day" } else { "days" });
+        }
+
+        let total_months = total_days / 30;
+        if total_months < 12 {
+            return format!(
+                "{} {} ago",
+                total_months,
+                if total_months == 1 { "month" } else { "months" }
+            );
+        }
+
+        let total_years = total_months / 12;
+        format!("{} {} ago", total_years, if total_years == 1 { "year" } else { "years" })
     }
 
     fn format_duration(&self, days: i64, suffix: &str) -> String {

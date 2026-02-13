@@ -26,3 +26,8 @@ rustflags = [
 # 启用并行编译
 jobs = 10
 rustc-wrapper = "sccache"
+[unstable]
+codegen-backend = true
+
+[profile.dev]
+codegen-backend = "cranelift"
