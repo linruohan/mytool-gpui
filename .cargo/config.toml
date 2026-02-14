@@ -12,6 +12,5 @@ linker = "x86_64-w64-mingw32-gcc"
 rustflags = [
     "-C", "link-args=-Wl,--stack,8000000",
     "-C", "link-arg=-fuse-ld=lld",
-    "-C", "debuginfo=0",
-    "-C", "incremental=true",
+    "-C", "debuginfo=0"
 ]
