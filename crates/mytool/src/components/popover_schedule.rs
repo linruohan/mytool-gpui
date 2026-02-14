@@ -100,41 +100,16 @@ impl ScheduleButtonState {
         cx: &mut Context<Self>,
     ) {
         let today = Local::now().naive_local().date();
-        let time_str = self.resolve_time_str();
+        // 只有在需要时才计算 time_str
 
         match action.0.as_str() {
-            "today" => {
-                let date_str = today.format("%Y-%m-%d").to_string();
-                let new_date = format!("{} {}:00", date_str, time_str);
-                if self.due_date.date != new_date {
-                    self.due_date.date = new_date;
-                    self.date_picker_state.update(cx, |picker, cx| {
-                        picker.set_date(today, window, cx);
-                    });
-                    self.show_date_picker = false;
-                    cx.emit(ScheduleButtonEvent::DateSelected("Today".to_string()));
-                    cx.notify();
-                }
-            },
+            // 日期预设选项
+            "today" => self.handle_date_preset(today, "Today", window, cx),
             "tomorrow" => {
-                let tomorrow = today.succ_opt().unwrap_or(today);
-                let date_str = tomorrow.format("%Y-%m-%d").to_string();
-                self.due_date.date = format!("{} {}:00", date_str, time_str);
-                self.date_picker_state.update(cx, |picker, cx| {
-                    picker.set_date(tomorrow, window, cx);
-                });
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected("Tomorrow".to_string()));
+                self.handle_date_preset(today.succ_opt().unwrap_or(today), "Tomorrow", window, cx)
             },
             "next_week" => {
-                let next_week = today + chrono::Duration::days(7);
-                let date_str = next_week.format("%Y-%m-%d").to_string();
-                self.due_date.date = format!("{} {}:00", date_str, time_str);
-                self.date_picker_state.update(cx, |picker, cx| {
-                    picker.set_date(next_week, window, cx);
-                });
-                self.show_date_picker = false;
-                cx.emit(ScheduleButtonEvent::DateSelected("Next week".to_string()));
+                self.handle_date_preset(today + chrono::Duration::days(7), "Next week", window, cx)
             },
             "choose_date" => {
                 self.show_date_picker = true;
@@ -143,79 +118,92 @@ impl ScheduleButtonState {
                         picker.set_date(today, window, cx);
                     });
                 }
+                cx.notify();
             },
-            "daily" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryDay;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryDay));
-            },
+
+            // 重复规则选项
+            "daily" => self.handle_recurrency(RecurrencyType::EveryDay, 1, None, cx),
             "weekdays" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.recurrency_weeks = "1,2,3,4,5".to_string();
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryWeek));
+                self.handle_recurrency(RecurrencyType::EveryWeek, 1, Some("1,2,3,4,5"), cx)
             },
-            "weekends" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.recurrency_weeks = "0,6".to_string();
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryWeek));
-            },
-            "weekly" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryWeek));
-            },
-            "monthly" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryMonth;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryMonth));
-            },
-            "yearly" => {
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_type = RecurrencyType::EveryYear;
-                self.due_date.recurrency_interval = 1;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::EveryYear));
-            },
-            "none" => {
-                self.due_date.is_recurring = false;
-                self.due_date.recurrency_supported = false;
-                self.due_date.recurrency_type = RecurrencyType::NONE;
-                self.due_date.recurrency_interval = 0;
-                cx.emit(ScheduleButtonEvent::RecurrencySelected(RecurrencyType::NONE));
-            },
+            "weekends" => self.handle_recurrency(RecurrencyType::EveryWeek, 1, Some("0,6"), cx),
+            "weekly" => self.handle_recurrency(RecurrencyType::EveryWeek, 1, None, cx),
+            "monthly" => self.handle_recurrency(RecurrencyType::EveryMonth, 1, None, cx),
+            "yearly" => self.handle_recurrency(RecurrencyType::EveryYear, 1, None, cx),
+            "none" => self.handle_recurrency(RecurrencyType::NONE, 0, None, cx),
+
+            // 时间选项
             s if s.starts_with("time_") => {
                 let time = s.strip_prefix("time_").unwrap_or("00:00");
                 self.apply_time_to_due_date(time);
                 cx.emit(ScheduleButtonEvent::TimeSelected(time.to_string()));
+                cx.notify();
             },
-            "clear" => {
-                if !self.due_date.date.is_empty() {
-                    self.due_date = DueDate::default();
-                    self.selected_time = None;
-                    self.show_date_picker = false;
-                    cx.emit(ScheduleButtonEvent::Cleared);
-                    cx.notify();
-                }
-            },
+
+            // 其他操作
+            "clear" => self.handle_clear(cx),
             "done" => {
                 self.show_date_picker = false;
                 cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
+                cx.notify();
             },
             _ => {},
         }
+    }
+
+    /// 处理日期预设选项
+    fn handle_date_preset(
+        &mut self,
+        date: chrono::NaiveDate,
+        label: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let time_str = self.resolve_time_str();
+        let date_str = date.format("%Y-%m-%d").to_string();
+        let new_date = format!("{} {}:00", date_str, time_str);
+
+        if self.due_date.date != new_date {
+            self.due_date.date = new_date;
+            self.date_picker_state.update(cx, |picker, cx| {
+                picker.set_date(date, window, cx);
+            });
+            self.show_date_picker = false;
+            cx.emit(ScheduleButtonEvent::DateSelected(label.to_string()));
+            cx.notify();
+        }
+    }
+
+    /// 处理重复规则设置
+    fn handle_recurrency(
+        &mut self,
+        recurrency_type: RecurrencyType,
+        interval: i64,
+        weeks: Option<&str>,
+        cx: &mut Context<Self>,
+    ) {
+        self.due_date.is_recurring = recurrency_type != RecurrencyType::NONE;
+        self.due_date.recurrency_supported = recurrency_type != RecurrencyType::NONE;
+        self.due_date.recurrency_type = recurrency_type.clone();
+        self.due_date.recurrency_interval = interval;
+
+        if let Some(weeks_str) = weeks {
+            self.due_date.recurrency_weeks = weeks_str.to_string();
+        }
+
+        cx.emit(ScheduleButtonEvent::RecurrencySelected(recurrency_type));
         cx.notify();
+    }
+
+    /// 处理清除操作
+    fn handle_clear(&mut self, cx: &mut Context<Self>) {
+        if !self.due_date.date.is_empty() {
+            self.due_date = DueDate::default();
+            self.selected_time = None;
+            self.show_date_picker = false;
+            cx.emit(ScheduleButtonEvent::Cleared);
+            cx.notify();
+        }
     }
 
     fn get_display_text(&self) -> String {
@@ -299,8 +287,7 @@ impl Render for ScheduleButtonState {
         let choose_date_label = self.get_choose_date_label();
         let repeat_hint = self.get_repeat_text();
         let time_hint = self.get_time_text();
-        let date_picker = self.date_picker_state.clone();
-        let date_picker_for_when = date_picker.clone();
+        let date_picker_for_when = self.date_picker_state.clone();
 
         v_flex()
             .on_action(cx.listener(Self::on_select_action))
