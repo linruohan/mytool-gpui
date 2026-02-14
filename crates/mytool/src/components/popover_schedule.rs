@@ -155,23 +155,23 @@ impl ScheduleButtonState {
     fn handle_date_preset(
         &mut self,
         date: chrono::NaiveDate,
-        label: &str,
+        _label: &str,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let time_str = self.resolve_time_str();
         let date_str = date.format("%Y-%m-%d").to_string();
+        // 使用完整的日期时间格式，确保能被 NaiveDateTime::from_str 正确解析
         let new_date = format!("{} {}:00", date_str, time_str);
 
-        if self.due_date.date != new_date {
-            self.due_date.date = new_date;
-            self.date_picker_state.update(cx, |picker, cx| {
-                picker.set_date(date, window, cx);
-            });
-            self.show_date_picker = false;
-            cx.emit(ScheduleButtonEvent::DateSelected(label.to_string()));
-            cx.notify();
-        }
+        // 总是更新 due_date.date，确保按钮文本能正确显示
+        self.due_date.date = new_date;
+        self.date_picker_state.update(cx, |picker, cx| {
+            picker.set_date(date, window, cx);
+        });
+        self.show_date_picker = false;
+        cx.emit(ScheduleButtonEvent::DateSelected(self.get_display_text()));
+        cx.notify();
     }
 
     /// 处理重复规则设置
@@ -213,12 +213,17 @@ impl ScheduleButtonState {
             let today = Local::now().naive_local().date();
             if let Some(dt) = self.due_date.datetime() {
                 let date = dt.date();
+                let time = dt.time();
+
+                // 格式化时间为 HH:MM
+                let time_str = time.format("%H:%M").to_string();
+
                 if date == today {
-                    "Today".to_string()
+                    format!("Today at {}", time_str)
                 } else if date == today.succ_opt().unwrap_or(today) {
-                    "Tomorrow".to_string()
+                    format!("Tomorrow at {}", time_str)
                 } else {
-                    date.format("%b %d").to_string()
+                    format!("{} at {}", date.format("%b %d"), time_str)
                 }
             } else {
                 "Schedule".to_string()

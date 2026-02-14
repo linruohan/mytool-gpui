@@ -45,6 +45,24 @@ impl ItemsPanel {
                 this.item_info.update(cx, |state, cx| {
                     state.handle_item_info_event(event, cx);
                 });
+                // 当 item 更新时，刷新列表显示
+                if matches!(event, ItemInfoEvent::Updated()) {
+                    // 从更新后的 item_info 获取最新 item
+                    let updated_item = this.item_info.read(cx).item.clone();
+                    // 更新列表中对应的 item
+                    this.item_list.update(cx, |list, cx| {
+                        let delegate = list.delegate_mut();
+                        // 在 matched_items 中找到并更新对应的 item
+                        for section in &mut delegate.matched_items {
+                            for item in section {
+                                if item.id == updated_item.id {
+                                    *item = updated_item.clone();
+                                }
+                            }
+                        }
+                        cx.notify();
+                    });
+                }
             }),
             cx.subscribe_in(&item_list, window, |this, _, ev: &ListEvent, _window, cx| {
                 if let ListEvent::Confirm(ix) = ev
