@@ -12,21 +12,10 @@ rustflags = [
 linker = "x86_64-w64-mingw32-gcc"
 rustflags = [
     "-C", "link-args=-Wl,--stack,8000000",
-    # 使用 LLD 链接器加速链接（如果可用）
+    # 使用 LLD 链接器加速链接
     "-C", "link-arg=-fuse-ld=lld",
-    # 优化代码生成
-    "-C", "codegen-units=256",
-    # 减少调试信息
+    # 减少调试信息以加速编译
     "-C", "debuginfo=0",
     # 启用增量编译
     "-C", "incremental=true",
 ]
-
-[build]
-# 启用并行编译
-jobs = 10
-[unstable]
-codegen-backend = true
-
-[profile.dev]
-codegen-backend = "cranelift"

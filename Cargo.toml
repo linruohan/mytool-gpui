@@ -76,19 +76,20 @@ todo = "deny"
 type_complexity = "allow"
 
 [profile.dev]
-codegen-units = 256
-codegen-backend = "cranelift"
-split-debuginfo = "unpacked"
-opt-level = 2
-debug-assertions = true
-overflow-checks = true
+# 开发模式使用较少的代码单元以加速编译
+codegen-units = 16
+# 使用默认的 LLVM 后端，比 Cranelift 更快更稳定
+# split-debuginfo = "unpacked"
+opt-level = 0
+debug-assertions = false
+overflow-checks = false
 lto = false
 panic = 'unwind'
 incremental = true
 rpath = false
 # 禁用debug
 debug = 0
-strip = "debuginfo"
+# strip = "debuginfo"
 
 
 [profile.dev.package]

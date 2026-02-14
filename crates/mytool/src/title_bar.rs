@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, AppContext, Context, Corner, Entity, FocusHandle, InteractiveElement as _,
@@ -19,7 +19,7 @@ use crate::{SelectFont, SelectRadius, SelectScrollbarShow, ToggleListActiveHighl
 pub struct AppTitleBar {
     app_menu_bar: Entity<AppMenuBar>,
     font_size_selector: Entity<FontSizeSelector>,
-    child: Arc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
+    child: Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -35,7 +35,7 @@ impl AppTitleBar {
         Self {
             app_menu_bar,
             font_size_selector,
-            child: Arc::new(|_, _| div().into_any_element()),
+            child: Rc::new(|_, _| div().into_any_element()),
             _subscriptions: vec![],
         }
     }
@@ -45,7 +45,7 @@ impl AppTitleBar {
         E: IntoElement,
         F: Fn(&mut Window, &mut App) -> E + 'static,
     {
-        self.child = Arc::new(move |window, cx| f(window, cx).into_any_element());
+        self.child = Rc::new(move |window, cx| f(window, cx).into_any_element());
         self
     }
 }
@@ -78,7 +78,7 @@ impl Render for AppTitleBar {
                             .small()
                             .ghost()
                             .on_click(|_, _, cx| {
-                                cx.open_url("https://github.com/longbridge/gpui-component")
+                                cx.open_url("https://github.com/linruohan/gpui-component")
                             }),
                     )
                     .child(
@@ -122,6 +122,8 @@ impl FontSizeSelector {
         cx: &mut Context<Self>,
     ) {
         Theme::global_mut(cx).radius = px(radius.0 as f32);
+        Theme::global_mut(cx).radius_lg =
+            if cx.theme().radius > px(0.) { cx.theme().radius + px(2.) } else { px(0.) };
         window.refresh();
     }
 
