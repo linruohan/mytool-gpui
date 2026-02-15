@@ -7,9 +7,10 @@ use todos::{
     error::TodoError,
 };
 
-pub async fn load_items(_db: DatabaseConnection) -> Vec<ItemModel> {
-    // 暂时返回空向量，实际实现需要根据业务逻辑获取所有项目
-    vec![]
+/// 获取所有未完成的任务项
+/// 注意：这是获取所有任务的主要入口，其他视图通过过滤此数据获得子集
+pub async fn load_items(db: DatabaseConnection) -> Vec<ItemModel> {
+    Store::new(db).get_incomplete_items().await.unwrap_or_default()
 }
 pub async fn add_item(
     item: Arc<ItemModel>,
@@ -27,6 +28,11 @@ pub async fn mod_item(
 
 pub async fn del_item(item: Arc<ItemModel>, db: DatabaseConnection) -> Result<(), TodoError> {
     Store::new(db).delete_item(&item.id).await
+}
+
+/// 根据ID删除任务（用于增量更新）
+pub async fn del_item_by_id(item_id: &str, db: DatabaseConnection) -> Result<(), TodoError> {
+    Store::new(db).delete_item(item_id).await
 }
 // 修改item完成状态
 pub async fn finish_item(

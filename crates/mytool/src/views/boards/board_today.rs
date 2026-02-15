@@ -1,10 +1,16 @@
+//! TodayBoard - 今日任务视图
+//!
+//! 显示今天需要完成的任务。
+//! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
+
+use std::sync::Arc;
+
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement as _,
-    MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
-    prelude::FluentBuilder,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, MouseButton,
+    ParentElement, Render, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     h_flex,
     scroll::ScrollableElement,
@@ -12,9 +18,10 @@ use gpui_component::{
 };
 
 use crate::{
-    Board, BoardBase, ItemRow, ItemRowState, section,
+    Board, BoardBase, ItemRowState, section,
     todo_actions::{add_item, delete_item, update_item},
-    todo_state::{SectionState, TodayItemState},
+    todo_state::{SectionState, TodoStore},
+    views::boards::{BoardView, board_renderer},
 };
 
 pub enum ItemClickEvent {
@@ -37,9 +44,12 @@ impl TodayBoard {
         let mut base = BoardBase::new(window, cx);
         base.is_today_board = true;
 
+        // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
-            cx.observe_global_in::<TodayItemState>(window, move |this, window, cx| {
-                let state_items = cx.global::<TodayItemState>().items.clone();
+            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                // 从 TodoStore 获取今日任务（内存过滤，无需数据库查询）
+                let state_items = cx.global::<TodoStore>().today_items();
+
                 this.base.item_rows = state_items
                     .iter()
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
@@ -60,8 +70,9 @@ impl TodayBoard {
         &self,
         ix: IndexPath,
         cx: &App,
-    ) -> Option<std::sync::Arc<todos::entity::ItemModel>> {
-        let item_list = cx.global::<TodayItemState>().items.clone();
+    ) -> Option<Arc<todos::entity::ItemModel>> {
+        // 使用 TodoStore 获取数据
+        let item_list = cx.global::<TodoStore>().today_items();
         item_list.get(ix.row).cloned()
     }
 
@@ -84,14 +95,11 @@ impl TodayBoard {
             }
         } else {
             let mut ori_item = todos::entity::ItemModel::default();
-
-            // If adding a new item with a section_id, set it
             if let Some(sid) = section_id {
                 ori_item.section_id = Some(sid);
             }
-
             self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
+                state.set_item(Arc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
             self.base.item_info.clone()
@@ -116,7 +124,6 @@ impl TodayBoard {
         if let Some(active_index) = self.base.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
-                let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
                         .confirm()
@@ -124,10 +131,8 @@ impl TodayBoard {
                         .overlay_closable(true)
                         .child("Are you sure to delete the item?")
                         .on_ok({
-                            let view = view.clone();
                             let item = item.clone();
                             move |_, window, cx| {
-                                let _view = view.clone();
                                 delete_item(item.clone(), cx);
                                 window.push_notification("You have delete ok.", cx);
                                 true
@@ -143,6 +148,12 @@ impl TodayBoard {
     }
 }
 
+impl BoardView for TodayBoard {
+    fn set_active_index(&mut self, index: Option<usize>) {
+        self.base.set_active_index(index);
+    }
+}
+
 impl Board for TodayBoard {
     fn icon() -> IconName {
         IconName::StarOutlineThickSymbolic
@@ -153,7 +164,8 @@ impl Board for TodayBoard {
     }
 
     fn count(cx: &mut gpui::App) -> usize {
-        cx.global::<TodayItemState>().items.len()
+        // 使用 TodoStore 获取计数
+        cx.global::<TodoStore>().today_items().len()
     }
 
     fn title() -> &'static str {
@@ -191,6 +203,9 @@ impl Render for TodayBoard {
         let overdue_items = self.base.overdue_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
+        let active_border = cx.theme().list_active_border;
+        let item_rows = &self.base.item_rows;
+        let active_index = self.base.active_index;
 
         v_flex()
             .track_focus(&self.base.focus_handle)
@@ -280,49 +295,23 @@ impl Render for TodayBoard {
                     v_flex()
                         .gap_4()
                         .when(!pinned_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(section("Pinned").child(v_flex().gap_2().w_full().children(
-                                pinned_items.into_iter().map(|(i, _item)| {
-                                    let view = view_clone.clone();
-                                    let is_active = self.base.active_index == Some(i);
-                                    let item_row = self.base.item_rows.get(i).cloned();
-                                    div()
-                                        .id(("item", i))
-                                        .on_click(move |_, _, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.base.active_index = Some(i);
-                                                cx.notify();
-                                            });
-                                        })
-                                        .when(is_active, |this| {
-                                            this.border_color(cx.theme().list_active_border)
-                                        })
-                                        .children(item_row.map(|row| ItemRow::new(&row)))
-                                }),
-                            )))
+                            this.child(board_renderer::render_item_section(
+                                "Pinned",
+                                &pinned_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
+                            ))
                         })
                         .when(!overdue_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(section("Overdue").child(
-                                v_flex().gap_2().w_full().children(overdue_items.into_iter().map(
-                                    |(i, _item)| {
-                                        let view = view_clone.clone();
-                                        let is_active = self.base.active_index == Some(i);
-                                        let item_row = self.base.item_rows.get(i).cloned();
-                                        div()
-                                            .id(("item", i))
-                                            .on_click(move |_, _, cx| {
-                                                view.update(cx, |this, cx| {
-                                                    this.base.active_index = Some(i);
-                                                    cx.notify();
-                                                });
-                                            })
-                                            .when(is_active, |this| {
-                                                this.border_color(cx.theme().list_active_border)
-                                            })
-                                            .children(item_row.map(|row| ItemRow::new(&row)))
-                                    },
-                                )),
+                            this.child(board_renderer::render_item_section(
+                                "Overdue",
+                                &overdue_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
@@ -350,24 +339,12 @@ impl Render for TodayBoard {
                                                 }),
                                         ),
                                     )
-                                    .child(v_flex().gap_2().w_full().children(
-                                        no_section_items.into_iter().map(|(i, _item)| {
-                                            let view = view_clone.clone();
-                                            let is_active = self.base.active_index == Some(i);
-                                            let item_row = self.base.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.base.active_index = Some(i);
-                                                        cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        }),
+                                    .child(board_renderer::render_item_list(
+                                        &no_section_items,
+                                        item_rows,
+                                        active_index,
+                                        active_border,
+                                        view_clone,
                                     )),
                             )
                         })
@@ -410,26 +387,13 @@ impl Render for TodayBoard {
                                             }),
                                         ),
                                     )
-                                    .child(v_flex().gap_2().w_full().children(items.iter().map(
-                                        |(i, _item)| {
-                                            let view = view_clone.clone();
-                                            let i = *i;
-                                            let is_active = self.base.active_index == Some(i);
-                                            let item_row = self.base.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.base.active_index = Some(i);
-                                                        cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        },
-                                    ))),
+                                    .child(board_renderer::render_item_list(
+                                        items,
+                                        item_rows,
+                                        active_index,
+                                        active_border,
+                                        view_clone,
+                                    )),
                             )
                         })),
                 ),

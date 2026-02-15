@@ -14,7 +14,7 @@ use gpui_component::{
 
 use crate::{
     Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
-    PinBoard, ScheduledBoard, TodayBoard, todo_state::TodayItemState,
+    PinBoard, ScheduledBoard, TodayBoard, todo_state::TodoStore,
 };
 
 pub struct BoardPanel {
@@ -147,7 +147,7 @@ impl Render for BoardPanel {
                                 move |this, _: &ClickEvent, _, cx| {
                                     this.active_index = Some(ix);
                                     println!("board:view {:?}", this.active_index);
-                                    let cnt = cx.global::<TodayItemState>().items.len();
+                                    let cnt = cx.global::<TodoStore>().today_items().len();
                                     println!("today cnt:{:?}", cnt);
                                     cx.notify();
                                 },

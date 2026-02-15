@@ -11,7 +11,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemListDelegate, todo_state::TodayItemState};
+use crate::{ItemListDelegate, todo_state::TodoStore};
 
 pub enum ItemsTodayEvent {
     Finished(Arc<ItemModel>),
@@ -35,8 +35,8 @@ impl ItemsTodayPanel {
 
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<TodayItemState>(move |_this, cx| {
-                let items = cx.global::<TodayItemState>().items.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let items = cx.global::<TodoStore>().today_items();
                 cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();

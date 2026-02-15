@@ -1,12 +1,17 @@
+//! CompletedBoard - 已完成任务视图
+//!
+//! 显示已完成的任务。
+//! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
+
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement as _,
-    MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    MouseButton, ParentElement, Render, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
@@ -15,9 +20,10 @@ use gpui_component::{
 };
 
 use crate::{
-    Board, BoardBase, ItemRow, ItemRowState, section,
+    Board, BoardBase, ItemRowState, section,
     todo_actions::{add_item, delete_item, update_item},
-    todo_state::{CompleteItemState, SectionState},
+    todo_state::{SectionState, TodoStore},
+    views::boards::{BoardView, board_renderer},
 };
 
 pub enum ItemClickEvent {
@@ -39,9 +45,12 @@ impl CompletedBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
+        // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
-            cx.observe_global_in::<CompleteItemState>(window, move |this, window, cx| {
-                let state_items = cx.global::<CompleteItemState>().items.clone();
+            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                // 从 TodoStore 获取已完成任务（内存过滤，无需数据库查询）
+                let state_items = cx.global::<TodoStore>().completed_items();
+
                 this.base.item_rows = state_items
                     .iter()
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
@@ -71,8 +80,9 @@ impl CompletedBoard {
         &self,
         ix: IndexPath,
         cx: &App,
-    ) -> Option<std::sync::Arc<todos::entity::ItemModel>> {
-        let item_list = cx.global::<CompleteItemState>().items.clone();
+    ) -> Option<Arc<todos::entity::ItemModel>> {
+        // 使用 TodoStore 获取数据
+        let item_list = cx.global::<TodoStore>().completed_items();
         item_list.get(ix.row).cloned()
     }
 
@@ -220,6 +230,12 @@ impl CompletedBoard {
     }
 }
 
+impl BoardView for CompletedBoard {
+    fn set_active_index(&mut self, index: Option<usize>) {
+        self.base.set_active_index(index);
+    }
+}
+
 impl Board for CompletedBoard {
     fn icon() -> IconName {
         IconName::CheckRoundOutlineSymbolic
@@ -230,7 +246,8 @@ impl Board for CompletedBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        cx.global::<CompleteItemState>().items.len()
+        // 使用 TodoStore 获取计数
+        cx.global::<TodoStore>().completed_items().len()
     }
 
     fn title() -> &'static str {
@@ -267,6 +284,9 @@ impl Render for CompletedBoard {
         let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
+        let active_border = cx.theme().list_active_border;
+        let item_rows = &self.base.item_rows;
+        let active_index = self.base.active_index;
 
         v_flex()
             .track_focus(&self.base.focus_handle)
@@ -355,49 +375,23 @@ impl Render for CompletedBoard {
                     v_flex()
                         .gap_4()
                         .when(!pinned_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(section("Pinned").child(v_flex().gap_2().w_full().children(
-                                pinned_items.into_iter().map(|(i, _item)| {
-                                    let view = view_clone.clone();
-                                    let is_active = self.base.active_index == Some(i);
-                                    let item_row = self.base.item_rows.get(i).cloned();
-                                    div()
-                                        .id(("item", i))
-                                        .on_click(move |_, _, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.base.active_index = Some(i);
-                                                cx.notify();
-                                            });
-                                        })
-                                        .when(is_active, |this| {
-                                            this.border_color(cx.theme().list_active_border)
-                                        })
-                                        .children(item_row.map(|row| ItemRow::new(&row)))
-                                }),
-                            )))
+                            this.child(board_renderer::render_item_section(
+                                "Pinned",
+                                &pinned_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
+                            ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(section("No Section").child(
-                                v_flex().gap_2().w_full().children(
-                                    no_section_items.into_iter().map(|(i, _item)| {
-                                        let view = view_clone.clone();
-                                        let is_active = self.base.active_index == Some(i);
-                                        let item_row = self.base.item_rows.get(i).cloned();
-                                        div()
-                                            .id(("item", i))
-                                            .on_click(move |_, _, cx| {
-                                                view.update(cx, |this, cx| {
-                                                    this.base.active_index = Some(i);
-                                                    cx.notify();
-                                                });
-                                            })
-                                            .when(is_active, |this| {
-                                                this.border_color(cx.theme().list_active_border)
-                                            })
-                                            .children(item_row.map(|row| ItemRow::new(&row)))
-                                    }),
-                                ),
+                            this.child(board_renderer::render_item_section(
+                                "No Section",
+                                &no_section_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
                             ))
                         })
                         .children(sections.iter().filter_map(|sec| {
@@ -408,28 +402,13 @@ impl Render for CompletedBoard {
 
                             let view_clone = view.clone();
 
-                            Some(section(sec.name.clone()).child(
-                                v_flex().gap_2().w_full().children(items.iter().map(
-                                    |(i, _item)| {
-                                        let view = view_clone.clone();
-                                        let i = *i;
-                                        let is_active = self.base.active_index == Some(i);
-                                        let item_row = self.base.item_rows.get(i).cloned();
-                                        div()
-                                            .id(("item", i))
-                                            .on_click(move |_, _, cx| {
-                                                view.update(cx, |this, cx| {
-                                                    this.base.active_index = Some(i);
-                                                    cx.notify();
-                                                });
-                                            })
-                                            .when(is_active, |this| {
-                                                this.border_color(cx.theme().list_active_border)
-                                            })
-                                            .children(item_row.map(|row| ItemRow::new(&row)))
-                                    },
-                                )),
-                            ))
+                            Some(section(sec.name.clone()).child(board_renderer::render_item_list(
+                                items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view_clone,
+                            )))
                         })),
                 ),
             )

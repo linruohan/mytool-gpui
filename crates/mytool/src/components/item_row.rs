@@ -11,7 +11,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, todo_state::ItemState};
+use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, todo_state::TodoStore};
 
 const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
@@ -37,8 +37,8 @@ impl ItemRowState {
         let item_id = item.id.clone();
 
         let _subscriptions = vec![
-            cx.observe_global_in::<ItemState>(window, move |this, window, cx| {
-                let state_items = cx.global::<ItemState>().items.clone();
+            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                let state_items = cx.global::<TodoStore>().all_items.clone();
                 if let Some(updated_item) = state_items.iter().find(|i| i.id == item_id) {
                     this.item = updated_item.clone();
                     this.update_version += 1; // 增加版本号，强制重新渲染

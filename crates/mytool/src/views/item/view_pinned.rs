@@ -11,7 +11,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemListDelegate, todo_actions::set_item_pinned, todo_state::PinnedItemState};
+use crate::{ItemListDelegate, todo_actions::set_item_pinned, todo_state::TodoStore};
 
 pub enum ItemsPinnedEvent {
     Pinned(Arc<ItemModel>),
@@ -35,8 +35,8 @@ impl ItemsPinnedPanel {
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<PinnedItemState>(move |_this, cx| {
-                let items = cx.global::<PinnedItemState>().items.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let items = cx.global::<TodoStore>().pinned_items();
                 cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();

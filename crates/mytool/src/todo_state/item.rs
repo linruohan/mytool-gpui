@@ -5,14 +5,6 @@ use todos::entity::ItemModel;
 
 use crate::{service::load_items, todo_state::DBState};
 
-#[derive(Clone, PartialEq)]
-pub enum ItemStatus {
-    Added,
-    Modified,
-    Deleted,
-    Loaded,
-}
-
 pub struct ItemState {
     pub items: Vec<Arc<ItemModel>>,
 }

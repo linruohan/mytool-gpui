@@ -1,12 +1,17 @@
+//! InboxBoard - 收件箱视图
+//!
+//! 显示所有未完成且无项目的任务。
+//! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
+
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement as _,
-    MouseButton, ParentElement, Render, StatefulInteractiveElement as _, Styled, Window, div,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    MouseButton, ParentElement, Render, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
@@ -18,11 +23,12 @@ use gpui_component::{
 use sea_orm::sqlx::types::uuid;
 
 use crate::{
-    Board, BoardBase, ItemRow, ItemRowState, section,
+    Board, BoardBase, ItemRowState, section,
     todo_actions::{
         add_item, add_section, delete_item, delete_section, update_item, update_section,
     },
-    todo_state::{InboxItemState, ItemState, ProjectState, SectionState},
+    todo_state::{ProjectState, SectionState, TodoStore},
+    views::boards::{BoardView, board_renderer},
 };
 
 pub enum ItemClickEvent {
@@ -44,37 +50,49 @@ impl InboxBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
+        // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
-            cx.observe_global_in::<InboxItemState>(window, move |this, window, cx| {
-                let state_items = cx.global::<InboxItemState>().items.clone();
+            // 监听 TodoStore 变化
+            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                // 从 TodoStore 获取收件箱任务（内存过滤，无需数据库查询）
+                let state_items = cx.global::<TodoStore>().inbox_items();
+
+                // 更新 item_rows
                 this.base.item_rows = state_items
                     .iter()
                     .filter(|item| !item.checked)
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
-                // 重新计算no_section_items和section_items_map
+                // 重新计算 no_section_items 和 section_items_map
                 this.base.no_section_items.clear();
                 this.base.section_items_map.clear();
+                this.base.pinned_items.clear();
 
                 for (i, item) in state_items.iter().enumerate() {
                     if !item.checked {
-                        match item.section_id.as_deref() {
-                            None | Some("") => this.base.no_section_items.push((i, item.clone())),
-                            Some(sid) => {
-                                this.base
-                                    .section_items_map
-                                    .entry(sid.to_string())
-                                    .or_default()
-                                    .push((i, item.clone()));
-                            },
+                        // 先处理置顶任务
+                        if item.pinned {
+                            this.base.pinned_items.push((i, item.clone()));
+                        } else {
+                            // 非置顶任务按 section 分类
+                            match item.section_id.as_deref() {
+                                None | Some("") => {
+                                    this.base.no_section_items.push((i, item.clone()))
+                                },
+                                Some(sid) => {
+                                    this.base
+                                        .section_items_map
+                                        .entry(sid.to_string())
+                                        .or_default()
+                                        .push((i, item.clone()));
+                                },
+                            }
                         }
                     }
                 }
 
-                println!("no_section_items:{:?}", this.base.no_section_items.len());
-                println!("section_items_map:{:?}", this.base.section_items_map.len());
-
+                // 更新活动索引
                 if let Some(ix) = this.base.active_index {
                     if ix >= this.base.item_rows.len() {
                         this.base.active_index =
@@ -89,8 +107,6 @@ impl InboxBoard {
                 cx.notify();
             }),
             cx.observe_global_in::<SectionState>(window, move |_this, _, cx| {
-                // When section state changes, trigger re-render to update section names
-                println!("SectionState changed, triggering re-render");
                 cx.notify();
             }),
         ];
@@ -102,8 +118,9 @@ impl InboxBoard {
         &self,
         ix: IndexPath,
         cx: &App,
-    ) -> Option<std::sync::Arc<todos::entity::ItemModel>> {
-        let item_list = cx.global::<InboxItemState>().items.clone();
+    ) -> Option<Arc<todos::entity::ItemModel>> {
+        // 使用 TodoStore 获取数据
+        let item_list = cx.global::<TodoStore>().inbox_items();
         item_list.get(ix.row).cloned()
     }
 
@@ -114,11 +131,9 @@ impl InboxBoard {
         is_edit: bool,
         section_id: Option<String>,
     ) {
-        // 获取当前选中的 ItemRow 的 item_info（如果是编辑模式）
         let item_info = if is_edit {
             if let Some(active_index) = self.base.active_index {
                 if let Some(item_row) = self.base.item_rows.get(active_index) {
-                    // 从选中的 ItemRow 中读取 item_info
                     item_row.read(cx).item_info.clone()
                 } else {
                     self.base.item_info.clone()
@@ -127,16 +142,12 @@ impl InboxBoard {
                 self.base.item_info.clone()
             }
         } else {
-            // 新增模式使用默认的 item_info，并重置为空数据
             let mut ori_item = todos::entity::ItemModel::default();
-
-            // 如果指定了section_id，设置它
             if let Some(sid) = section_id {
                 ori_item.section_id = Some(sid);
             }
-
             self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
+                state.set_item(Arc::new(ori_item.clone()), window, cx);
                 cx.notify();
             });
             self.base.item_info.clone()
@@ -177,7 +188,6 @@ impl InboxBoard {
         if let Some(active_index) = self.base.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
-                let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
                         .confirm()
@@ -185,13 +195,10 @@ impl InboxBoard {
                         .overlay_closable(true)
                         .child("Are you sure to finish the item?")
                         .on_ok({
-                            let view = view.clone();
                             let item = item.clone();
                             move |_, window, cx| {
-                                let _view = view.clone();
-                                // 创建一个新的 ItemModel 实例并修改它
                                 let mut item_model = (*item).clone();
-                                item_model.checked = true; //切换为完成状态
+                                item_model.checked = true;
                                 update_item(Arc::new(item_model), cx);
                                 window.push_notification("You have finished item ok.", cx);
                                 true
@@ -210,7 +217,6 @@ impl InboxBoard {
         if let Some(active_index) = self.base.active_index {
             let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
             if let Some(item) = item_some {
-                let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
                         .confirm()
@@ -218,11 +224,8 @@ impl InboxBoard {
                         .overlay_closable(true)
                         .child(if item.pinned { "Unpin this item?" } else { "Pin this item?" })
                         .on_ok({
-                            let view = view.clone();
                             let item = item.clone();
                             move |_, window, cx| {
-                                let _view = view.clone();
-                                // 切换置顶状态
                                 let mut item_model = (*item).clone();
                                 item_model.pinned = !item.pinned;
                                 update_item(Arc::new(item_model), cx);
@@ -278,10 +281,7 @@ impl InboxBoard {
         let view = cx.entity().clone();
         crate::components::show_section_dialog(window, cx, name_input, config, move |name, cx| {
             view.update(cx, |_view, cx| {
-                let section = std::sync::Arc::new(todos::entity::SectionModel {
-                    name,
-                    ..ori_section.clone()
-                });
+                let section = Arc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
                 if is_edit {
                     update_section(section, cx);
                 } else {
@@ -327,7 +327,7 @@ impl InboxBoard {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
             new_section.name = format!("{} (copy)", new_section.name);
-            add_section(std::sync::Arc::new(new_section), cx);
+            add_section(Arc::new(new_section), cx);
             window.push_notification("Section duplicated successfully.", cx);
         }
     }
@@ -342,11 +342,18 @@ impl InboxBoard {
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
-            update_section(std::sync::Arc::new(updated_section), cx);
+            update_section(Arc::new(updated_section), cx);
             window.push_notification("Section archived successfully.", cx);
         }
     }
 }
+
+impl BoardView for InboxBoard {
+    fn set_active_index(&mut self, index: Option<usize>) {
+        self.base.set_active_index(index);
+    }
+}
+
 impl Board for InboxBoard {
     fn icon() -> IconName {
         IconName::MailboxSymbolic
@@ -357,7 +364,8 @@ impl Board for InboxBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        cx.global::<ItemState>().items.iter().filter(|i| !i.checked).count()
+        // 使用 TodoStore 获取计数
+        cx.global::<TodoStore>().inbox_items().len()
     }
 
     fn title() -> &'static str {
@@ -394,6 +402,9 @@ impl Render for InboxBoard {
         let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
+        let active_border = cx.theme().list_active_border;
+        let item_rows = &self.base.item_rows;
+        let active_index = self.base.active_index;
 
         v_flex()
             .track_focus(&self.base.focus_handle)
@@ -515,106 +526,71 @@ impl Render for InboxBoard {
                     v_flex()
                         .gap_4()
                         .when(!pinned_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(
-                                section("Pinned")
-                                    .child(v_flex().gap_2().w_full().children(
-                                        pinned_items.into_iter().map(|(i, _item)| {
-                                            let view = view_clone.clone();
-                                            let is_active = self.base.active_index == Some(i);
-                                            let item_row = self.base.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.base.active_index = Some(i);
-                                                        cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        }),
-                                    )),
-                            )
+                            this.child(board_renderer::render_item_section(
+                                "Pinned",
+                                &pinned_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
+                            ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
                                 section("No Section")
-                                 .sub_title(
-                                        h_flex().gap_1().child(
-                                            Button::new("add-item-to-no-section")
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::PlusLargeSymbolic)
-                                                .label("Add Task")
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    move |_, window, cx| {
-                                                        view.update(cx, |this, cx| {
-                                                            this.show_item_dialog(
-                                                                window, cx, false, None,
-                                                            );
-                                                            cx.notify();
-                                                        })
-                                                    }
-                                                }),
-                                        ),
-                                    )
-                                    .sub_title(
-                                        h_flex()
-                                            .gap_1()
-                                            .child(
-                                                Button::new("more-no-section")
-                                                    .small()
-                                                    .ghost()
-                                                    .compact()
-                                                    .icon(IconName::EllipsisVertical)
-                                                    .dropdown_menu({
-                                                        let view = view_clone.clone();
-                                                        move |this, window, _cx| {
-                                                            this.item(
-                                                                PopupMenuItem::new("+ Add Task").on_click(
-                                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                                        this.show_item_dialog(window, cx, false, None);
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                            )
-                                                                .separator()
-                                                                .item(
-                                                                    PopupMenuItem::new("Show Completed Tasks").on_click(
-                                                                        window.listener_for(&view, |_this, _, _window, cx| {
-                                                                            // TODO: Implement show completed tasks
-                                                                            cx.notify();
-                                                                        }),
-                                                                    ),
-                                                                )
-                                                        }
-                                                    }),
-                                            ),
-                                    )
-                                    .child(v_flex().gap_2().w_full().children(
-                                        no_section_items.into_iter().map(|(i, _item)| {
-                                            let view = view_clone.clone();
-                                            let is_active = self.base.active_index == Some(i);
-                                            let item_row = self.base.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
+                                    .sub_title(h_flex().gap_1().child(
+                                        Button::new("add-item-to-no-section")
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::PlusLargeSymbolic)
+                                            .label("Add Task")
+                                            .on_click({
+                                                let view = view_clone.clone();
+                                                move |_, window, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.base.active_index = Some(i);
+                                                        this.show_item_dialog(window, cx, false, None);
                                                         cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        }),
+                                                    })
+                                                }
+                                            }),
+                                    ))
+                                    .sub_title(h_flex().gap_1().child(
+                                        Button::new("more-no-section")
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::EllipsisVertical)
+                                            .dropdown_menu({
+                                                let view = view_clone.clone();
+                                                move |this, window, _cx| {
+                                                    this.item(
+                                                        PopupMenuItem::new("+ Add Task").on_click(
+                                                            window.listener_for(&view, |this, _, window, cx| {
+                                                                this.show_item_dialog(window, cx, false, None);
+                                                                cx.notify();
+                                                            }),
+                                                        ),
+                                                    )
+                                                    .separator()
+                                                    .item(
+                                                        PopupMenuItem::new("Show Completed Tasks")
+                                                            .on_click(
+                                                                window.listener_for(&view, |_this, _, _window, cx| {
+                                                                    cx.notify();
+                                                                }),
+                                                            ),
+                                                    )
+                                                }
+                                            }),
+                                    ))
+                                    .child(board_renderer::render_item_list(
+                                        &no_section_items,
+                                        item_rows,
+                                        active_index,
+                                        active_border,
+                                        view_clone,
                                     )),
                             )
                         })
@@ -629,12 +605,8 @@ impl Render for InboxBoard {
 
                             Some(
                                 section(sec.name.clone())
-                                    .sub_title(
-                                        h_flex().gap_1().child(
-                                            Button::new(format!(
-                                                "add-item-to-section-{}",
-                                                section_id
-                                            ))
+                                    .sub_title(h_flex().gap_1().child(
+                                        Button::new(format!("add-item-to-section-{}", section_id))
                                             .small()
                                             .ghost()
                                             .compact()
@@ -645,13 +617,17 @@ impl Render for InboxBoard {
                                                 let section_id = section_id.clone();
                                                 move |_, window, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.show_item_dialog(window, cx, false, Some(section_id.clone()));
+                                                        this.show_item_dialog(
+                                                            window,
+                                                            cx,
+                                                            false,
+                                                            Some(section_id.clone()),
+                                                        );
                                                         cx.notify();
                                                     })
                                                 }
                                             }),
-                                        ),
-                                    )
+                                    ))
                                     .sub_title(
                                         h_flex()
                                             .gap_1()
@@ -678,28 +654,25 @@ impl Render for InboxBoard {
                                                     }),
                                             )
                                             .child(
-                                                Button::new(format!(
-                                                    "delete-section-{}",
-                                                    section_id
-                                                ))
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::UserTrashSymbolic)
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    let section_id = section_id.clone();
-                                                    move |_, window, cx| {
-                                                        view.update(cx, |this, cx| {
-                                                            this.show_section_delete_dialog(
-                                                                window,
-                                                                cx,
-                                                                section_id.clone(),
-                                                            );
-                                                            cx.notify();
-                                                        })
-                                                    }
-                                                }),
+                                                Button::new(format!("delete-section-{}", section_id))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::UserTrashSymbolic)
+                                                    .on_click({
+                                                        let view = view_clone.clone();
+                                                        let section_id = section_id.clone();
+                                                        move |_, window, cx| {
+                                                            view.update(cx, |this, cx| {
+                                                                this.show_section_delete_dialog(
+                                                                    window,
+                                                                    cx,
+                                                                    section_id.clone(),
+                                                                );
+                                                                cx.notify();
+                                                            })
+                                                        }
+                                                    }),
                                             )
                                             .child(
                                                 Button::new(format!("more-section-{}", section_id))
@@ -712,115 +685,88 @@ impl Render for InboxBoard {
                                                         let section_id = section_id.clone();
                                                         move |this, window, _cx| {
                                                             let view = view.clone();
-                                                            let section_id = section_id.clone();
-                                                            this.item({
-                                                                let view = view.clone();
-                                                                let section_id = section_id.clone();
+                                                            let section_id1 = section_id.clone();
+                                                            let section_id2 = section_id.clone();
+                                                            let section_id3 = section_id.clone();
+                                                            let section_id4 = section_id.clone();
+                                                            let section_id5 = section_id.clone();
+                                                            this.item(
                                                                 PopupMenuItem::new("+ Add Task").on_click(
                                                                     window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.show_item_dialog(window, cx, false, Some(section_id.clone()));
+                                                                        this.show_item_dialog(
+                                                                            window,
+                                                                            cx,
+                                                                            false,
+                                                                            Some(section_id1.clone()),
+                                                                        );
                                                                         cx.notify();
                                                                     }),
-                                                                )
-                                                            })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Edit Section").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.show_section_dialog(window, cx, Some(section_id.clone()), true);
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    PopupMenuItem::new("Move Section").on_click(
-                                                                        window.listener_for(&view, |_this, _, _window, cx| {
-                                                                            // TODO: Implement move section to another project
-                                                                            cx.notify();
-                                                                        }),
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    PopupMenuItem::new("Manage Sections").on_click(
-                                                                        window.listener_for(&view, |_this, _, _window, cx| {
-                                                                            // TODO: Implement manage sections dialog
-                                                                            cx.notify();
-                                                                        }),
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Duplicate").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.duplicate_section(window, cx, section_id.clone());
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    PopupMenuItem::new("Show Completed Tasks").on_click(
-                                                                        window.listener_for(&view, |_this, _, _window, cx| {
-                                                                            // TODO: Implement show completed tasks
-                                                                            cx.notify();
-                                                                        }),
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Archive").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.archive_section(window, cx, section_id.clone());
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Delete Section").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.show_section_delete_dialog(window, cx, section_id.clone());
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
+                                                                ),
+                                                            )
+                                                            .separator()
+                                                            .item(
+                                                                PopupMenuItem::new("Edit Section").on_click(
+                                                                    window.listener_for(&view, move |this, _, window, cx| {
+                                                                        this.show_section_dialog(
+                                                                            window,
+                                                                            cx,
+                                                                            Some(section_id2.clone()),
+                                                                            true,
+                                                                        );
+                                                                        cx.notify();
+                                                                    }),
+                                                                ),
+                                                            )
+                                                            .separator()
+                                                            .item(
+                                                                PopupMenuItem::new("Duplicate").on_click(
+                                                                    window.listener_for(&view, move |this, _, window, cx| {
+                                                                        this.duplicate_section(
+                                                                            window,
+                                                                            cx,
+                                                                            section_id3.clone(),
+                                                                        );
+                                                                        cx.notify();
+                                                                    }),
+                                                                ),
+                                                            )
+                                                            .separator()
+                                                            .item(
+                                                                PopupMenuItem::new("Archive").on_click(
+                                                                    window.listener_for(&view, move |this, _, window, cx| {
+                                                                        this.archive_section(
+                                                                            window,
+                                                                            cx,
+                                                                            section_id4.clone(),
+                                                                        );
+                                                                        cx.notify();
+                                                                    }),
+                                                                ),
+                                                            )
+                                                            .separator()
+                                                            .item(
+                                                                PopupMenuItem::new("Delete Section").on_click(
+                                                                    window.listener_for(&view, move |this, _, window, cx| {
+                                                                        this.show_section_delete_dialog(
+                                                                            window,
+                                                                            cx,
+                                                                            section_id5.clone(),
+                                                                        );
+                                                                        cx.notify();
+                                                                    }),
+                                                                ),
+                                                            )
                                                         }
                                                     }),
                                             ),
                                     )
-                                    .child(v_flex().gap_2().w_full().children(items.iter().map(
-                                        |(i, _item)| {
-                                            let view = view_clone.clone();
-                                            let i = *i;
-                                            let is_active = self.base.active_index == Some(i);
-                                            let item_row = self.base.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.base.active_index = Some(i);
-                                                        cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        },
-                                    ))),
+                                    .child(board_renderer::render_item_list(
+                                        items,
+                                        item_rows,
+                                        active_index,
+                                        active_border,
+                                        view_clone,
+                                    )),
                             )
                         })),
                 ),

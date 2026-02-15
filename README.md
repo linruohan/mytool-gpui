@@ -1,5 +1,59 @@
 # Mytool-GPUI
 
+## 当前架构预览
+
+```mermaid
+graph TB
+    subgraph "视图层 Views"
+        V1[InboxBoard]
+        V2[TodayBoard]
+        V3[ScheduledBoard]
+        V4[CompletedBoard]
+        V5[PinnedBoard]
+    end
+    
+    subgraph "状态层 todo_state"
+        S1[ItemState]
+        S2[InboxItemState]
+        S3[TodayItemState]
+        S4[ScheduledItemState]
+        S5[CompleteItemState]
+        S6[PinnedItemState]
+        S7[ProjectState]
+        S8[SectionState]
+    end
+    
+    subgraph "操作层 todo_actions"
+        A1[add_item]
+        A2[update_item]
+        A3[delete_item]
+        A4[refresh_*]
+    end
+    
+    subgraph "服务层 service"
+        F1[load_items]
+        F2[get_inbox_items]
+        F3[get_items_today]
+        F4[get_items_scheduled]
+    end
+    
+    V1 --> S2
+    V2 --> S3
+    V3 --> S4
+    V4 --> S5
+    V5 --> S6
+    
+    S2 --> S1
+    S3 --> S1
+    S4 --> S1
+    S5 --> S1
+    S6 --> S1
+    
+    A1 --> F1
+    A2 --> F1
+    A3 --> F1
+```
+
 ## toolchain
 
 x86_64-pc-windows-gnu

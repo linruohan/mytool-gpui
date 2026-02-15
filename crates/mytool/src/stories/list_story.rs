@@ -16,7 +16,7 @@ use crate::{
     popover_list::PopoverList,
     section,
     service::load_items,
-    todo_state::{DBState, ItemState},
+    todo_state::{DBState, TodoStore},
 };
 
 actions!(list_story, [SelectedCompany]);
@@ -55,7 +55,7 @@ impl ListStory {
         let popover_list = cx.new(|cx| PopoverList::new(window, cx));
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
         let item_rows = {
-            let items = cx.global::<ItemState>().items.clone();
+            let items = cx.global::<TodoStore>().all_items.clone();
             items
                 .iter()
                 .map(|item| {
@@ -65,8 +65,8 @@ impl ListStory {
                 .collect()
         };
         let _subscriptions = vec![
-            cx.observe_global_in::<ItemState>(window, move |this, window, cx| {
-                let state_items = cx.global::<ItemState>().items.clone();
+            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                let state_items = cx.global::<TodoStore>().all_items.clone();
 
                 // 将state_items转换为HashMap便于快速查找
                 let items_by_id: HashMap<String, Arc<ItemModel>> =

@@ -11,7 +11,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemListDelegate, todo_state::ScheduledItemState};
+use crate::{ItemListDelegate, todo_state::TodoStore};
 
 pub enum ItemsScheduledEvent {
     Scheduled(Arc<ItemModel>),
@@ -34,8 +34,8 @@ impl ItemsScheduledPanel {
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<ScheduledItemState>(move |_this, cx| {
-                let items = cx.global::<ScheduledItemState>().items.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let items = cx.global::<TodoStore>().scheduled_items();
                 cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();

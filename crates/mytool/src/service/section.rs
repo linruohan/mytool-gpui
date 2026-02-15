@@ -33,6 +33,11 @@ pub async fn del_section(
     Store::new(db).delete_section(&section.id).await
 }
 
+/// 根据ID删除分区（用于增量更新）
+pub async fn del_section_by_id(section_id: &str, db: DatabaseConnection) -> Result<(), TodoError> {
+    Store::new(db).delete_section(section_id).await
+}
+
 // 获取project下的sections
 #[allow(unused)]
 pub async fn get_project_sections(

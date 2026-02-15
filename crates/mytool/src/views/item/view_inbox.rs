@@ -13,7 +13,7 @@ use todos::entity::ItemModel;
 use crate::{
     ItemEvent, ItemInfoEvent, ItemInfoState, ItemListDelegate,
     todo_actions::{add_item, delete_item, update_item},
-    todo_state::InboxItemState,
+    todo_state::TodoStore,
 };
 
 impl EventEmitter<ItemEvent> for ItemsPanel {}
@@ -33,8 +33,8 @@ impl ItemsPanel {
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<InboxItemState>(move |_this, cx| {
-                let items = cx.global::<InboxItemState>().items.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let items = cx.global::<TodoStore>().inbox_items();
                 cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();

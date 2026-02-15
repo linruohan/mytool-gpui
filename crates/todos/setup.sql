@@ -140,7 +140,39 @@ CREATE TABLE IF NOT EXISTS Sources (
 
 PRAGMA foreign_keys = ON;
 
--- # 创建触发器
+-- =====================================================
+-- 性能优化索引（由 kimi2.5方案.md 指导添加）
+-- =====================================================
+
+-- Items 表索引
+CREATE INDEX IF NOT EXISTS idx_items_project_id ON Items(project_id);
+CREATE INDEX IF NOT EXISTS idx_items_section_id ON Items(section_id);
+CREATE INDEX IF NOT EXISTS idx_items_parent_id ON Items(parent_id);
+CREATE INDEX IF NOT EXISTS idx_items_checked ON Items(checked);
+CREATE INDEX IF NOT EXISTS idx_items_pinned ON Items(pinned);
+CREATE INDEX IF NOT EXISTS idx_items_due ON Items(due);
+
+-- 复合索引（常用查询组合）
+CREATE INDEX IF NOT EXISTS idx_items_project_checked ON Items(project_id, checked);
+CREATE INDEX IF NOT EXISTS idx_items_section_checked ON Items(section_id, checked);
+CREATE INDEX IF NOT EXISTS idx_items_parent_checked ON Items(parent_id, checked);
+
+-- Sections 表索引
+CREATE INDEX IF NOT EXISTS idx_sections_project_id ON Sections(project_id);
+
+-- Reminders 表索引
+CREATE INDEX IF NOT EXISTS idx_reminders_item_id ON Reminders(item_id);
+
+-- Attachments 表索引
+CREATE INDEX IF NOT EXISTS idx_attachments_item_id ON Attachments(item_id);
+
+-- OEvents 表索引
+CREATE INDEX IF NOT EXISTS idx_oevents_object_id ON OEvents(object_id);
+CREATE INDEX IF NOT EXISTS idx_oevents_parent_project ON OEvents(parent_project_id);
+
+-- =====================================================
+-- 创建触发器
+-- =====================================================
 CREATE TRIGGER IF NOT EXISTS after_insert_item
 AFTER
 INSERT

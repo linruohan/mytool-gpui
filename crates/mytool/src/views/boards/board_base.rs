@@ -15,6 +15,8 @@ pub struct BoardBase {
     pub pinned_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
     pub overdue_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
     pub is_today_board: bool,
+    /// 分区列表（用于渲染 Section 分组）
+    pub sections: Vec<std::sync::Arc<todos::entity::SectionModel>>,
 }
 
 impl BoardBase {
@@ -27,6 +29,7 @@ impl BoardBase {
         let section_items_map = std::collections::HashMap::new();
         let pinned_items = vec![];
         let overdue_items = vec![];
+        let sections = vec![];
 
         Self {
             focus_handle: cx.focus_handle(),
@@ -39,7 +42,13 @@ impl BoardBase {
             pinned_items,
             overdue_items,
             is_today_board: false,
+            sections,
         }
+    }
+
+    /// 设置当前激活的索引
+    pub fn set_active_index(&mut self, index: Option<usize>) {
+        self.active_index = index;
     }
 
     /// 更新项目列表和部分映射
@@ -117,6 +126,11 @@ impl BoardBase {
         }
         false
     }
+}
+
+/// 用于通用渲染的 Board 视图 trait（可设置当前选中项索引）
+pub trait BoardView: gpui::Render {
+    fn set_active_index(&mut self, index: Option<usize>);
 }
 
 /// 所有 Board 类型的通用 trait

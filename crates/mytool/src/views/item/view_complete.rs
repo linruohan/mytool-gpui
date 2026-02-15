@@ -14,7 +14,7 @@ use todos::entity::ItemModel;
 use crate::{
     ItemListDelegate,
     todo_actions::{completed_item, uncompleted_item},
-    todo_state::CompleteItemState,
+    todo_state::TodoStore,
 };
 
 pub enum ItemCompletedEvent {
@@ -39,8 +39,8 @@ impl ItemsCompletedPanel {
             cx.new(|cx| ListState::new(ItemListDelegate::new(), window, cx).selectable(true));
         let item_list_clone = item_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<CompleteItemState>(move |_this, cx| {
-                let items = cx.global::<CompleteItemState>().items.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let items = cx.global::<TodoStore>().completed_items();
                 cx.update_entity(&item_list_clone, |list, cx| {
                     list.delegate_mut().update_items(items);
                     cx.notify();
