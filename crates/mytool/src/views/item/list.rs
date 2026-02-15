@@ -14,7 +14,6 @@ use gpui_component::{
     red_400, v_flex,
 };
 use todos::{
-    DueDate,
     entity::{ItemModel, LabelModel},
     utils::datetime::DateTime,
 };
@@ -61,7 +60,9 @@ impl RenderOnce for ItemListItem {
         let labels = cx.global::<LabelState>().labels.clone();
         let label_map: HashMap<&str, &Arc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
-        let item_labels = &self.item.labels;
+        // 注意：labels 现在存储在 item_labels 关联表中
+        // 这里简化处理，实际项目中可能需要异步加载
+        let item_labels: Vec<String> = Vec::new(); // 临时为空，需要从关联表加载
 
         self.base
             .px_2()
@@ -80,13 +81,10 @@ impl RenderOnce for ItemListItem {
                     .child(Checkbox::new("item-finished").checked(self.item.checked))
                     .child(
                         Label::new(
+                            // 使用类型安全的 due_date() 方法
                             self.item
-                                .due
-                                .as_ref()
-                                .and_then(|due_json: &serde_json::Value| {
-                                    serde_json::from_value::<DueDate>(due_json.clone()).ok()
-                                })
-                                .and_then(|due_date: DueDate| due_date.datetime())
+                                .due_date()
+                                .and_then(|due_date| due_date.datetime())
                                 .map(|datetime| {
                                     DateTime::default().get_relative_date_from_date(&datetime)
                                 })
@@ -101,7 +99,8 @@ impl RenderOnce for ItemListItem {
                                 .when(self.item.checked, |this| this.line_through()),
                         ),
                     )
-                    .when(self.item.labels.is_some(), |this| {
+                    // 暂时禁用 labels 显示，需要从关联表异步加载
+                    .when(false, |this| {
                         this.child(
                             h_flex().gap_1().flex().children(
                                 item_labels

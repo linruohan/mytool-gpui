@@ -280,6 +280,14 @@ impl Store {
         self.item_service.item_has_label(item_id, label_id).await
     }
 
+    pub async fn set_item_labels(
+        &self,
+        item_id: &str,
+        label_ids: &[String],
+    ) -> Result<(), TodoError> {
+        self.item_service.set_item_labels(item_id, label_ids).await
+    }
+
     pub async fn set_due_date(
         &self,
         item_id: &str,

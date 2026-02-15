@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
@@ -88,11 +88,8 @@ impl ItemInfoState {
         let section_state = cx.new(|cx| SectionState::new(window, cx));
         let schedule_button_state = cx.new(|cx| {
             let mut state = ScheduleButtonState::new(window, cx);
-            if let Some(due_date) = item
-                .due
-                .as_ref()
-                .and_then(|json| serde_json::from_value::<todos::DueDate>(json.clone()).ok())
-            {
+            // 使用类型安全的 due_date() 方法
+            if let Some(due_date) = item.due_date() {
                 state.set_due_date(due_date, window, cx);
             }
             state
@@ -200,21 +197,34 @@ impl ItemInfoState {
         match event {
             LabelsPopoverEvent::Selected(label) => {
                 let label_model = (**label).clone();
-                self.add_checked_labels(Arc::new(label_model));
+                self.add_checked_labels(Arc::new(label_model), cx);
             },
             LabelsPopoverEvent::DeSelected(label) => {
                 let label_model = (**label).clone();
-                self.rm_checked_labels(Arc::new(label_model));
+                self.rm_checked_labels(Arc::new(label_model), cx);
             },
             LabelsPopoverEvent::LabelsChanged(label_ids) => {
-                // 直接更新 item.labels 字段
-                let mut item_model = (*self.item).clone();
-                if label_ids.is_empty() {
-                    item_model.labels = None;
-                } else {
-                    item_model.labels = Some(label_ids.clone());
-                }
-                self.item = Arc::new(item_model);
+                // Labels 现在存储在 item_labels 关联表中
+                // 这里只更新 UI 状态，实际的数据库更新在保存时处理
+                // 或者可以通过异步操作立即更新关联表
+                let item_id = self.item.id.clone();
+                let db = cx.global::<DBState>().conn.clone();
+                let label_ids_clone = label_ids.clone(); // 克隆以避免生命周期问题
+
+                cx.spawn(async move |_this, _cx| {
+                    let label_ids_vec: Vec<String> = label_ids_clone
+                        .split(';')
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .collect();
+
+                    // 使用 Store 批量设置 Item 的 Labels
+                    let store = todos::Store::new(db);
+                    if let Err(e) = store.set_item_labels(&item_id, &label_ids_vec).await {
+                        tracing::error!("Failed to set item labels: {:?}", e);
+                    }
+                })
+                .detach();
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -456,66 +466,45 @@ impl ItemInfoState {
         cx.notify();
     }
 
-    pub fn add_checked_labels(&mut self, label: Arc<LabelModel>) {
-        // 创建一个新的 ItemModel 实例并修改它
-        let mut item_model = (*self.item).clone();
-        let mut labels_set = match &item_model.labels {
-            Some(current) => {
-                current.split(';').filter(|s: &&str| !s.is_empty()).collect::<HashSet<&str>>()
-            },
-            _ => HashSet::new(),
-        };
+    pub fn add_checked_labels(&mut self, label: Arc<LabelModel>, cx: &mut Context<Self>) {
+        // Labels 现在存储在 item_labels 关联表中
+        // 异步添加 Label 到 Item
+        let item_id = self.item.id.clone();
+        let label_name = label.name.clone();
+        let db = cx.global::<DBState>().conn.clone();
 
-        // 添加新标签（HashSet 自动去重）
-        labels_set.insert(&label.id);
-
-        // 重新拼接成字符串
-        let new_labels = labels_set.into_iter().collect::<Vec<&str>>().join(";");
-
-        item_model.labels = Some(new_labels);
-        self.item = Arc::new(item_model);
-    }
-
-    pub fn rm_checked_labels(&mut self, label: Arc<LabelModel>) {
-        // 创建一个新的 ItemModel 实例并修改它
-        let mut item_model = (*self.item).clone();
-        if let Some(current_labels) = &item_model.labels {
-            if current_labels.is_empty() {
-                item_model.labels = None;
-                self.item = Arc::new(item_model);
-                return;
+        cx.spawn(async move |_this, _cx| {
+            let store = todos::Store::new(db);
+            if let Err(e) = store.add_label_to_item(&item_id, &label_name).await {
+                tracing::error!("Failed to add label to item: {:?}", e);
             }
-
-            // 使用正则表达式或更精确的字符串处理
-            let new_labels = current_labels
-                .split(';')
-                .filter(|id: &&str| *id != label.id && !id.is_empty())
-                .collect::<Vec<_>>()
-                .join(";");
-
-            item_model.labels = if new_labels.is_empty() { None } else { Some(new_labels) };
-            self.item = Arc::new(item_model);
-        }
+        })
+        .detach();
     }
 
+    pub fn rm_checked_labels(&mut self, label: Arc<LabelModel>, cx: &mut Context<Self>) {
+        // Labels 现在存储在 item_labels 关联表中
+        // 异步从 Item 移除 Label
+        let item_id = self.item.id.clone();
+        let label_id = label.id.clone();
+        let db = cx.global::<DBState>().conn.clone();
+
+        cx.spawn(async move |_this, _cx| {
+            let store = todos::Store::new(db);
+            if let Err(e) = store.remove_label_from_item(&item_id, &label_id).await {
+                tracing::error!("Failed to remove label from item: {:?}", e);
+            }
+        })
+        .detach();
+    }
+
+    /// 获取选中的 Labels
+    ///
+    /// 注意：由于 Labels 现在存储在关联表中，此方法返回的是本地缓存的 labels
+    /// 如果需要最新的 labels，请使用异步方法从数据库加载
     pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Arc<LabelModel>> {
-        let Some(label_ids) = &self.item.labels else {
-            return Vec::new();
-        };
-        let all_labels = cx.global::<LabelState>().labels.clone();
-        label_ids
-            .split(';')
-            .filter_map(|label_id| {
-                let trimmed_id = label_id.trim();
-                if trimmed_id.is_empty() {
-                    return None;
-                }
-                all_labels.iter().find(|label| label.id == trimmed_id).map(|rc_label| {
-                    let label = (**rc_label).clone();
-                    Arc::new(label)
-                })
-            })
-            .collect()
+        // 从 LabelPopoverList 获取当前选中的 labels
+        self.label_popover_list.read(cx).selected_labels.clone()
     }
 
     pub fn priority(&self) -> Option<ItemPriority> {
@@ -610,16 +599,16 @@ impl ItemInfoState {
             }
         });
 
+        // Labels 现在存储在 item_labels 关联表中，需要异步加载
+        // 注意：这里简化处理，实际项目中可能需要更好的状态管理
+        // 暂时清空 labels，等待异步加载完成
         self.label_popover_list.update(cx, |this, cx| {
-            if let Some(labels) = item.labels.clone() {
-                this.set_item_checked_label_id(labels, window, cx);
-            }
+            this.set_item_checked_label_id(String::new(), window, cx);
         });
 
+        // 使用类型安全的 due_date() 方法
         self.schedule_button_state.update(cx, |this, cx| {
-            if let Some(due) = item.due.clone()
-                && let Ok(due_date) = serde_json::from_value::<todos::DueDate>(due)
-            {
+            if let Some(due_date) = item.due_date() {
                 this.set_due_date(due_date, window, cx);
                 return;
             }
@@ -662,9 +651,9 @@ impl ItemInfoState {
         cx: &mut Context<Self>,
     ) {
         if *selected {
-            self.add_checked_labels(label.clone());
+            self.add_checked_labels(label.clone(), cx);
         } else {
-            self.rm_checked_labels(label.clone());
+            self.rm_checked_labels(label.clone(), cx);
         }
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();

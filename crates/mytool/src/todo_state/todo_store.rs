@@ -5,9 +5,7 @@
 
 use std::sync::Arc;
 
-use chrono::{NaiveDate, NaiveDateTime, Utc};
 use gpui::Global;
-use serde_json::Value;
 use todos::entity::{ItemModel, ProjectModel, SectionModel};
 
 /// 统一的任务存储
@@ -46,14 +44,14 @@ impl TodoStore {
 
     /// 获取今日到期的任务
     pub fn today_items(&self) -> Vec<Arc<ItemModel>> {
-        let today = Utc::now().date_naive();
         self.all_items
             .iter()
             .filter(|item| {
                 if item.checked {
                     return false;
                 }
-                Self::is_due_today(&item.due, today)
+                // 使用 ItemModel 的 is_due_today() 方法
+                item.is_due_today()
             })
             .cloned()
             .collect()
@@ -61,7 +59,12 @@ impl TodoStore {
 
     /// 获取计划任务（有截止日期但未完成）
     pub fn scheduled_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items.iter().filter(|item| !item.checked && item.due.is_some()).cloned().collect()
+        // 使用 ItemModel 的 due_date() 方法检查是否有截止日期
+        self.all_items
+            .iter()
+            .filter(|item| !item.checked && item.due_date().is_some())
+            .cloned()
+            .collect()
     }
 
     /// 获取已完成的任务
@@ -76,14 +79,14 @@ impl TodoStore {
 
     /// 获取过期任务
     pub fn overdue_items(&self) -> Vec<Arc<ItemModel>> {
-        let now = Utc::now().naive_utc();
         self.all_items
             .iter()
             .filter(|item| {
                 if item.checked {
                     return false;
                 }
-                Self::is_overdue(&item.due, now)
+                // 使用 ItemModel 的 is_overdue() 方法
+                item.is_overdue()
             })
             .cloned()
             .collect()
@@ -241,42 +244,6 @@ impl TodoStore {
             self.all_items.retain(|i| i.id != id);
         }
     }
-
-    /// 从 JSON Value 中提取日期字符串
-    fn extract_due_string(due: &Option<Value>) -> Option<String> {
-        due.as_ref().and_then(|v| {
-            if let Some(s) = v.as_str() {
-                Some(s.to_string())
-            } else if let Some(obj) = v.as_object() {
-                obj.get("date").and_then(|d| d.as_str()).map(|s| s.to_string())
-            } else {
-                None
-            }
-        })
-    }
-
-    /// 检查任务是否在今天到期
-    fn is_due_today(due: &Option<Value>, today: NaiveDate) -> bool {
-        if let Some(due_str) = Self::extract_due_string(due) {
-            if let Ok(due_datetime) = NaiveDateTime::parse_from_str(&due_str, "%Y-%m-%d %H:%M") {
-                return due_datetime.date() == today;
-            }
-            if let Ok(due_date) = NaiveDate::parse_from_str(&due_str, "%Y-%m-%d") {
-                return due_date == today;
-            }
-        }
-        false
-    }
-
-    /// 检查任务是否已过期
-    fn is_overdue(due: &Option<Value>, now: NaiveDateTime) -> bool {
-        if let Some(due_str) = Self::extract_due_string(due) {
-            if let Ok(due_datetime) = NaiveDateTime::parse_from_str(&due_str, "%Y-%m-%d %H:%M") {
-                return due_datetime < now;
-            }
-        }
-        false
-    }
 }
 
 impl Default for TodoStore {
@@ -287,16 +254,28 @@ impl Default for TodoStore {
 
 #[cfg(test)]
 mod tests {
+    use todos::DueDate;
+
     use super::*;
 
     fn create_test_item(id: &str, checked: bool, pinned: bool, due: Option<&str>) -> ItemModel {
-        ItemModel {
-            id: id.to_string(),
-            checked,
-            pinned,
-            due: due.map(|d| serde_json::json!(d)),
-            ..Default::default()
-        }
+        let due_json = due.map(|d| {
+            // 创建完整的 DueDate 结构
+            let due_date = DueDate {
+                date: d.to_string(),
+                timezone: "UTC".to_string(),
+                recurrency_weeks: "".to_string(),
+                is_recurring: false,
+                recurrency_type: todos::enums::RecurrencyType::NONE,
+                recurrency_interval: 0,
+                recurrency_count: 0,
+                recurrency_end: "".to_string(),
+                recurrency_supported: false,
+            };
+            serde_json::to_value(due_date).unwrap()
+        });
+
+        ItemModel { id: id.to_string(), checked, pinned, due: due_json, ..Default::default() }
     }
 
     #[test]

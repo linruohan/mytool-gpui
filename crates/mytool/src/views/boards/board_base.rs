@@ -113,18 +113,10 @@ impl BoardBase {
     }
 
     /// 检查任务是否过期
+    ///
+    /// 使用 ItemModel 的 is_overdue() 方法
     fn is_overdue(&self, item: &std::sync::Arc<todos::entity::ItemModel>) -> bool {
-        if let Some(due) = &item.due {
-            if let Some(due_str) = due.as_str() {
-                if let Ok(due_datetime) =
-                    chrono::NaiveDateTime::parse_from_str(due_str, "%Y-%m-%d %H:%M")
-                {
-                    let now = chrono::Utc::now().naive_utc();
-                    return due_datetime < now;
-                }
-            }
-        }
-        false
+        item.is_overdue()
     }
 }
 
