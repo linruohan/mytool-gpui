@@ -4,6 +4,7 @@ pub mod prelude;
 
 pub mod attachments;
 pub mod cur_temp_ids;
+pub mod item_labels;
 pub mod items;
 pub mod labels;
 pub mod o_events;
@@ -15,6 +16,7 @@ pub mod sources;
 
 pub use attachments::{ActiveModel as AttachmentActiveModel, Model as AttachmentModel};
 pub use cur_temp_ids::{ActiveModel as CurTempIdActiveModel, Model as CurTempIdModel};
+pub use item_labels::{ActiveModel as ItemLabelActiveModel, Model as ItemLabelModel};
 pub use items::{ActiveModel as ItemActiveModel, Model as ItemModel};
 pub use labels::{ActiveModel as LabelActiveModel, Model as LabelModel};
 pub use o_events::{ActiveModel as OEventActiveModel, Model as OEventModel};

@@ -13,7 +13,9 @@ use sea_orm::{
 use crate::{
     entity::{ItemActiveModel, ItemModel, items, prelude::*},
     error::TodoError,
-    repositories::{ItemRepository, ItemRepositoryImpl},
+    repositories::{
+        ItemLabelRepository, ItemLabelRepositoryImpl, ItemRepository, ItemRepositoryImpl,
+    },
     services::{EventBus, LabelService, MetricsCollector},
 };
 
@@ -25,6 +27,7 @@ pub struct ItemService {
     metrics: Arc<MetricsCollector>,
     label_service: Arc<LabelService>,
     item_repo: ItemRepositoryImpl,
+    item_label_repo: ItemLabelRepositoryImpl,
 }
 
 impl ItemService {
@@ -36,7 +39,8 @@ impl ItemService {
         label_service: Arc<LabelService>,
     ) -> Self {
         let item_repo = ItemRepositoryImpl::new(db.clone());
-        Self { db, event_bus, metrics, label_service, item_repo }
+        let item_label_repo = ItemLabelRepositoryImpl::new(db.clone());
+        Self { db, event_bus, metrics, label_service, item_repo, item_label_repo }
     }
 
     /// Get an item by ID
@@ -73,6 +77,8 @@ impl ItemService {
     }
 
     /// Delete an item and its children
+    ///
+    /// 同时删除 item_labels 关联表中的记录（通过数据库级联删除）
     pub async fn delete_item(&self, item_id: &str) -> Result<(), TodoError> {
         let item_id_clone = item_id.to_string();
 
@@ -91,7 +97,7 @@ impl ItemService {
                 items_to_delete.push(item.id);
             }
 
-            // 删除当前项
+            // 删除当前项（item_labels 关联记录会通过数据库级联删除自动清理）
             ItemEntity::delete_by_id(&current_id).exec(&*self.db).await?;
         }
 
@@ -297,6 +303,7 @@ impl ItemService {
     }
 
     /// Get all scheduled items (items with due date that are not completed)
+    /// 使用类型安全的 due_date() 方法替代手动 JSON 解析
     pub async fn get_scheduled_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_scheduled_items");
         let mut items: Vec<ItemModel> = ItemEntity::find()
@@ -304,16 +311,10 @@ impl ItemService {
             .filter(items::Column::Checked.eq(false))
             .all(&*self.db)
             .await?;
-        // Sort by due date
+        // Sort by due date - 使用类型安全的 due_date() 方法
         items.sort_by(|a, b| {
-            let a_date = a.due.clone().and_then(|d| {
-                d.as_str()
-                    .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok())
-            });
-            let b_date = b.due.clone().and_then(|d| {
-                d.as_str()
-                    .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok())
-            });
+            let a_date = a.due_date().and_then(|d| d.datetime());
+            let b_date = b.due_date().and_then(|d| d.datetime());
             a_date.cmp(&b_date)
         });
         self.metrics.record_operation("get_scheduled_items", items.len());
@@ -366,36 +367,93 @@ impl ItemService {
     }
 
     /// Add label to item
+    ///
+    /// 使用 item_labels 关联表维护 Item 和 Label 的关系
     pub async fn add_label_to_item(
         &self,
         item_id: &str,
         label_name: &str,
     ) -> Result<(), TodoError> {
         let label = self.label_service.get_or_create_label(label_name, item_id).await?;
-        // Here you would typically have an item_labels relationship table
-        // For now, we just create the label
+
+        // 使用关联表添加关系
+        self.item_label_repo.add_label_to_item(item_id, &label.id).await?;
+
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }
 
     /// Remove label from item
+    ///
+    /// 从 item_labels 关联表中删除关系
     pub async fn remove_label_from_item(
         &self,
         item_id: &str,
         label_id: &str,
     ) -> Result<(), TodoError> {
-        // Here you would typically remove from an item_labels relationship table
+        // 从关联表中删除关系
+        self.item_label_repo.remove_label_from_item(item_id, label_id).await?;
+
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }
 
     /// Get items by label
+    ///
+    /// 通过 item_labels 关联表查询具有指定 Label 的所有 Items
     pub async fn get_items_by_label(&self, label_id: &str) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_items_by_label");
-        // Here you would typically query an item_labels relationship table
-        // For now, return empty vec
-        self.metrics.record_operation("get_items_by_label", 0);
-        Ok(vec![])
+
+        // 从关联表获取 Item IDs
+        let item_ids = self.item_label_repo.get_items_by_label(label_id).await?;
+
+        if item_ids.is_empty() {
+            self.metrics.record_operation("get_items_by_label", 0);
+            return Ok(vec![]);
+        }
+
+        // 查询 Item 详情
+        let items =
+            ItemEntity::find().filter(items::Column::Id.is_in(item_ids)).all(&*self.db).await?;
+
+        self.metrics.record_operation("get_items_by_label", items.len());
+        Ok(items)
+    }
+
+    /// Get labels by item
+    ///
+    /// 获取指定 Item 的所有 Labels
+    pub async fn get_labels_by_item(
+        &self,
+        item_id: &str,
+    ) -> Result<Vec<crate::entity::LabelModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_labels_by_item");
+
+        let labels = self.item_label_repo.get_labels_by_item(item_id).await?;
+
+        self.metrics.record_operation("get_labels_by_item", labels.len());
+        Ok(labels)
+    }
+
+    /// Set labels for item
+    ///
+    /// 批量设置 Item 的 Labels（替换原有 Labels）
+    pub async fn set_item_labels(
+        &self,
+        item_id: &str,
+        label_ids: &[String],
+    ) -> Result<(), TodoError> {
+        self.item_label_repo.set_item_labels(item_id, label_ids).await?;
+
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+        Ok(())
+    }
+
+    /// Check if item has label
+    ///
+    /// 检查 Item 是否有指定的 Label
+    pub async fn item_has_label(&self, item_id: &str, label_id: &str) -> Result<bool, TodoError> {
+        self.item_label_repo.has_label(item_id, label_id).await
     }
 
     /// Set due date for item
@@ -425,6 +483,7 @@ impl ItemService {
     }
 
     /// Get items due today and overdue items
+    /// 使用类型安全的 due_date() 方法替代手动 JSON 解析
     pub async fn get_items_due_today(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_items_due_today");
         let today = chrono::Utc::now().naive_utc().date();
@@ -435,24 +494,9 @@ impl ItemService {
             .await?
             .into_iter()
             .filter(|item| {
-                item.due
-                    .clone()
-                    .and_then(|d| {
-                        // due字段是JSON格式，提取date字段
-                        d.get("date")
-                            .and_then(|date_val| date_val.as_str())
-                            .and_then(|s| {
-                                // 如果date为空字符串，跳过
-                                if s.is_empty() {
-                                    None
-                                } else {
-                                    // 支持两种格式：带秒数和不带秒数
-                                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
-                                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M"))
-                                        .ok()
-                                }
-                            })
-                    })
+                // 使用类型安全的 due_date() 方法获取日期
+                item.due_date()
+                    .and_then(|d| d.datetime())
                     .map(|d| d.date() <= today) // 获取due日期小于等于今天的任务（包括过期的和今天到期的）
                     .unwrap_or(false)
             })
@@ -462,6 +506,7 @@ impl ItemService {
     }
 
     /// Get overdue items
+    /// 使用类型安全的 due_date() 方法替代手动 JSON 解析
     pub async fn get_overdue_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_overdue_items");
         let now = chrono::Utc::now().naive_utc();
@@ -472,15 +517,8 @@ impl ItemService {
             .await?
             .into_iter()
             .filter(|item| {
-                item.due
-                    .clone()
-                    .and_then(|d| {
-                        d.as_str().and_then(|s| {
-                            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M").ok()
-                        })
-                    })
-                    .map(|d| d < now)
-                    .unwrap_or(false)
+                // 使用类型安全的 due_date() 方法获取日期
+                item.due_date().and_then(|d| d.datetime()).map(|d| d < now).unwrap_or(false)
             })
             .collect();
         self.metrics.record_operation("get_overdue_items", items.len()).await;

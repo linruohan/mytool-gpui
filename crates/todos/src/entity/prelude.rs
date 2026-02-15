@@ -2,7 +2,8 @@
 
 pub use super::{
     attachments::Entity as AttachmentEntity, cur_temp_ids::Entity as CurTempIdEntity,
-    items::Entity as ItemEntity, labels::Entity as LabelEntity, o_events::Entity as OEventEntity,
+    item_labels::Entity as ItemLabelEntity, items::Entity as ItemEntity,
+    labels::Entity as LabelEntity, o_events::Entity as OEventEntity,
     projects::Entity as ProjectEntity, queue::Entity as QueueEntity,
     reminders::Entity as ReminderEntity, sections::Entity as SectionEntity,
     sources::Entity as SourceEntity,

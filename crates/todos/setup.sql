@@ -141,6 +141,23 @@ CREATE TABLE IF NOT EXISTS Sources (
 PRAGMA foreign_keys = ON;
 
 -- =====================================================
+-- Item-Label 关联表（Phase 2 新增）
+-- 替代原有的 items.labels 字段（分号分隔字符串）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS item_labels (
+    item_id TEXT NOT NULL,
+    label_id TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id, label_id),
+    FOREIGN KEY (item_id) REFERENCES Items(id) ON DELETE CASCADE,
+    FOREIGN KEY (label_id) REFERENCES Labels(id) ON DELETE CASCADE
+);
+
+-- Item-Label 关联表索引
+CREATE INDEX IF NOT EXISTS idx_item_labels_item_id ON item_labels(item_id);
+CREATE INDEX IF NOT EXISTS idx_item_labels_label_id ON item_labels(label_id);
+
+-- =====================================================
 -- 性能优化索引（由 kimi2.5方案.md 指导添加）
 -- =====================================================
 

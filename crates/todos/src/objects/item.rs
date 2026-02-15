@@ -63,27 +63,67 @@ impl Item {
         self
     }
 
+    /// 获取 Item 的所有 Labels
+    ///
+    /// 使用 item_labels 关联表查询，替代原有的分号分隔字符串存储
     pub async fn labels(&self) -> Vec<LabelModel> {
         self.labels
             .get_or_init(|| async {
-                if let Some(labels_str) = &self.model.labels {
-                    let label_ids: Vec<&str> = labels_str.split(';').collect();
-                    // 暂时返回空向量，因为不存在 labels() 方法
-                    vec![]
-                } else {
-                    vec![]
+                // 使用 Store 通过关联表查询 Labels
+                match self.store().await.get_labels_by_item(&self.model.id).await {
+                    Ok(labels) => labels,
+                    Err(e) => {
+                        tracing::error!("Failed to get labels for item {}: {:?}", self.model.id, e);
+                        vec![]
+                    },
                 }
             })
             .await
             .clone()
     }
 
+    /// 设置 Item 的 Labels
+    ///
+    /// 注意：此方法仅更新本地缓存，要持久化到数据库请使用 add_label/delete_label
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) -> &mut Self {
-        let label_ids = labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";");
-        self.model.labels = Some(label_ids);
-        // Clear the cache
-        self.labels = OnceCell::new();
+        // 更新本地缓存
+        self.labels = OnceCell::from(labels);
         self
+    }
+
+    /// 添加 Label 到 Item
+    ///
+    /// 通过 Store 使用 item_labels 关联表添加关系
+    pub async fn add_label(&mut self, label: &LabelModel) -> Result<LabelModel, TodoError> {
+        let store = self.store().await;
+
+        // 检查是否已存在
+        if store.item_has_label(&self.model.id, &label.id).await? {
+            return Ok(label.clone());
+        }
+
+        // 添加关联
+        store.add_label_to_item(&self.model.id, &label.name).await?;
+
+        // 刷新缓存
+        self.labels = OnceCell::new();
+
+        Ok(label.clone())
+    }
+
+    /// 从 Item 删除 Label
+    ///
+    /// 通过 Store 使用 item_labels 关联表删除关系
+    pub async fn delete_label(&mut self, label_id: &str) -> Result<(), TodoError> {
+        let store = self.store().await;
+
+        // 删除关联
+        store.remove_label_from_item(&self.model.id, label_id).await?;
+
+        // 刷新缓存
+        self.labels = OnceCell::new();
+
+        Ok(())
     }
 
     pub fn extra_data(&self) -> Option<serde_json::Value> {
@@ -379,6 +419,9 @@ impl Item {
         }
     }
 
+    /// 复制 Item（创建副本）
+    ///
+    /// 注意：Labels 需要通过 item_labels 关联表单独处理，不会自动复制
     pub fn duplicate(&self) -> ItemModel {
         ItemModel {
             content: self.model.content.clone(),
@@ -386,7 +429,7 @@ impl Item {
             pinned: self.model.pinned,
             due: self.model.due.clone(),
             priority: self.model.priority,
-            labels: self.model.labels.clone(),
+            // Labels 现在存储在 item_labels 关联表中，不在 ItemModel 中
             ..Default::default()
         }
     }
@@ -488,15 +531,17 @@ impl Item {
         Ok(())
     }
 
+    /// 添加 Label 到 Item（使用 item_labels 关联表）
+    ///
+    /// 替代原有的字符串存储方式，现在使用关联表维护关系
     pub async fn add_item_label(
         &mut self,
         label_model: LabelModel,
     ) -> Result<LabelModel, TodoError> {
-        let mut labels = self.labels().await;
-        labels.insert(0, label_model.clone());
-        self.model.labels =
-            Some(labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";"));
-        self.store().await.update_item(self.model.clone(), "").await?;
+        // 使用新的 add_label 方法（通过关联表）
+        self.add_label(&label_model).await?;
+
+        // 同时插入 Label 到 labels 表（如果不存在）
         self.store().await.insert_label(label_model.clone()).await
     }
 
@@ -504,16 +549,18 @@ impl Item {
         self.store().await.delete_item(&self.model.id).await
     }
 
+    /// 从 Item 删除 Label（使用 item_labels 关联表）
+    ///
+    /// 替代原有的字符串存储方式，现在使用关联表维护关系
     pub async fn delete_item_label(&mut self, id: &str) -> Result<u64, TodoError> {
-        let labels_model = self.labels().await;
-        let Some(label_model) = self.get_label(id).await else {
+        // 检查 Label 是否存在
+        let Some(_) = self.get_label(id).await else {
             return Ok(0);
         };
-        let labels: Vec<_> = labels_model.into_iter().filter(|l| l.id != id).collect();
-        self.model.labels =
-            Some(labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";"));
-        self.store().await.update_item(self.model.clone(), "").await?;
-        self.store().await.delete_label(id).await
+
+        // 使用新的 delete_label 方法（通过关联表）
+        self.delete_label(id).await?;
+        Ok(1)
     }
 
     pub async fn update_local(&self) {
