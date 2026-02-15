@@ -8,7 +8,6 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use crate::{
     entity::{SectionModel, prelude::SectionEntity},
     error::TodoError,
-    services::CacheManager,
 };
 
 /// Repository trait for Section operations
@@ -19,38 +18,29 @@ pub trait SectionRepository {
     async fn find_by_project(&self, project_id: &str) -> Result<Vec<SectionModel>, TodoError>;
 }
 
-/// Implementation of SectionRepository with caching
+/// Implementation of SectionRepository
 #[derive(Clone, Debug)]
 pub struct SectionRepositoryImpl {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
 }
 
 impl SectionRepositoryImpl {
     /// Create a new SectionRepository
-    pub fn new(db: Arc<DatabaseConnection>, cache: Arc<CacheManager>) -> Self {
-        Self { db, cache }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 }
 
 #[async_trait::async_trait]
 impl SectionRepository for SectionRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<SectionModel, TodoError> {
-        let id_clone = id.to_string();
-        let db_clone = self.db.clone();
-        self.cache
-            .get_or_load_section(id, |_| async move {
-                SectionEntity::find_by_id(&id_clone)
-                    .one(&*db_clone)
-                    .await
-                    .map_err(|e| TodoError::DatabaseError(e.to_string()))
-                    .and_then(|section| {
-                        section.ok_or_else(|| {
-                            TodoError::NotFound(format!("Section {} not found", id_clone))
-                        })
-                    })
-            })
+        SectionEntity::find_by_id(id)
+            .one(&*self.db)
             .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))
+            .and_then(|section| {
+                section.ok_or_else(|| TodoError::NotFound(format!("Section {} not found", id)))
+            })
     }
 
     async fn find_all(&self) -> Result<Vec<SectionModel>, TodoError> {

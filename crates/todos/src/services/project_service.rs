@@ -14,14 +14,13 @@ use crate::{
     entity::{ProjectActiveModel, ProjectModel, prelude::*, projects, sections},
     error::TodoError,
     repositories::{ProjectRepository, ProjectRepositoryImpl},
-    services::{CacheManager, EventBus, ItemService, MetricsCollector, SectionService},
+    services::{EventBus, ItemService, MetricsCollector, SectionService},
 };
 
 /// Service for Project business operations
 #[derive(Clone, Debug)]
 pub struct ProjectService {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     item_service: Arc<ItemService>,
@@ -34,13 +33,12 @@ impl ProjectService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        cache: Arc<CacheManager>,
         metrics: Arc<MetricsCollector>,
         item_service: Arc<ItemService>,
         section_service: Arc<SectionService>,
     ) -> Self {
-        let project_repo = ProjectRepositoryImpl::new(db.clone(), cache.clone());
-        Self { db, cache, event_bus, metrics, item_service, section_service, project_repo }
+        let project_repo = ProjectRepositoryImpl::new(db.clone());
+        Self { db, event_bus, metrics, item_service, section_service, project_repo }
     }
 
     /// Get a project by ID
@@ -55,11 +53,7 @@ impl ProjectService {
         let mut active_project: ProjectActiveModel = project.into();
         let project_model = active_project.insert(&*self.db).await?;
 
-        // 更新缓存
         let project_id = project_model.id.clone();
-        let project_clone = project_model.clone();
-        self.cache.get_or_load_project(&project_id, |_| async move { Ok(project_clone) }).await?;
-
         self.event_bus.publish(crate::services::event_bus::Event::ProjectCreated(project_id));
 
         self.metrics.record_operation("insert_project", 1).await;
@@ -73,7 +67,6 @@ impl ProjectService {
         let mut active_project: ProjectActiveModel = project.into();
         let result = active_project.update(&*self.db).await?;
 
-        self.cache.invalidate_project(&project_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ProjectUpdated(project_id));
 
         self.metrics.record_operation("update_project", 1).await;
@@ -118,7 +111,6 @@ impl ProjectService {
 
             // 删除当前项目
             ProjectEntity::delete_by_id(&current_id).exec(&*self.db).await?;
-            self.cache.invalidate_project(&current_id).await;
         }
 
         self.event_bus.publish(crate::services::event_bus::Event::ProjectDeleted(id_clone));
@@ -149,7 +141,6 @@ impl ProjectService {
             self.item_service.archive_item(&item.id, archived).await?;
         }
 
-        self.cache.invalidate_project(project_id).await;
         self.metrics.record_operation("archive_project", 1).await;
         Ok(())
     }
@@ -170,7 +161,6 @@ impl ProjectService {
         .exec(&*self.db)
         .await?;
 
-        self.cache.invalidate_project(project_id).await;
         self.event_bus
             .publish(crate::services::event_bus::Event::ProjectUpdated(project_id.to_string()));
 

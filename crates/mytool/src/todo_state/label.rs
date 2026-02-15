@@ -3,7 +3,7 @@ use std::sync::Arc;
 use gpui::{App, Global};
 use todos::entity::LabelModel;
 
-use crate::{service::load_labels, todo_state::DBState};
+use crate::{state_service::load_labels, todo_state::DBState};
 
 pub struct LabelState {
     pub labels: Vec<Arc<LabelModel>>,

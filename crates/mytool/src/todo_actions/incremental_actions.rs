@@ -27,7 +27,7 @@ use crate::todo_state::TodoStore;
 /// add_item_incremental(item, &mut cx, db).await;
 /// ```
 pub async fn add_item_incremental(item: Arc<ItemModel>, cx: &mut AsyncApp, db: DatabaseConnection) {
-    match crate::service::add_item(item.clone(), db).await {
+    match crate::state_service::add_item(item.clone(), db).await {
         Ok(new_item) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.add_item(Arc::new(new_item));
@@ -53,7 +53,7 @@ pub async fn update_item_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::mod_item(item.clone(), db).await {
+    match crate::state_service::mod_item(item.clone(), db).await {
         Ok(updated_item) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.update_item(Arc::new(updated_item));
@@ -74,7 +74,7 @@ pub async fn update_item_incremental(
 /// delete_item_incremental("item_id".to_string(), &mut cx, db).await;
 /// ```
 pub async fn delete_item_incremental(item_id: String, cx: &mut AsyncApp, db: DatabaseConnection) {
-    match crate::service::del_item_by_id(&item_id, db).await {
+    match crate::state_service::del_item_by_id(&item_id, db).await {
         Ok(_) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.remove_item(&item_id);
@@ -100,7 +100,7 @@ pub async fn complete_item_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::finish_item(item.clone(), checked, false, db).await {
+    match crate::state_service::finish_item(item.clone(), checked, false, db).await {
         Ok(_) => {
             // 更新本地状态
             let mut updated_item = (*item).clone();
@@ -132,7 +132,7 @@ pub async fn pin_item_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::pin_item(item.clone(), pinned, db).await {
+    match crate::state_service::pin_item(item.clone(), pinned, db).await {
         Ok(_) => {
             // 更新本地状态
             let mut updated_item = (*item).clone();
@@ -155,7 +155,7 @@ pub async fn add_project_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::add_project(project.clone(), db).await {
+    match crate::state_service::add_project(project.clone(), db).await {
         Ok(new_project) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.add_project(Arc::new(new_project));
@@ -173,7 +173,7 @@ pub async fn update_project_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::mod_project(project.clone(), db).await {
+    match crate::state_service::mod_project(project.clone(), db).await {
         Ok(updated_project) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.update_project(Arc::new(updated_project));
@@ -191,7 +191,7 @@ pub async fn delete_project_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::del_project_by_id(&project_id, db).await {
+    match crate::state_service::del_project_by_id(&project_id, db).await {
         Ok(_) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.remove_project(&project_id);
@@ -211,7 +211,7 @@ pub async fn add_section_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::add_section(section.clone(), db).await {
+    match crate::state_service::add_section(section.clone(), db).await {
         Ok(new_section) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.add_section(Arc::new(new_section));
@@ -229,7 +229,7 @@ pub async fn update_section_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::mod_section(section.clone(), db).await {
+    match crate::state_service::mod_section(section.clone(), db).await {
         Ok(updated_section) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.update_section(Arc::new(updated_section));
@@ -247,7 +247,7 @@ pub async fn delete_section_incremental(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::del_section_by_id(&section_id, db).await {
+    match crate::state_service::del_section_by_id(&section_id, db).await {
         Ok(_) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.remove_section(&section_id);
@@ -272,7 +272,7 @@ pub async fn batch_delete_items_incremental(
     let mut success_count = 0;
 
     for item_id in &item_ids {
-        match crate::service::del_item_by_id(item_id, db.clone()).await {
+        match crate::state_service::del_item_by_id(item_id, db.clone()).await {
             Ok(_) => success_count += 1,
             Err(e) => tracing::error!("batch_delete_items failed for {}: {:?}", item_id, e),
         }
@@ -299,7 +299,7 @@ pub async fn batch_complete_items_incremental(
     let mut updated_items = Vec::new();
 
     for item in &items {
-        match crate::service::finish_item(item.clone(), checked, false, db.clone()).await {
+        match crate::state_service::finish_item(item.clone(), checked, false, db.clone()).await {
             Ok(_) => {
                 // 更新本地状态
                 let mut updated_item = (**item).clone();

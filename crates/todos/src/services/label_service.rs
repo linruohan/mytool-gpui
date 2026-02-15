@@ -14,14 +14,13 @@ use crate::{
     entity::{LabelActiveModel, LabelModel, labels, prelude::*},
     error::TodoError,
     repositories::{LabelRepository, LabelRepositoryImpl},
-    services::{CacheManager, EventBus, MetricsCollector},
+    services::{EventBus, MetricsCollector},
 };
 
 /// Service for Label business operations
 #[derive(Clone, Debug)]
 pub struct LabelService {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     label_repo: LabelRepositoryImpl,
@@ -32,11 +31,10 @@ impl LabelService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        cache: Arc<CacheManager>,
         metrics: Arc<MetricsCollector>,
     ) -> Self {
-        let label_repo = LabelRepositoryImpl::new(db.clone(), cache.clone());
-        Self { db, cache, event_bus, metrics, label_repo }
+        let label_repo = LabelRepositoryImpl::new(db.clone());
+        Self { db, event_bus, metrics, label_repo }
     }
 
     /// Get a label by ID
@@ -51,11 +49,7 @@ impl LabelService {
         let mut active_label: LabelActiveModel = label.into();
         let label_model = active_label.insert(&*self.db).await?;
 
-        // 更新缓存
         let label_id = label_model.id.clone();
-        let label_clone = label_model.clone();
-        self.cache.get_or_load_label(&label_id, |_| async move { Ok(label_clone) }).await?;
-
         self.event_bus.publish(crate::services::event_bus::Event::LabelCreated(label_id));
 
         self.metrics.record_operation("insert_label", 1).await;
@@ -69,7 +63,6 @@ impl LabelService {
         let mut active_label: LabelActiveModel = label.into();
         let result = active_label.update(&*self.db).await?;
 
-        self.cache.invalidate_label(&label_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::LabelUpdated(label_id));
 
         self.metrics.record_operation("update_label", 1).await;
@@ -85,7 +78,6 @@ impl LabelService {
         // TODO: 删除关联关系
 
         let result = LabelEntity::delete_by_id(id).exec(&*self.db).await?;
-        self.cache.invalidate_label(id).await;
         self.event_bus.publish(crate::services::event_bus::Event::LabelDeleted(id_clone));
 
         self.metrics.record_operation("delete_label", 1).await;

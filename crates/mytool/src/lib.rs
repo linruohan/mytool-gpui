@@ -20,7 +20,7 @@ mod component_manager; // 组件管理
 mod components; // 我的组件库
 mod gallery;
 mod plugins; // 插件系统
-mod service;
+mod state_service;
 mod stories;
 mod story_container;
 mod story_root;

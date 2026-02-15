@@ -33,7 +33,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
 pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::service::mod_project(project.clone(), db.clone()).await {
+        match crate::state_service::mod_project(project.clone(), db.clone()).await {
             Ok(_) => refresh_projects(cx, db.clone()).await,
             Err(e) => error!("update_project failed: {:?}", e),
         }
@@ -45,7 +45,7 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
 pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::service::del_project(project.clone(), db.clone()).await {
+        match crate::state_service::del_project(project.clone(), db.clone()).await {
             Ok(_store) => refresh_projects(cx, db.clone()).await,
             Err(e) => error!("delete_project failed: {:?}", e),
         }

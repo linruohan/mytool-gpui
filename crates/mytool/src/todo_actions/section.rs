@@ -8,7 +8,7 @@ use crate::todo_state::{DBState, ProjectState, SectionState};
 
 // 刷新sections
 async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
-    let sections = crate::service::load_sections(db).await;
+    let sections = crate::state_service::load_sections(db).await;
     let rc_sections = sections.iter().map(|section| Arc::new(section.clone())).collect::<Vec<_>>();
     cx.update_global::<ProjectState, _>(|state, _| {
         state.sections = rc_sections.clone();
@@ -22,7 +22,7 @@ async fn refresh_sections(cx: &mut AsyncApp, db: DatabaseConnection) {
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        if crate::service::add_section(section.clone(), db.clone()).await.is_ok() {
+        if crate::state_service::add_section(section.clone(), db.clone()).await.is_ok() {
             refresh_sections(cx, db.clone()).await;
         }
     })
@@ -33,7 +33,7 @@ pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
 pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        if crate::service::mod_section(section.clone(), db.clone()).await.is_ok() {
+        if crate::state_service::mod_section(section.clone(), db.clone()).await.is_ok() {
             refresh_sections(cx, db.clone()).await;
         }
     })
@@ -44,7 +44,7 @@ pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
 pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        if let Ok(_store) = crate::service::del_section(section.clone(), db.clone()).await {
+        if let Ok(_store) = crate::state_service::del_section(section.clone(), db.clone()).await {
             refresh_sections(cx, db.clone()).await;
         }
     })

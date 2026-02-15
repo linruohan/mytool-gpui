@@ -4,7 +4,7 @@ use gpui::{App, Global};
 use todos::entity::{ItemModel, ProjectModel, SectionModel};
 
 use crate::{
-    service::{get_items_by_project_id, load_projects, load_sections},
+    state_service::{get_items_by_project_id, load_projects, load_sections},
     todo_state::DBState,
 };
 

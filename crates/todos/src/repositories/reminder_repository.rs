@@ -8,7 +8,6 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use crate::{
     entity::{ReminderModel, prelude::ReminderEntity},
     error::TodoError,
-    services::CacheManager,
 };
 
 /// Repository trait for Reminder operations
@@ -19,38 +18,29 @@ pub trait ReminderRepository {
     async fn find_by_item(&self, item_id: &str) -> Result<Vec<ReminderModel>, TodoError>;
 }
 
-/// Implementation of ReminderRepository with caching
+/// Implementation of ReminderRepository
 #[derive(Clone, Debug)]
 pub struct ReminderRepositoryImpl {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
 }
 
 impl ReminderRepositoryImpl {
     /// Create a new ReminderRepository
-    pub fn new(db: Arc<DatabaseConnection>, cache: Arc<CacheManager>) -> Self {
-        Self { db, cache }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 }
 
 #[async_trait::async_trait]
 impl ReminderRepository for ReminderRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<ReminderModel, TodoError> {
-        let id_clone = id.to_string();
-        let db_clone = self.db.clone();
-        self.cache
-            .get_or_load_reminder(id, |_| async move {
-                ReminderEntity::find_by_id(&id_clone)
-                    .one(&*db_clone)
-                    .await
-                    .map_err(|e| TodoError::DatabaseError(e.to_string()))
-                    .and_then(|reminder| {
-                        reminder.ok_or_else(|| {
-                            TodoError::NotFound(format!("Reminder {} not found", id_clone))
-                        })
-                    })
-            })
+        ReminderEntity::find_by_id(id)
+            .one(&*self.db)
             .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))
+            .and_then(|reminder| {
+                reminder.ok_or_else(|| TodoError::NotFound(format!("Reminder {} not found", id)))
+            })
     }
 
     async fn find_all(&self) -> Result<Vec<ReminderModel>, TodoError> {

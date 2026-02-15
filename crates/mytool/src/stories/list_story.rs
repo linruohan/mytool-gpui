@@ -15,7 +15,7 @@ use crate::{
     ItemListDelegate, ItemRow, ItemRowState, LabelsPopoverEvent, LabelsPopoverList,
     popover_list::PopoverList,
     section,
-    service::load_items,
+    state_service::load_items,
     todo_state::{DBState, TodoStore},
 };
 

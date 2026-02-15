@@ -64,11 +64,6 @@ impl Store {
         self.service_manager.event_bus()
     }
 
-    /// Get the cache manager
-    pub fn cache(&self) -> &crate::services::CacheManager {
-        self.service_manager.cache()
-    }
-
     /// Get the metrics collector
     pub fn metrics(&self) -> &crate::services::MetricsCollector {
         self.service_manager.metrics()
@@ -77,11 +72,6 @@ impl Store {
     /// Get the database connection
     pub fn db(&self) -> &DatabaseConnection {
         self.service_manager.db()
-    }
-
-    /// Clear all caches
-    pub async fn clear_caches(&self) {
-        self.service_manager.clear_caches().await;
     }
 
     // ==================== Item Operations ====================

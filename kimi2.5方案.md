@@ -521,17 +521,19 @@ impl Render for TodayBoard {
 
 ---
 
-### 3.4 方案3：明确服务层职责 🟡
+### 3.4 方案3：明确服务层职责 🟡 — **已完成**
 
 **优先级**: 中 | **工作量**: 中 | **风险**: 中
 
 **目标**: 清晰划分各层职责，降低耦合
 
+**当前状态**: ✅ 已完成。已将 `mytool/src/service` 重命名为 `mytool/src/state_service`，明确其职责为"与GPUI状态交互的服务层"。所有引用已更新，编译通过。
+
 **推荐架构**:
 
 ```mermaid
 graph TB
-    subgraph "推荐的分层架构"
+    subgraph "优化后的分层架构"
         V[Views 视图层<br/>UI渲染/用户交互]
         A[Actions 操作层<br/>业务操作入口]
         SS[StateService<br/>状态管理服务<br/>GPUI状态交互]
@@ -547,16 +549,19 @@ graph TB
     R --> DB
 ```
 
-**实施步骤**:
+**已实施的改动**:
 
-#### Step 1: 重命名和重组服务
+#### Step 1: 重命名服务目录
 ```
 crates/mytool/src/
-├── state_service/        # 重命名 service -> state_service
-│   ├── mod.rs
-│   ├── item_state.rs     # 与 GPUI 状态交互
-│   ├── project_state.rs
-│   └── section_state.rs
+├── state_service/        # ✅ 重命名 service -> state_service
+│   ├── mod.rs            #    明确职责：GPUI状态交互层
+│   ├── item.rs           #    与 GPUI 状态交互
+│   ├── project.rs
+│   ├── section.rs
+│   ├── label.rs
+│   ├── reminder.rs
+│   └── attachment.rs
 └── todo_actions/         # 保持不变
     └── ...
 
@@ -568,19 +573,48 @@ crates/todos/src/
 ├── repositories/         # 数据访问
 │   └── ...
 └── objects/              # 纯数据结构
-    ├── item.rs           # 移除业务方法，只保留数据
+    ├── item.rs           # 领域对象（含业务方法）
     └── ...
 ```
 
-#### Step 2: 明确职责边界
+#### Step 2: 更新所有引用
+- ✅ 更新 `lib.rs`: `mod service` -> `mod state_service`
+- ✅ 更新所有 `crate::service::` -> `crate::state_service::`（共 65+ 处）
+- ✅ 涉及文件：
+  - `todo_actions/store_actions.rs`
+  - `todo_actions/incremental_actions.rs`
+  - `todo_actions/item.rs`
+  - `todo_actions/project.rs`
+  - `todo_actions/label.rs`
+  - `todo_actions/section.rs`
+  - `todo_actions/project_item.rs`
+  - `todo_actions/reminder.rs`
+  - `todo_actions/attachment.rs`
+  - `todo_state/mod.rs`
+  - `todo_state/item.rs`
+  - `todo_state/label.rs`
+  - `todo_state/project.rs`
+  - `todo_state/section.rs`
+  - `components/item_info.rs`
+  - `views/project/view.rs`
+  - `stories/list_story.rs`
 
-| 层级 | 职责 | 示例 |
-|------|------|------|
-| Views | UI渲染、用户交互 | `board_today.rs` |
-| Actions | 操作入口、状态更新触发 | `todo_actions/item.rs` |
-| StateService | GPUI状态管理、订阅处理 | `state_service/item_state.rs` |
-| BusinessService | 纯业务逻辑、事务处理 | `todos/services/item_service.rs` |
-| Repository | 数据库访问、查询构建 | `todos/repositories/item_repository.rs` |
+#### Step 3: 明确职责边界
+
+| 层级 | 位置 | 职责 | 依赖 |
+|------|------|------|------|
+| **Views** | `mytool/src/views` | UI渲染、用户交互 | GPUI |
+| **Actions** | `mytool/src/todo_actions` | 操作入口、状态更新触发 | GPUI AsyncApp |
+| **StateService** | `mytool/src/state_service` | GPUI状态管理、数据库操作协调 | GPUI + todos |
+| **BusinessService** | `todos/src/services` | 纯业务逻辑、事务处理 | 仅 SeaORM |
+| **Repository** | `todos/src/repositories` | 数据库访问、查询构建 | SeaORM |
+| **Objects** | `todos/src/objects` | 领域对象、数据结构 | 无 |
+
+**架构优势**:
+- ✅ 命名清晰：`state_service` 明确表达"状态服务"职责
+- ✅ 职责分离：GPUI相关代码与纯业务逻辑分离
+- ✅ 依赖明确：上层依赖下层，无循环依赖
+- ✅ 可测试性：BusinessService 无 GPUI 依赖，易于单元测试
 
 ---
 
@@ -864,7 +898,7 @@ impl TodoStore {
 | 🔴 高 | 清理遗留状态 | 减少维护成本 | 低 | 低 | ✅ 大部分完成（6 个状态文件已删，ItemState 兼容保留） |
 | 🟡 中 | 数据库索引 | 查询提速 50%+ | 低 | 低 | ⏳ 待做 |
 | 🟡 中 | 统一视图渲染 | 减少代码重复 | 中 | 中 | ✅ 已完成 |
-| 🟡 中 | 明确服务层职责 | 提高可维护性 | 中 | 中 | ⏳ 待做 |
+| 🟡 中 | 明确服务层职责 | 提高可维护性 | 中 | 中 | ✅ 已完成（service → state_service） |
 | 🟢 低 | 数据模型重构 | 类型安全 | 高 | 高 | ⏳ 待做 |
 | 🟢 低 | 虚拟列表渲染 | 支持大数据量 | 中 | 中 | ⏳ 待做 |
 | 🟢 低 | 缓存策略优化 | 简化代码 | 中 | 中 | ⏳ 待做 |
@@ -919,6 +953,7 @@ impl TodoStore {
 | 2026-02-15 | v1.0 | 初始版本 - 基于项目全面分析 |
 | 2026-02-15 | v1.1 | 文档检查与优化：修正路径换行；问题1/6 与方案1/5 标注已实现或部分完成；方案2 区分当前 BoardConfig 与待实现 render_*；优先级表增加实施状态列；同步与当前代码一致 |
 | 2026-02-15 | v1.2 | 完成遗留优化：实现 BoardView trait 与 board_renderer::render_item_row/list/section；Today/Inbox/Scheduled/Pin/Completed 五块 Board 复用通用渲染，减少重复代码 |
+| 2026-02-15 | v1.3 | 完成服务层职责明确：将 `mytool/src/service` 重命名为 `mytool/src/state_service`，更新所有 65+ 处引用，编译通过 |
 
 ---
 

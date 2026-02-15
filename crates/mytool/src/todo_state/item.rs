@@ -3,7 +3,7 @@ use std::sync::Arc;
 use gpui::{App, Global};
 use todos::entity::ItemModel;
 
-use crate::{service::load_items, todo_state::DBState};
+use crate::{state_service::load_items, todo_state::DBState};
 
 pub struct ItemState {
     pub items: Vec<Arc<ItemModel>>,

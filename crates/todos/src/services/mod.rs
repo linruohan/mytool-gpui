@@ -1,4 +1,3 @@
-pub mod cache_manager;
 pub mod date_validation_service;
 pub mod event_bus;
 pub mod filtered_subscription;
@@ -11,7 +10,6 @@ pub mod reminder_service;
 pub mod section_service;
 pub mod service_manager;
 pub mod store;
-pub use cache_manager::*;
 pub use date_validation_service::DateValidationService;
 pub use event_bus::{EventBus, Subscription};
 pub use filtered_subscription::FilteredSubscription;

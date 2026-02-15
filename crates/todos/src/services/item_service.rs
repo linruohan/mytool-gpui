@@ -14,14 +14,13 @@ use crate::{
     entity::{ItemActiveModel, ItemModel, items, prelude::*},
     error::TodoError,
     repositories::{ItemRepository, ItemRepositoryImpl},
-    services::{CacheManager, EventBus, LabelService, MetricsCollector},
+    services::{EventBus, LabelService, MetricsCollector},
 };
 
 /// Service for Item business operations
 #[derive(Clone, Debug)]
 pub struct ItemService {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     label_service: Arc<LabelService>,
@@ -33,12 +32,11 @@ impl ItemService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        cache: Arc<CacheManager>,
         metrics: Arc<MetricsCollector>,
         label_service: Arc<LabelService>,
     ) -> Self {
-        let item_repo = ItemRepositoryImpl::new(db.clone(), cache.clone());
-        Self { db, cache, event_bus, metrics, label_service, item_repo }
+        let item_repo = ItemRepositoryImpl::new(db.clone());
+        Self { db, event_bus, metrics, label_service, item_repo }
     }
 
     /// Get an item by ID
@@ -52,11 +50,7 @@ impl ItemService {
         let mut active_model: ItemActiveModel = item.into();
         let item_model = active_model.insert(&*self.db).await?;
 
-        // 更新缓存
         let item_id = item_model.id.clone();
-        let item_clone = item_model.clone();
-        self.cache.get_or_load_item(&item_id, |_| async move { Ok(item_clone) }).await?;
-
         self.publish_item_position(&item_model);
         self.event_bus.publish(crate::services::event_bus::Event::ItemCreated(item_id));
 
@@ -73,8 +67,6 @@ impl ItemService {
         let mut active_model: ItemActiveModel = item.into();
         let result = active_model.update(&*self.db).await?;
 
-        // 使缓存失效
-        self.cache.invalidate_item(&item_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
 
         Ok(result)
@@ -101,7 +93,6 @@ impl ItemService {
 
             // 删除当前项
             ItemEntity::delete_by_id(&current_id).exec(&*self.db).await?;
-            self.cache.invalidate_item(&current_id).await;
         }
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemDeleted(item_id_clone));
@@ -120,7 +111,6 @@ impl ItemService {
             .exec(&*self.db)
             .await?;
 
-        self.cache.invalidate_item(item_id).await;
         Ok(())
     }
 
@@ -153,7 +143,6 @@ impl ItemService {
             .exec(&*self.db)
             .await?;
 
-        self.cache.invalidate_item(item_id).await;
         self.publish_item_position_update(project_id, section_id);
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
 
@@ -207,7 +196,6 @@ impl ItemService {
 
         // 不处理父项目的状态更新，避免递归
 
-        self.cache.invalidate_item(item_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id_clone));
 
         Ok(())
@@ -356,7 +344,6 @@ impl ItemService {
             .exec(&*self.db)
             .await?;
 
-        self.cache.invalidate_item(item_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }
@@ -433,7 +420,6 @@ impl ItemService {
         .exec(&*self.db)
         .await?;
 
-        self.cache.invalidate_item(item_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }

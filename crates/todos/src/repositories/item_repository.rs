@@ -8,7 +8,6 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use crate::{
     entity::{ItemModel, prelude::ItemEntity},
     error::TodoError,
-    services::CacheManager,
 };
 
 /// Repository trait for Item operations
@@ -23,38 +22,29 @@ pub trait ItemRepository {
     async fn find_unchecked(&self) -> Result<Vec<ItemModel>, TodoError>;
 }
 
-/// Implementation of ItemRepository with caching
+/// Implementation of ItemRepository
 #[derive(Clone, Debug)]
 pub struct ItemRepositoryImpl {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
 }
 
 impl ItemRepositoryImpl {
     /// Create a new ItemRepository
-    pub fn new(db: Arc<DatabaseConnection>, cache: Arc<CacheManager>) -> Self {
-        Self { db, cache }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 }
 
 #[async_trait::async_trait]
 impl ItemRepository for ItemRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<ItemModel, TodoError> {
-        let id_clone = id.to_string();
-        let db_clone = self.db.clone();
-        self.cache
-            .get_or_load_item(id, |_| async move {
-                ItemEntity::find_by_id(&id_clone)
-                    .one(&*db_clone)
-                    .await
-                    .map_err(|e| TodoError::DatabaseError(e.to_string()))
-                    .and_then(|item| {
-                        item.ok_or_else(|| {
-                            TodoError::NotFound(format!("Item {} not found", id_clone))
-                        })
-                    })
-            })
+        ItemEntity::find_by_id(id)
+            .one(&*self.db)
             .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))
+            .and_then(|item| {
+                item.ok_or_else(|| TodoError::NotFound(format!("Item {} not found", id)))
+            })
     }
 
     async fn find_all(&self) -> Result<Vec<ItemModel>, TodoError> {

@@ -11,7 +11,7 @@ use sea_orm::DatabaseConnection;
 use crate::{
     error::TodoError,
     services::{
-        CacheManager, DateValidationService, EventBus, ItemService, LabelService, MetricsCollector,
+        DateValidationService, EventBus, ItemService, LabelService, MetricsCollector,
         ProjectService, ReminderService, SectionService,
     },
 };
@@ -21,7 +21,6 @@ use crate::{
 pub struct ServiceManager {
     db: Arc<DatabaseConnection>,
     event_bus: Arc<EventBus>,
-    cache: Arc<CacheManager>,
     metrics: Arc<MetricsCollector>,
     item_service: Arc<ItemService>,
     project_service: Arc<ProjectService>,
@@ -35,55 +34,39 @@ impl ServiceManager {
     /// Create a new ServiceManager
     pub fn new(db: Arc<DatabaseConnection>) -> Self {
         let event_bus = Arc::new(EventBus::new());
-        let cache = Arc::new(CacheManager::new(1000, 500, 500, 500, 500));
         let metrics = Arc::new(MetricsCollector::new());
 
         // Create services with dependencies
         // Note: Services are created in order of dependency
-        let label_service = Arc::new(LabelService::new(
-            db.clone(),
-            event_bus.clone(),
-            cache.clone(),
-            metrics.clone(),
-        ));
+        let label_service =
+            Arc::new(LabelService::new(db.clone(), event_bus.clone(), metrics.clone()));
 
         let item_service = Arc::new(ItemService::new(
             db.clone(),
             event_bus.clone(),
-            cache.clone(),
             metrics.clone(),
             label_service.clone(),
         ));
 
-        let section_service = Arc::new(SectionService::new(
-            db.clone(),
-            event_bus.clone(),
-            cache.clone(),
-            metrics.clone(),
-        ));
+        let section_service =
+            Arc::new(SectionService::new(db.clone(), event_bus.clone(), metrics.clone()));
 
         let project_service = Arc::new(ProjectService::new(
             db.clone(),
             event_bus.clone(),
-            cache.clone(),
             metrics.clone(),
             item_service.clone(),
             section_service.clone(),
         ));
 
-        let reminder_service = Arc::new(ReminderService::new(
-            db.clone(),
-            event_bus.clone(),
-            cache.clone(),
-            metrics.clone(),
-        ));
+        let reminder_service =
+            Arc::new(ReminderService::new(db.clone(), event_bus.clone(), metrics.clone()));
 
         let date_validation_service = Arc::new(DateValidationService::new(db.clone()));
 
         Self {
             db,
             event_bus,
-            cache,
             metrics,
             item_service,
             project_service,
@@ -102,11 +85,6 @@ impl ServiceManager {
     /// Get the event bus
     pub fn event_bus(&self) -> &EventBus {
         &self.event_bus
-    }
-
-    /// Get the cache manager
-    pub fn cache(&self) -> &CacheManager {
-        &self.cache
     }
 
     /// Get the metrics collector
@@ -142,10 +120,5 @@ impl ServiceManager {
     /// Get the date validation service
     pub fn date_validation_service(&self) -> &DateValidationService {
         &self.date_validation_service
-    }
-
-    /// Clear all caches
-    pub async fn clear_caches(&self) {
-        self.cache.clear_all().await;
     }
 }

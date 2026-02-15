@@ -9,7 +9,7 @@ use crate::todo_state::{DBState, ProjectState, TodoStore};
 
 // 刷新指定项目的 items（仅在有活跃项目时需要）
 async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
-    let items = crate::service::get_items_by_project_id(project_id, db).await;
+    let items = crate::state_service::get_items_by_project_id(project_id, db).await;
     let arc_items: Vec<_> = items.iter().map(|item| Arc::new(item.clone())).collect();
 
     cx.update_global::<ProjectState, _>(|state, _| {
@@ -25,7 +25,7 @@ async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: Database
 pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::service::add_item(item.clone(), db.clone()).await {
+        match crate::state_service::add_item(item.clone(), db.clone()).await {
             Ok(new_item) => {
                 // 增量更新：只添加新任务到 TodoStore
                 let _ = cx.update_global::<TodoStore, _>(|store, _| {
@@ -46,7 +46,7 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
     let active_project = cx.global::<ProjectState>().active_project.clone();
 
     cx.spawn(async move |cx| {
-        match crate::service::mod_item(item.clone(), db.clone()).await {
+        match crate::state_service::mod_item(item.clone(), db.clone()).await {
             Ok(updated_item) => {
                 // 增量更新：只更新修改的任务
                 let _ = cx.update_global::<TodoStore, _>(|store, _| {
@@ -70,7 +70,7 @@ pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     let item_id = item.id.clone();
     cx.spawn(async move |cx| {
-        match crate::service::del_item(item.clone(), db.clone()).await {
+        match crate::state_service::del_item(item.clone(), db.clone()).await {
             Ok(_) => {
                 // 增量更新：只删除指定的任务
                 let _ = cx.update_global::<TodoStore, _>(|store, _| {
@@ -89,7 +89,7 @@ pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
 pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::service::finish_item(item.clone(), true, false, db.clone()).await {
+        match crate::state_service::finish_item(item.clone(), true, false, db.clone()).await {
             Ok(_) => {
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
@@ -111,7 +111,7 @@ pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
 pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::service::finish_item(item.clone(), false, false, db.clone()).await {
+        match crate::state_service::finish_item(item.clone(), false, false, db.clone()).await {
             Ok(_) => {
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
@@ -133,7 +133,7 @@ pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
 pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::service::pin_item(item.clone(), pinned, db.clone()).await {
+        match crate::state_service::pin_item(item.clone(), pinned, db.clone()).await {
             Ok(_) => {
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();

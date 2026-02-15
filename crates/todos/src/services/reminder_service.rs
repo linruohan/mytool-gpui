@@ -14,14 +14,13 @@ use crate::{
     entity::{ReminderActiveModel, ReminderModel, prelude::*, reminders},
     error::TodoError,
     repositories::{ReminderRepository, ReminderRepositoryImpl},
-    services::{CacheManager, EventBus, MetricsCollector},
+    services::{EventBus, MetricsCollector},
 };
 
 /// Service for Reminder business operations
 #[derive(Clone, Debug)]
 pub struct ReminderService {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     reminder_repo: ReminderRepositoryImpl,
@@ -32,11 +31,10 @@ impl ReminderService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        cache: Arc<CacheManager>,
         metrics: Arc<MetricsCollector>,
     ) -> Self {
-        let reminder_repo = ReminderRepositoryImpl::new(db.clone(), cache.clone());
-        Self { db, cache, event_bus, metrics, reminder_repo }
+        let reminder_repo = ReminderRepositoryImpl::new(db.clone());
+        Self { db, event_bus, metrics, reminder_repo }
     }
 
     /// Get a reminder by ID
@@ -76,13 +74,7 @@ impl ReminderService {
         let mut active_reminder: ReminderActiveModel = reminder.into();
         let reminder_model = active_reminder.insert(&*self.db).await?;
 
-        // 更新缓存
         let reminder_id = reminder_model.id.clone();
-        let reminder_clone = reminder_model.clone();
-        self.cache
-            .get_or_load_reminder(&reminder_id, |_| async move { Ok(reminder_clone) })
-            .await?;
-
         self.event_bus.publish(crate::services::event_bus::Event::ReminderCreated(reminder_id));
 
         self.metrics.record_operation("insert_reminder", 1).await;
@@ -99,7 +91,6 @@ impl ReminderService {
         let mut active_reminder: ReminderActiveModel = reminder.into();
         let result = active_reminder.update(&*self.db).await?;
 
-        self.cache.invalidate_reminder(&reminder_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ReminderUpdated(reminder_id));
 
         self.metrics.record_operation("update_reminder", 1).await;
@@ -112,7 +103,6 @@ impl ReminderService {
         let id_clone = id.to_string();
 
         let result = ReminderEntity::delete_by_id(id).exec(&*self.db).await?;
-        self.cache.invalidate_reminder(id).await;
         self.event_bus.publish(crate::services::event_bus::Event::ReminderDeleted(id_clone));
 
         self.metrics.record_operation("delete_reminder", 1).await;

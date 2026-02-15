@@ -14,14 +14,13 @@ use crate::{
     entity::{SectionActiveModel, SectionModel, prelude::*, sections},
     error::TodoError,
     repositories::{SectionRepository, SectionRepositoryImpl},
-    services::{CacheManager, EventBus, MetricsCollector},
+    services::{EventBus, MetricsCollector},
 };
 
 /// Service for Section business operations
 #[derive(Clone, Debug)]
 pub struct SectionService {
     db: Arc<DatabaseConnection>,
-    cache: Arc<CacheManager>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     section_repo: SectionRepositoryImpl,
@@ -32,11 +31,10 @@ impl SectionService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        cache: Arc<CacheManager>,
         metrics: Arc<MetricsCollector>,
     ) -> Self {
-        let section_repo = SectionRepositoryImpl::new(db.clone(), cache.clone());
-        Self { db, cache, event_bus, metrics, section_repo }
+        let section_repo = SectionRepositoryImpl::new(db.clone());
+        Self { db, event_bus, metrics, section_repo }
     }
 
     /// Get a section by ID
@@ -51,11 +49,7 @@ impl SectionService {
         let mut active_section: SectionActiveModel = section.into();
         let section_model = active_section.insert(&*self.db).await?;
 
-        // 更新缓存
         let section_id = section_model.id.clone();
-        let section_clone = section_model.clone();
-        self.cache.get_or_load_section(&section_id, |_| async move { Ok(section_clone) }).await?;
-
         self.event_bus.publish(crate::services::event_bus::Event::SectionCreated(section_id));
 
         self.metrics.record_operation("insert_section", 1).await;
@@ -69,7 +63,6 @@ impl SectionService {
         let mut active_section: SectionActiveModel = section.into();
         let result = active_section.update(&*self.db).await?;
 
-        self.cache.invalidate_section(&section_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::SectionUpdated(section_id));
 
         (*self.metrics).record_operation("update_section", 1).await;
@@ -88,7 +81,6 @@ impl SectionService {
         }
 
         SectionEntity::delete_by_id(section_id).exec(&*self.db).await?;
-        self.cache.invalidate_section(section_id).await;
         self.event_bus.publish(crate::services::event_bus::Event::SectionDeleted(section_id_clone));
 
         (*self.metrics).record_operation("delete_section", 1).await;
@@ -111,7 +103,6 @@ impl SectionService {
         .exec(&*self.db)
         .await?;
 
-        self.cache.invalidate_section(section_id).await;
         self.event_bus
             .publish(crate::services::event_bus::Event::SectionUpdated(section_id.to_string()));
 
@@ -141,7 +132,6 @@ impl SectionService {
             // TODO: 使用ItemService归档
         }
 
-        self.cache.invalidate_section(section_id).await;
         (*self.metrics).record_operation("archive_section", 1).await;
         Ok(())
     }

@@ -28,9 +28,9 @@ pub fn state_init(cx: &mut App) {
         let db = get_todo_conn().await;
 
         // 加载数据到 TodoStore（唯一数据源）
-        let items = crate::service::load_items(db.clone()).await;
-        let projects = crate::service::load_projects(db.clone()).await;
-        let sections = crate::service::load_sections(db.clone()).await;
+        let items = crate::state_service::load_items(db.clone()).await;
+        let projects = crate::state_service::load_projects(db.clone()).await;
+        let sections = crate::state_service::load_sections(db.clone()).await;
 
         let arc_items: Vec<_> = items.iter().map(|i| std::sync::Arc::new(i.clone())).collect();
 
@@ -94,7 +94,7 @@ fn setup_state_observers(cx: &mut App) {
 
 fn spawn_load_project_state(db: sea_orm::DatabaseConnection, cx: &mut App) {
     cx.spawn(async move |cx| {
-        let list = crate::service::load_projects(db).await;
+        let list = crate::state_service::load_projects(db).await;
         let arc_list: Vec<_> = list.iter().map(|item| std::sync::Arc::new(item.clone())).collect();
         let _ = cx.update_global::<ProjectState, _>(|state, _| {
             state.projects = arc_list;
@@ -105,7 +105,7 @@ fn spawn_load_project_state(db: sea_orm::DatabaseConnection, cx: &mut App) {
 
 fn spawn_load_label_state(db: sea_orm::DatabaseConnection, cx: &mut App) {
     cx.spawn(async move |cx| {
-        let list = crate::service::load_labels(db).await;
+        let list = crate::state_service::load_labels(db).await;
         let arc_list: Vec<_> = list.iter().map(|item| std::sync::Arc::new(item.clone())).collect();
         let _ = cx.update_global::<LabelState, _>(|state, _| {
             state.labels = arc_list;
@@ -116,7 +116,7 @@ fn spawn_load_label_state(db: sea_orm::DatabaseConnection, cx: &mut App) {
 
 fn spawn_load_section_state(db: sea_orm::DatabaseConnection, cx: &mut App) {
     cx.spawn(async move |cx| {
-        let list = crate::service::load_sections(db).await;
+        let list = crate::state_service::load_sections(db).await;
         let arc_list: Vec<_> = list.iter().map(|item| std::sync::Arc::new(item.clone())).collect();
         let _ = cx.update_global::<SectionState, _>(|state, _| {
             state.sections = arc_list;

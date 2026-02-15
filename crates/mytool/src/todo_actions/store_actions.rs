@@ -26,9 +26,9 @@ use crate::todo_state::{ItemState, TodoStore};
 /// - 不确定数据变化范围时
 pub async fn refresh_store(cx: &mut AsyncApp, db: DatabaseConnection) {
     // 一次性加载所有数据
-    let items = crate::service::load_items(db.clone()).await;
-    let projects = crate::service::load_projects(db.clone()).await;
-    let sections = crate::service::load_sections(db.clone()).await;
+    let items = crate::state_service::load_items(db.clone()).await;
+    let projects = crate::state_service::load_projects(db.clone()).await;
+    let sections = crate::state_service::load_sections(db.clone()).await;
 
     let arc_items: Vec<Arc<ItemModel>> = items.iter().map(|i| Arc::new(i.clone())).collect();
 
@@ -51,7 +51,7 @@ pub async fn refresh_store(cx: &mut AsyncApp, db: DatabaseConnection) {
 ///
 /// 只将新任务添加到 TodoStore，不刷新全部数据
 pub async fn add_item_to_store(item: Arc<ItemModel>, cx: &mut AsyncApp, db: DatabaseConnection) {
-    match crate::service::add_item(item, db).await {
+    match crate::state_service::add_item(item, db).await {
         Ok(new_item) => {
             // 增量更新：只添加新任务
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
@@ -68,7 +68,7 @@ pub async fn add_item_to_store(item: Arc<ItemModel>, cx: &mut AsyncApp, db: Data
 ///
 /// 只更新 TodoStore 中对应的单条任务
 pub async fn update_item_in_store(item: Arc<ItemModel>, cx: &mut AsyncApp, db: DatabaseConnection) {
-    match crate::service::mod_item(item, db).await {
+    match crate::state_service::mod_item(item, db).await {
         Ok(updated_item) => {
             // 增量更新：只更新修改的任务
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
@@ -90,7 +90,7 @@ pub async fn delete_item_from_store(
     db: DatabaseConnection,
 ) {
     let item_id = item.id.clone();
-    match crate::service::del_item(item, db).await {
+    match crate::state_service::del_item(item, db).await {
         Ok(_) => {
             // 增量更新：只删除指定的任务
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
@@ -112,7 +112,7 @@ pub async fn complete_item_in_store(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::finish_item(item.clone(), checked, false, db).await {
+    match crate::state_service::finish_item(item.clone(), checked, false, db).await {
         Ok(_) => {
             // 增量更新：更新本地状态
             let mut updated_item = (*item).clone();
@@ -141,7 +141,7 @@ pub async fn pin_item_in_store(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::pin_item(item.clone(), pinned, db).await {
+    match crate::state_service::pin_item(item.clone(), pinned, db).await {
         Ok(_) => {
             // 增量更新：更新本地状态
             let mut updated_item = (*item).clone();
@@ -164,7 +164,7 @@ pub async fn add_project_to_store(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::add_project(project, db).await {
+    match crate::state_service::add_project(project, db).await {
         Ok(new_project) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.add_project(Arc::new(new_project));
@@ -182,7 +182,7 @@ pub async fn update_project_in_store(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::mod_project(project, db).await {
+    match crate::state_service::mod_project(project, db).await {
         Ok(updated_project) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.update_project(Arc::new(updated_project));
@@ -201,7 +201,7 @@ pub async fn delete_project_from_store(
     db: DatabaseConnection,
 ) {
     let project_id = project.id.clone();
-    match crate::service::del_project(project, db).await {
+    match crate::state_service::del_project(project, db).await {
         Ok(_) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.remove_project(&project_id);
@@ -221,7 +221,7 @@ pub async fn add_section_to_store(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::add_section(section, db).await {
+    match crate::state_service::add_section(section, db).await {
         Ok(new_section) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.add_section(Arc::new(new_section));
@@ -239,7 +239,7 @@ pub async fn update_section_in_store(
     cx: &mut AsyncApp,
     db: DatabaseConnection,
 ) {
-    match crate::service::mod_section(section, db).await {
+    match crate::state_service::mod_section(section, db).await {
         Ok(updated_section) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.update_section(Arc::new(updated_section));
@@ -258,7 +258,7 @@ pub async fn delete_section_from_store(
     db: DatabaseConnection,
 ) {
     let section_id = section.id.clone();
-    match crate::service::del_section(section, db).await {
+    match crate::state_service::del_section(section, db).await {
         Ok(_) => {
             let _ = cx.update_global::<TodoStore, _>(|store, _| {
                 store.remove_section(&section_id);

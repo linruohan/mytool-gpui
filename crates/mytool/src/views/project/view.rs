@@ -16,7 +16,7 @@ use todos::entity::ProjectModel;
 
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate,
-    service::load_projects,
+    state_service::load_projects,
     todo_state::{DBState, ProjectState},
 };
 
@@ -240,7 +240,7 @@ impl ProjectsPanel {
         cx.notify();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::service::add_project(project.clone(), db.clone()).await;
+            let ret = crate::state_service::add_project(project.clone(), db.clone()).await;
             println!("add_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
@@ -260,7 +260,7 @@ impl ProjectsPanel {
         cx.notify();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::service::mod_project(project.clone(), db.clone()).await;
+            let ret = crate::state_service::mod_project(project.clone(), db.clone()).await;
             println!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
@@ -280,7 +280,7 @@ impl ProjectsPanel {
         cx.notify();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::service::del_project(project.clone(), db.clone()).await;
+            let ret = crate::state_service::del_project(project.clone(), db.clone()).await;
             println!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
