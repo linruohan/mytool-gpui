@@ -394,18 +394,7 @@ impl ItemInfoState {
                 self.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
             },
-            // ScheduleButtonEvent::DueDateChanged => {
-            //     let schedule_state = _state.read(cx);
-            //     let item = Rc::make_mut(&mut self.item);
-            //     if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-            //         item.due = Some(json_value);
-            //     }
-            // },
-            // ScheduleButtonEvent::PickerOpened(_) => {
-            //     // 不需要更新 item 数据，只需要处理 UI 状态
-            // },
         }
-        // println!("schedule changed: {:?}", self.item.due);
 
         cx.notify();
     }
@@ -747,10 +736,7 @@ impl Render for ItemInfoState {
                                     .small()
                                     .ghost()
                                     .tooltip("more actions")
-                                    .on_click({
-                                        // let items_panel = self.items_panel.clone();
-                                        move |_event, _window, _cx| {}
-                                    }),
+                                    .on_click(move |_event, _window, _cx| {}),
                             ),
                     ),
             )

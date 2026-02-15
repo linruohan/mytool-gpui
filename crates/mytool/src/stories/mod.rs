@@ -12,17 +12,7 @@ pub use list_story::ListStory;
 pub use todo_story::TodoStory;
 pub use welcome_story::WelcomeStory;
 
-pub(crate) fn init(_cx: &mut App) {
-    // input_story::init(cx);
-    // number_input_story::init(cx);
-    // textarea_story::init(cx);
-    // select_story::init(cx);
-    // popover_story::init(cx);
-    // menu_story::init(cx);
-    // tooltip_story::init(cx);
-    // otp_input_story::init(cx);
-    // tree_story::init(cx);
-}
+pub(crate) fn init(_cx: &mut App) {}
 
 pub trait Mytool: Render + Sized {
     fn klass() -> &'static str {

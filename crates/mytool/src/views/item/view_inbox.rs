@@ -69,10 +69,6 @@ impl ItemsPanel {
                     && let Some(_conn) = this.get_selected_item(*ix, cx)
                 {
                     this.update_active_index(Some(ix.row));
-                    // this.input_esc.update(cx, |is, cx| {
-                    //     is.set_value(conn.clone().content.clone(), window, cx);
-                    //     cx.notify();
-                    // })
                 }
             }),
         ];

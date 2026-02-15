@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, MouseButton,
-    ParentElement, Render, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Sizable, WindowExt,

@@ -14,14 +14,6 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     let base_url = "sqlite://db.sqlite?mode=rwc".to_owned();
 
     let mut options = ConnectOptions::new(base_url);
-    // let mut options = ConnectOptions::new(format!(
-    //     "postgres://{}:{}@{}:{}/{}",
-    //     database_config.user(),
-    //     database_config.password(),
-    //     database_config.host(),
-    //     database_config.port(),
-    //     database_config.database()
-    // ));
     let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
     options
         .min_connections(min(cpus, 5))
@@ -38,7 +30,6 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     let db = Database::connect(options).await?;
     db.ping().await?;
     tracing::info!("Database connection successfully");
-    // log_database_version(&db).await?;
     Ok(db)
 }
 #[allow(dead_code)]

@@ -2,7 +2,6 @@ pub mod attachment;
 pub mod base_object;
 pub mod color;
 pub mod macros;
-// pub mod database;
 pub mod queue;
 
 pub mod due_date;
@@ -17,7 +16,6 @@ pub mod source;
 pub use attachment::*;
 pub use base_object::*;
 pub use color::*;
-// pub use database::*;
 pub use due_date::*;
 pub use item::*;
 pub use label::*;

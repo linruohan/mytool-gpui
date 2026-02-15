@@ -265,7 +265,6 @@ impl Item {
     }
 
     pub fn ics(&self) -> &str {
-        // Services.Todoist.get_default ().get_string_member_by_object (extra_data, "ics")
         ""
     }
 
@@ -606,12 +605,7 @@ impl Item {
         None
     }
 
-    pub fn add_reminder_events(&self, reminder: &Reminder) {
-        // self.store.reminder_added(reminder);
-        // self.store.reminders().add(reminder);
-        // reminder.item().reminder_added(reminder);
-        // _add_reminder(reminder);
-    }
+    pub fn add_reminder_events(&self, _reminder: &Reminder) {}
 
     pub async fn remove_all_relative_reminders(&self) -> Result<(), TodoError> {
         let reminders = self.reminders().await;

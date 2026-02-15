@@ -101,15 +101,6 @@ impl Reminder {
     }
 
     pub async fn delete(&self) -> Result<u64, TodoError> {
-        // if (item.project.source_type == SourceType.TODOIST) {
-        //     loading = true;
-        //     Services.Todoist.get_default ().delete.begin (this, (obj, res) => {
-        //         if (Services.Todoist.get_default ().delete.end (res).status) {
-        //             Services.Store.instance ().delete_reminder (this);
-        //             loading = false;
-        //         }
-        //     });
-        // } else {
         self.store().await.delete_reminder(&self.model.id).await
     }
 

@@ -82,7 +82,6 @@ impl ListStory {
                         true
                     } else {
                         // 不存在，删除
-                        // cx.remove_entity(entity);
                         false
                     }
                 });
@@ -160,15 +159,11 @@ impl Render for ListStory {
             .on_action(cx.listener(Self::selected_company))
             .w_full()
             .gap_4()
-            // .child(section("item_info").child(ItemInfo::new(&self.item_info)))
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))
             .child(Divider::horizontal())
-            .child(
-                v_flex()
-                    .children(
-                        self.item_rows.clone().into_values().map(|item| {
-                            ItemRow::new(&item.clone())
-                        })))
+            .child(v_flex().children(
+                self.item_rows.clone().into_values().map(|item| ItemRow::new(&item.clone())),
+            ))
     }
 }

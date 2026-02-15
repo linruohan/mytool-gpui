@@ -1,5 +1,3 @@
-// mod label_source_row;
-
 mod check_list;
 mod list;
 mod view;

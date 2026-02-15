@@ -30,8 +30,3 @@ pub async fn del_project(
 ) -> Result<(), TodoError> {
     Store::new(db).delete_project(&project.id).await
 }
-
-/// 根据ID删除项目（用于增量更新）
-pub async fn del_project_by_id(project_id: &str, db: DatabaseConnection) -> Result<(), TodoError> {
-    Store::new(db).delete_project(project_id).await
-}

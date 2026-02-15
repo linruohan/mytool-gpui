@@ -110,7 +110,6 @@ impl Job {
         let all_records = self.collect_logs(&all_cases, 10).await;
 
         println!("获取到 {} 条记录", all_records.len());
-        // println!("日志详情：{:?}", all_records);
     }
     // semaphore
     pub async fn get_logs_with_semaphore(&self, max_concurrent: usize) {
