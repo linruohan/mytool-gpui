@@ -63,18 +63,21 @@ pub struct SelectFont(usize);
 #[action(namespace = mytool, no_json)]
 pub struct SelectRadius(usize);
 
-actions!(mytool, [
-    About,
-    Open,
-    Quit,
-    CloseWindow,
-    ToggleSearch,
-    TestAction,
-    Tab,
-    TabPrev,
-    ShowPanelInfo,
-    ToggleListActiveHighlight
-]);
+actions!(
+    mytool,
+    [
+        About,
+        Open,
+        Quit,
+        CloseWindow,
+        ToggleSearch,
+        TestAction,
+        Tab,
+        TabPrev,
+        ShowPanelInfo,
+        ToggleListActiveHighlight
+    ]
+);
 const PANEL_NAME: &str = "StoryContainer";
 
 pub struct AppState {

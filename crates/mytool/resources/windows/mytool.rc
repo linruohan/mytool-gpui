@@ -1,2 +1,27 @@
+// 图标资源
+IDI_ICON1 ICON "resources/windows/app-icon.ico"
+
+// Manifest 资源
 #define RT_MANIFEST 24
 1 RT_MANIFEST "resources/windows/mytool.manifest.xml"
+
+// 版本信息
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     0,2,2,0
+PRODUCTVERSION  0,2,2,0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "FileDescription", "MyTool"
+            VALUE "ProductName", "MyTool"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
