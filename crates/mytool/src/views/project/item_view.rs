@@ -59,6 +59,13 @@ impl ProjectItemsPanel {
         let _subscriptions =
             vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let todo_store = cx.global::<TodoStore>();
+                
+                // 检查 project.id 是否有效
+                if this.project.id.is_empty() {
+                    println!("[DEBUG] ProjectItemsPanel: project.id 为空,跳过加载 items");
+                    return;
+                }
+                
                 let state_items = todo_store.items_by_project(&this.project.id);
                 this.item_rows = state_items
                     .iter()
@@ -88,6 +95,8 @@ impl ProjectItemsPanel {
                 } else if !this.item_rows.is_empty() {
                     this.active_index = Some(0);
                 }
+                
+                println!("[DEBUG] ProjectItemsPanel 已更新, items 数量: {}", this.item_rows.len());
                 cx.notify();
             })];
 
@@ -104,8 +113,18 @@ impl ProjectItemsPanel {
     }
 
     pub fn set_project(&mut self, project: Arc<ProjectModel>, cx: &mut Context<Self>) {
+        println!("[DEBUG] ProjectItemsPanel::set_project, project_id: {}, project_name: {}", 
+                 project.id, project.name);
+        
         self.project = project.clone();
         self.active_index = Some(0);
+        
+        // 检查 project_id 是否有效
+        if project.id.is_empty() {
+            println!("[ERROR] ProjectItemsPanel::set_project: project_id 为空,跳过加载 items");
+            return;
+        }
+        
         load_project_items(project.clone(), cx);
     }
 
