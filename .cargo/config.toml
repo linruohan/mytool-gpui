@@ -1,15 +1,20 @@
 [build]
 rustc-wrapper = "sccache"  # 确保 sccache 被使用
-rustflags = ["-Z", "codegen-backend=cranelift"]
 
 [profile.dev]
 codegen-units = 256        # 最大化并行编译
 incremental = true         # 增量编译
+
 [unstable]
 # 启用 Cranelift 代码生成后端
 codegen-backend = true
 
+# 开发模式使用 Cranelift（仅在非 Windows MSVC 或明确需要时使用）
+# 注意：Cranelift 主要用于 Debug 模式，Release 模式建议用 LLVM
+
 [target.x86_64-pc-windows-msvc]
+# Windows MSVC 平台：Release 模式使用 LLVM，Debug 模式可用 Cranelift
+# 由于 Cranelift + Release 可能出现链接错误，这里默认使用 LLVM
 rustflags = [
     "-C", "link-arg=/STACK:8000000",
     "-C", "link-arg=/MANIFEST:NO",
@@ -18,6 +23,10 @@ rustflags = [
     # 减少调试信息以加速编译
     "-C", "debuginfo=0",
 ]
+
+# 如果你想在 Debug 模式下使用 Cranelift，可以临时设置环境变量：
+# set RUSTFLAGS=-Zcodegen-backend=cranelift
+# cargo build
 
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-gcc"
