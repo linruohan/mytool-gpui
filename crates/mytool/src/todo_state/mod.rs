@@ -12,6 +12,7 @@ pub use label::*;
 pub use project::*;
 pub use section::*;
 pub use todo_store::*;
+use todos::entity;
 
 /// 初始化所有状态
 ///
@@ -26,26 +27,53 @@ pub fn state_init(cx: &mut App) {
     // 异步初始化数据库连接并加载数据
     cx.spawn(async move |cx| {
         // 初始化数据库连接
+        println!("[DEBUG] Initializing database connection...");
         let db = get_todo_conn().await;
+        println!("[DEBUG] Database connection established");
 
         // 加载数据到 TodoStore（唯一数据源）
+        println!("[DEBUG] Loading items...");
         let items = crate::state_service::load_items(db.clone()).await;
+        println!("[DEBUG] Loaded {} items", items.len());
+
+        // 检查 inbox 条件的任务
+        let inbox_items: Vec<&entity::ItemModel> = items
+            .iter()
+            .filter(|item| item.project_id.is_none() || item.project_id.as_deref() == Some(""))
+            .collect();
+        println!("[DEBUG] Found {} inbox items (no project ID)", inbox_items.len());
+
+        for (i, item) in inbox_items.iter().enumerate() {
+            println!("[DEBUG] Inbox item {}: {}", i + 1, item.content);
+        }
+
+        println!("[DEBUG] Loading projects...");
         let projects = crate::state_service::load_projects(db.clone()).await;
+        println!("[DEBUG] Loaded {} projects", projects.len());
+
+        println!("[DEBUG] Loading sections...");
         let sections = crate::state_service::load_sections(db.clone()).await;
+        println!("[DEBUG] Loaded {} sections", sections.len());
+
+        println!("[DEBUG] Loading labels...");
         let labels = crate::state_service::load_labels(db.clone()).await;
+        println!("[DEBUG] Loaded {} labels", labels.len());
 
         // 更新 TodoStore
+        println!("[DEBUG] Updating TodoStore...");
         cx.update_global::<TodoStore, _>(|store, _| {
             store.set_items(items);
             store.set_projects(projects);
             store.set_sections(sections);
             store.set_labels(labels);
         });
+        println!("[DEBUG] TodoStore updated");
 
         // 设置数据库连接到全局状态
         cx.update(|cx| {
             cx.set_global::<DBState>(DBState { conn: db });
         });
+        println!("[DEBUG] DBState set");
     })
     .detach();
 }
