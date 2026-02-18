@@ -1,8 +1,18 @@
+[build]
+rustc-wrapper = "sccache"  # 确保 sccache 被使用
+[profile.dev]
+codegen-units = 256        # 最大化并行编译
+incremental = true         # 增量编译
+[unstable]
+# 启用 Cranelift 代码生成后端
+codegen-backend = true
+
 [target.x86_64-pc-windows-msvc]
 rustflags = [
     "-C", "link-arg=/STACK:8000000",
     "-C", "link-arg=/MANIFEST:NO",
-    "-C", "link-arg=/DEBUG:FULL",
+    # 使用 LLVM 的 LLD 链接器替代默认链接器，大幅提升链接速度
+    "-C", "linker=lld-link",
     # 减少调试信息以加速编译
     "-C", "debuginfo=0",
 ]

@@ -21,7 +21,6 @@ paste.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 futures.workspace = true
-lru.workspace = true
 
 
 [dev-dependencies]

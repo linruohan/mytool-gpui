@@ -52,7 +52,6 @@ uuid = { version = "1.20.0", features = [
     "macro-diagnostics",
 ] }
 itertools = "0.14.0"
-lru = "0.12.5"
 toml = "0.8.23"
 base64 = "0.22.1"
 pbkdf2 = { version = "0.12.2", features = ["simple"] }
@@ -107,3 +106,20 @@ lto = true
 codegen-units = 8
 strip = true
 debug = false
+
+# 超快速开发模式 - 用于快速验证代码
+[profile.fast]
+inherits = "dev"
+# 最大化并行编译单元
+codegen-units = 256
+# 最低优化级别
+opt-level = 0
+# 禁用所有检查
+debug-assertions = false
+overflow-checks = false
+# 禁用 LTO
+lto = false
+# 禁用增量编译（配合 sccache 更快）
+incremental = false
+# 禁用调试信息
+debug = 0
