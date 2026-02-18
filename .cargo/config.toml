@@ -5,6 +5,33 @@ rustc-wrapper = "sccache"  # 确保 sccache 被使用
 codegen-units = 256        # 最大化并行编译
 incremental = true         # 增量编译
 
+[profile.dev.package]
+# 对重量级依赖使用最高优化级别，减少运行时开销
+# 这些依赖编译慢但运行频繁，值得优化
+# 注意：Cargo 不支持 * 通配符，需要逐个列出
+
+# GPUI 相关重量级依赖
+wgpu = { opt-level = 3 }
+wgpu-core = { opt-level = 3 }
+wgpu-hal = { opt-level = 3 }
+naga = { opt-level = 3 }
+cosmic-text = { opt-level = 3 }
+resvg = { opt-level = 3 }
+usvg = { opt-level = 3 }
+rustybuzz = { opt-level = 3 }
+taffy = { opt-level = 3 }
+ttf-parser = { opt-level = 3 }
+
+# gpui-component 带来的重量级依赖
+tree-sitter = { opt-level = 3 }
+tree-sitter-json = { opt-level = 3 }
+markdown = { opt-level = 3 }
+html5ever = { opt-level = 3 }
+markup5ever_rcdom = { opt-level = 3 }
+regex = { opt-level = 3 }
+regex-automata = { opt-level = 3 }
+regex-syntax = { opt-level = 3 }
+
 [unstable]
 # 启用 Cranelift 代码生成后端
 codegen-backend = true
