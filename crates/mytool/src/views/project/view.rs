@@ -17,7 +17,7 @@ use todos::entity::ProjectModel;
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate,
     state_service::load_projects,
-    todo_state::{DBState, ProjectState},
+    todo_state::{DBState, TodoStore},
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
@@ -41,8 +41,8 @@ impl ProjectsPanel {
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
         let project_list_clone = project_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<ProjectState>(move |_this, cx| {
-                let projects = cx.global::<ProjectState>().projects.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let projects = cx.global::<TodoStore>().projects.clone();
                 cx.update_entity(&project_list_clone, |list, cx| {
                     list.delegate_mut().update_projects(projects);
                     cx.notify();

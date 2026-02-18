@@ -9,7 +9,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
-use crate::{Board, LabelEvent, LabelsPanel, todo_state::LabelState};
+use crate::{Board, LabelEvent, todo_state::TodoStore, views::label::LabelsPanel};
 
 pub struct LabelsBoard {
     _subscriptions: Vec<Subscription>,
@@ -43,7 +43,7 @@ impl Board for LabelsBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        cx.global::<LabelState>().labels.len()
+        cx.global::<TodoStore>().labels.len()
     }
 
     fn title() -> &'static str {

@@ -5,20 +5,12 @@ use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
 use tracing::error;
 
-use crate::todo_state::{DBState, ProjectState, TodoStore};
+use crate::todo_state::{DBState, TodoStore};
 
 // 刷新指定项目的 items（仅在有活跃项目时需要）
-async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
-    let items = crate::state_service::get_items_by_project_id(project_id, db).await;
-    let arc_items: Vec<_> = items.iter().map(|item| Arc::new(item.clone())).collect();
-
-    cx.update_global::<ProjectState, _>(|state, _| {
-        if let Some(active) = &state.active_project
-            && active.id == project_id
-        {
-            state.items = arc_items;
-        }
-    });
+async fn refresh_project_items(_project_id: &str, _cx: &mut AsyncApp, _db: DatabaseConnection) {
+    // 由于使用了 TodoStore 作为唯一数据源，不再需要单独更新 ProjectState
+    // TodoStore 会通过观察者模式自动更新所有视图
 }
 
 // 添加 item（使用增量更新，性能最优）
@@ -43,7 +35,7 @@ pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
 // 修改 item（使用增量更新，性能最优）
 pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
-    let active_project = cx.global::<ProjectState>().active_project.clone();
+    let active_project = cx.global::<TodoStore>().active_project.clone();
 
     cx.spawn(async move |cx| {
         match crate::state_service::mod_item(item.clone(), db.clone()).await {

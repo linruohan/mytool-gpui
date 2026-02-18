@@ -12,7 +12,7 @@ use todos::entity::ProjectModel;
 
 use crate::{
     BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
-    todo_state::ProjectState,
+    todo_state::TodoStore,
 };
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
@@ -130,7 +130,7 @@ impl Render for TodoStory {
         let boards = board_panel.boards.clone();
         let board_active_index = board_panel.active_index;
         let project_panel = self.project_panel.read(cx);
-        let project_list = cx.global::<ProjectState>().projects.clone();
+        let project_list = cx.global::<TodoStore>().projects.clone();
         let _view = cx.entity();
         let project_active_index = project_panel.active_index;
 

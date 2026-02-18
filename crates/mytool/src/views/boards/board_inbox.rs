@@ -26,7 +26,7 @@ use crate::{
     todo_actions::{
         add_item, add_section, delete_item, delete_section, update_item, update_section,
     },
-    todo_state::{ProjectState, SectionState, TodoStore},
+    todo_state::TodoStore,
     views::boards::{BoardView, board_renderer},
 };
 
@@ -100,12 +100,6 @@ impl InboxBoard {
                 } else if !this.base.item_rows.is_empty() {
                     this.base.active_index = Some(0);
                 }
-                cx.notify();
-            }),
-            cx.observe_global_in::<ProjectState>(window, move |_, _, cx| {
-                cx.notify();
-            }),
-            cx.observe_global_in::<SectionState>(window, move |_this, _, cx| {
                 cx.notify();
             }),
         ];
@@ -251,7 +245,7 @@ impl InboxBoard {
         section_id: Option<String>,
         is_edit: bool,
     ) {
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let ori_section = if is_edit {
             sections
                 .iter()
@@ -297,7 +291,7 @@ impl InboxBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let section_some = sections.iter().find(|s| s.id == section_id).cloned();
         if let Some(section) = section_some {
             let view = cx.entity().clone();
@@ -321,7 +315,7 @@ impl InboxBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
@@ -337,7 +331,7 @@ impl InboxBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
@@ -397,7 +391,7 @@ impl Render for InboxBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();

@@ -21,7 +21,7 @@ use gpui_component::{
 use crate::{
     Board, BoardBase, ItemRowState, section,
     todo_actions::{add_item, delete_item, update_item},
-    todo_state::{SectionState, TodoStore},
+    todo_state::TodoStore,
     views::boards::{BoardView, board_renderer},
 };
 
@@ -67,7 +67,7 @@ impl CompletedBoard {
                 }
                 cx.notify();
             }),
-            cx.observe_global_in::<SectionState>(window, move |_, _, cx| {
+            cx.observe_global_in::<TodoStore>(window, move |_, _, cx| {
                 cx.notify();
             }),
         ];
@@ -279,7 +279,7 @@ impl Render for CompletedBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();

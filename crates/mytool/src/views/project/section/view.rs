@@ -17,7 +17,7 @@ use super::{SectionEvent, SectionListDelegate};
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState,
     todo_actions::{add_section, delete_section, update_section},
-    todo_state::ProjectState,
+    todo_state::TodoStore,
 };
 
 impl EventEmitter<SectionEvent> for SectionsPanel {}
@@ -43,8 +43,8 @@ impl SectionsPanel {
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
         let section_list_clone = section_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<ProjectState>(move |_this, cx| {
-                let sections = cx.global::<ProjectState>().sections.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let sections = cx.global::<TodoStore>().sections.clone();
                 cx.update_entity(&section_list_clone, |list, cx| {
                     list.delegate_mut().update_sections(sections);
                     cx.notify();

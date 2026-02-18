@@ -17,7 +17,7 @@ use gpui_component::{
 use todos::entity::LabelModel;
 
 use crate::{
-    LabelCheckListDelegate, SelectedCheckLabel, UnSelectedCheckLabel, todo_state::LabelState,
+    LabelCheckListDelegate, SelectedCheckLabel, UnSelectedCheckLabel, todo_state::TodoStore,
 };
 
 actions!(labels_popover, [CreateNewLabel]);
@@ -58,7 +58,7 @@ impl LabelsPopoverList {
         let label_list_clone = label_list.clone();
 
         // 初始化全局标签
-        let initial_labels = cx.global::<LabelState>().labels.clone();
+        let initial_labels = cx.global::<TodoStore>().labels.clone();
         cx.update_entity(&label_list_clone, |list, cx| {
             list.delegate_mut().update_labels(initial_labels);
             // 初始化时设置空的 checked 状态，确保所有标签默认未选中
@@ -67,8 +67,8 @@ impl LabelsPopoverList {
         });
 
         let _subscriptions = vec![
-            cx.observe_global::<LabelState>(move |_this, cx| {
-                let labels = cx.global::<LabelState>().labels.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let labels = cx.global::<TodoStore>().labels.clone();
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
                     cx.notify();
@@ -201,8 +201,8 @@ impl LabelsPopoverList {
         });
 
         // 将新标签添加到全局标签状态
-        cx.update_global::<LabelState, _>(|state, _cx| {
-            state.labels.push(new_label.clone());
+        cx.update_global::<TodoStore, _>(|store, _cx| {
+            store.add_label(new_label.clone());
         });
 
         // 清空输入框

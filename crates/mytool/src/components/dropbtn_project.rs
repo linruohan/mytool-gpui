@@ -5,6 +5,7 @@ use crate::{
         DropdownButtonStateTrait, DropdownEvent, DropdownState, render_dropdown_button,
     },
     create_button_wrapper,
+    todo_state::TodoStore,
 };
 
 #[derive(Clone)]
@@ -69,16 +70,15 @@ impl DropdownButtonStateTrait<String> for ProjectButtonState {
         let selected_id = self.inner.selected.clone();
         selected_id
             .as_ref()
-            .and_then(|id| {
-                cx.global::<crate::todo_state::ProjectState>().projects.iter().find(|p| p.id == *id)
-            })
+            .and_then(|id| cx.global::<TodoStore>().projects.iter().find(|p| p.id == *id))
             .map(|p| p.name.clone())
             .unwrap_or_else(|| "Inbox".to_string())
     }
 
     fn menu_options(&self, cx: &mut Context<Self>) -> Vec<(String, String)> {
         let mut options = vec![("Inbox".to_string(), String::new())];
-        let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
+        let todo_store = cx.global::<TodoStore>();
+        let projects = todo_store.projects.clone();
         for project in projects.iter() {
             options.push((project.name.clone(), project.id.clone()));
         }

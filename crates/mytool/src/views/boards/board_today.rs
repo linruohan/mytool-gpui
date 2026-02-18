@@ -20,7 +20,7 @@ use gpui_component::{
 use crate::{
     Board, BoardBase, ItemRowState, section,
     todo_actions::{add_item, delete_item, update_item},
-    todo_state::{SectionState, TodoStore},
+    todo_state::TodoStore,
     views::boards::{BoardView, board_renderer},
 };
 
@@ -58,7 +58,7 @@ impl TodayBoard {
                 this.base.update_items(&state_items);
                 cx.notify();
             }),
-            cx.observe_global_in::<SectionState>(window, move |_, _, cx| {
+            cx.observe_global_in::<TodoStore>(window, move |_, _, cx| {
                 cx.notify();
             }),
         ];
@@ -198,7 +198,7 @@ impl Render for TodayBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<SectionState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let pinned_items = self.base.pinned_items.clone();
         let overdue_items = self.base.overdue_items.clone();
         let no_section_items = self.base.no_section_items.clone();

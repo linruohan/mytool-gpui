@@ -8,6 +8,7 @@ use crate::{
         DropdownButtonStateTrait, DropdownEvent, DropdownState, render_dropdown_button,
     },
     create_button_wrapper,
+    todo_state::TodoStore,
 };
 
 #[derive(Clone)]
@@ -70,10 +71,8 @@ impl DropdownButtonStateTrait<String> for SectionState {
     }
 
     fn selected_display_name(&self, cx: &mut Context<Self>) -> String {
-        let sections = self
-            .sections
-            .clone()
-            .unwrap_or_else(|| cx.global::<crate::todo_state::SectionState>().sections.clone());
+        let sections =
+            self.sections.clone().unwrap_or_else(|| cx.global::<TodoStore>().sections.clone());
         let selected_id = self.inner.selected.clone();
         selected_id
             .as_ref()
@@ -84,10 +83,8 @@ impl DropdownButtonStateTrait<String> for SectionState {
 
     fn menu_options(&self, cx: &mut Context<Self>) -> Vec<(String, String)> {
         let mut options = vec![("No Section".to_string(), String::new())];
-        let sections = self
-            .sections
-            .clone()
-            .unwrap_or_else(|| cx.global::<crate::todo_state::SectionState>().sections.clone());
+        let sections =
+            self.sections.clone().unwrap_or_else(|| cx.global::<TodoStore>().sections.clone());
         for section in sections.iter() {
             options.push((section.name.clone(), section.id.clone()));
         }

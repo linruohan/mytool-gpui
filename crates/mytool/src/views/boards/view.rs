@@ -63,12 +63,19 @@ impl BoardPanel {
             BoardContainer::panel::<LabelsBoard>(window, cx),
             BoardContainer::panel::<CompletedBoard>(window, cx),
         ];
-        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| {
-            if let InputEvent::Change = e {
-                this.active_index = Some(0);
-                cx.notify()
-            }
-        })];
+        let _subscriptions = vec![
+            cx.subscribe(&search_input, |this, _, e, cx| {
+                if let InputEvent::Change = e {
+                    this.active_index = Some(0);
+                    cx.notify()
+                }
+            }),
+            // 监听 TodoStore 变化，刷新看板计数
+            cx.observe_global::<TodoStore>(move |this, cx| {
+                this.refresh_counts(cx);
+                cx.notify();
+            }),
+        ];
         // 默认选中第一个看板，避免初始状态没有任何内容渲染
         Self { search_input, boards, active_index: Some(0), _subscriptions }
     }

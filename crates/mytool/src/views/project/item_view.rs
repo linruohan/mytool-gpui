@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement as _, MouseButton, ParentElement, Render, StatefulInteractiveElement as _,
     Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
@@ -23,7 +23,7 @@ use crate::{
         add_project_item, add_section, delete_project_item, delete_section, load_project_items,
         update_project_item, update_section,
     },
-    todo_state::ProjectState,
+    todo_state::TodoStore,
 };
 
 pub enum ProjectItemEvent {
@@ -57,8 +57,9 @@ impl ProjectItemsPanel {
         let section_items_map = std::collections::HashMap::new();
 
         let _subscriptions =
-            vec![cx.observe_global_in::<ProjectState>(window, move |this, window, cx| {
-                let state_items = cx.global::<ProjectState>().items.clone();
+            vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                let todo_store = cx.global::<TodoStore>();
+                let state_items = todo_store.items_by_project(&this.project.id);
                 this.item_rows = state_items
                     .iter()
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
@@ -104,15 +105,13 @@ impl ProjectItemsPanel {
 
     pub fn set_project(&mut self, project: Arc<ProjectModel>, cx: &mut Context<Self>) {
         self.project = project.clone();
-        cx.update_global::<ProjectState, _>(|state, _| {
-            state.items.clear();
-        });
         self.active_index = Some(0);
         load_project_items(project.clone(), cx);
     }
 
     pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Arc<ItemModel>> {
-        let item_list = cx.global::<ProjectState>().items.clone();
+        let todo_store = cx.global::<TodoStore>();
+        let item_list = todo_store.items_by_project(&self.project.id);
         item_list.get(ix.row).cloned()
     }
 
@@ -226,7 +225,7 @@ impl ProjectItemsPanel {
         section_id: Option<String>,
         is_edit: bool,
     ) {
-        let sections = cx.global::<ProjectState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let ori_section = if is_edit {
             sections
                 .iter()
@@ -272,7 +271,7 @@ impl ProjectItemsPanel {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<ProjectState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let section_some = sections.iter().find(|s| s.id == section_id).cloned();
         if let Some(section) = section_some {
             let view = cx.entity().clone();
@@ -296,7 +295,7 @@ impl ProjectItemsPanel {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<ProjectState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
@@ -312,7 +311,7 @@ impl ProjectItemsPanel {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<ProjectState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         if let Some(section) = sections.iter().find(|s| s.id == section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
@@ -331,7 +330,7 @@ impl Focusable for ProjectItemsPanel {
 impl Render for ProjectItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<ProjectState>().sections.clone();
+        let sections = cx.global::<TodoStore>().sections.clone();
         let no_section_items = self.no_section_items.clone();
         let section_items_map = self.section_items_map.clone();
 

@@ -17,7 +17,7 @@ use super::LabelEvent;
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate,
     todo_actions::{add_label, delete_label, update_label},
-    todo_state::LabelState,
+    todo_state::TodoStore,
 };
 
 impl EventEmitter<LabelEvent> for LabelsPanel {}
@@ -40,8 +40,8 @@ impl LabelsPanel {
         let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
         let label_list_clone = label_list.clone();
         let _subscriptions = vec![
-            cx.observe_global::<LabelState>(move |_this, cx| {
-                let labels = cx.global::<LabelState>().labels.clone();
+            cx.observe_global::<TodoStore>(move |_this, cx| {
+                let labels = cx.global::<TodoStore>().labels.clone();
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
                     cx.notify();

@@ -31,7 +31,7 @@ use crate::{
     todo_actions::{
         add_item, completed_item, delete_item, set_item_pinned, uncompleted_item, update_item,
     },
-    todo_state::{DBState, LabelState},
+    todo_state::{DBState, TodoStore},
 };
 
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -275,10 +275,9 @@ impl ItemInfoState {
                             section_state.set_sections(None, window, cx);
                         } else {
                             // 根据project_id获取对应的sections
-                            let projects =
-                                cx.global::<crate::todo_state::ProjectState>().projects.clone();
-                            let all_sections =
-                                cx.global::<crate::todo_state::ProjectState>().sections.clone();
+                            let todo_store = cx.global::<TodoStore>();
+                            let projects = todo_store.projects.clone();
+                            let all_sections = todo_store.sections.clone();
 
                             if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
                                 // 获取该project的sections
@@ -534,7 +533,8 @@ impl ItemInfoState {
         });
         self.project_state.update(cx, |this, cx| {
             if let Some(project_id) = &item.project_id {
-                let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
+                let todo_store = cx.global::<TodoStore>();
+                let projects = todo_store.projects.clone();
                 if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
                     this.set_project(Some(project.id.clone()), window, cx);
                 }
@@ -545,12 +545,12 @@ impl ItemInfoState {
         self.section_state.update(cx, |section_state, cx| {
             if let Some(project_id) = &item.project_id {
                 // 根据project_id获取对应的sections
-                let projects = cx.global::<crate::todo_state::ProjectState>().projects.clone();
+                let todo_store = cx.global::<TodoStore>();
+                let projects = todo_store.projects.clone();
+                let all_sections = todo_store.sections.clone();
                 if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
                     // 获取该project的sections
-                    let project_sections =
-                        cx.global::<crate::todo_state::ProjectState>().sections.clone();
-                    let filtered_sections: Vec<Arc<todos::entity::SectionModel>> = project_sections
+                    let filtered_sections: Vec<Arc<todos::entity::SectionModel>> = all_sections
                         .iter()
                         .filter(|s| s.project_id.as_ref() == Some(&project.id))
                         .cloned()
@@ -578,7 +578,8 @@ impl ItemInfoState {
                 let sections = if let Some(sections) = &section_state.sections {
                     sections.clone()
                 } else {
-                    cx.global::<crate::todo_state::SectionState>().sections.clone()
+                    let todo_store = cx.global::<TodoStore>();
+                    todo_store.sections.clone()
                 };
                 if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
                     section_state.set_section(Some(section.id.clone()), window, cx);
@@ -652,7 +653,8 @@ impl ItemInfoState {
 impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
-        let labels = cx.global::<LabelState>().labels.clone();
+        let todo_store = cx.global::<TodoStore>();
+        let labels = todo_store.labels.clone();
         let pinned_color = if self.item.pinned { gpui::red() } else { gray_200() };
         v_flex()
             .border_2()

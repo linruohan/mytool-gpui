@@ -18,7 +18,7 @@ use todos::{
     utils::datetime::DateTime,
 };
 
-use crate::todo_state::LabelState;
+use crate::todo_state::TodoStore;
 
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {
@@ -57,7 +57,7 @@ impl RenderOnce for ItemListItem {
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        let labels = cx.global::<LabelState>().labels.clone();
+        let labels = cx.global::<TodoStore>().labels.clone();
         let label_map: HashMap<&str, &Arc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
         // 注意：labels 现在存储在 item_labels 关联表中
@@ -163,7 +163,7 @@ impl ItemListDelegate {
 
     #[allow(unused)]
     fn get_label_by_id(&mut self, id: &str, _window: &mut Window, cx: &mut App) -> Option<String> {
-        let labels = cx.global::<LabelState>().labels.clone();
+        let labels = cx.global::<TodoStore>().labels.clone();
         labels.iter().find(|label| label.id == id).cloned().map(|label| label.name.clone())
     }
 
