@@ -1,5 +1,7 @@
 [build]
 rustc-wrapper = "sccache"  # 确保 sccache 被使用
+rustflags = ["-Z", "codegen-backend=cranelift"]
+
 [profile.dev]
 codegen-units = 256        # 最大化并行编译
 incremental = true         # 增量编译
