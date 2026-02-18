@@ -132,7 +132,7 @@ pub fn show_item_dialog<T, F>(
             let item_info = item_info.clone();
             let on_save = on_save.clone();
             move |app_cx: &mut gpui::App| {
-                let item = item_info.read(app_cx).item.clone();
+                let item = item_info.read(app_cx).state_manager.item.clone();
                 on_save(item, app_cx);
             }
         },

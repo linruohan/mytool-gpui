@@ -1,9 +1,15 @@
 [server]
 port = 3000
+
 [database]
-host = "127.0.0.1"
-port = 5432
-user = "postgres"
-password = "postgres"
-database = "postgres"
-schema = "public"
+db_type = "sqlite"
+path = "db.sqlite"
+pool_size = 10
+
+[app]
+language = "zh"
+theme = "light"
+clock_format = "24h"
+
+[logging]
+level = "info"

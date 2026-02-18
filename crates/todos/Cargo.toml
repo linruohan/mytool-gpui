@@ -14,13 +14,13 @@ uuid.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-gconfig.workspace = true # 用于读取配置文件
 strum.workspace = true
 rand.workspace = true
 paste.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 futures.workspace = true
+gconfig.workspace = true
 
 
 [dev-dependencies]

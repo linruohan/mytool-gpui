@@ -53,7 +53,7 @@ impl ItemRowState {
                     state.handle_item_info_event(event, cx);
                 });
                 // 直接从 item_info 中获取最新的 item，确保及时更新
-                let latest_item = this.item_info.read(cx).item.clone();
+                let latest_item = this.item_info.read(cx).state_manager.item.clone();
                 this.item = latest_item;
                 this.update_version += 1; // 增加版本号，强制重新渲染
                 cx.notify();
@@ -77,7 +77,7 @@ impl Render for ItemRowState {
             if self.is_open { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         // 从 item_info 中获取最新的 item，确保显示最新的数据
-        let item = self.item_info.read(cx).item.clone();
+        let item = self.item_info.read(cx).state_manager.item.clone();
         let item_info = self.item_info.clone();
         let is_open = self.is_open;
         let item_id = format!("item-{}", item.id);

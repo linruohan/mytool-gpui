@@ -16,8 +16,8 @@ async fn main() {
 
     app.run(move |cx| {
         mytool::init(cx);
-        cx.set_global(DBState { conn: db });
-        state_init(cx);
+        cx.set_global(DBState { conn: db.clone() });
+        state_init(cx, db);
         init_plugins(cx);
         cx.activate(true);
         mytool::create_new_window(

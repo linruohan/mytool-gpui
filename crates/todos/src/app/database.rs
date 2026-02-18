@@ -1,5 +1,6 @@
 use std::{
     cmp::{max, min},
+    path::Path,
     time::Duration,
 };
 
@@ -8,36 +9,97 @@ use sea_orm::{
 };
 
 pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
-    let config_guard = gconfig::get().read().expect("读取配置失败");
-    let database_config = config_guard.database();
+    use gconfig::get;
+    
+    let config_guard = get().read().expect("读取配置失败");
+    let db_config = config_guard.database();
+    
+    if db_config.is_sqlite() {
+        init_sqlite_db(db_config).await
+    } else {
+        init_network_db(db_config).await
+    }
+}
 
-    let base_url = "sqlite://db.sqlite?mode=rwc".to_owned();
-
+async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseConnection, DbErr> {
+    let db_path = resolve_db_path(db_config.sqlite_path());
+    let base_url = format!("sqlite://{}?mode=rwc", db_path);
+    
     let mut options = ConnectOptions::new(base_url);
+    let pool_size = db_config.pool_size();
     let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
+    
     options
         .min_connections(min(cpus, 5))
-        .max_connections(cpus * 4)
+        .max_connections(max(pool_size, cpus * 4))
         .connect_timeout(Duration::from_secs(10))
         .acquire_timeout(Duration::from_secs(30))
         .idle_timeout(Duration::from_secs(60))
         .max_lifetime(Duration::from_secs(1800))
         .sqlx_logging(false);
 
-    if let Some(schema) = database_config.schema() {
-        options.set_schema_search_path(schema);
-    }
     let db = Database::connect(options).await?;
     db.ping().await?;
-    tracing::info!("Database connection successfully");
+    tracing::info!("SQLite database connection successful: {}", db_path);
     Ok(db)
 }
-#[allow(dead_code)]
-async fn log_database_version(db: &DatabaseConnection) -> anyhow::Result<()> {
-    let version_result = db
-        .query_one(Statement::from_string(DbBackend::Sqlite, String::from("SELECT version()")))
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("failed to get Database version "))?;
-    tracing::info!("Database version: {}", version_result.try_get_by_index::<String>(0)?);
-    Ok(())
+
+async fn init_network_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseConnection, DbErr> {
+    let host = db_config.host().unwrap_or("localhost");
+    let port = db_config.port().unwrap_or(5432);
+    let user = db_config.user().unwrap_or("postgres");
+    let password = db_config.password().unwrap_or("");
+    let database = db_config.database();
+    let schema = db_config.schema().unwrap_or("public");
+    
+    let base_url = format!(
+        "{}://{}:{}@{}:{}/{}?schema={}",
+        db_config.db_type(),
+        user,
+        password,
+        host,
+        port,
+        database,
+        schema
+    );
+    
+    let mut options = ConnectOptions::new(base_url);
+    let pool_size = db_config.pool_size();
+    
+    options
+        .min_connections(1)
+        .max_connections(pool_size)
+        .connect_timeout(Duration::from_secs(10))
+        .acquire_timeout(Duration::from_secs(30))
+        .idle_timeout(Duration::from_secs(600))
+        .max_lifetime(Duration::from_secs(3600))
+        .sqlx_logging(true);
+
+    let db = Database::connect(options).await?;
+    db.ping().await?;
+    tracing::info!("Database connection successful: {}@{}:{}/{}", user, host, port, database);
+    Ok(db)
+}
+
+fn resolve_db_path(path: &str) -> String {
+    let path_obj = Path::new(path);
+    
+    if path_obj.is_absolute() {
+        path.to_string()
+    } else {
+        let mut base_path = std::env::current_dir().expect("获取当前目录失败");
+        
+        while !base_path.join("crates").exists() {
+            if let Some(parent) = base_path.parent() {
+                base_path = parent.to_path_buf();
+            } else {
+                break;
+            }
+        }
+        
+        base_path.join(path)
+            .to_str()
+            .expect("转换路径失败")
+            .to_string()
+    }
 }

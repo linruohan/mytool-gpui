@@ -48,7 +48,7 @@ impl ItemsPanel {
                 // 当 item 更新时，刷新列表显示
                 if matches!(event, ItemInfoEvent::Updated()) {
                     // 从更新后的 item_info 获取最新 item
-                    let updated_item = this.item_info.read(cx).item.clone();
+                    let updated_item = this.item_info.read(cx).state_manager.item.clone();
                     // 更新列表中对应的 item
                     this.item_list.update(cx, |list, cx| {
                         let delegate = list.delegate_mut();

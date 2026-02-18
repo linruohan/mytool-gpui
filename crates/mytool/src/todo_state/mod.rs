@@ -20,17 +20,12 @@ use todos::entity;
 /// 移除了旧的分散状态（InboxItemState、TodayItemState、ScheduledItemState、
 /// PinnedItemState、CompleteItemState、ItemState、ProjectState、LabelState、SectionState），
 /// 简化代码并消除状态不一致风险。
-pub fn state_init(cx: &mut App) {
+pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化统一的 TodoStore（唯一数据源）
     cx.set_global(TodoStore::new());
 
-    // 异步初始化数据库连接并加载数据
+    // 异步加载数据
     cx.spawn(async move |cx| {
-        // 初始化数据库连接
-        println!("[DEBUG] Initializing database connection...");
-        let db = get_todo_conn().await;
-        println!("[DEBUG] Database connection established");
-
         // 加载数据到 TodoStore（唯一数据源）
         println!("[DEBUG] Loading items...");
         let items = crate::state_service::load_items(db.clone()).await;
@@ -68,12 +63,6 @@ pub fn state_init(cx: &mut App) {
             store.set_labels(labels);
         });
         println!("[DEBUG] TodoStore updated");
-
-        // 设置数据库连接到全局状态
-        cx.update(|cx| {
-            cx.set_global::<DBState>(DBState { conn: db });
-        });
-        println!("[DEBUG] DBState set");
     })
     .detach();
 }

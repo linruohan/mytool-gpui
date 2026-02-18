@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
@@ -34,6 +37,128 @@ use crate::{
     todo_state::{DBState, TodoStore},
 };
 
+/// 集中的状态管理结构
+/// 用于统一管理 item 的状态更新，减少手动同步
+pub struct ItemStateManager {
+    /// 任务模型
+    pub item: Arc<ItemModel>,
+    /// 避免重复更新的标志
+    pub skip_next_update: bool,
+    /// 上次更新时间
+    last_update_time: Option<Instant>,
+    /// 更新间隔（毫秒）
+    update_interval: Duration,
+}
+
+/// 节流函数
+/// 用于限制函数调用频率
+pub fn debounce<F>(mut f: F, delay: Duration) -> impl FnMut()
+where
+    F: FnMut(),
+{
+    let mut last_call: Option<Instant> = None;
+    move || {
+        let now = Instant::now();
+        if last_call.map(|t| now.duration_since(t) > delay).unwrap_or(true) {
+            f();
+            last_call = Some(now);
+        }
+    }
+}
+
+impl ItemStateManager {
+    /// 创建新的 ItemStateManager
+    pub fn new(item: Arc<ItemModel>) -> Self {
+        Self {
+            item,
+            skip_next_update: false,
+            last_update_time: None,
+            update_interval: Duration::from_millis(500), // 500ms 更新间隔
+        }
+    }
+
+    /// 统一的状态更新方法
+    /// 使用闭包来修改 item 数据
+    pub fn update_item<F>(&mut self, f: F)
+    where
+        F: Fn(&mut ItemModel),
+    {
+        let mut item_data = (*self.item).clone();
+        f(&mut item_data);
+        self.item = Arc::new(item_data);
+    }
+
+    /// 设置项目 ID
+    pub fn set_project_id(&mut self, project_id: Option<String>) {
+        self.update_item(|item| {
+            item.project_id = project_id.clone();
+        });
+    }
+
+    /// 设置分区 ID
+    pub fn set_section_id(&mut self, section_id: Option<String>) {
+        self.update_item(|item| {
+            item.section_id = section_id.clone();
+        });
+    }
+
+    /// 设置优先级
+    pub fn set_priority(&mut self, priority: i32) {
+        self.update_item(|item| {
+            item.priority = Some(priority);
+        });
+    }
+
+    /// 设置截止日期
+    pub fn set_due_date(&mut self, due_date: Option<todos::DueDate>) {
+        self.update_item(|item| {
+            item.due = due_date.clone().map(|d| serde_json::to_value(d).unwrap_or_default());
+        });
+    }
+
+    /// 设置内容
+    pub fn set_content(&mut self, content: String) {
+        self.update_item(|item| {
+            item.content = content.clone();
+        });
+    }
+
+    /// 设置描述
+    pub fn set_description(&mut self, description: Option<String>) {
+        self.update_item(|item| {
+            item.description = description.clone();
+        });
+    }
+
+    /// 设置完成状态
+    pub fn set_completed(&mut self, completed: bool) {
+        self.update_item(|item| {
+            item.checked = completed;
+            item.completed_at = if completed { Some(chrono::Utc::now().naive_utc()) } else { None };
+        });
+    }
+
+    /// 设置置顶状态
+    pub fn set_pinned(&mut self, pinned: bool) {
+        self.update_item(|item| {
+            item.pinned = pinned;
+        });
+    }
+
+    /// 检查是否可以进行更新
+    /// 基于上次更新时间和更新间隔
+    pub fn can_update(&mut self) -> bool {
+        let now = Instant::now();
+        if let Some(last_time) = self.last_update_time {
+            if now.duration_since(last_time) < self.update_interval {
+                return false;
+            }
+        }
+        self.last_update_time = Some(now);
+        true
+    }
+}
+
 #[derive(Action, Clone, PartialEq, Deserialize)]
 #[action(namespace = item_info, no_json)]
 struct Info(i32);
@@ -48,11 +173,10 @@ pub enum ItemInfoEvent {
 }
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
-    pub item: Arc<ItemModel>,
+    /// 集中的状态管理器
+    pub state_manager: ItemStateManager,
     _subscriptions: Vec<Subscription>,
     // item view
-    #[allow(dead_code)]
-    checked: bool,
     name_input: Entity<InputState>,
     desc_input: Entity<InputState>,
     priority_state: Entity<PriorityState>,
@@ -62,8 +186,6 @@ pub struct ItemInfoState {
     label_popover_list: Entity<LabelsPopoverList>,
     attachment_state: Entity<AttachmentButtonState>,
     reminder_state: Entity<ReminderButtonState>,
-    // 避免重复更新数据库的标志
-    skip_next_update: bool,
 }
 
 impl Focusable for ItemInfoState {
@@ -109,11 +231,10 @@ impl ItemInfoState {
         ];
         let mut this = Self {
             focus_handle: cx.focus_handle(),
-            item: item.clone(),
+            state_manager: ItemStateManager::new(item.clone()),
             _subscriptions,
             name_input,
             desc_input,
-            checked: false,
             priority_state,
             project_state,
             section_state,
@@ -121,7 +242,6 @@ impl ItemInfoState {
             label_popover_list,
             attachment_state,
             reminder_state,
-            skip_next_update: false,
         };
         this.set_item(item, window, cx);
         this
@@ -137,13 +257,11 @@ impl ItemInfoState {
         match event {
             InputEvent::Change => {
                 let text = state.read(cx).value().to_string();
-                let mut item_data = (*self.item).clone();
                 if state == &self.name_input {
-                    item_data.content = text;
+                    self.state_manager.set_content(text);
                 } else {
-                    item_data.description = Some(text);
+                    self.state_manager.set_description(Some(text));
                 }
-                self.item = Arc::new(item_data);
                 // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
@@ -166,12 +284,11 @@ impl ItemInfoState {
         let desc = self.desc_input.read(cx).value().to_string();
         let new_desc = if desc.is_empty() { None } else { Some(desc) };
 
-        let mut item_data = (*self.item).clone();
-        let changed = item_data.content != name || item_data.description != new_desc;
+        let current_item = &self.state_manager.item;
+        let changed = current_item.content != name || current_item.description != new_desc;
         if changed {
-            item_data.content = name;
-            item_data.description = new_desc;
-            self.item = Arc::new(item_data);
+            self.state_manager.set_content(name);
+            self.state_manager.set_description(new_desc);
         }
         changed
     }
@@ -207,7 +324,7 @@ impl ItemInfoState {
                 // Labels 现在存储在 item_labels 关联表中
                 // 这里只更新 UI 状态，实际的数据库更新在保存时处理
                 // 或者可以通过异步操作立即更新关联表
-                let item_id = self.item.id.clone();
+                let item_id = self.state_manager.item.id.clone();
                 let db = cx.global::<DBState>().conn.clone();
                 let label_ids_clone = label_ids.clone(); // 克隆以避免生命周期问题
 
@@ -256,17 +373,15 @@ impl ItemInfoState {
     ) {
         match event {
             ProjectButtonEvent::Selected(project_id) => {
-                let item = self.item.clone();
+                let item = self.state_manager.item.clone();
                 let old_project_id = item.project_id.clone();
                 let new_project_id =
                     if project_id.is_empty() { None } else { Some(project_id.clone()) };
 
                 // 只有当project_id实际变化时才更新sections
                 if old_project_id != new_project_id {
-                    // 创建一个新的 ItemModel 实例并修改它
-                    let mut item_model = (*item).clone();
-                    item_model.project_id = new_project_id.clone();
-                    self.item = Arc::new(item_model);
+                    // 使用 state_manager 更新 project_id
+                    self.state_manager.set_project_id(new_project_id.clone());
 
                     // 根据project_id更新section_state的sections
                     self.section_state.update(cx, |section_state, cx| {
@@ -293,9 +408,7 @@ impl ItemInfoState {
                     });
 
                     // 当project变更时，重置section_id
-                    let mut item_model = (*self.item).clone();
-                    item_model.section_id = None;
-                    self.item = Arc::new(item_model);
+                    self.state_manager.set_section_id(None);
                     self.section_state.update(cx, |section_state, cx| {
                         section_state.set_section(None, window, cx);
                     });
@@ -315,18 +428,17 @@ impl ItemInfoState {
     ) {
         match event {
             SectionEvent::Selected(section_id) => {
-                let mut item_data = (*self.item).clone();
+                let current_item = &self.state_manager.item;
                 let new_section_id =
                     if section_id.is_empty() { None } else { Some(section_id.clone()) };
 
                 // 只有当section_id实际变化时才更新
-                if item_data.section_id != new_section_id {
-                    item_data.section_id = new_section_id;
-                    self.item = Arc::new(item_data);
+                if current_item.section_id != new_section_id {
+                    self.state_manager.set_section_id(new_section_id);
                     // 立即保存更改，这样相关的board会立即更新
-                    update_item(self.item.clone(), cx);
+                    update_item(self.state_manager.item.clone(), cx);
                     // 设置标志以避免在 handle_item_info_event 中重复更新
-                    self.skip_next_update = true;
+                    self.state_manager.skip_next_update = true;
                     // 立即通知UI更新
                     cx.notify();
                 }
@@ -346,51 +458,41 @@ impl ItemInfoState {
         match event {
             ScheduleButtonEvent::DateSelected(_date_str) => {
                 let schedule_state = _state.read(cx);
-                let mut item_data = (*self.item).clone();
-                if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-                    item_data.due = Some(json_value);
-                }
-                self.item = Arc::new(item_data);
+                // 使用 state_manager 更新 due date
+                self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
                 // 立即保存更改，这样相关的board（如TodayBoard）会立即更新
-                update_item(self.item.clone(), cx);
+                update_item(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.skip_next_update = true;
+                self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::TimeSelected(_time_str) => {
                 let schedule_state = _state.read(cx);
-                let mut item_data = (*self.item).clone();
-                if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-                    item_data.due = Some(json_value);
-                }
-                self.item = Arc::new(item_data);
+                // 使用 state_manager 更新 due date
+                self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
                 // 立即保存更改
-                update_item(self.item.clone(), cx);
+                update_item(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.skip_next_update = true;
+                self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::RecurrencySelected(_recurrency_type) => {
                 let schedule_state = _state.read(cx);
-                let mut item_data = (*self.item).clone();
-                if let Ok(json_value) = serde_json::to_value(&schedule_state.due_date) {
-                    item_data.due = Some(json_value);
-                }
-                self.item = Arc::new(item_data);
+                // 使用 state_manager 更新 due date
+                self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
                 // 立即保存更改
-                update_item(self.item.clone(), cx);
+                update_item(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.skip_next_update = true;
+                self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::Cleared => {
-                let mut item_data = (*self.item).clone();
-                item_data.due = None;
-                self.item = Arc::new(item_data);
+                // 使用 state_manager 清除 due date
+                self.state_manager.set_due_date(None);
                 // 立即保存更改
-                update_item(self.item.clone(), cx);
+                update_item(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.skip_next_update = true;
+                self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
             },
         }
@@ -431,24 +533,24 @@ impl ItemInfoState {
     pub fn handle_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
         match event {
             ItemInfoEvent::Finished() => {
-                completed_item(self.item.clone(), cx);
+                completed_item(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::Added() => {
-                add_item(self.item.clone(), cx);
+                add_item(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::Updated() => {
                 // 检查是否需要跳过此次更新（避免重复调用）
-                if !self.skip_next_update {
-                    update_item(self.item.clone(), cx);
+                if !self.state_manager.skip_next_update && self.state_manager.can_update() {
+                    update_item(self.state_manager.item.clone(), cx);
                 }
                 // 重置标志
-                self.skip_next_update = false;
+                self.state_manager.skip_next_update = false;
             },
             ItemInfoEvent::Deleted() => {
-                delete_item(self.item.clone(), cx);
+                delete_item(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::UnFinished() => {
-                uncompleted_item(self.item.clone(), cx);
+                uncompleted_item(self.state_manager.item.clone(), cx);
             },
         }
         cx.notify();
@@ -457,7 +559,7 @@ impl ItemInfoState {
     pub fn add_checked_labels(&mut self, label: Arc<LabelModel>, cx: &mut Context<Self>) {
         // Labels 现在存储在 item_labels 关联表中
         // 异步添加 Label 到 Item
-        let item_id = self.item.id.clone();
+        let item_id = self.state_manager.item.id.clone();
         let label_name = label.name.clone();
         let db = cx.global::<DBState>().conn.clone();
 
@@ -473,7 +575,7 @@ impl ItemInfoState {
     pub fn rm_checked_labels(&mut self, label: Arc<LabelModel>, cx: &mut Context<Self>) {
         // Labels 现在存储在 item_labels 关联表中
         // 异步从 Item 移除 Label
-        let item_id = self.item.id.clone();
+        let item_id = self.state_manager.item.id.clone();
         let label_id = label.id.clone();
         let db = cx.global::<DBState>().conn.clone();
 
@@ -496,20 +598,17 @@ impl ItemInfoState {
     }
 
     pub fn priority(&self) -> Option<ItemPriority> {
-        Some(ItemPriority::from_i32(self.item.priority.unwrap_or_default()))
+        Some(ItemPriority::from_i32(self.state_manager.item.priority.unwrap_or_default()))
     }
 
     pub fn set_priority(&mut self, priority: i32) {
-        let mut item_data = (*self.item).clone();
-        item_data.priority = Some(priority);
-        self.item = Arc::new(item_data);
+        self.state_manager.set_priority(priority);
     }
 
     fn toggle_finished(&mut self, _: &bool, _: &mut Window, cx: &mut Context<Self>) {
-        let mut item_data = (*self.item).clone();
-        item_data.checked = !item_data.checked;
-        self.item = Arc::new(item_data);
-        if self.item.checked {
+        let new_checked = !self.state_manager.item.checked;
+        self.state_manager.set_completed(new_checked);
+        if new_checked {
             cx.emit(ItemInfoEvent::Finished());
         } else {
             cx.emit(ItemInfoEvent::UnFinished());
@@ -519,7 +618,9 @@ impl ItemInfoState {
 
     // set item of item_info
     pub fn set_item(&mut self, item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
-        self.item = item.clone();
+        // 更新 state_manager
+        self.state_manager = ItemStateManager::new(item.clone());
+
         self.name_input.update(cx, |this, cx| {
             this.set_value(item.content.clone(), window, cx);
         });
@@ -560,10 +661,8 @@ impl ItemInfoState {
                     if let Some(section_id) = &item.section_id
                         && !filtered_sections.iter().any(|s| &s.id == section_id)
                     {
-                        // 创建一个新的 ItemModel 实例并修改它
-                        let mut item_model = (*self.item).clone();
-                        item_model.section_id = None;
-                        self.item = Arc::new(item_model);
+                        // 使用 state_manager 更新 section_id
+                        self.state_manager.set_section_id(None);
                     }
 
                     section_state.set_sections(Some(filtered_sections), window, cx);
@@ -655,7 +754,7 @@ impl Render for ItemInfoState {
         let view = cx.entity();
         let todo_store = cx.global::<TodoStore>();
         let labels = todo_store.labels.clone();
-        let pinned_color = if self.item.pinned { gpui::red() } else { gray_200() };
+        let pinned_color = if self.state_manager.item.pinned { gpui::red() } else { gray_200() };
         v_flex()
             .border_2()
             .border_color(blue())
@@ -665,7 +764,7 @@ impl Render for ItemInfoState {
                     .gap_2()
                     .child(
                         Checkbox::new("item-checked")
-                            .checked(self.item.checked)
+                            .checked(self.state_manager.item.checked)
                             .on_click(cx.listener(Self::toggle_finished)),
                     )
                     .child(Input::new(&self.name_input).focus_bordered(false))
@@ -678,7 +777,7 @@ impl Render for ItemInfoState {
                             .text_color(pinned_color)
                             .tooltip("Pin item")
                             .on_click({
-                                let item = self.item.clone();
+                                let item = self.state_manager.item.clone();
                                 move |_event, _window, cx| {
                                     set_item_pinned(item.clone(), !item.pinned, cx);
                                 }
