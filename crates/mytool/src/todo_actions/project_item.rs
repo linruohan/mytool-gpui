@@ -4,7 +4,7 @@ use gpui::{App, AsyncApp, BorrowAppContext};
 use sea_orm::DatabaseConnection;
 use todos::entity::{ItemModel, ProjectModel};
 
-use crate::todo_state::{DBState, ProjectState};
+use crate::todo_state::{DBState, TodoStore};
 
 pub fn load_project_items(project: Arc<ProjectModel>, cx: &mut App) {
     println!(
@@ -19,9 +19,9 @@ pub fn load_project_items(project: Arc<ProjectModel>, cx: &mut App) {
     }
 
     // 记录当前激活的 project,供异步刷新时做竞态保护
-    cx.update_global::<ProjectState, _>(|state, _| {
-        state.active_project = Some(project.clone());
-        println!("[DEBUG] 已更新 ProjectState.active_project: {}", project.name);
+    cx.update_global::<TodoStore, _>(|state, _| {
+        state.set_active_project(Some(project.clone()));
+        println!("[DEBUG] 已更新 TodoStore.active_project: {}", project.name);
     });
 
     let db = cx.global::<DBState>().conn.clone();
@@ -49,12 +49,18 @@ async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: Database
     println!("[DEBUG] 成功加载项目 items: {} 个", arc_items.len());
 
     // 只在当前激活项目仍然是该 project_id 时更新,避免快速切换导致旧请求覆盖新项目的 items
-    cx.update_global::<ProjectState, _>(|state, _| {
+    cx.update_global::<TodoStore, _>(|state, _| {
         if let Some(active) = &state.active_project
             && active.id == project_id
         {
-            state.items = arc_items.clone();
-            println!("[DEBUG] 已更新 ProjectState.items, 数量: {}", arc_items.len());
+            // 使用增量更新：先移除旧 items，再添加新 items
+            // 注意：这里使用批量更新方式，因为 TodoStore 的 items 是全局的
+            // 我们需要先移除属于该项目的所有 items，再添加新的 items
+            state.all_items.retain(|item| item.project_id.as_deref() != Some(project_id));
+            for item in arc_items.iter() {
+                state.add_item(item.clone());
+            }
+            println!("[DEBUG] 已更新 TodoStore.items, 数量: {}", arc_items.len());
         } else {
             println!("[DEBUG] 激活项目已变更,跳过更新");
         }
