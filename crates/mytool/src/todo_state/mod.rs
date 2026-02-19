@@ -1,24 +1,14 @@
 mod database;
-mod item;
-mod label;
-mod project;
-mod section;
 mod todo_store;
 
 pub use database::*;
 use gpui::App;
-pub use item::*;
-pub use label::*;
-pub use project::*;
-pub use section::*;
 pub use todo_store::*;
 use todos::entity;
 
 /// 初始化所有状态
 ///
 /// 新架构使用 TodoStore 作为唯一数据源，
-/// 移除了旧的分散状态（InboxItemState、TodayItemState、ScheduledItemState、
-/// PinnedItemState、CompleteItemState、ItemState、ProjectState、LabelState、SectionState），
 /// 简化代码并消除状态不一致风险。
 pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化统一的 TodoStore（唯一数据源）

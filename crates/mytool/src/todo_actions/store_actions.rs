@@ -13,11 +13,11 @@ use gpui::AsyncApp;
 use sea_orm::DatabaseConnection;
 use todos::entity::{ItemModel, ProjectModel, SectionModel};
 
-use crate::todo_state::{ItemState, TodoStore};
+use crate::todo_state::TodoStore;
 
-/// 刷新 TodoStore 与 ItemState（全量刷新）
+/// 刷新 TodoStore（全量刷新）
 ///
-/// 一次性加载所有数据并更新 TodoStore 与 ItemState。
+/// 一次性加载所有数据并更新 TodoStore。
 /// 注意：这个函数会触发全量查询，性能较低。建议优先使用增量更新函数。
 ///
 /// 适用场景：
@@ -30,18 +30,11 @@ pub async fn refresh_store(cx: &mut AsyncApp, db: DatabaseConnection) {
     let projects = crate::state_service::load_projects(db.clone()).await;
     let sections = crate::state_service::load_sections(db.clone()).await;
 
-    let arc_items: Vec<Arc<ItemModel>> = items.iter().map(|i| Arc::new(i.clone())).collect();
-
-    // 更新 TodoStore（唯一数据源，供 Board 等视图）
+    // 更新 TodoStore（唯一数据源）
     let _ = cx.update_global::<TodoStore, _>(|store, _| {
         store.set_items(items);
         store.set_projects(projects);
         store.set_sections(sections);
-    });
-
-    // 同步更新 ItemState（供仍使用 ItemState 的组件，如 item_row、list_story）
-    let _ = cx.update_global::<ItemState, _>(|state, _| {
-        state.items = arc_items;
     });
 }
 
