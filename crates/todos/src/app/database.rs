@@ -10,10 +10,10 @@ use sea_orm::{
 
 pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     use gconfig::get;
-    
+
     let config_guard = get().read().expect("读取配置失败");
     let db_config = config_guard.database();
-    
+
     if db_config.is_sqlite() {
         init_sqlite_db(db_config).await
     } else {
@@ -24,11 +24,11 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
 async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseConnection, DbErr> {
     let db_path = resolve_db_path(db_config.sqlite_path());
     let base_url = format!("sqlite://{}?mode=rwc", db_path);
-    
+
     let mut options = ConnectOptions::new(base_url);
     let pool_size = db_config.pool_size();
     let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
-    
+
     options
         .min_connections(min(cpus, 5))
         .max_connections(max(pool_size, cpus * 4))
@@ -51,7 +51,7 @@ async fn init_network_db(db_config: &gconfig::DatabaseConfig) -> Result<Database
     let password = db_config.password().unwrap_or("");
     let database = db_config.database();
     let schema = db_config.schema().unwrap_or("public");
-    
+
     let base_url = format!(
         "{}://{}:{}@{}:{}/{}?schema={}",
         db_config.db_type(),
@@ -62,10 +62,10 @@ async fn init_network_db(db_config: &gconfig::DatabaseConfig) -> Result<Database
         database,
         schema
     );
-    
+
     let mut options = ConnectOptions::new(base_url);
     let pool_size = db_config.pool_size();
-    
+
     options
         .min_connections(1)
         .max_connections(pool_size)
@@ -83,12 +83,12 @@ async fn init_network_db(db_config: &gconfig::DatabaseConfig) -> Result<Database
 
 fn resolve_db_path(path: &str) -> String {
     let path_obj = Path::new(path);
-    
+
     if path_obj.is_absolute() {
         path.to_string()
     } else {
         let mut base_path = std::env::current_dir().expect("获取当前目录失败");
-        
+
         while !base_path.join("crates").exists() {
             if let Some(parent) = base_path.parent() {
                 base_path = parent.to_path_buf();
@@ -96,10 +96,7 @@ fn resolve_db_path(path: &str) -> String {
                 break;
             }
         }
-        
-        base_path.join(path)
-            .to_str()
-            .expect("转换路径失败")
-            .to_string()
+
+        base_path.join(path).to_str().expect("转换路径失败").to_string()
     }
 }

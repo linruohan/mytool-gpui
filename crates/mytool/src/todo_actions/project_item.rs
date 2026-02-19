@@ -7,15 +7,17 @@ use todos::entity::{ItemModel, ProjectModel};
 use crate::todo_state::{DBState, ProjectState};
 
 pub fn load_project_items(project: Arc<ProjectModel>, cx: &mut App) {
-    println!("[DEBUG] load_project_items 开始, project_id: {}, project_name: {}", 
-             project.id, project.name);
-    
+    println!(
+        "[DEBUG] load_project_items 开始, project_id: {}, project_name: {}",
+        project.id, project.name
+    );
+
     // 检查 project_id 是否有效
     if project.id.is_empty() {
         println!("[ERROR] load_project_items: project_id 为空,跳过加载");
         return;
     }
-    
+
     // 记录当前激活的 project,供异步刷新时做竞态保护
     cx.update_global::<ProjectState, _>(|state, _| {
         state.active_project = Some(project.clone());
@@ -34,18 +36,18 @@ pub fn load_project_items(project: Arc<ProjectModel>, cx: &mut App) {
 // 刷新items
 async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, db: DatabaseConnection) {
     println!("[DEBUG] 开始刷新项目 items, project_id: {}", project_id);
-    
+
     // 检查 project_id 是否有效
     if project_id.is_empty() {
         println!("[ERROR] project_id 为空,跳过刷新");
         return;
     }
-    
+
     // 获取项目 items
     let items = crate::state_service::get_items_by_project_id(project_id, db).await;
     let arc_items: Vec<Arc<ItemModel>> = items.iter().map(|item| Arc::new(item.clone())).collect();
     println!("[DEBUG] 成功加载项目 items: {} 个", arc_items.len());
-    
+
     // 只在当前激活项目仍然是该 project_id 时更新,避免快速切换导致旧请求覆盖新项目的 items
     cx.update_global::<ProjectState, _>(|state, _| {
         if let Some(active) = &state.active_project

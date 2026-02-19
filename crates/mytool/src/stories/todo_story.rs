@@ -174,7 +174,6 @@ impl Render for TodoStory {
                                             cx.listener(move |this, _: &ClickEvent, _, cx| {
                                                 println!("[DEBUG] 点击项目: {}, project_id: {}", 
                                                          story.name, story.id);
-                                                
                                                 this.active_project = Some(story.clone());
                                                 this.project_panel.update(cx, |panel, cx| {
                                                     panel.update_active_index(Some(ix));
@@ -189,7 +188,6 @@ impl Render for TodoStory {
                                                     cx.notify();
                                                 });
                                                 cx.notify();
-                                                
                                                 println!("[DEBUG] 项目点击处理完成");
                                             })
                                         })
