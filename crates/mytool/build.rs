@@ -55,7 +55,7 @@ mod windows {
         println!("cargo:rerun-if-changed={}", manifest.display());
         println!("cargo:rerun-if-changed={}", icon.display());
 
-        // 编译 .rc 文件（包含图标、manifest 和版本信息）
+        // 编译 .rc 文件（包含图标和 manifest）
         // 使用 NONE 标志，不启用自动 manifest 处理
         embed_resource::compile(rc_file, embed_resource::NONE);
     }
