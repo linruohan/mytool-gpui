@@ -8,3 +8,18 @@ tokio = { version = "1.49.0", features = ["full"] }
 futures = "0.3.31"
 rayon = "1.11.0"
 smol = "2.0.2"
+
+[dependencies.todos]
+path = "../crates/todos"
+
+[dependencies.sea-orm]
+version = "1.1.19"
+features = [
+    "with-chrono",
+    "with-json",
+    "with-uuid",
+    "debug-print",
+    "sqlx-sqlite",
+    "runtime-tokio",
+]
+

@@ -2,7 +2,7 @@
 publish = false
 edition = "2024"
 [workspace]
-members = ["crates/mytool", "crates/todos", "crates/gconfig"]
+members = ["crates/mytool", "crates/todos", "crates/gconfig", "test"]
 
 default-members = ["crates/mytool"]
 resolver = "2"
