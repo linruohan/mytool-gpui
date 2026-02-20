@@ -15,43 +15,42 @@ use gpui_component::{
 };
 use serde::Deserialize;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
-mod app_menus;
-mod component_manager; // 组件管理
-mod components; // 我的组件库
-mod error_handler; // 统一错误处理
-mod gallery;
+// 核心模块
+mod core;
+
+// UI 模块
+mod ui;
+
+// 其他模块
 mod plugins; // 插件系统
-mod shortcuts; // 键盘快捷键系统
-mod state_service;
-mod stories;
-mod story_container;
-mod story_root;
-mod story_section;
-mod story_state;
-mod themes;
-mod title_bar;
-mod todo_actions; // 数据库操作管理
-pub mod todo_state; // 状态管理
 mod utils;
-mod views; // 任务管理视图
-mod visual_enhancements; // 视觉增强
-mod widgets; // 部件库
 
-pub use component_manager::ComponentManager;
-pub use components::*;
-pub use error_handler::*; // 导出错误处理
-pub use gallery::Gallery;
+// 重新导出核心模块
+pub use core::{
+    actions as todo_actions, error_handler::*, services as state_service, shortcuts::*,
+    state as todo_state,
+};
+
+// 重新导出插件
 pub use plugins::*;
-pub use shortcuts::*; // 导出快捷键
-pub use stories::*;
-pub use story_section::StorySection;
-pub use title_bar::AppTitleBar;
+// 重新导出 UI 模块
+pub use ui::app_menus;
+// 内部使用
+use ui::layout::{
+    story_container::StoryContainer, story_root::StoryRoot, story_section::StorySection,
+    story_state::StoryState, title_bar::AppTitleBar,
+};
+pub use ui::{
+    component_manager::ComponentManager,
+    components::*,
+    gallery::Gallery,
+    stories::*,
+    theme::{themes, visual_enhancements::*},
+    views::*,
+    widgets::*,
+};
+// 重新导出工具
 pub use utils::play_ogg_file;
-pub use views::*;
-pub use visual_enhancements::*; // 导出视觉增强
-pub use widgets::*;
-
-use crate::{story_container::StoryContainer, story_root::StoryRoot, story_state::StoryState};
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]
@@ -187,7 +186,7 @@ pub fn init(cx: &mut App) {
     gpui_component::init(cx);
     AppState::init(cx);
     themes::init(cx);
-    stories::init(cx);
+    ui::stories::init(cx);
 
     cx.bind_keys([
         KeyBinding::new("/", ToggleSearch, None),
