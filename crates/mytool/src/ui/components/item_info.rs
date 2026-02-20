@@ -437,6 +437,11 @@ impl ItemInfoState {
                     self.section_state.update(cx, |section_state, cx| {
                         section_state.set_section(None, window, cx);
                     });
+
+                    // 🚀 使用乐观更新（立即更新 UI）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                    // 设置标志以避免在 handle_item_info_event 中重复更新
+                    self.state_manager.skip_next_update = true;
                 }
             },
         }

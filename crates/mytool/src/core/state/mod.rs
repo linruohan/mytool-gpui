@@ -66,6 +66,11 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let items = crate::state_service::load_items(db.clone()).await;
         println!("[DEBUG] Loaded {} items", items.len());
 
+        // 打印每个项目的pinned状态
+        for item in &items {
+            println!("[DEBUG] Item {}: content={}, pinned={}", item.id, item.content, item.pinned);
+        }
+
         // 检查 inbox 条件的任务
         let inbox_items: Vec<&entity::ItemModel> = items
             .iter()
@@ -74,7 +79,7 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         println!("[DEBUG] Found {} inbox items (no project ID)", inbox_items.len());
 
         for (i, item) in inbox_items.iter().enumerate() {
-            println!("[DEBUG] Inbox item {}: {}", i + 1, item.content);
+            println!("[DEBUG] Inbox item {}: {}, pinned={}", i + 1, item.content, item.pinned);
         }
 
         println!("[DEBUG] Loading projects...");

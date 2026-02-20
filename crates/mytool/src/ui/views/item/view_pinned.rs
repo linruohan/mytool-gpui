@@ -80,10 +80,10 @@ impl ItemsPinnedPanel {
     pub fn handle_pin_event(&mut self, event: &ItemsPinnedEvent, cx: &mut Context<Self>) {
         match event {
             ItemsPinnedEvent::Pinned(item) => {
-                set_item_pinned(item.clone(), true, cx);
+                set_item_pinned_optimistic(item.clone(), true, cx);
             },
             ItemsPinnedEvent::UnPinned(item) => {
-                set_item_pinned(item.clone(), false, cx);
+                set_item_pinned_optimistic(item.clone(), false, cx);
             },
         }
     }
