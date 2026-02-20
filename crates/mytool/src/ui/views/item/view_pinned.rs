@@ -11,7 +11,7 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemListDelegate, todo_actions::set_item_pinned, todo_state::TodoStore};
+use crate::{ItemListDelegate, todo_actions::set_item_pinned_optimistic, todo_state::TodoStore};
 
 pub enum ItemsPinnedEvent {
     Pinned(Arc<ItemModel>),

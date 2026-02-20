@@ -117,6 +117,8 @@ impl ItemService {
             .exec(&*self.db)
             .await?;
 
+        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
+
         Ok(())
     }
 
@@ -299,6 +301,14 @@ impl ItemService {
         let items =
             ItemEntity::find().filter(items::Column::Checked.eq(false)).all(&*self.db).await?;
         self.metrics.record_operation("get_incomplete_items", items.len());
+        Ok(items)
+    }
+
+    /// Get all items (including completed and incomplete)
+    pub async fn get_all_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        let _timer = self.metrics.start_timer("get_all_items");
+        let items = ItemEntity::find().all(&*self.db).await?;
+        self.metrics.record_operation("get_all_items", items.len());
         Ok(items)
     }
 

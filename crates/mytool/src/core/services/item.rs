@@ -3,10 +3,10 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 use todos::{Store, entity::ItemModel, error::TodoError};
 
-/// 获取所有未完成的任务项
+/// 获取所有任务项（包括已完成和未完成的）
 /// 注意：这是获取所有任务的主要入口，其他视图通过过滤此数据获得子集
 pub async fn load_items(db: DatabaseConnection) -> Vec<ItemModel> {
-    Store::new(db).get_incomplete_items().await.unwrap_or_default()
+    Store::new(db).get_all_items().await.unwrap_or_default()
 }
 pub async fn add_item(
     item: Arc<ItemModel>,

@@ -47,8 +47,8 @@ impl PinBoard {
         let mut base = BoardBase::new(window, cx);
 
         // 使用 TodoStore 作为数据源（新架构）
-        base._subscriptions = vec![
-            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+        base._subscriptions =
+            vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let store = cx.global::<TodoStore>();
 
                 // 性能优化：检查版本号，只在数据变化时更新
@@ -60,13 +60,24 @@ impl PinBoard {
                 // 从 TodoStore 获取置顶任务（内存过滤，无需数据库查询）
                 let state_items = store.pinned_items();
 
+                // 更新 item_rows
                 this.base.item_rows = state_items
                     .iter()
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
-                this.base.update_items(&state_items);
+                // 清空并重新计算 pinned_items
+                this.base.pinned_items.clear();
+                this.base.no_section_items.clear();
+                this.base.section_items_map.clear();
 
+                // 重新组织任务
+                for (i, item) in state_items.iter().enumerate() {
+                    // 所有任务都是置顶的，直接添加到 pinned_items
+                    this.base.pinned_items.push((i, item.clone()));
+                }
+
+                // 更新活动索引
                 if let Some(ix) = this.base.active_index {
                     if ix >= this.base.item_rows.len() {
                         this.base.active_index =
@@ -75,12 +86,10 @@ impl PinBoard {
                 } else if !this.base.item_rows.is_empty() {
                     this.base.active_index = Some(0);
                 }
+
+                // 触发视图更新
                 cx.notify();
-            }),
-            cx.observe_global_in::<TodoStore>(window, move |_, _, cx| {
-                cx.notify();
-            }),
-        ];
+            })];
 
         Self { base, cached_version: 0 }
     }

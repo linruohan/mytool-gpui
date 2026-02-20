@@ -240,6 +240,10 @@ impl Store {
         self.item_service.get_incomplete_items().await
     }
 
+    pub async fn get_all_items(&self) -> Result<Vec<ItemModel>, TodoError> {
+        self.item_service.get_all_items().await
+    }
+
     pub async fn get_scheduled_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         self.item_service.get_scheduled_items().await
     }

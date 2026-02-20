@@ -6,9 +6,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, Focusable, Hsla,
-    InteractiveElement, MouseButton, ParentElement, Render, Styled, Window, div,
-    prelude::FluentBuilder,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    MouseButton, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
@@ -73,20 +72,10 @@ impl InboxBoard {
                     return; // 版本号未变化，跳过更新
                 }
 
-                // 🚀 性能优化 2: 检查脏标记，只在视图受影响时更新
-                let is_dirty = {
-                    let flags = cx.global::<crate::core::state::DirtyFlags>();
-                    flags.is_dirty(crate::core::state::ViewType::Inbox)
-                };
-
-                if !is_dirty {
-                    return; // 视图未受影响，跳过更新
-                }
-
                 // 更新缓存的版本号
                 this.cached_version = store.version();
 
-                // 🚀 使用缓存查询（性能优化 3）
+                // 🚀 使用缓存查询（性能优化 2）
                 let cache = cx.global::<crate::core::state::QueryCache>();
                 let state_items = store.inbox_items_cached(cache);
 
@@ -134,11 +123,6 @@ impl InboxBoard {
                 } else if !this.base.item_rows.is_empty() {
                     this.base.active_index = Some(0);
                 }
-
-                // 🚀 清除脏标记
-                cx.update_global::<crate::core::state::DirtyFlags, _>(|flags, _| {
-                    flags.clear(crate::core::state::ViewType::Inbox);
-                });
 
                 cx.notify();
             }),

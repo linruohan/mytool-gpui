@@ -294,6 +294,92 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
+/// 乐观设置置顶状态
+///
+/// 1. 立即更新 UI
+/// 2. 异步保存到数据库
+/// 3. 如果失败，恢复旧值
+pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
+    let item_id = item.id.clone();
+    let old_pinned = item.pinned;
+
+    info!(
+        "Optimistically {} item: {}",
+        if pinned { "pinning" } else { "unpinning" },
+        item_id
+    );
+
+    // 1. 立即更新 UI
+    let mut updated_item = (*item).clone();
+    updated_item.pinned = pinned;
+
+    cx.update_global::<TodoStore, _>(|store, _| {
+        store.update_item(Arc::new(updated_item.clone()));
+    });
+
+    // 清空缓存
+    cx.update_global::<QueryCache, _>(|cache, _| {
+        cache.invalidate_all();
+    });
+
+    // 🚀 标记受影响的视图为脏
+    cx.update_global::<crate::core::state::DirtyFlags, _>(|flags, _| {
+        use crate::core::state::{ChangeType, ViewType};
+
+        let change = ChangeType::ItemUpdated(Arc::new(updated_item.clone()));
+
+        // 标记所有受影响的视图
+        if change.affects_view(ViewType::Pinned) {
+            flags.mark_dirty(ViewType::Pinned);
+        }
+    });
+
+    // 发布事件
+    cx.update_global::<TodoEventBus, _>(|bus, _| {
+        bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
+    });
+
+    // 2. 异步保存到数据库
+    let db = get_db_connection(cx);
+
+    cx.spawn(async move |cx| {
+        match state_service::pin_item(item.clone(), pinned, (*db).clone()).await {
+            Ok(_) => {
+                info!("Successfully saved pinned status: {}", item_id);
+            },
+            Err(e) => {
+                error!("Failed to save pinned status, rolling back");
+
+                // 3. 失败时回滚
+                let mut rollback_item = (*item).clone();
+                rollback_item.pinned = old_pinned;
+
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.update_item(Arc::new(rollback_item));
+                });
+
+                // 清空缓存
+                cx.update_global::<QueryCache, _>(|cache, _| {
+                    cache.invalidate_all();
+                });
+
+                // 发布事件
+                cx.update_global::<TodoEventBus, _>(|bus, _| {
+                    bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
+                });
+
+                let context = ErrorHandler::handle_with_resource(
+                    AppError::Database(e),
+                    "set_item_pinned_optimistic",
+                    &item_id,
+                );
+                error!("{}", context.format_user_message());
+            },
+        }
+    })
+    .detach();
+}
+
 /// 乐观完成任务
 pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut App) {
     let item_id = item.id.clone();

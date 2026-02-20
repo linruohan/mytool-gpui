@@ -41,8 +41,7 @@ use crate::{
         add_item_optimistic,
         complete_item_optimistic,
         delete_item_optimistic,
-        // 保留 set_item_pinned（暂未实现乐观版本）
-        set_item_pinned,
+        set_item_pinned_optimistic,
         update_item_optimistic,
     },
     ui::theme::visual_enhancements::SemanticColors,
@@ -239,6 +238,17 @@ impl ItemInfoState {
             cx.subscribe_in(&section_state, window, Self::on_section_event),
             cx.subscribe_in(&schedule_button_state, window, Self::on_schedule_event),
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
+            // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
+            cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
+                let store = cx.global::<TodoStore>();
+                // 查找当前 item 是否在 store 中
+                if let Some(updated_item) = store.get_item(&this.state_manager.item.id) {
+                    // 如果找到，更新状态
+                    this.state_manager.item = updated_item;
+                    // 触发重新渲染
+                    cx.notify();
+                }
+            }),
         ];
         let mut this = Self {
             focus_handle: cx.focus_handle(),
@@ -367,6 +377,10 @@ impl ItemInfoState {
         match event {
             PriorityEvent::Selected(priority) => {
                 self.set_priority(priority.clone() as i32);
+                // 🚀 使用乐观更新（立即更新 UI）
+                update_item_optimistic(self.state_manager.item.clone(), cx);
+                // 设置标志以避免在 handle_item_info_event 中重复更新
+                self.state_manager.skip_next_update = true;
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -605,7 +619,7 @@ impl ItemInfoState {
             let store = todos::Store::new((*db).clone());
             match store.remove_label_from_item(&item_id, &label_id).await {
                 Ok(_) => {
-                    NotificationSystem::debug("Label removed from item".to_string());
+                    NotificationSystem::debug("Label removed from item");
                 },
                 Err(e) => {
                     NotificationSystem::log_error("Failed to remove label from item", e);
@@ -791,10 +805,22 @@ impl Render for ItemInfoState {
             cx.theme().muted_foreground
         };
 
+        // 根据优先级设置边框颜色
+        let border_color = if let Some(priority) = self.state_manager.item.priority {
+            match priority {
+                1 => colors.priority_high,
+                2 => colors.priority_medium,
+                3 => colors.priority_low,
+                _ => cx.theme().border,
+            }
+        } else {
+            cx.theme().border
+        };
+
         v_flex()
             .bg(cx.theme().background)
             .border_1()
-            .border_color(cx.theme().border)
+            .border_color(border_color)
             .rounded(px(8.0))
             .overflow_hidden()  // 确保圆角生效
             .shadow_sm()  // 添加轻微阴影
@@ -822,7 +848,7 @@ impl Render for ItemInfoState {
                             .on_click({
                                 let item = self.state_manager.item.clone();
                                 move |_event, _window, cx| {
-                                    set_item_pinned(item.clone(), !item.pinned, cx);
+                                    set_item_pinned_optimistic(item.clone(), !item.pinned, cx);
                                 }
                             }),
                     ),
