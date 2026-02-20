@@ -1,6 +1,6 @@
 use std::sync::Arc;
-use tokio::sync::Semaphore;
-use tokio::task;
+
+use tokio::{sync::Semaphore, task};
 // 少量任务（<100）：join_all 最简单
 // 中等数量（100-1000）：tokio::spawn + Semaphore
 // 大量任务（>1000）：stream::buffer_unordered
@@ -75,14 +75,9 @@ impl Job {
     async fn get_case_list_by_jobid(&self, job_id: &str) -> Vec<Case> {
         // 模拟网络/数据库请求延迟
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        vec![
-            Case {
-                id: format!("case_{}_{}", job_id, 1),
-            },
-            Case {
-                id: format!("case_{}_{}", job_id, 2),
-            },
-        ]
+        vec![Case { id: format!("case_{}_{}", job_id, 1) }, Case {
+            id: format!("case_{}_{}", job_id, 2),
+        }]
     }
 
     // 模拟根据 case_id 获取日志记录（异步）
@@ -90,20 +85,12 @@ impl Job {
         // 模拟网络/数据库请求延迟
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         vec![
-            Record {
-                case_id: case_id.to_string(),
-                content: format!("log_1 for {}", case_id),
-            },
-            Record {
-                case_id: case_id.to_string(),
-                content: format!("log_2 for {}", case_id),
-            },
-            Record {
-                case_id: case_id.to_string(),
-                content: format!("log_3 for {}", case_id),
-            },
+            Record { case_id: case_id.to_string(), content: format!("log_1 for {}", case_id) },
+            Record { case_id: case_id.to_string(), content: format!("log_2 for {}", case_id) },
+            Record { case_id: case_id.to_string(), content: format!("log_3 for {}", case_id) },
         ]
     }
+
     // stream并发1
     pub(crate) async fn get_logs_stream(&self) {
         let all_cases = self.collect_cases(5).await;
@@ -111,6 +98,7 @@ impl Job {
 
         println!("获取到 {} 条记录", all_records.len());
     }
+
     // semaphore
     pub async fn get_logs_with_semaphore(&self, max_concurrent: usize) {
         let semaphore = Arc::new(Semaphore::new(max_concurrent));
@@ -147,11 +135,7 @@ impl Job {
         let log_results = futures::future::join_all(log_futures).await;
         let record_list: Vec<_> = log_results.into_iter().flatten().collect();
 
-        println!(
-            "并发限制: {}, 记录数: {}",
-            max_concurrent,
-            record_list.len()
-        );
+        println!("并发限制: {}, 记录数: {}", max_concurrent, record_list.len());
     }
 
     // 使用 smol（轻量级异步运行时）
@@ -162,6 +146,7 @@ impl Job {
 
         println!("Got {} records", record_list.len());
     }
+
     // rayon + tokio（CPU密集型 + I/O密集型混合）
 
     pub async fn get_logs_rayon_tokio_fixed(self: Arc<Self>) {
