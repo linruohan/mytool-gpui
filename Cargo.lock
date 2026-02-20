@@ -3838,6 +3838,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "todos",
  "tokio",
  "toml 0.8.23",

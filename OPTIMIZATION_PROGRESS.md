@@ -157,13 +157,32 @@ pub struct DBState {
 - 新增文件: `SHORTCUTS_GUIDE.md`（使用指南）
 - 修改文件: `crates/mytool/src/lib.rs`
 
-#### 2.2 错误处理统一 ⏳
-**优先级**: 🔴 高
-**预计工作量**: 2-3 天
-
-#### 2.2 错误处理统一 ⏳
+#### 2.2 错误处理统一 ✅
 **优先级**: 🔴 高
 **预计工作量**: 2 天
+**状态**: 已完成
+
+**实施内容**:
+- 创建统一的错误处理系统模块 (`error_handler.rs`)
+- 定义完整的错误类型（AppError 枚举，13 种错误类型）
+- 实现错误严重程度分级（Info, Warning, Error, Critical）
+- 提供错误上下文管理（ErrorContext）
+- 实现统一的错误处理器（ErrorHandler）
+- 添加输入验证辅助函数
+- 创建详细的使用指南（ERROR_HANDLING_GUIDE.md）
+
+**技术实现**:
+- 使用 `thiserror` 库定义错误类型
+- 提供用户友好的错误消息
+- 自动生成恢复建议
+- 结构化日志记录
+- 支持错误位置和资源 ID 追踪
+
+**影响范围**:
+- 新增文件: `crates/mytool/src/error_handler.rs`
+- 新增文件: `ERROR_HANDLING_GUIDE.md`（使用指南）
+- 修改文件: `crates/mytool/src/lib.rs`
+- 修改文件: `crates/mytool/Cargo.toml`
 
 #### 2.3 视觉优化 ⏳
 **优先级**: 🟡 中

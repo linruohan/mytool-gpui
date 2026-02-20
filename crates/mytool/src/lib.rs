@@ -18,6 +18,7 @@ use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _
 mod app_menus;
 mod component_manager; // 组件管理
 mod components; // 我的组件库
+mod error_handler; // 统一错误处理
 mod gallery;
 mod plugins; // 插件系统
 mod shortcuts; // 键盘快捷键系统
@@ -37,6 +38,7 @@ mod widgets; // 部件库
 
 pub use component_manager::ComponentManager;
 pub use components::*;
+pub use error_handler::*; // 导出错误处理
 pub use gallery::Gallery;
 pub use plugins::*;
 pub use shortcuts::*; // 导出快捷键
