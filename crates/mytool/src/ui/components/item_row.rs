@@ -107,7 +107,7 @@ impl Render for ItemRowState {
         // 获取语义化颜色
         let colors = SemanticColors::from_theme(cx);
         // 将 Option<i32> 转换为 u8，默认为 0（无优先级）
-        let priority = item.priority.unwrap_or(0).max(0).min(3) as u8;
+        let priority = item.priority.unwrap_or(0).clamp(0, 3) as u8;
         let priority_color = colors.priority_color(priority);
 
         // 根据任务状态选择状态颜色

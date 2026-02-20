@@ -32,7 +32,13 @@ use super::{
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     todo_actions::{
-        add_item, completed_item, delete_item, set_item_pinned, uncompleted_item, update_item,
+        // 🚀 使用乐观更新（性能优化）
+        add_item_optimistic,
+        complete_item_optimistic,
+        delete_item_optimistic,
+        // 保留 set_item_pinned（暂未实现乐观版本）
+        set_item_pinned,
+        update_item_optimistic,
     },
     todo_state::{DBState, TodoStore},
 };
@@ -149,11 +155,10 @@ impl ItemStateManager {
     /// 基于上次更新时间和更新间隔
     pub fn can_update(&mut self) -> bool {
         let now = Instant::now();
-        if let Some(last_time) = self.last_update_time {
-            if now.duration_since(last_time) < self.update_interval {
+        if let Some(last_time) = self.last_update_time
+            && now.duration_since(last_time) < self.update_interval {
                 return false;
             }
-        }
         self.last_update_time = Some(now);
         true
     }
@@ -336,7 +341,7 @@ impl ItemInfoState {
                         .collect();
 
                     // 使用 Store 批量设置 Item 的 Labels
-                    let store = todos::Store::new(db);
+                    let store = todos::Store::new((*db).clone());
                     if let Err(e) = store.set_item_labels(&item_id, &label_ids_vec).await {
                         tracing::error!("Failed to set item labels: {:?}", e);
                     }
@@ -435,8 +440,8 @@ impl ItemInfoState {
                 // 只有当section_id实际变化时才更新
                 if current_item.section_id != new_section_id {
                     self.state_manager.set_section_id(new_section_id);
-                    // 立即保存更改，这样相关的board会立即更新
-                    update_item(self.state_manager.item.clone(), cx);
+                    // 🚀 使用乐观更新（立即更新 UI）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
                     // 设置标志以避免在 handle_item_info_event 中重复更新
                     self.state_manager.skip_next_update = true;
                     // 立即通知UI更新
@@ -460,8 +465,8 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 立即保存更改，这样相关的board（如TodayBoard）会立即更新
-                update_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新（立即更新 UI）
+                update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
                 self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
@@ -470,8 +475,8 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 立即保存更改
-                update_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新
+                update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
                 self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
@@ -480,8 +485,8 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 立即保存更改
-                update_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新
+                update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
                 self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
@@ -489,8 +494,8 @@ impl ItemInfoState {
             ScheduleButtonEvent::Cleared => {
                 // 使用 state_manager 清除 due date
                 self.state_manager.set_due_date(None);
-                // 立即保存更改
-                update_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新
+                update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
                 self.state_manager.skip_next_update = true;
                 cx.emit(ItemInfoEvent::Updated());
@@ -533,24 +538,29 @@ impl ItemInfoState {
     pub fn handle_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
         match event {
             ItemInfoEvent::Finished() => {
-                completed_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新（立即完成任务）
+                complete_item_optimistic(self.state_manager.item.clone(), true, cx);
             },
             ItemInfoEvent::Added() => {
-                add_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新（立即添加任务）
+                add_item_optimistic(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::Updated() => {
                 // 检查是否需要跳过此次更新（避免重复调用）
                 if !self.state_manager.skip_next_update && self.state_manager.can_update() {
-                    update_item(self.state_manager.item.clone(), cx);
+                    // 🚀 使用乐观更新（立即更新任务）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
                 }
                 // 重置标志
                 self.state_manager.skip_next_update = false;
             },
             ItemInfoEvent::Deleted() => {
-                delete_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新（立即删除任务）
+                delete_item_optimistic(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::UnFinished() => {
-                uncompleted_item(self.state_manager.item.clone(), cx);
+                // 🚀 使用乐观更新（立即取消完成）
+                complete_item_optimistic(self.state_manager.item.clone(), false, cx);
             },
         }
         cx.notify();
@@ -564,7 +574,7 @@ impl ItemInfoState {
         let db = cx.global::<DBState>().conn.clone();
 
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new(db);
+            let store = todos::Store::new((*db).clone());
             if let Err(e) = store.add_label_to_item(&item_id, &label_name).await {
                 tracing::error!("Failed to add label to item: {:?}", e);
             }
@@ -580,7 +590,7 @@ impl ItemInfoState {
         let db = cx.global::<DBState>().conn.clone();
 
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new(db);
+            let store = todos::Store::new((*db).clone());
             if let Err(e) = store.remove_label_from_item(&item_id, &label_id).await {
                 tracing::error!("Failed to remove label from item: {:?}", e);
             }
@@ -713,7 +723,7 @@ impl ItemInfoState {
         cx.spawn(async move |_this, cx| {
             // 加载附件
             let attachments =
-                crate::state_service::load_attachments_by_item(&item_id, db.clone()).await;
+                crate::state_service::load_attachments_by_item(&item_id, (*db).clone()).await;
             let rc_attachments =
                 attachments.iter().map(|a| Arc::new(a.clone())).collect::<Vec<_>>();
             cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
@@ -722,7 +732,7 @@ impl ItemInfoState {
 
             // 加载提醒
             let reminders =
-                crate::state_service::load_reminders_by_item(&item_id, db.clone()).await;
+                crate::state_service::load_reminders_by_item(&item_id, (*db).clone()).await;
             let rc_reminders = reminders.iter().map(|r| Arc::new(r.clone())).collect::<Vec<_>>();
             cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
                 state.set_reminders(rc_reminders, cx);

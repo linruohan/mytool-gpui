@@ -142,7 +142,6 @@ impl DateValidationService {
     async fn get_item(&self, id: &str) -> Option<ItemModel> {
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-        let result = ItemEntity::find_by_id(id.to_string()).one(self.db()).await.ok().flatten();
-        result
+        ItemEntity::find_by_id(id.to_string()).one(self.db()).await.ok().flatten()
     }
 }

@@ -57,8 +57,9 @@ impl TodayBoard {
                 }
                 this.cached_version = store.version();
 
-                // 从 TodoStore 获取今日任务（内存过滤，无需数据库查询）
-                let state_items = store.today_items();
+                // 🚀 使用缓存查询（性能优化）
+                let cache = cx.global::<crate::core::state::QueryCache>();
+                let state_items = store.today_items_cached(cache);
 
                 this.base.item_rows = state_items
                     .iter()

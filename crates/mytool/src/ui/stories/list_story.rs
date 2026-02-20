@@ -127,7 +127,7 @@ impl ListStory {
         let company_list_clone = company_list.clone();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |_view, cx| {
-            let labels = load_items(db.clone()).await;
+            let labels = load_items((*db).clone()).await;
             let rc_labels: Vec<Arc<ItemModel>> =
                 labels.iter().map(|label| Arc::new(label.clone())).collect();
             println!("list_story: len labels: {}", rc_labels.len());

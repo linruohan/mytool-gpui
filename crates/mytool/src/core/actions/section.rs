@@ -9,11 +9,11 @@ use crate::todo_state::{DBState, TodoStore};
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::state_service::add_section(section.clone(), db.clone()).await {
+        match crate::state_service::add_section(section.clone(), (*db).clone()).await {
             Ok(new_section) => {
                 // 增量更新：只添加新分区到 TodoStore
                 let arc_section = Arc::new(new_section);
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.add_section(arc_section);
                 });
             },
@@ -27,11 +27,11 @@ pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
 pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_section(section.clone(), db.clone()).await {
+        match crate::state_service::mod_section(section.clone(), (*db).clone()).await {
             Ok(updated_section) => {
                 // 增量更新：只更新修改的分区
                 let arc_section = Arc::new(updated_section);
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_section(arc_section);
                 });
             },
@@ -46,10 +46,10 @@ pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
     let db = cx.global::<DBState>().conn.clone();
     let section_id = section.id.clone();
     cx.spawn(async move |cx| {
-        match crate::state_service::del_section(section.clone(), db.clone()).await {
+        match crate::state_service::del_section(section.clone(), (*db).clone()).await {
             Ok(_) => {
                 // 增量更新：只删除指定的分区
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.remove_section(&section_id);
                 });
             },

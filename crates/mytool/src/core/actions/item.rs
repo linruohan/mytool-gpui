@@ -5,9 +5,9 @@ use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
 use tracing::{error, info};
 
-use crate::{
-    core::error_handler::{AppError, ErrorHandler, validation},
-    todo_state::{DBState, TodoStore},
+use crate::core::{
+    error_handler::{AppError, ErrorHandler, validation},
+    state::{TodoStore, get_db_connection},
 };
 
 // 刷新指定项目的 items（仅在有活跃项目时需要）
@@ -26,13 +26,13 @@ pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
         return;
     }
 
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::add_item(item.clone(), db.clone()).await {
+        match crate::state_service::add_item(item.clone(), (*db).clone()).await {
             Ok(new_item) => {
                 info!("Successfully added item: {}", new_item.id);
                 // 增量更新：只添加新任务到 TodoStore
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.add_item(Arc::new(new_item));
                 });
             },
@@ -56,20 +56,20 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
         return;
     }
 
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let active_project = cx.global::<TodoStore>().active_project.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_item(item.clone(), db.clone()).await {
+        match crate::state_service::mod_item(item.clone(), (*db).clone()).await {
             Ok(updated_item) => {
                 info!("Successfully updated item: {}", updated_item.id);
                 // 增量更新：只更新修改的任务
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(Arc::new(updated_item));
                 });
                 // 如果有活跃项目，刷新项目列表
                 if let Some(active) = active_project {
-                    refresh_project_items(&active.id, cx, db).await;
+                    refresh_project_items(&active.id, cx, (*db).clone()).await;
                 }
             },
             Err(e) => {
@@ -87,15 +87,15 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
 
 // 删除 item（使用增量更新，性能最优）
 pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::del_item(item.clone(), db.clone()).await {
+        match crate::state_service::del_item(item.clone(), (*db).clone()).await {
             Ok(_) => {
                 info!("Successfully deleted item: {}", item_id);
                 // 增量更新：只删除指定的任务
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.remove_item(&item_id);
                 });
             },
@@ -114,18 +114,18 @@ pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
 
 // 完成任务（使用增量更新，性能最优）
 pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::finish_item(item.clone(), true, false, db.clone()).await {
+        match crate::state_service::finish_item(item.clone(), true, false, (*db).clone()).await {
             Ok(_) => {
                 info!("Successfully completed item: {}", item_id);
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
                 updated_item.checked = true;
                 updated_item.completed_at = Some(chrono::Utc::now().naive_utc());
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(Arc::new(updated_item));
                 });
             },
@@ -144,18 +144,18 @@ pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
 
 // 取消完成任务（使用增量更新，性能最优）
 pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::finish_item(item.clone(), false, false, db.clone()).await {
+        match crate::state_service::finish_item(item.clone(), false, false, (*db).clone()).await {
             Ok(_) => {
                 info!("Successfully uncompleted item: {}", item_id);
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
                 updated_item.checked = false;
                 updated_item.completed_at = None;
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(Arc::new(updated_item));
                 });
             },
@@ -174,11 +174,11 @@ pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
 
 // 置顶/取消置顶任务（使用增量更新，性能最优）
 pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::pin_item(item.clone(), pinned, db.clone()).await {
+        match crate::state_service::pin_item(item.clone(), pinned, (*db).clone()).await {
             Ok(_) => {
                 info!(
                     "Successfully {} item: {}",
@@ -188,7 +188,7 @@ pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
                 updated_item.pinned = pinned;
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(Arc::new(updated_item));
                 });
             },

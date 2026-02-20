@@ -72,6 +72,7 @@ mod attachment;
 mod batch;
 mod item;
 mod label;
+mod optimistic;
 mod project_item;
 mod reminder;
 mod section;
@@ -84,6 +85,8 @@ pub use batch::*;
 // 增量更新操作（推荐，性能最优）
 pub use item::*;
 pub use label::*;
+// 乐观更新操作（最佳用户体验）
+pub use optimistic::*;
 pub use project_item::*;
 pub use reminder::*;
 pub use section::*;

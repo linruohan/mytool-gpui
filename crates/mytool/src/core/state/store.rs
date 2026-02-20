@@ -2,6 +2,11 @@
 //!
 //! 这个模块提供了一个统一的 TodoStore，用于替代之前分散的多个状态结构。
 //! 通过在内存中进行过滤，避免了多次数据库查询，提高了性能。
+//!
+//! ## 优化特性
+//! - **增量索引更新**: 只更新变化的索引，避免全量重建
+//! - **版本号机制**: 视图可以通过版本号判断是否需要更新
+//! - **缓存集成**: 支持查询结果缓存，避免重复计算
 
 use std::{
     collections::{HashMap, HashSet},
@@ -39,6 +44,24 @@ pub struct TodoStore {
     /// 版本号：每次数据变化时递增，用于优化观察者更新
     /// 视图可以通过比较版本号来判断是否需要重新渲染
     version: usize,
+
+    /// 🚀 索引统计（用于性能监控）
+    #[cfg(debug_assertions)]
+    index_stats: IndexStats,
+}
+
+/// 索引统计信息
+#[cfg(debug_assertions)]
+#[derive(Debug, Default)]
+struct IndexStats {
+    /// 索引重建次数
+    rebuild_count: usize,
+    /// 增量更新次数
+    incremental_update_count: usize,
+    /// 最后一次重建耗时（毫秒）
+    last_rebuild_duration_ms: u128,
+    /// 平均增量更新耗时（微秒）
+    avg_incremental_update_us: u128,
 }
 
 impl Global for TodoStore {}
@@ -57,6 +80,8 @@ impl TodoStore {
             checked_set: HashSet::new(),
             pinned_set: HashSet::new(),
             version: 0,
+            #[cfg(debug_assertions)]
+            index_stats: IndexStats::default(),
         }
     }
 
@@ -67,9 +92,74 @@ impl TodoStore {
         self.version
     }
 
+    /// 🚀 获取索引统计信息（仅在 debug 模式下可用）
+    #[cfg(debug_assertions)]
+    pub fn index_stats(&self) -> &IndexStats {
+        &self.index_stats
+    }
+
+    /// 🚀 打印索引统计信息（仅在 debug 模式下可用）
+    #[cfg(debug_assertions)]
+    pub fn print_index_stats(&self) {
+        tracing::info!(
+            "📊 Index Statistics:\n- Total items: {}\n- Rebuild count: {}\n- Incremental update \
+             count: {}\n- Last rebuild duration: {}ms\n- Avg incremental update: {}μs\n- Project \
+             index size: {}\n- Section index size: {}\n- Checked set size: {}\n- Pinned set size: \
+             {}",
+            self.all_items.len(),
+            self.index_stats.rebuild_count,
+            self.index_stats.incremental_update_count,
+            self.index_stats.last_rebuild_duration_ms,
+            self.index_stats.avg_incremental_update_us,
+            self.project_index.len(),
+            self.section_index.len(),
+            self.checked_set.len(),
+            self.pinned_set.len()
+        );
+    }
+
     /// 重建所有索引
     /// 当批量更新数据时调用
+    ///
+    /// ⚠️ 性能警告：这是一个 O(n) 操作，应该只在批量更新时使用
+    /// 对于单个任务的增删改，请使用增量更新方法
     fn rebuild_indexes(&mut self) {
+        #[cfg(debug_assertions)]
+        {
+            let start = std::time::Instant::now();
+            tracing::debug!("Rebuilding all indexes for {} items", self.all_items.len());
+
+            self.rebuild_indexes_impl();
+
+            let duration = start.elapsed();
+            self.index_stats.rebuild_count += 1;
+            self.index_stats.last_rebuild_duration_ms = duration.as_millis();
+
+            tracing::debug!(
+                "Index rebuild #{} completed in {:?}",
+                self.index_stats.rebuild_count,
+                duration
+            );
+
+            if duration.as_millis() > 100 {
+                tracing::warn!(
+                    "Slow index rebuild detected: {:?} for {} items (rebuild #{})",
+                    duration,
+                    self.all_items.len(),
+                    self.index_stats.rebuild_count
+                );
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            self.rebuild_indexes_impl();
+        }
+    }
+
+    /// 实际的索引重建实现
+    #[inline]
+    fn rebuild_indexes_impl(&mut self) {
         // 清空索引
         self.project_index.clear();
         self.section_index.clear();
@@ -105,6 +195,8 @@ impl TodoStore {
     }
 
     /// 获取收件箱任务（未完成且无项目ID的任务）
+    ///
+    /// 使用索引优化查询性能
     pub fn inbox_items(&self) -> Vec<Arc<ItemModel>> {
         self.all_items
             .iter()
@@ -116,7 +208,29 @@ impl TodoStore {
             .collect()
     }
 
+    /// 获取收件箱任务（带缓存）
+    ///
+    /// 如果缓存有效，直接返回缓存结果；否则重新计算并更新缓存
+    pub fn inbox_items_cached(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+    ) -> Vec<Arc<ItemModel>> {
+        // 检查缓存是否有效
+        if cache.is_valid(self.version)
+            && let Some(cached) = cache.get_inbox() {
+                return cached;
+        }
+
+        // 缓存无效，重新计算
+        let items = self.inbox_items();
+        cache.set_inbox(items.clone());
+        cache.update_version(self.version);
+        items
+    }
+
     /// 获取今日到期的任务
+    ///
+    /// 使用 ItemModel 的 is_due_today() 方法
     pub fn today_items(&self) -> Vec<Arc<ItemModel>> {
         self.all_items
             .iter()
@@ -129,6 +243,22 @@ impl TodoStore {
             })
             .cloned()
             .collect()
+    }
+
+    /// 获取今日到期的任务（带缓存）
+    pub fn today_items_cached(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+    ) -> Vec<Arc<ItemModel>> {
+        if cache.is_valid(self.version)
+            && let Some(cached) = cache.get_today() {
+                return cached;
+            }
+
+        let items = self.today_items();
+        cache.set_today(items.clone());
+        cache.update_version(self.version);
+        items
     }
 
     /// 获取计划任务（有截止日期但未完成）
@@ -439,28 +569,24 @@ impl TodoStore {
         // 项目索引
         if let Some(project_id) = &item.project_id
             && !project_id.is_empty()
-        {
-            if let Some(items) = self.project_index.get_mut(project_id) {
+            && let Some(items) = self.project_index.get_mut(project_id) {
                 items.retain(|i| i.id != item.id);
                 // 如果该项目没有任务了，移除该条目
                 if items.is_empty() {
                     self.project_index.remove(project_id);
                 }
             }
-        }
 
         // 分区索引
         if let Some(section_id) = &item.section_id
             && !section_id.is_empty()
-        {
-            if let Some(items) = self.section_index.get_mut(section_id) {
+            && let Some(items) = self.section_index.get_mut(section_id) {
                 items.retain(|i| i.id != item.id);
                 // 如果该分区没有任务了，移除该条目
                 if items.is_empty() {
                     self.section_index.remove(section_id);
                 }
             }
-        }
 
         // 检查状态索引
         self.checked_set.remove(&item.id);
@@ -470,11 +596,112 @@ impl TodoStore {
     }
 
     /// 更新任务索引（处理状态变化）
+    ///
+    /// 🚀 性能优化：只更新变化的索引，而不是全部移除再添加
     fn update_item_index(&mut self, old_item: &Arc<ItemModel>, new_item: &Arc<ItemModel>) {
-        // 先从索引中移除旧的
-        self.remove_item_from_index(old_item);
-        // 再添加新的
-        self.add_item_to_index(new_item);
+        #[cfg(debug_assertions)]
+        let start = std::time::Instant::now();
+
+        // 🚀 优化 1: 检查项目 ID 是否变化
+        if old_item.project_id != new_item.project_id {
+            // 从旧项目索引移除
+            if let Some(old_project_id) = &old_item.project_id
+                && !old_project_id.is_empty()
+                && let Some(items) = self.project_index.get_mut(old_project_id) {
+                    items.retain(|i| i.id != old_item.id);
+                    if items.is_empty() {
+                        self.project_index.remove(old_project_id);
+                    }
+                }
+
+            // 添加到新项目索引
+            if let Some(new_project_id) = &new_item.project_id
+                && !new_project_id.is_empty()
+            {
+                self.project_index
+                    .entry(new_project_id.clone())
+                    .or_default()
+                    .push(new_item.clone());
+            }
+        } else if let Some(project_id) = &new_item.project_id
+            && !project_id.is_empty()
+        {
+            // 项目 ID 未变化，但需要更新引用
+            if let Some(items) = self.project_index.get_mut(project_id)
+                && let Some(pos) = items.iter().position(|i| i.id == new_item.id) {
+                    items[pos] = new_item.clone();
+                }
+        }
+
+        // 🚀 优化 2: 检查分区 ID 是否变化
+        if old_item.section_id != new_item.section_id {
+            // 从旧分区索引移除
+            if let Some(old_section_id) = &old_item.section_id
+                && !old_section_id.is_empty()
+                && let Some(items) = self.section_index.get_mut(old_section_id) {
+                    items.retain(|i| i.id != old_item.id);
+                    if items.is_empty() {
+                        self.section_index.remove(old_section_id);
+                    }
+                }
+
+            // 添加到新分区索引
+            if let Some(new_section_id) = &new_item.section_id
+                && !new_section_id.is_empty()
+            {
+                self.section_index
+                    .entry(new_section_id.clone())
+                    .or_default()
+                    .push(new_item.clone());
+            }
+        } else if let Some(section_id) = &new_item.section_id
+            && !section_id.is_empty()
+        {
+            // 分区 ID 未变化，但需要更新引用
+            if let Some(items) = self.section_index.get_mut(section_id)
+                && let Some(pos) = items.iter().position(|i| i.id == new_item.id) {
+                    items[pos] = new_item.clone();
+                }
+        }
+
+        // 🚀 优化 3: 检查完成状态是否变化
+        if old_item.checked != new_item.checked {
+            if new_item.checked {
+                self.checked_set.insert(new_item.id.clone());
+            } else {
+                self.checked_set.remove(&new_item.id);
+            }
+        }
+
+        // 🚀 优化 4: 检查置顶状态是否变化
+        if old_item.pinned != new_item.pinned {
+            if new_item.pinned {
+                self.pinned_set.insert(new_item.id.clone());
+            } else {
+                self.pinned_set.remove(&new_item.id);
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            let duration = start.elapsed();
+            self.index_stats.incremental_update_count += 1;
+
+            // 计算移动平均
+            let count = self.index_stats.incremental_update_count as u128;
+            let old_avg = self.index_stats.avg_incremental_update_us;
+            let new_duration_us = duration.as_micros();
+            self.index_stats.avg_incremental_update_us =
+                (old_avg * (count - 1) + new_duration_us) / count;
+
+            if duration.as_micros() > 1000 {
+                tracing::warn!(
+                    "Slow incremental index update: {:?} (update #{})",
+                    duration,
+                    self.index_stats.incremental_update_count
+                );
+            }
+        }
     }
 }
 

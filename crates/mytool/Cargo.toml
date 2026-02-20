@@ -17,6 +17,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 rodio.workspace = true
 todos.workspace = true
+uuid.workspace = true
 
 sea-orm.workspace = true
 tokio.workspace = true

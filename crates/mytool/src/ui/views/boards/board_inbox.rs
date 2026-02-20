@@ -6,8 +6,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
+    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, Focusable, Hsla,
+    InteractiveElement, MouseButton, ParentElement, Render, Styled, Window, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
@@ -42,6 +43,9 @@ pub struct InboxBoard {
     /// 缓存的 TodoStore 版本号，用于优化性能
     /// 只在版本号变化时才重新渲染，避免不必要的计算
     cached_version: usize,
+    /// 🚀 观察者 ID（用于细粒度更新）
+    #[allow(dead_code)]
+    observer_id: Option<u64>,
 }
 
 impl InboxBoard {
@@ -52,22 +56,39 @@ impl InboxBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
+        // 🚀 注册观察者（细粒度更新）
+        let observer_id = {
+            let registry = cx.global_mut::<crate::core::state::ObserverRegistry>();
+            Some(registry.register(crate::core::state::ViewType::Inbox))
+        };
+
         // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
             // 监听 TodoStore 变化
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let store = cx.global::<TodoStore>();
 
-                // 性能优化：检查版本号，只在数据变化时更新
+                // 🚀 性能优化 1: 检查版本号，只在数据变化时更新
                 if this.cached_version == store.version() {
                     return; // 版本号未变化，跳过更新
+                }
+
+                // 🚀 性能优化 2: 检查脏标记，只在视图受影响时更新
+                let is_dirty = {
+                    let flags = cx.global::<crate::core::state::DirtyFlags>();
+                    flags.is_dirty(crate::core::state::ViewType::Inbox)
+                };
+
+                if !is_dirty {
+                    return; // 视图未受影响，跳过更新
                 }
 
                 // 更新缓存的版本号
                 this.cached_version = store.version();
 
-                // 从 TodoStore 获取收件箱任务（内存过滤，无需数据库查询）
-                let state_items = store.inbox_items();
+                // 🚀 使用缓存查询（性能优化 3）
+                let cache = cx.global::<crate::core::state::QueryCache>();
+                let state_items = store.inbox_items_cached(cache);
 
                 // 更新 item_rows
                 this.base.item_rows = state_items
@@ -113,6 +134,12 @@ impl InboxBoard {
                 } else if !this.base.item_rows.is_empty() {
                     this.base.active_index = Some(0);
                 }
+
+                // 🚀 清除脏标记
+                cx.update_global::<crate::core::state::DirtyFlags, _>(|flags, _| {
+                    flags.clear(crate::core::state::ViewType::Inbox);
+                });
+
                 cx.notify();
             }),
         ];
@@ -120,6 +147,7 @@ impl InboxBoard {
         Self {
             base,
             cached_version: 0, // 初始版本号为 0
+            observer_id,
         }
     }
 

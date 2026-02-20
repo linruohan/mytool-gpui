@@ -5,7 +5,7 @@ use gpui::Application;
 use gpui_component_assets::Assets;
 use mytool::{
     MainView, init_plugins,
-    todo_state::{DBState, get_todo_conn, state_init},
+    todo_state::{get_todo_conn, state_init},
 };
 
 #[tokio::main]
@@ -17,7 +17,6 @@ async fn main() {
 
     app.run(move |cx| {
         mytool::init(cx);
-        cx.set_global(DBState { conn: db.clone() });
         state_init(cx, db);
         init_plugins(cx);
         cx.activate(true);

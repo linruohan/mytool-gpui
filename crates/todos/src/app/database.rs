@@ -11,13 +11,15 @@ use sea_orm::{
 pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     use gconfig::get;
 
-    let config_guard = get().read().expect("读取配置失败");
-    let db_config = config_guard.database();
+    let db_config = {
+        let config_guard = get().read().expect("读取配置失败");
+        config_guard.database().clone()
+    };
 
     if db_config.is_sqlite() {
-        init_sqlite_db(db_config).await
+        init_sqlite_db(&db_config).await
     } else {
-        init_network_db(db_config).await
+        init_network_db(&db_config).await
     }
 }
 

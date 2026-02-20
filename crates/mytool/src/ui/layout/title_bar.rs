@@ -40,6 +40,7 @@ impl AppTitleBar {
         }
     }
 
+    #[allow(unused)]
     pub fn child<F, E>(mut self, f: F) -> Self
     where
         E: IntoElement,

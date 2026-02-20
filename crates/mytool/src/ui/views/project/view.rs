@@ -216,7 +216,7 @@ impl ProjectsPanel {
         }
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this, cx| {
-            let projects = load_projects(db.clone()).await;
+            let projects = load_projects((*db).clone()).await;
             let rc_projects: Vec<Arc<ProjectModel>> =
                 projects.iter().map(|pro| Arc::new(pro.clone())).collect();
 
@@ -241,7 +241,7 @@ impl ProjectsPanel {
         cx.notify();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::state_service::add_project(project.clone(), db.clone()).await;
+            let ret = crate::state_service::add_project(project.clone(), (*db).clone()).await;
             println!("add_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
@@ -261,7 +261,7 @@ impl ProjectsPanel {
         cx.notify();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::state_service::mod_project(project.clone(), db.clone()).await;
+            let ret = crate::state_service::mod_project(project.clone(), (*db).clone()).await;
             println!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
@@ -281,7 +281,7 @@ impl ProjectsPanel {
         cx.notify();
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::state_service::del_project(project.clone(), db.clone()).await;
+            let ret = crate::state_service::del_project(project.clone(), (*db).clone()).await;
             println!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
