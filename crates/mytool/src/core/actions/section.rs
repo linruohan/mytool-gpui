@@ -3,11 +3,11 @@ use std::sync::Arc;
 use gpui::App;
 use todos::entity::SectionModel;
 
-use crate::todo_state::{DBState, TodoStore};
+use crate::core::state::{TodoStore, get_db_connection};
 
 // 添加section（使用增量更新，性能最优）
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     cx.spawn(async move |cx| {
         match crate::state_service::add_section(section.clone(), (*db).clone()).await {
             Ok(new_section) => {
@@ -25,7 +25,7 @@ pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
 
 // 修改section（使用增量更新，性能最优）
 pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     cx.spawn(async move |cx| {
         match crate::state_service::mod_section(section.clone(), (*db).clone()).await {
             Ok(updated_section) => {
@@ -43,7 +43,7 @@ pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
 
 // 删除section（使用增量更新，性能最优）
 pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let section_id = section.id.clone();
     cx.spawn(async move |cx| {
         match crate::state_service::del_section(section.clone(), (*db).clone()).await {

@@ -31,6 +31,7 @@ use super::{
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
+    core::state::{TodoStore, get_db_connection},
     todo_actions::{
         // 🚀 使用乐观更新（性能优化）
         add_item_optimistic,
@@ -40,7 +41,6 @@ use crate::{
         set_item_pinned,
         update_item_optimistic,
     },
-    todo_state::{DBState, TodoStore},
 };
 
 /// 集中的状态管理结构
@@ -156,9 +156,10 @@ impl ItemStateManager {
     pub fn can_update(&mut self) -> bool {
         let now = Instant::now();
         if let Some(last_time) = self.last_update_time
-            && now.duration_since(last_time) < self.update_interval {
-                return false;
-            }
+            && now.duration_since(last_time) < self.update_interval
+        {
+            return false;
+        }
         self.last_update_time = Some(now);
         true
     }
@@ -330,7 +331,7 @@ impl ItemInfoState {
                 // 这里只更新 UI 状态，实际的数据库更新在保存时处理
                 // 或者可以通过异步操作立即更新关联表
                 let item_id = self.state_manager.item.id.clone();
-                let db = cx.global::<DBState>().conn.clone();
+                let db = get_db_connection(cx);
                 let label_ids_clone = label_ids.clone(); // 克隆以避免生命周期问题
 
                 cx.spawn(async move |_this, _cx| {
@@ -571,7 +572,7 @@ impl ItemInfoState {
         // 异步添加 Label 到 Item
         let item_id = self.state_manager.item.id.clone();
         let label_name = label.name.clone();
-        let db = cx.global::<DBState>().conn.clone();
+        let db = get_db_connection(cx);
 
         cx.spawn(async move |_this, _cx| {
             let store = todos::Store::new((*db).clone());
@@ -587,7 +588,7 @@ impl ItemInfoState {
         // 异步从 Item 移除 Label
         let item_id = self.state_manager.item.id.clone();
         let label_id = label.id.clone();
-        let db = cx.global::<DBState>().conn.clone();
+        let db = get_db_connection(cx);
 
         cx.spawn(async move |_this, _cx| {
             let store = todos::Store::new((*db).clone());
@@ -718,7 +719,7 @@ impl ItemInfoState {
         let item_id = item.id.clone();
         let attachment_state = self.attachment_state.clone();
         let reminder_state = self.reminder_state.clone();
-        let db = cx.global::<DBState>().conn.clone();
+        let db = get_db_connection(cx);
 
         cx.spawn(async move |_this, cx| {
             // 加载附件

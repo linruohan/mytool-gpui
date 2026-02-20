@@ -4,9 +4,9 @@ use gpui::App;
 use todos::entity::LabelModel;
 use tracing::{error, info};
 
-use crate::{
-    core::error_handler::{AppError, ErrorHandler, validation},
-    todo_state::{DBState, TodoStore},
+use crate::core::{
+    error_handler::{AppError, ErrorHandler, validation},
+    state::{TodoStore, get_db_connection},
 };
 
 // 添加label
@@ -18,7 +18,7 @@ pub fn add_label(label: Arc<LabelModel>, cx: &mut App) {
         return;
     }
 
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     cx.spawn(async move |cx| {
         match crate::state_service::add_label(label.clone(), (*db).clone()).await {
             Ok(new_label) => {
@@ -51,7 +51,7 @@ pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
         return;
     }
 
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     cx.spawn(async move |cx| {
         match crate::state_service::mod_label(label.clone(), (*db).clone()).await {
             Ok(new_label) => {
@@ -77,7 +77,7 @@ pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
 
 // 删除label
 pub fn delete_label(label: Arc<LabelModel>, cx: &mut App) {
-    let db = cx.global::<DBState>().conn.clone();
+    let db = get_db_connection(cx);
     let label_id = label.id.clone();
 
     cx.spawn(async move |cx| {

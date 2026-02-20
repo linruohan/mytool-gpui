@@ -217,8 +217,9 @@ impl TodoStore {
     ) -> Vec<Arc<ItemModel>> {
         // 检查缓存是否有效
         if cache.is_valid(self.version)
-            && let Some(cached) = cache.get_inbox() {
-                return cached;
+            && let Some(cached) = cache.get_inbox()
+        {
+            return cached;
         }
 
         // 缓存无效，重新计算
@@ -251,9 +252,10 @@ impl TodoStore {
         cache: &crate::core::state::cache::QueryCache,
     ) -> Vec<Arc<ItemModel>> {
         if cache.is_valid(self.version)
-            && let Some(cached) = cache.get_today() {
-                return cached;
-            }
+            && let Some(cached) = cache.get_today()
+        {
+            return cached;
+        }
 
         let items = self.today_items();
         cache.set_today(items.clone());
@@ -569,24 +571,26 @@ impl TodoStore {
         // 项目索引
         if let Some(project_id) = &item.project_id
             && !project_id.is_empty()
-            && let Some(items) = self.project_index.get_mut(project_id) {
-                items.retain(|i| i.id != item.id);
-                // 如果该项目没有任务了，移除该条目
-                if items.is_empty() {
-                    self.project_index.remove(project_id);
-                }
+            && let Some(items) = self.project_index.get_mut(project_id)
+        {
+            items.retain(|i| i.id != item.id);
+            // 如果该项目没有任务了，移除该条目
+            if items.is_empty() {
+                self.project_index.remove(project_id);
             }
+        }
 
         // 分区索引
         if let Some(section_id) = &item.section_id
             && !section_id.is_empty()
-            && let Some(items) = self.section_index.get_mut(section_id) {
-                items.retain(|i| i.id != item.id);
-                // 如果该分区没有任务了，移除该条目
-                if items.is_empty() {
-                    self.section_index.remove(section_id);
-                }
+            && let Some(items) = self.section_index.get_mut(section_id)
+        {
+            items.retain(|i| i.id != item.id);
+            // 如果该分区没有任务了，移除该条目
+            if items.is_empty() {
+                self.section_index.remove(section_id);
             }
+        }
 
         // 检查状态索引
         self.checked_set.remove(&item.id);
@@ -607,12 +611,13 @@ impl TodoStore {
             // 从旧项目索引移除
             if let Some(old_project_id) = &old_item.project_id
                 && !old_project_id.is_empty()
-                && let Some(items) = self.project_index.get_mut(old_project_id) {
-                    items.retain(|i| i.id != old_item.id);
-                    if items.is_empty() {
-                        self.project_index.remove(old_project_id);
-                    }
+                && let Some(items) = self.project_index.get_mut(old_project_id)
+            {
+                items.retain(|i| i.id != old_item.id);
+                if items.is_empty() {
+                    self.project_index.remove(old_project_id);
                 }
+            }
 
             // 添加到新项目索引
             if let Some(new_project_id) = &new_item.project_id
@@ -628,9 +633,10 @@ impl TodoStore {
         {
             // 项目 ID 未变化，但需要更新引用
             if let Some(items) = self.project_index.get_mut(project_id)
-                && let Some(pos) = items.iter().position(|i| i.id == new_item.id) {
-                    items[pos] = new_item.clone();
-                }
+                && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
+            {
+                items[pos] = new_item.clone();
+            }
         }
 
         // 🚀 优化 2: 检查分区 ID 是否变化
@@ -638,12 +644,13 @@ impl TodoStore {
             // 从旧分区索引移除
             if let Some(old_section_id) = &old_item.section_id
                 && !old_section_id.is_empty()
-                && let Some(items) = self.section_index.get_mut(old_section_id) {
-                    items.retain(|i| i.id != old_item.id);
-                    if items.is_empty() {
-                        self.section_index.remove(old_section_id);
-                    }
+                && let Some(items) = self.section_index.get_mut(old_section_id)
+            {
+                items.retain(|i| i.id != old_item.id);
+                if items.is_empty() {
+                    self.section_index.remove(old_section_id);
                 }
+            }
 
             // 添加到新分区索引
             if let Some(new_section_id) = &new_item.section_id
@@ -659,9 +666,10 @@ impl TodoStore {
         {
             // 分区 ID 未变化，但需要更新引用
             if let Some(items) = self.section_index.get_mut(section_id)
-                && let Some(pos) = items.iter().position(|i| i.id == new_item.id) {
-                    items[pos] = new_item.clone();
-                }
+                && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
+            {
+                items[pos] = new_item.clone();
+            }
         }
 
         // 🚀 优化 3: 检查完成状态是否变化

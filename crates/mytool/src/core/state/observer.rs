@@ -232,30 +232,47 @@ impl SelectiveUpdateHelper {
 
     /// 判断事件是否影响今日任务视图
     pub fn affects_today(event: &TodoStoreEvent) -> bool {
-        matches!(event, TodoStoreEvent::ItemAdded(_)
-            | TodoStoreEvent::ItemUpdated(_)
-            | TodoStoreEvent::ItemDeleted(_) | TodoStoreEvent::BulkUpdate)
+        matches!(
+            event,
+            TodoStoreEvent::ItemAdded(_)
+                | TodoStoreEvent::ItemUpdated(_)
+                | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::BulkUpdate
+        )
     }
 
     /// 判断事件是否影响计划任务视图
     pub fn affects_scheduled(event: &TodoStoreEvent) -> bool {
-        matches!(event, TodoStoreEvent::ItemAdded(_)
-            | TodoStoreEvent::ItemUpdated(_)
-            | TodoStoreEvent::ItemDeleted(_) | TodoStoreEvent::BulkUpdate)
+        matches!(
+            event,
+            TodoStoreEvent::ItemAdded(_)
+                | TodoStoreEvent::ItemUpdated(_)
+                | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::BulkUpdate
+        )
     }
 
     /// 判断事件是否影响已完成任务视图
     pub fn affects_completed(event: &TodoStoreEvent) -> bool {
-        matches!(event, TodoStoreEvent::ItemAdded(_)
-            | TodoStoreEvent::ItemUpdated(_)
-            | TodoStoreEvent::ItemDeleted(_) | TodoStoreEvent::BulkUpdate)
+        matches!(
+            event,
+            TodoStoreEvent::ItemAdded(_)
+                | TodoStoreEvent::ItemUpdated(_)
+                | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::BulkUpdate
+        )
     }
 
     /// 判断事件是否影响项目视图
     pub fn affects_project(event: &TodoStoreEvent, _project_id: &str) -> bool {
-        matches!(event, TodoStoreEvent::ItemAdded(_)
-            | TodoStoreEvent::ItemUpdated(_)
-            | TodoStoreEvent::ItemDeleted(_) | TodoStoreEvent::ProjectChanged(_) | TodoStoreEvent::BulkUpdate)
+        matches!(
+            event,
+            TodoStoreEvent::ItemAdded(_)
+                | TodoStoreEvent::ItemUpdated(_)
+                | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::ProjectChanged(_)
+                | TodoStoreEvent::BulkUpdate
+        )
     }
 }
 
