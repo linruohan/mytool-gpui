@@ -6,15 +6,16 @@ use std::{
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, blue, div, px,
+    Styled, Subscription, Window, div, px,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     divider::Divider,
-    gray_200, h_flex,
+    h_flex,
     input::{Input, InputEvent, InputState},
+    theme::ActiveTheme,
     v_flex,
 };
 use serde::Deserialize;
@@ -41,6 +42,7 @@ use crate::{
         set_item_pinned,
         update_item_optimistic,
     },
+    ui::theme::visual_enhancements::SemanticColors,
 };
 
 /// 集中的状态管理结构
@@ -389,6 +391,12 @@ impl ItemInfoState {
                     // 使用 state_manager 更新 project_id
                     self.state_manager.set_project_id(new_project_id.clone());
 
+                    // 🚀 性能优化：一次性获取所有需要的数据，克隆后立即释放借用
+                    let (projects, all_sections) = {
+                        let todo_store = cx.global::<TodoStore>();
+                        (todo_store.projects.clone(), todo_store.sections.clone())
+                    };
+
                     // 根据project_id更新section_state的sections
                     self.section_state.update(cx, |section_state, cx| {
                         if project_id.is_empty() {
@@ -396,10 +404,6 @@ impl ItemInfoState {
                             section_state.set_sections(None, window, cx);
                         } else {
                             // 根据project_id获取对应的sections
-                            let todo_store = cx.global::<TodoStore>();
-                            let projects = todo_store.projects.clone();
-                            let all_sections = todo_store.sections.clone();
-
                             if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
                                 // 获取该project的sections
                                 let filtered_sections: Vec<Arc<todos::entity::SectionModel>> =
@@ -643,23 +647,26 @@ impl ItemInfoState {
                 this.set_priority(ItemPriority::from_i32(priority), window, cx);
             }
         });
+
+        // 🚀 性能优化：一次性获取所有需要的数据，克隆后立即释放借用
+        let (projects, all_sections) = {
+            let todo_store = cx.global::<TodoStore>();
+            (todo_store.projects.clone(), todo_store.sections.clone())
+        };
+
         self.project_state.update(cx, |this, cx| {
-            if let Some(project_id) = &item.project_id {
-                let todo_store = cx.global::<TodoStore>();
-                let projects = todo_store.projects.clone();
-                if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
-                    this.set_project(Some(project.id.clone()), window, cx);
-                }
+            if let Some(project_id) = &item.project_id
+                && let Some(project) = projects.iter().find(|p| &p.id == project_id)
+            {
+                this.set_project(Some(project.id.clone()), window, cx);
             }
         });
 
         // 根据project_id更新section_state的sections
+        let item_section_id = item.section_id.clone();
         self.section_state.update(cx, |section_state, cx| {
             if let Some(project_id) = &item.project_id {
                 // 根据project_id获取对应的sections
-                let todo_store = cx.global::<TodoStore>();
-                let projects = todo_store.projects.clone();
-                let all_sections = todo_store.sections.clone();
                 if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
                     // 获取该project的sections
                     let filtered_sections: Vec<Arc<todos::entity::SectionModel>> = all_sections
@@ -669,7 +676,7 @@ impl ItemInfoState {
                         .collect();
 
                     // 确保section_id属于当前project，在移动之前检查
-                    if let Some(section_id) = &item.section_id
+                    if let Some(section_id) = &item_section_id
                         && !filtered_sections.iter().any(|s| &s.id == section_id)
                     {
                         // 使用 state_manager 更新 section_id
@@ -684,12 +691,12 @@ impl ItemInfoState {
             }
 
             // 设置section
-            if let Some(section_id) = &item.section_id {
+            if let Some(section_id) = &item_section_id {
+                // 🚀 性能优化：使用已有的 sections 引用，避免再次访问全局状态
                 let sections = if let Some(sections) = &section_state.sections {
-                    sections.clone()
+                    sections
                 } else {
-                    let todo_store = cx.global::<TodoStore>();
-                    todo_store.sections.clone()
+                    &all_sections
                 };
                 if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
                     section_state.set_section(Some(section.id.clone()), window, cx);
@@ -763,16 +770,29 @@ impl ItemInfoState {
 impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
-        let todo_store = cx.global::<TodoStore>();
-        let labels = todo_store.labels.clone();
-        let pinned_color = if self.state_manager.item.pinned { gpui::red() } else { gray_200() };
+        // 🚀 性能优化：克隆 labels 后立即释放借用，避免在闭包中持有不可变借用
+        let labels = cx.global::<TodoStore>().labels.clone();
+        let colors = SemanticColors::from_theme(cx);
+        let pinned_color = if self.state_manager.item.pinned {
+            colors.status_pinned
+        } else {
+            cx.theme().muted_foreground
+        };
+
         v_flex()
-            .border_2()
-            .border_color(blue())
-            .rounded(px(10.0))
+            .bg(cx.theme().background)
+            .border_1()
+            .border_color(cx.theme().border)
+            .rounded(px(8.0))
+            .overflow_hidden()  // 确保圆角生效
+            .shadow_sm()  // 添加轻微阴影
             .child(
                 h_flex()
                     .gap_2()
+                    .p(px(8.0))
+                    .bg(cx.theme().background)
+                    .border_b_1()
+                    .border_color(cx.theme().border.opacity(0.5))
                     .child(
                         Checkbox::new("item-checked")
                             .checked(self.state_manager.item.checked)
@@ -795,23 +815,39 @@ impl Render for ItemInfoState {
                             }),
                     ),
             )
-            .child(Input::new(&self.desc_input).bordered(false))
-            .child(h_flex().gap_3().children(labels.iter().enumerate().map(|(ix, label)| {
-                let label_clone = label.clone();
-                Checkbox::new(format!("label-{}", ix))
-                    .label(label.name.clone())
-                    .checked(self.selected_labels(cx).iter().any(|l| l.id == label.id))
-                    .on_click(cx.listener(move |view, checked: &bool, window, cx| {
-                        // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
-                        let label_model = label_clone.as_ref().clone();
-                        view.label_toggle_checked(Arc::new(label_model), checked, window, cx);
+            .child(
+                Input::new(&self.desc_input)
+                    .bordered(false)
+                    .px(px(8.0))
+                    .py(px(6.0))
+                    .bg(cx.theme().background.opacity(0.5))
+            )
+            .child(
+                h_flex()
+                    .gap_3()
+                    .p(px(8.0))
+                    .flex_wrap()
+                    .children(labels.iter().enumerate().map(|(ix, label)| {
+                        let label_clone = label.clone();
+                        Checkbox::new(format!("label-{}", ix))
+                            .label(label.name.clone())
+                            .checked(self.selected_labels(cx).iter().any(|l| l.id == label.id))
+                            .on_click(cx.listener(move |view, checked: &bool, window, cx| {
+                                // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
+                                let label_model = label_clone.as_ref().clone();
+                                view.label_toggle_checked(Arc::new(label_model), checked, window, cx);
+                            }))
                     }))
-            })))
+            )
             .child(
                 h_flex()
                     .items_center()
                     .justify_between()
                     .gap_2()
+                    .p(px(8.0))
+                    .bg(cx.theme().background.opacity(0.3))
+                    .border_t_1()
+                    .border_color(cx.theme().border.opacity(0.5))
                     .child(
                         h_flex().gap_2().child(
                             v_flex()
