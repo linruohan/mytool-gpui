@@ -3,7 +3,7 @@ use std::sync::Arc;
 use gpui::{
     App, AppContext, Context, ElementId, Entity, EventEmitter, InteractiveElement, IntoElement,
     ParentElement as _, Render, RenderOnce, StyleRefinement, Styled, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, IconName, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible,
@@ -11,7 +11,10 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use crate::{ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, todo_state::TodoStore};
+use crate::{
+    ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, SemanticColors, VisualHierarchy,
+    todo_state::TodoStore,
+};
 
 const CONTEXT: &str = "ItemRow";
 #[derive(Clone)]
@@ -101,42 +104,85 @@ impl Render for ItemRowState {
         let view = cx.entity();
         let version = self.update_version; // 获取当前版本号
 
-        div().border_3().id(item_id.clone()).rounded(px(5.0)).child(
-            Collapsible::new()
-                .gap_1()
-                .open(is_open)
-                .child(
-                    h_flex()
-                        .items_center()
-                        .justify_start()
-                        .gap_2()
-                        .text_color(text_color)
-                        .child(ItemListItem::new(
-                            format!("{}-{}", item_id, version),
-                            item.clone(),
-                            false,
-                        ))
-                        .child(
-                            Button::new("toggle-edit")
-                                .small()
-                                .outline()
-                                .icon(IconName::ChevronDown)
-                                .when(is_open, |this| this.icon(IconName::ChevronUp))
-                                .tooltip(if is_open { "Close editor" } else { "Open editor" })
-                                .on_click(move |_event, _window, cx| {
-                                    cx.update_entity(&view, |this, cx| {
-                                        // 如果当前是展开状态，收缩时保存所有修改
-                                        if this.is_open {
-                                            this.save_all_changes(cx);
-                                        }
-                                        this.is_open = !this.is_open;
-                                        cx.notify();
-                                    })
-                                }),
-                        ),
-                )
-                .content(v_flex().gap_2().child(ItemInfo::new(&item_info))),
-        )
+        // 获取语义化颜色
+        let colors = SemanticColors::from_theme(cx);
+        // 将 Option<i32> 转换为 u8，默认为 0（无优先级）
+        let priority = item.priority.unwrap_or(0).max(0).min(3) as u8;
+        let priority_color = colors.priority_color(priority);
+        
+        // 根据任务状态选择状态颜色
+        let status_indicator = if item.checked {
+            Some(colors.status_completed)
+        } else if item.pinned {
+            Some(colors.status_pinned)
+        } else {
+            None
+        };
+
+        div()
+            .id(item_id.clone())
+            // 应用视觉层次：圆角和间距
+            .rounded(VisualHierarchy::radius_lg())
+            .p(VisualHierarchy::spacing(3.0))
+            // 边框样式
+            .border_1()
+            .border_color(cx.theme().border)
+            // 优先级指示器：左侧彩色边框
+            .border_l_4()
+            .border_color(priority_color)
+            // 背景色
+            .bg(cx.theme().background)
+            // 悬停效果
+            .hover(|style| {
+                style
+                    .bg(colors.hover_overlay)
+                    .border_color(priority_color.opacity(0.8))
+            })
+            // 状态指示器：顶部边框（如果有状态）
+            .when_some(status_indicator, |this, color| {
+                this.border_t_2().border_color(color)
+            })
+            .child(
+                Collapsible::new()
+                    .gap_1()
+                    .open(is_open)
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .justify_start()
+                            .gap(VisualHierarchy::spacing(2.0))
+                            .text_color(text_color)
+                            .child(ItemListItem::new(
+                                format!("{}-{}", item_id, version),
+                                item.clone(),
+                                false,
+                            ))
+                            .child(
+                                Button::new("toggle-edit")
+                                    .small()
+                                    .outline()
+                                    .icon(IconName::ChevronDown)
+                                    .when(is_open, |this| this.icon(IconName::ChevronUp))
+                                    .tooltip(if is_open { "Close editor" } else { "Open editor" })
+                                    .on_click(move |_event, _window, cx| {
+                                        cx.update_entity(&view, |this, cx| {
+                                            // 如果当前是展开状态，收缩时保存所有修改
+                                            if this.is_open {
+                                                this.save_all_changes(cx);
+                                            }
+                                            this.is_open = !this.is_open;
+                                            cx.notify();
+                                        })
+                                    }),
+                            ),
+                    )
+                    .content(
+                        v_flex()
+                            .gap(VisualHierarchy::spacing(2.0))
+                            .p(VisualHierarchy::spacing(2.0))
+                            .child(ItemInfo::new(&item_info))
+                    ),
+            )
     }
 }
 

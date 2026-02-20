@@ -34,6 +34,7 @@ mod todo_actions; // 数据库操作管理
 pub mod todo_state; // 状态管理
 mod utils;
 mod views; // 任务管理视图
+mod visual_enhancements; // 视觉增强
 mod widgets; // 部件库
 
 pub use component_manager::ComponentManager;
@@ -47,6 +48,7 @@ pub use story_section::StorySection;
 pub use title_bar::AppTitleBar;
 pub use utils::play_ogg_file;
 pub use views::*;
+pub use visual_enhancements::*; // 导出视觉增强
 pub use widgets::*;
 
 use crate::{story_container::StoryContainer, story_root::StoryRoot, story_state::StoryState};
