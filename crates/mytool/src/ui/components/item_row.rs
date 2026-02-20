@@ -6,8 +6,8 @@ use gpui::{
     Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible,
-    h_flex, v_flex,
+    ActiveTheme, Colorize, IconName, Sizable, Size, StyledExt as _, button::Button,
+    collapsible::Collapsible, h_flex, v_flex,
 };
 use todos::entity::ItemModel;
 
@@ -188,8 +188,8 @@ impl Render for ItemRowState {
 
         // 获取语义化颜色
         let colors = SemanticColors::from_theme(cx);
-        // 将 Option<i32> 转换为 u8，默认为 0（无优先级）
-        let priority = item.priority.unwrap_or(0).clamp(0, 3) as u8;
+        // 获取优先级值 (1=High, 2=Medium, 3=Low, 4=None)
+        let priority = item.priority.unwrap_or(4);
         let priority_color = colors.priority_color(priority);
 
         // 根据任务状态选择状态颜色
@@ -204,9 +204,6 @@ impl Render for ItemRowState {
         // 完成状态的视觉效果
         let completed_opacity = if item.checked { 0.6 } else { 1.0 };
 
-        // 焦点状态的边框颜色
-        let border_color = if is_focused { cx.theme().accent } else { cx.theme().border };
-
         div()
             .id(item_id.clone())
             .key_context(CONTEXT)
@@ -215,12 +212,12 @@ impl Render for ItemRowState {
             .rounded(px(8.0))
             .p(px(12.0))
             .my(px(4.0))  // 添加垂直间距
-            // 边框样式
-            .border_1()
-            .border_color(border_color)
-            // 优先级指示器：左侧彩色边框
+            // 优先级指示器：左侧加粗彩色边框
             .border_l_4()
             .border_color(priority_color)
+            // 边框样式
+            .border_1()
+            .border_color(priority_color.opacity(0.3))
             // 背景色
             .bg(cx.theme().background)
             // 完成状态的透明度
@@ -242,8 +239,8 @@ impl Render for ItemRowState {
             .hover(|style| {
                 style
                     .bg(colors.hover_overlay)
-                    .border_color(priority_color.opacity(0.8))
-                    .shadow_sm()  // 添加轻微阴影
+                    .border_color(priority_color.opacity(0.5))
+                    .shadow_md()
                     .cursor_pointer()
             })
             // 状态指示器：顶部边框（如果有状态）

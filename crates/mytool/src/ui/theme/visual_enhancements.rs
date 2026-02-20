@@ -130,13 +130,13 @@ impl SemanticColors {
         }
     }
 
-    /// Get priority color by priority level (0-3)
-    pub fn priority_color(&self, priority: u8) -> Hsla {
+    /// Get priority color by priority level (1=High, 2=Medium, 3=Low, 4=None)
+    pub fn priority_color(&self, priority: i32) -> Hsla {
         match priority {
-            1 => self.priority_high,
-            2 => self.priority_medium,
-            3 => self.priority_low,
-            _ => self.priority_none,
+            1 => self.priority_high,   // HIGH - Red
+            2 => self.priority_medium, // MEDIUM - Yellow/Orange
+            3 => self.priority_low,    // LOW - Blue
+            _ => self.priority_none,   // NONE or invalid - Gray
         }
     }
 }
