@@ -14,7 +14,7 @@ use gpui_component::{
 
 use crate::{
     Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
-    PinBoard, ScheduledBoard, TodayBoard, todo_state::TodoStore,
+    PinBoard, ScheduledBoard, TodayBoard, VisualHierarchy, todo_state::TodoStore,
 };
 
 pub struct BoardPanel {
@@ -104,7 +104,7 @@ impl Render for BoardPanel {
         // 项目分类：
         v_flex()
             .w_full()
-            .gap_4()
+            .gap(VisualHierarchy::spacing(4.0))
             .child(
                 div()
                     .bg(cx.theme().sidebar_accent)
@@ -166,7 +166,7 @@ impl Render for BoardPanel {
             .child(
                 h_flex()
                     .bg(cx.theme().sidebar_border)
-                    .px_1()
+                    .p(VisualHierarchy::spacing(1.0))
                     .flex_1()
                     .justify_between()
                     .mt(px(30.0)),

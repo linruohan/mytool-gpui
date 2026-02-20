@@ -13,7 +13,7 @@ use gpui_component::{IconName, v_flex};
 use todos::entity::ItemModel;
 
 use super::board_base::BoardView;
-use crate::{ItemRow, ItemRowState, section};
+use crate::{ItemRow, ItemRowState, VisualHierarchy, section};
 
 /// Board 配置结构
 ///
@@ -119,7 +119,7 @@ pub fn render_item_list<V>(
 where
     V: BoardView + Render,
 {
-    v_flex().gap_2().w_full().children(items.iter().map(|(i, _)| {
+    v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(items.iter().map(|(i, _)| {
         let item_row = item_rows.get(*i).cloned();
         let is_active = active_index == Some(*i);
         render_item_row(*i, item_row, is_active, active_border, view.clone())

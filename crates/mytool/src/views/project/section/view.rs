@@ -15,7 +15,7 @@ use todos::entity::{ProjectModel, SectionModel};
 
 use super::{SectionEvent, SectionListDelegate};
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState,
+    ColorGroup, ColorGroupEvent, ColorGroupState, VisualHierarchy,
     todo_actions::{add_section, delete_section, update_section},
     todo_state::TodoStore,
 };
@@ -164,7 +164,7 @@ impl SectionsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex().gap_3().child(Input::new(&name_input)).child(ColorGroup::new(&color)),
+                    v_flex().gap(VisualHierarchy::spacing(3.0)).child(Input::new(&name_input)).child(ColorGroup::new(&color)),
                 )
                 .footer({
                     let view = view.clone();

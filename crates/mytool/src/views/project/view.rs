@@ -15,7 +15,7 @@ use gpui_component::{
 use todos::entity::ProjectModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate, VisualHierarchy,
     state_service::load_projects,
     todo_state::{DBState, TodoStore},
 };
@@ -166,7 +166,7 @@ impl ProjectsPanel {
                 .overlay_closable(true)
                 .child(
                     v_flex()
-                        .gap_3()
+                        .gap(VisualHierarchy::spacing(3.0))
                         .child(Input::new(&name_input))
                         .child(ColorGroup::new(&color))
                         .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
@@ -297,6 +297,6 @@ impl Render for ProjectsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _projects: Vec<_> = self.project_list.read(cx).delegate()._projects.clone();
         let _view = cx.entity();
-        v_flex().w_full().gap_4().child("projects_panel")
+        v_flex().w_full().gap(VisualHierarchy::spacing(4.0)).child("projects_panel")
     }
 }

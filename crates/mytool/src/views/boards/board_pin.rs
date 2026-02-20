@@ -19,7 +19,7 @@ use gpui_component::{
 };
 
 use crate::{
-    Board, BoardBase, ItemRowState, section,
+    Board, BoardBase, ItemRowState, VisualHierarchy, section,
     todo_actions::{add_item, delete_item, update_item},
     todo_state::TodoStore,
     views::boards::{BoardView, board_renderer},
@@ -300,7 +300,7 @@ impl Render for PinBoard {
         v_flex()
             .track_focus(&self.base.focus_handle)
             .size_full()
-            .gap_4()
+            .gap(VisualHierarchy::spacing(4.0))
             .child(
                 h_flex()
                     .id("header")
@@ -308,11 +308,14 @@ impl Render for PinBoard {
                     .border_color(cx.theme().border)
                     .justify_between()
                     .items_start()
+                    .p(VisualHierarchy::spacing(3.0))
                     .child(
                         v_flex()
+                            .gap(VisualHierarchy::spacing(1.0))
                             .child(
                                 h_flex()
-                                    .gap_2()
+                                    .gap(VisualHierarchy::spacing(2.0))
+                                    .items_center()
                                     .child(<PinBoard as Board>::icon())
                                     .child(div().text_base().child(<PinBoard as Board>::title())),
                             )
@@ -328,8 +331,7 @@ impl Render for PinBoard {
                             .flex()
                             .items_center()
                             .justify_end()
-                            .px_2()
-                            .gap_2()
+                            .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
                                 Button::new("add-label")
@@ -415,7 +417,8 @@ impl Render for PinBoard {
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .gap_4()
+                        .gap(VisualHierarchy::spacing(4.0))
+                        .p(VisualHierarchy::spacing(3.0))
                         .when(!pinned_items.is_empty(), |this| {
                             this.child(board_renderer::render_item_section(
                                 "Pinned",

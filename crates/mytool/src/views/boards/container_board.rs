@@ -11,7 +11,7 @@ use gpui_component::{
     v_flex,
 };
 
-use crate::ShowPanelInfo;
+use crate::{ShowPanelInfo, VisualHierarchy};
 
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
@@ -148,7 +148,7 @@ impl Render for BoardContainer {
             .overflow_y_scroll()
             .track_focus(&self.focus_handle)
             .when_some(self.board.clone(), |this, board| {
-                this.child(v_flex().id("board-children").w_full().flex_1().p_4().child(board))
+                this.child(v_flex().id("board-children").w_full().flex_1().p(VisualHierarchy::spacing(4.0)).child(board))
             })
     }
 }

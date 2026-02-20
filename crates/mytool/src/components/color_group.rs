@@ -217,6 +217,8 @@ impl ColorGroup {
     }
 
     fn render_colors(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        use crate::VisualHierarchy;
+        
         let _featured_colors = self.featured_colors.clone().unwrap_or(vec![
             cx.theme().red,
             cx.theme().red_light,
@@ -234,33 +236,35 @@ impl ColorGroup {
 
         let state = self.state.clone();
 
-        v_flex().gap_3().items_center().child(v_flex().gap_1().children(
-            color_palettes().iter().map(|sub_colors| {
-                h_flex().gap_1().children(sub_colors.iter().map(|color| {
-                    // self.render_item(*color, true, window, cx)
-                    let color = *color;
-                    div()
-                        .id(SharedString::from(format!("color-{}", color.to_hex())))
-                        .h_5()
-                        .w_5()
-                        .rounded_full()
-                        .bg(color)
-                        .border_1()
-                        .border_color(color.darken(0.1))
-                        .hover(|this| {
-                            this.border_color(color.darken(0.3)).bg(color.lighten(0.1)).shadow_xs()
-                        })
-                        .active(|this| {
-                            this.border_color(color.lighten(0.5)).bg(color.darken(0.2)).border_2()
-                        })
-                        .on_click(window.listener_for(&state, move |state, _, window, cx| {
-                            state.update_value(Some(color), true, window, cx);
-                            state.open = false;
-                            cx.notify();
-                        }))
-                }))
-            }),
-        ))
+        v_flex()
+            .gap(VisualHierarchy::spacing(3.0))
+            .items_center()
+            .child(v_flex().gap(VisualHierarchy::spacing(1.0)).children(
+                color_palettes().iter().map(|sub_colors| {
+                    h_flex().gap(VisualHierarchy::spacing(1.0)).children(sub_colors.iter().map(|color| {
+                        let color = *color;
+                        div()
+                            .id(SharedString::from(format!("color-{}", color.to_hex())))
+                            .h_5()
+                            .w_5()
+                            .rounded_full()
+                            .bg(color)
+                            .border_1()
+                            .border_color(color.darken(0.1))
+                            .hover(|this| {
+                                this.border_color(color.darken(0.3)).bg(color.lighten(0.1)).shadow_xs()
+                            })
+                            .active(|this| {
+                                this.border_color(color.lighten(0.5)).bg(color.darken(0.2)).border_2()
+                            })
+                            .on_click(window.listener_for(&state, move |state, _, window, cx| {
+                                state.update_value(Some(color), true, window, cx);
+                                state.open = false;
+                                cx.notify();
+                            }))
+                    }))
+                }),
+            ))
     }
 }
 

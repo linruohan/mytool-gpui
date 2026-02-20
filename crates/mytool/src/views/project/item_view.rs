@@ -18,7 +18,7 @@ use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, section,
+    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, VisualHierarchy, section,
     todo_actions::{
         add_project_item, add_section, delete_project_item, delete_section, load_project_items,
         update_project_item, update_section,
@@ -367,7 +367,7 @@ impl Render for ProjectItemsPanel {
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
-            .gap_4()
+            .gap(VisualHierarchy::spacing(4.0))
             .child(
                 h_flex()
                     .id("header")
@@ -381,8 +381,7 @@ impl Render for ProjectItemsPanel {
                             .flex()
                             .items_center()
                             .justify_end()
-                            .px_2()
-                            .gap_2()
+                            .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
                                 Button::new("add-label")
@@ -436,13 +435,13 @@ impl Render for ProjectItemsPanel {
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .gap_4()
+                        .gap(VisualHierarchy::spacing(4.0))
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
                                 section("No Section")
                                     .sub_title(
-                                        h_flex().gap_1().child(
+                                        h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new("add-item-to-no-section")
                                                 .small()
                                                 .ghost()
@@ -462,7 +461,7 @@ impl Render for ProjectItemsPanel {
                                                 }),
                                         ),
                                     )
-                                    .child(v_flex().gap_2().w_full().children(
+                                    .child(v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(
                                         no_section_items.into_iter().map(|(i, _item)| {
                                             let view = view_clone.clone();
                                             let is_active = self.active_index == Some(i);
@@ -495,7 +494,7 @@ impl Render for ProjectItemsPanel {
                             Some(
                                 section(sec.name.clone())
                                     .sub_title(
-                                        h_flex().gap_1().child(
+                                        h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new(format!(
                                                 "add-item-to-section-{}",
                                                 section_id
@@ -519,7 +518,7 @@ impl Render for ProjectItemsPanel {
                                     )
                                     .sub_title(
                                         h_flex()
-                                            .gap_1()
+                                            .gap(VisualHierarchy::spacing(1.0))
                                             .child(
                                                 Button::new(format!("edit-section-{}", section_id))
                                                     .small()
@@ -627,7 +626,7 @@ impl Render for ProjectItemsPanel {
                                                     }),
                                             ),
                                     )
-                                    .child(v_flex().gap_2().w_full().children(items.iter().map(
+                                    .child(v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(items.iter().map(
                                         |(i, _item)| {
                                             let view = view_clone.clone();
                                             let i = *i;

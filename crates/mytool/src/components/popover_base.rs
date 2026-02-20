@@ -97,16 +97,17 @@ where
     T: gpui::Focusable + 'static,
 {
     use gpui::{ParentElement, Styled};
-    use gpui_component::{Sizable, button::ButtonVariants};
+    use gpui_component::{ActiveTheme, Sizable, button::ButtonVariants};
+    use crate::{SemanticColors, VisualHierarchy};
 
     gpui::div()
         .flex()
         .flex_row()
-        .gap_2()
+        .gap(VisualHierarchy::spacing(2.0))
         .items_center()
         .justify_between()
-        .px_2()
-        .py_2()
+        .px(VisualHierarchy::spacing(2.0))
+        .py(VisualHierarchy::spacing(2.0))
         .border_b_1()
         .child(gpui_component::label::Label::new(display_text).text_sm())
         .child(

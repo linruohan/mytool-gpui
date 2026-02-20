@@ -10,7 +10,7 @@ use gpui_component::{
 };
 use todos::entity::LabelModel;
 
-use crate::UnSelectedCheckLabel;
+use crate::{UnSelectedCheckLabel, VisualHierarchy};
 
 actions!(label, [SelectedLabel, UnSelectedLabel]);
 pub enum LabelEvent {
@@ -66,17 +66,16 @@ impl RenderOnce for LabelListItem {
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         self.base
-            .px_2()
-            .py_1()
+            .p(VisualHierarchy::spacing(2.0))
             .overflow_x_hidden()
             .border_1()
             .rounded(cx.theme().radius)
             .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(
-                h_flex().items_center().justify_between().gap_2().text_color(text_color).child(
+                h_flex().items_center().justify_between().gap(VisualHierarchy::spacing(2.0)).text_color(text_color).child(
                     h_flex()
-                        .gap_2()
+                        .gap(VisualHierarchy::spacing(2.0))
                         .items_center()
                         .justify_end()
                         .child(

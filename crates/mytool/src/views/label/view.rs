@@ -15,7 +15,7 @@ use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate,
+    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate, VisualHierarchy,
     todo_actions::{add_label, delete_label, update_label},
     todo_state::TodoStore,
 };
@@ -145,7 +145,7 @@ impl LabelsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex().gap_3().child(Input::new(&name_input)).child(ColorGroup::new(&color)),
+                    v_flex().gap(VisualHierarchy::spacing(3.0)).child(Input::new(&name_input)).child(ColorGroup::new(&color)),
                 )
                 .footer({
                     let view = view.clone();
