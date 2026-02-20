@@ -166,7 +166,7 @@ impl Render for BoardPanel {
             .child(
                 h_flex()
                     .bg(cx.theme().sidebar_border)
-                    .p(VisualHierarchy::spacing(1.0))
+                    .px_1()
                     .flex_1()
                     .justify_between()
                     .mt(px(30.0)),
