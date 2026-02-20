@@ -139,6 +139,38 @@ impl SemanticColors {
             _ => self.priority_none,   // NONE or invalid - Gray
         }
     }
+
+    /// Get priority color with enhanced saturation for borders
+    pub fn priority_border_color(&self, priority: i32) -> Hsla {
+        let base_color = self.priority_color(priority);
+        match priority {
+            1 => hsla(base_color.h, base_color.s * 1.2, base_color.l * 0.9, base_color.a), /* 更饱和的红色 */
+            2 => hsla(base_color.h, base_color.s * 1.1, base_color.l * 0.95, base_color.a), /* 更饱和的橙色 */
+            3 => hsla(base_color.h, base_color.s * 1.1, base_color.l * 0.95, base_color.a), /* 更饱和的蓝色 */
+            _ => base_color, // 保持原色
+        }
+    }
+
+    /// Get priority indicator opacity based on priority level
+    pub fn priority_opacity(&self, priority: i32) -> f32 {
+        match priority {
+            1 => 0.9, // High: 高透明度
+            2 => 0.7, // Medium: 中等透明度
+            3 => 0.5, // Low: 低透明度
+            _ => 0.3, // None: 很低透明度
+        }
+    }
+
+    /// Get priority background tint for subtle visual enhancement
+    pub fn priority_background_tint(&self, priority: i32, base_bg: Hsla) -> Hsla {
+        let tint_color = self.priority_color(priority);
+        match priority {
+            1 => hsla(tint_color.h, 0.1, base_bg.l, base_bg.a), // 轻微的红色背景
+            2 => hsla(tint_color.h, 0.08, base_bg.l, base_bg.a), // 轻微的橙色背景
+            3 => hsla(tint_color.h, 0.06, base_bg.l, base_bg.a), // 轻微的蓝色背景
+            _ => base_bg,                                       // 保持原背景
+        }
+    }
 }
 
 /// Visual hierarchy utilities for consistent styling
