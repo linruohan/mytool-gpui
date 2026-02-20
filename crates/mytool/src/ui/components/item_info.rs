@@ -32,7 +32,10 @@ use super::{
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
-    core::state::{TodoStore, get_db_connection},
+    core::{
+        notification::{NotificationExt, NotificationSystem},
+        state::{TodoStore, get_db_connection},
+    },
     todo_actions::{
         // 🚀 使用乐观更新（性能优化）
         add_item_optimistic,
@@ -58,21 +61,8 @@ pub struct ItemStateManager {
     update_interval: Duration,
 }
 
-/// 节流函数
-/// 用于限制函数调用频率
-pub fn debounce<F>(mut f: F, delay: Duration) -> impl FnMut()
-where
-    F: FnMut(),
-{
-    let mut last_call: Option<Instant> = None;
-    move || {
-        let now = Instant::now();
-        if last_call.map(|t| now.duration_since(t) > delay).unwrap_or(true) {
-            f();
-            last_call = Some(now);
-        }
-    }
-}
+// 注意：此 debounce 函数已定义但未使用
+// 考虑移除或在需要时使用它来优化频繁的用户输入事件
 
 impl ItemStateManager {
     /// 创建新的 ItemStateManager
@@ -87,9 +77,22 @@ impl ItemStateManager {
 
     /// 统一的状态更新方法
     /// 使用闭包来修改 item 数据
+    ///
+    /// 性能注意：每次调用都会克隆整个 ItemModel
+    /// 考虑批量更新以减少克隆次数
     pub fn update_item<F>(&mut self, f: F)
     where
         F: Fn(&mut ItemModel),
+    {
+        let mut item_data = (*self.item).clone();
+        f(&mut item_data);
+        self.item = Arc::new(item_data);
+    }
+
+    /// 批量更新多个字段，减少克隆次数
+    pub fn batch_update<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut ItemModel),
     {
         let mut item_data = (*self.item).clone();
         f(&mut item_data);
@@ -274,14 +277,16 @@ impl ItemInfoState {
                 cx.notify();
             },
             InputEvent::PressEnter { secondary } => {
-                let _text = state.read(cx).value().to_string();
-                if *secondary {
-                } else {
+                if !*secondary {
                     // Enter 键时保存（仅在变更时）
                     if self.sync_inputs(cx) {
                         cx.emit(ItemInfoEvent::Updated());
                     }
                 }
+            },
+            InputEvent::Blur => {
+                // 失焦时自动保存
+                self.save_all_changes(cx);
             },
             _ => {},
         };
@@ -316,25 +321,22 @@ impl ItemInfoState {
         &mut self,
         _state: &Entity<LabelsPopoverList>,
         event: &LabelsPopoverEvent,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
             LabelsPopoverEvent::Selected(label) => {
                 let label_model = (**label).clone();
-                self.add_checked_labels(Arc::new(label_model), cx);
+                self.add_checked_labels(Arc::new(label_model), window, cx);
             },
             LabelsPopoverEvent::DeSelected(label) => {
                 let label_model = (**label).clone();
-                self.rm_checked_labels(Arc::new(label_model), cx);
+                self.rm_checked_labels(Arc::new(label_model), window, cx);
             },
             LabelsPopoverEvent::LabelsChanged(label_ids) => {
-                // Labels 现在存储在 item_labels 关联表中
-                // 这里只更新 UI 状态，实际的数据库更新在保存时处理
-                // 或者可以通过异步操作立即更新关联表
                 let item_id = self.state_manager.item.id.clone();
                 let db = get_db_connection(cx);
-                let label_ids_clone = label_ids.clone(); // 克隆以避免生命周期问题
+                let label_ids_clone = label_ids.clone();
 
                 cx.spawn(async move |_this, _cx| {
                     let label_ids_vec: Vec<String> = label_ids_clone
@@ -343,10 +345,9 @@ impl ItemInfoState {
                         .map(|s| s.to_string())
                         .collect();
 
-                    // 使用 Store 批量设置 Item 的 Labels
                     let store = todos::Store::new((*db).clone());
                     if let Err(e) = store.set_item_labels(&item_id, &label_ids_vec).await {
-                        tracing::error!("Failed to set item labels: {:?}", e);
+                        NotificationSystem::log_error("Failed to set item labels", e);
                     }
                 })
                 .detach();
@@ -514,25 +515,20 @@ impl ItemInfoState {
         &mut self,
         _state: &Entity<ReminderButtonState>,
         event: &ReminderButtonEvent,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
             ReminderButtonEvent::Added(reminder) => {
-                // 这里可以更新 item 的 reminders 字段
-                // 由于提醒已经通过 todo_actions::add_reminder 保存到数据库
-                // 这里只需要确保 UI 状态正确即可
-                println!("Reminder added: {:?}", reminder.id);
+                NotificationSystem::debug(format!("Reminder added: {:?}", reminder.id));
+                window.notify_success("Reminder added successfully", cx);
             },
             ReminderButtonEvent::Removed(reminder_id) => {
-                // 这里可以更新 item 的 reminders 字段
-                // 由于提醒已经通过 todo_actions::delete_reminder 从数据库删除
-                // 这里只需要确保 UI 状态正确即可
-                println!("Reminder removed: {:?}", reminder_id);
+                NotificationSystem::debug(format!("Reminder removed: {:?}", reminder_id));
+                window.notify_success("Reminder removed", cx);
             },
             ReminderButtonEvent::Error(error) => {
-                // 处理错误
-                println!("Reminder error: {:?}", error);
+                window.notify_error(format!("Failed to manage reminder: {}", error), cx);
             },
         }
 
@@ -571,33 +567,49 @@ impl ItemInfoState {
         cx.notify();
     }
 
-    pub fn add_checked_labels(&mut self, label: Arc<LabelModel>, cx: &mut Context<Self>) {
-        // Labels 现在存储在 item_labels 关联表中
-        // 异步添加 Label 到 Item
+    pub fn add_checked_labels(
+        &mut self,
+        label: Arc<LabelModel>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let item_id = self.state_manager.item.id.clone();
         let label_name = label.name.clone();
         let db = get_db_connection(cx);
 
         cx.spawn(async move |_this, _cx| {
             let store = todos::Store::new((*db).clone());
-            if let Err(e) = store.add_label_to_item(&item_id, &label_name).await {
-                tracing::error!("Failed to add label to item: {:?}", e);
+            match store.add_label_to_item(&item_id, &label_name).await {
+                Ok(_) => {
+                    NotificationSystem::debug(format!("Label '{}' added to item", label_name));
+                },
+                Err(e) => {
+                    NotificationSystem::log_error("Failed to add label to item", e);
+                },
             }
         })
         .detach();
     }
 
-    pub fn rm_checked_labels(&mut self, label: Arc<LabelModel>, cx: &mut Context<Self>) {
-        // Labels 现在存储在 item_labels 关联表中
-        // 异步从 Item 移除 Label
+    pub fn rm_checked_labels(
+        &mut self,
+        label: Arc<LabelModel>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let item_id = self.state_manager.item.id.clone();
         let label_id = label.id.clone();
         let db = get_db_connection(cx);
 
         cx.spawn(async move |_this, _cx| {
             let store = todos::Store::new((*db).clone());
-            if let Err(e) = store.remove_label_from_item(&item_id, &label_id).await {
-                tracing::error!("Failed to remove label from item: {:?}", e);
+            match store.remove_label_from_item(&item_id, &label_id).await {
+                Ok(_) => {
+                    NotificationSystem::debug("Label removed from item".to_string());
+                },
+                Err(e) => {
+                    NotificationSystem::log_error("Failed to remove label from item", e);
+                },
             }
         })
         .detach();
@@ -754,13 +766,13 @@ impl ItemInfoState {
         &mut self,
         label: Arc<LabelModel>,
         selected: &bool,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if *selected {
-            self.add_checked_labels(label.clone(), cx);
+            self.add_checked_labels(label.clone(), window, cx);
         } else {
-            self.rm_checked_labels(label.clone(), cx);
+            self.rm_checked_labels(label.clone(), window, cx);
         }
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();
