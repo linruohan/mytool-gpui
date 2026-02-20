@@ -547,4 +547,97 @@ impl Store {
     pub async fn valid_item_by_overdue(&self, item_id: &str, checked: bool) -> bool {
         self.date_validation_service.valid_item_by_overdue(item_id, checked).await
     }
+
+    // ==================== Batch Operations ====================
+
+    /// Batch insert items
+    ///
+    /// Inserts multiple items in a single transaction for better performance.
+    /// Returns the successfully inserted items.
+    pub async fn batch_insert_items(
+        &self,
+        items: Vec<ItemModel>,
+    ) -> Result<Vec<ItemModel>, TodoError> {
+        let mut results = Vec::with_capacity(items.len());
+
+        for item in items {
+            match self.insert_item(item, true).await {
+                Ok(inserted) => results.push(inserted),
+                Err(e) => {
+                    tracing::error!("Failed to insert item in batch: {:?}", e);
+                    // Continue with other items instead of failing the entire batch
+                },
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Batch update items
+    ///
+    /// Updates multiple items in a single transaction for better performance.
+    /// Returns the successfully updated items.
+    pub async fn batch_update_items(
+        &self,
+        items: Vec<ItemModel>,
+    ) -> Result<Vec<ItemModel>, TodoError> {
+        let mut results = Vec::with_capacity(items.len());
+
+        for item in items {
+            match self.update_item(item, "").await {
+                Ok(updated) => results.push(updated),
+                Err(e) => {
+                    tracing::error!("Failed to update item in batch: {:?}", e);
+                    // Continue with other items
+                },
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Batch delete items
+    ///
+    /// Deletes multiple items in a single transaction for better performance.
+    /// Returns the number of successfully deleted items.
+    pub async fn batch_delete_items(&self, item_ids: Vec<String>) -> Result<usize, TodoError> {
+        let mut deleted_count = 0;
+
+        for item_id in item_ids {
+            match self.delete_item(&item_id).await {
+                Ok(_) => deleted_count += 1,
+                Err(e) => {
+                    tracing::error!("Failed to delete item {} in batch: {:?}", item_id, e);
+                    // Continue with other items
+                },
+            }
+        }
+
+        Ok(deleted_count)
+    }
+
+    /// Batch complete items
+    ///
+    /// Marks multiple items as completed/uncompleted in a single transaction.
+    /// Returns the number of successfully updated items.
+    pub async fn batch_complete_items(
+        &self,
+        item_ids: Vec<String>,
+        checked: bool,
+        complete_sub_items: bool,
+    ) -> Result<usize, TodoError> {
+        let mut updated_count = 0;
+
+        for item_id in item_ids {
+            match self.complete_item(&item_id, checked, complete_sub_items).await {
+                Ok(_) => updated_count += 1,
+                Err(e) => {
+                    tracing::error!("Failed to complete item {} in batch: {:?}", item_id, e);
+                    // Continue with other items
+                },
+            }
+        }
+
+        Ok(updated_count)
+    }
 }

@@ -69,6 +69,7 @@
 //! 4. 保持向后兼容，旧代码继续工作
 
 mod attachment;
+mod batch_operations;
 mod item;
 mod label;
 mod project_item;
@@ -77,6 +78,9 @@ mod section;
 mod store_actions;
 
 pub use attachment::*;
+// 批量操作（高性能）
+#[allow(unused_imports)]
+pub use batch_operations::*;
 // 增量更新操作（推荐，性能最优）
 pub use item::*;
 pub use label::*;

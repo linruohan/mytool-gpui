@@ -46,6 +46,8 @@ pub struct ProjectItemsPanel {
     focus_handle: FocusHandle,
     no_section_items: Vec<(usize, Arc<ItemModel>)>,
     section_items_map: std::collections::HashMap<String, Vec<(usize, Arc<ItemModel>)>>,
+    /// 缓存的 TodoStore 版本号，用于优化性能
+    cached_version: usize,
 }
 
 impl ProjectItemsPanel {
@@ -59,6 +61,12 @@ impl ProjectItemsPanel {
         let _subscriptions =
             vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let todo_store = cx.global::<TodoStore>();
+
+                // 性能优化：检查版本号，只在数据变化时更新
+                if this.cached_version == todo_store.version() {
+                    return;
+                }
+                this.cached_version = todo_store.version();
 
                 // 检查 project.id 是否有效
                 if this.project.id.is_empty() {
@@ -109,6 +117,7 @@ impl ProjectItemsPanel {
             focus_handle: cx.focus_handle(),
             no_section_items,
             section_items_map,
+            cached_version: 0,
         }
     }
 

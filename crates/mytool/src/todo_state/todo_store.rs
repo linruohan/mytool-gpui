@@ -35,6 +35,10 @@ pub struct TodoStore {
     checked_set: HashSet<String>,
     /// 置顶状态索引：已置顶的任务 ID
     pinned_set: HashSet<String>,
+
+    /// 版本号：每次数据变化时递增，用于优化观察者更新
+    /// 视图可以通过比较版本号来判断是否需要重新渲染
+    version: usize,
 }
 
 impl Global for TodoStore {}
@@ -52,7 +56,15 @@ impl TodoStore {
             section_index: HashMap::new(),
             checked_set: HashSet::new(),
             pinned_set: HashSet::new(),
+            version: 0,
         }
+    }
+
+    /// 获取当前版本号
+    ///
+    /// 视图可以缓存此版本号，在观察者回调中比较版本号来判断是否需要更新
+    pub fn version(&self) -> usize {
+        self.version
     }
 
     /// 重建所有索引
@@ -189,26 +201,36 @@ impl TodoStore {
         self.all_items = items.into_iter().map(Arc::new).collect();
         // 重建索引
         self.rebuild_indexes();
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 更新所有项目
     pub fn set_projects(&mut self, projects: Vec<ProjectModel>) {
         self.projects = projects.into_iter().map(Arc::new).collect();
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 更新所有标签
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) {
         self.labels = labels.into_iter().map(Arc::new).collect();
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 更新所有分区
     pub fn set_sections(&mut self, sections: Vec<SectionModel>) {
         self.sections = sections.into_iter().map(Arc::new).collect();
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 设置活跃项目
     pub fn set_active_project(&mut self, project: Option<Arc<ProjectModel>>) {
         self.active_project = project;
+        // 增加版本号
+        self.version += 1;
     }
 
     // ==================== 增量更新方法 ====================
@@ -232,6 +254,8 @@ impl TodoStore {
             // 添加到索引
             self.add_item_to_index(&item);
         }
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 删除单个任务
@@ -246,6 +270,8 @@ impl TodoStore {
 
         // 从列表中移除
         self.all_items.retain(|i| i.id != id);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 添加单个任务
@@ -253,6 +279,8 @@ impl TodoStore {
         self.all_items.push(item.clone());
         // 添加到索引
         self.add_item_to_index(&item);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 根据ID获取单个任务
@@ -267,16 +295,22 @@ impl TodoStore {
         } else {
             self.projects.push(project);
         }
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 删除单个项目
     pub fn remove_project(&mut self, id: &str) {
         self.projects.retain(|p| p.id != id);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 添加单个项目
     pub fn add_project(&mut self, project: Arc<ProjectModel>) {
         self.projects.push(project);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 根据ID获取单个项目
@@ -291,16 +325,22 @@ impl TodoStore {
         } else {
             self.sections.push(section);
         }
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 删除单个分区
     pub fn remove_section(&mut self, id: &str) {
         self.sections.retain(|s| s.id != id);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 添加单个分区
     pub fn add_section(&mut self, section: Arc<SectionModel>) {
         self.sections.push(section);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 根据ID获取单个分区
@@ -317,16 +357,22 @@ impl TodoStore {
         } else {
             self.labels.push(label);
         }
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 删除单个标签
     pub fn remove_label(&mut self, id: &str) {
         self.labels.retain(|l| l.id != id);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 添加单个标签
     pub fn add_label(&mut self, label: Arc<LabelModel>) {
         self.labels.push(label);
+        // 增加版本号
+        self.version += 1;
     }
 
     /// 根据ID获取单个标签

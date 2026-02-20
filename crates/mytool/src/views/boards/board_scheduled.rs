@@ -34,6 +34,8 @@ impl EventEmitter<ItemClickEvent> for ScheduledBoard {}
 
 pub struct ScheduledBoard {
     base: BoardBase,
+    /// 缓存的 TodoStore 版本号，用于优化性能
+    cached_version: usize,
 }
 
 impl ScheduledBoard {
@@ -47,8 +49,16 @@ impl ScheduledBoard {
         // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                let store = cx.global::<TodoStore>();
+
+                // 性能优化：检查版本号，只在数据变化时更新
+                if this.cached_version == store.version() {
+                    return;
+                }
+                this.cached_version = store.version();
+
                 // 从 TodoStore 获取计划任务（内存过滤，无需数据库查询）
-                let state_items = cx.global::<TodoStore>().scheduled_items();
+                let state_items = store.scheduled_items();
 
                 this.base.item_rows = state_items
                     .iter()
@@ -72,7 +82,7 @@ impl ScheduledBoard {
             }),
         ];
 
-        Self { base }
+        Self { base, cached_version: 0 }
     }
 
     pub(crate) fn get_selected_item(

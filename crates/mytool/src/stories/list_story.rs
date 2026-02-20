@@ -28,6 +28,7 @@ pub struct ListStory {
     item_rows: HashMap<String, Entity<ItemRowState>>,
     pub popover_list: Entity<PopoverList>,
     pub label_popover_list: Entity<LabelsPopoverList>,
+    cached_version: usize,
 }
 
 impl super::Mytool for ListStory {
@@ -66,7 +67,16 @@ impl ListStory {
         };
         let _subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let state_items = cx.global::<TodoStore>().all_items.clone();
+                let store = cx.global::<TodoStore>();
+                let current_version = store.version();
+
+                // 版本号未变化，跳过更新
+                if this.cached_version == current_version {
+                    return;
+                }
+
+                this.cached_version = current_version;
+                let state_items = store.all_items.clone();
 
                 // 将state_items转换为HashMap便于快速查找
                 let items_by_id: HashMap<String, Arc<ItemModel>> =
@@ -136,6 +146,7 @@ impl ListStory {
             item_rows,
             popover_list,
             label_popover_list,
+            cached_version: 0,
         }
     }
 

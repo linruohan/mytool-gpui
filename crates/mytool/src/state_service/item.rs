@@ -45,3 +45,39 @@ pub async fn pin_item(
 pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -> Vec<ItemModel> {
     Store::new(db).get_items_by_project(project_id).await.unwrap_or_default()
 }
+
+// ==================== 批量操作 ====================
+
+/// 批量添加任务
+pub async fn batch_add_items(
+    items: Vec<ItemModel>,
+    db: DatabaseConnection,
+) -> Result<Vec<ItemModel>, TodoError> {
+    Store::new(db).batch_insert_items(items).await
+}
+
+/// 批量更新任务
+pub async fn batch_update_items(
+    items: Vec<ItemModel>,
+    db: DatabaseConnection,
+) -> Result<Vec<ItemModel>, TodoError> {
+    Store::new(db).batch_update_items(items).await
+}
+
+/// 批量删除任务
+pub async fn batch_delete_items(
+    item_ids: Vec<String>,
+    db: DatabaseConnection,
+) -> Result<usize, TodoError> {
+    Store::new(db).batch_delete_items(item_ids).await
+}
+
+/// 批量完成/取消完成任务
+pub async fn batch_complete_items(
+    item_ids: Vec<String>,
+    checked: bool,
+    complete_sub_items: bool,
+    db: DatabaseConnection,
+) -> Result<usize, TodoError> {
+    Store::new(db).batch_complete_items(item_ids, checked, complete_sub_items).await
+}

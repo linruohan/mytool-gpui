@@ -20,6 +20,7 @@ mod component_manager; // 组件管理
 mod components; // 我的组件库
 mod gallery;
 mod plugins; // 插件系统
+mod shortcuts; // 键盘快捷键系统
 mod state_service;
 mod stories;
 mod story_container;
@@ -38,6 +39,7 @@ pub use component_manager::ComponentManager;
 pub use components::*;
 pub use gallery::Gallery;
 pub use plugins::*;
+pub use shortcuts::*; // 导出快捷键
 pub use stories::*;
 pub use story_section::StorySection;
 pub use title_bar::AppTitleBar;

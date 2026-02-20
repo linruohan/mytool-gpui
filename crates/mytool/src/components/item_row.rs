@@ -28,6 +28,8 @@ pub struct ItemRowState {
     is_open: bool,
     _subscriptions: Vec<Subscription>,
     update_version: usize, // 用于强制重新渲染 ItemListItem
+    /// 缓存的 TodoStore 版本号，用于优化性能
+    cached_store_version: usize,
 }
 
 impl EventEmitter<ItemRowEvent> for ItemRowState {}
@@ -38,7 +40,15 @@ impl ItemRowState {
 
         let _subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let state_items = cx.global::<TodoStore>().all_items.clone();
+                let store = cx.global::<TodoStore>();
+
+                // 性能优化：检查版本号，只在数据变化时更新
+                if this.cached_store_version == store.version() {
+                    return;
+                }
+                this.cached_store_version = store.version();
+
+                let state_items = store.all_items.clone();
                 if let Some(updated_item) = state_items.iter().find(|i| i.id == item_id) {
                     this.item = updated_item.clone();
                     this.update_version += 1; // 增加版本号，强制重新渲染
@@ -60,7 +70,14 @@ impl ItemRowState {
             }),
         ];
 
-        Self { item, item_info, is_open: false, _subscriptions, update_version: 0 }
+        Self {
+            item,
+            item_info,
+            is_open: false,
+            _subscriptions,
+            update_version: 0,
+            cached_store_version: 0,
+        }
     }
 
     /// 保存所有修改
