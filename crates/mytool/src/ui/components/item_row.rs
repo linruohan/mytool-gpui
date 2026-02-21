@@ -9,7 +9,7 @@ use gpui_component::{
     ActiveTheme, IconName, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible,
     h_flex, v_flex,
 };
-use todos::entity::ItemModel;
+use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{
     ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, SemanticColors, todo_state::TodoStore,
@@ -190,27 +190,21 @@ impl Render for ItemRowState {
         let colors = SemanticColors::from_theme(cx);
         // 获取优先级值 (1=High, 2=Medium, 3=Low, 4=None)
         let priority = item.priority.unwrap_or(4);
-        let priority_color = colors.priority_border_color(priority); // 使用增强的边框颜色
-        let priority_opacity = colors.priority_opacity(priority); // 使用动态透明度
+        // 使用 ItemPriority::get_color() 获取优先级颜色
+        let priority_color = gpui::rgb(ItemPriority::from_i32(priority).get_color());
 
-        // 根据任务状态选择状态颜色
-        let status_indicator = if item.checked {
-            Some(colors.status_completed)
-        } else if item.pinned {
-            Some(colors.status_pinned)
-        } else {
-            None
-        };
+        // 根据任务状态选择状态颜色（只显示完成状态）
+        let status_indicator = if item.checked { Some(colors.status_completed) } else { None };
 
         // 完成状态的视觉效果
         let completed_opacity = if item.checked { 0.6 } else { 1.0 };
 
-        // 优先级边框宽度和透明度 - 根据优先级调整视觉强度
-        let (border_width, left_border_width) = match priority {
-            1 => (px(2.0), px(4.0)), // High: 更粗的边框
-            2 => (px(1.5), px(3.0)), // Medium: 中等边框
-            3 => (px(1.0), px(2.0)), // Low: 细边框
-            _ => (px(1.0), px(1.0)), // None: 最细边框
+        // 优先级边框宽度
+        let left_border_width = match priority {
+            1 => px(4.0), // High: 更粗的边框
+            2 => px(3.0), // Medium: 中等边框
+            3 => px(2.0), // Low: 细边框
+            _ => px(1.0), // None: 最细边框
         };
 
         div()
@@ -221,12 +215,9 @@ impl Render for ItemRowState {
             .rounded(px(8.0))
             .p(px(12.0))
             .my(px(4.0))  // 添加垂直间距
-            // 优先级指示器：左侧加粗彩色边框 - 动态宽度
+            // 优先级边框 - 左侧边框
             .border_l(left_border_width)
             .border_color(priority_color)
-            // 边框样式 - 动态宽度和透明度
-            .border(border_width)
-            .border_color(priority_color.opacity(priority_opacity))
             // 背景色 - 根据优先级添加轻微色调
             .bg(colors.priority_background_tint(priority, cx.theme().background))
             // 完成状态的透明度
@@ -234,7 +225,7 @@ impl Render for ItemRowState {
             // 焦点环效果 - 使用优先级颜色
             .when(is_focused, |this| {
                 this.shadow_md()
-                    .border_color(priority_color.opacity(1.0)) // 焦点时使用完全不透明的优先级颜色
+                    .border_color(priority_color)
                     .border(px(2.0)) // 焦点时加粗边框
             })
             // 悬停效果：提升视觉层次
@@ -249,7 +240,6 @@ impl Render for ItemRowState {
             .hover(|style| {
                 style
                     .bg(colors.hover_overlay)
-                    .border_color(priority_color.opacity(priority_opacity + 0.2)) // 悬停时增强边框透明度
                     .shadow_md()
                     .cursor_pointer()
             })

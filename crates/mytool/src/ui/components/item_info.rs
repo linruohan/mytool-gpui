@@ -810,22 +810,10 @@ impl Render for ItemInfoState {
             cx.theme().muted_foreground
         };
 
-        // 根据优先级设置边框颜色
-        let border_color = if let Some(priority) = self.state_manager.item.priority {
-            match priority {
-                1 => colors.priority_high,
-                2 => colors.priority_medium,
-                3 => colors.priority_low,
-                _ => cx.theme().border,
-            }
-        } else {
-            cx.theme().border
-        };
-
         v_flex()
             .bg(cx.theme().background)
             .border_1()
-            .border_color(border_color)
+            .border_color(cx.theme().border)
             .rounded(px(8.0))
             .overflow_hidden()  // 确保圆角生效
             .shadow_sm()  // 添加轻微阴影
