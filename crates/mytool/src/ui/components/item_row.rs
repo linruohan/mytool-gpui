@@ -106,26 +106,104 @@ impl ItemRowState {
     }
 
     /// 切换展开/收起状态
-    fn toggle_expand(&mut self, cx: &mut Context<Self>) {
+    fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         // 如果当前是展开状态，收缩时保存所有修改
         if self.is_open {
             self.save_all_changes(cx);
         }
         self.is_open = !self.is_open;
+
+        // 如果展开，尝试让第一个输入框获得焦点
+        if self.is_open {
+            self.item_info.update(cx, |state, cx| {
+                // 尝试让 name_input 获得焦点
+                state.focus_name_input(window, cx);
+            });
+        }
+
         cx.notify();
     }
 
+    /// 展开详情面板
+    fn expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.is_open {
+            self.is_open = true;
+            self.item_info.update(cx, |state, cx| {
+                state.focus_name_input(window, cx);
+            });
+            cx.notify();
+        }
+    }
+
+    /// 收起详情面板并保存修改
+    fn collapse(&mut self, cx: &mut Context<Self>) {
+        if self.is_open {
+            self.save_all_changes(cx);
+            self.is_open = false;
+            cx.notify();
+        }
+    }
+
+    /// 检查点击是否在展开按钮区域
+    fn is_toggle_button_click(&self, event: &gpui::MouseDownEvent) -> bool {
+        // 这里可以根据实际的按钮位置来判断
+        // 暂时简化处理，假设右侧区域是按钮区域
+        event.position.x > px(300.0) // 简化的判断逻辑
+    }
+
     /// 处理键盘事件
-    fn handle_key_event(&mut self, event: &gpui::KeyDownEvent, cx: &mut Context<Self>) -> bool {
-        match event.keystroke.key.as_str() {
-            "enter" => {
-                // Enter 键：切换展开/收起
-                self.toggle_expand(cx);
-                true
-            },
-            "space" => {
-                // 空格键：切换完成状态
-                if !self.is_open {
+    fn handle_key_event(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        // 如果是展开状态，让输入框优先处理键盘事件
+        if self.is_open {
+            // 只处理特定的快捷键，其他键盘事件让输入框处理
+            match event.keystroke.key.as_str() {
+                "enter" if event.keystroke.modifiers == gpui::Modifiers::default() => {
+                    // Enter 键：切换展开/收起（仅在没有修饰键时）
+                    self.toggle_expand(window, cx);
+                    true
+                },
+                "escape" => {
+                    // Escape 键：收起
+                    if self.is_open {
+                        self.save_all_changes(cx);
+                        self.is_open = false;
+                        cx.notify();
+                    }
+                    true
+                },
+                "d" if event.keystroke.modifiers == gpui::Modifiers::command() => {
+                    // Cmd/Ctrl + D：删除任务
+                    self.item_info.update(cx, |_state, cx| {
+                        cx.emit(ItemInfoEvent::Deleted());
+                    });
+                    true
+                },
+                "p" if event.keystroke.modifiers == gpui::Modifiers::command() => {
+                    // Cmd/Ctrl + P：切换置顶
+                    let new_pinned = !self.item.pinned;
+                    self.item_info.update(cx, |state, cx| {
+                        state.state_manager.set_pinned(new_pinned);
+                        cx.emit(ItemInfoEvent::Updated());
+                    });
+                    true
+                },
+                _ => false, // 其他键盘事件让输入框处理
+            }
+        } else {
+            // 收起状态下的键盘事件处理
+            match event.keystroke.key.as_str() {
+                "enter" => {
+                    // Enter 键：切换展开/收起
+                    self.toggle_expand(window, cx);
+                    true
+                },
+                "space" => {
+                    // 空格键：切换完成状态
                     let new_checked = !self.item.checked;
                     self.item_info.update(cx, |state, cx| {
                         state.state_manager.set_completed(new_checked);
@@ -136,35 +214,31 @@ impl ItemRowState {
                         }
                     });
                     true
-                } else {
-                    false
-                }
-            },
-            "e" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                // Cmd/Ctrl + E：编辑任务（展开）
-                if !self.is_open {
+                },
+                "e" if event.keystroke.modifiers == gpui::Modifiers::command() => {
+                    // Cmd/Ctrl + E：编辑任务（展开）
                     self.is_open = true;
                     cx.notify();
-                }
-                true
-            },
-            "d" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                // Cmd/Ctrl + D：删除任务
-                self.item_info.update(cx, |_state, cx| {
-                    cx.emit(ItemInfoEvent::Deleted());
-                });
-                true
-            },
-            "p" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                // Cmd/Ctrl + P：切换置顶
-                let new_pinned = !self.item.pinned;
-                self.item_info.update(cx, |state, cx| {
-                    state.state_manager.set_pinned(new_pinned);
-                    cx.emit(ItemInfoEvent::Updated());
-                });
-                true
-            },
-            _ => false,
+                    true
+                },
+                "d" if event.keystroke.modifiers == gpui::Modifiers::command() => {
+                    // Cmd/Ctrl + D：删除任务
+                    self.item_info.update(cx, |_state, cx| {
+                        cx.emit(ItemInfoEvent::Deleted());
+                    });
+                    true
+                },
+                "p" if event.keystroke.modifiers == gpui::Modifiers::command() => {
+                    // Cmd/Ctrl + P：切换置顶
+                    let new_pinned = !self.item.pinned;
+                    self.item_info.update(cx, |state, cx| {
+                        state.state_manager.set_pinned(new_pinned);
+                        cx.emit(ItemInfoEvent::Updated());
+                    });
+                    true
+                },
+                _ => false,
+            }
         }
     }
 }
@@ -233,23 +307,32 @@ impl Render for ItemRowState {
                 this.is_hovered = true;
                 cx.notify();
             }))
-            .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, _event, window, cx| {
+            .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event, window, cx| {
+                // 检查是否点击的是展开按钮区域
+                if this.is_toggle_button_click(event) {
+                    // 点击展开按钮，切换状态
+                    this.toggle_expand(window, cx);
+                } else if !this.is_open {
+                    // 点击其他区域且当前未展开，则展开详情
+                    this.expand(window, cx);
+                }
+                // 无论如何都获得焦点
                 this.focus_handle.focus(window, cx);
                 cx.notify();
             }))
-            .hover(|style| {
+            .hover(|style: gpui::StyleRefinement| {
                 style
                     .bg(colors.hover_overlay)
                     .shadow_md()
                     .cursor_pointer()
             })
             // 状态指示器：顶部边框（如果有状态）
-            .when_some(status_indicator, |this, color| {
+            .when_some(status_indicator, |this: gpui::Stateful<gpui::Div>, color| {
                 this.border_t_2().border_color(color)
             })
             // 键盘事件处理
-            .on_key_down(cx.listener(|this, event, _window, cx| {
-                if this.handle_key_event(event, cx) {
+            .on_key_down(cx.listener(|this, event, window, cx| {
+                if this.handle_key_event(event, window, cx) {
                     cx.stop_propagation();
                 }
             }))
@@ -279,9 +362,9 @@ impl Render for ItemRowState {
                                     } else {
                                         "Open editor (Enter)"
                                     })
-                                    .on_click(move |_event, _window, cx| {
+                                    .on_click(move |_event, window, cx| {
                                         cx.update_entity(&view, |this, cx| {
-                                            this.toggle_expand(cx);
+                                            this.toggle_expand(window, cx);
                                         })
                                     }),
                             ),

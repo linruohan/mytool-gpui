@@ -208,10 +208,10 @@ impl ItemInfoState {
     pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
 
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("To-do Name"));
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Task name..."));
 
         let desc_input = cx.new(|cx| {
-            InputState::new(window, cx).auto_grow(5, 20).placeholder("Add a description ...")
+            InputState::new(window, cx).auto_grow(5, 20).placeholder("Add description...")
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
@@ -266,6 +266,43 @@ impl ItemInfoState {
         };
         this.set_item(item, window, cx);
         this
+    }
+
+    /// 检查是否有任何子组件具有焦点
+    pub fn has_focus_within(&self, window: &Window, cx: &App) -> bool {
+        // 检查主焦点句柄
+        if self.focus_handle.is_focused(window) {
+            return true;
+        }
+
+        // 检查输入框焦点
+        if self.name_input.focus_handle(cx).is_focused(window)
+            || self.desc_input.focus_handle(cx).is_focused(window)
+        {
+            return true;
+        }
+
+        // 检查其他子组件焦点
+        if self.priority_state.focus_handle(cx).is_focused(window)
+            || self.project_state.focus_handle(cx).is_focused(window)
+            || self.section_state.focus_handle(cx).is_focused(window)
+            || self.schedule_button_state.focus_handle(cx).is_focused(window)
+            || self.label_popover_list.focus_handle(cx).is_focused(window)
+            || self.attachment_state.focus_handle(cx).is_focused(window)
+            || self.reminder_state.focus_handle(cx).is_focused(window)
+        {
+            return true;
+        }
+
+        false
+    }
+
+    /// 当失去焦点时调用，用于通知父组件
+    pub fn on_focus_lost(&mut self, cx: &mut Context<Self>) {
+        // 保存所有修改
+        self.save_all_changes(cx);
+        // 可以发送一个自定义事件通知父组件
+        cx.emit(ItemInfoEvent::Updated());
     }
 
     fn on_input_event(
@@ -338,10 +375,12 @@ impl ItemInfoState {
             LabelsPopoverEvent::Selected(label) => {
                 let label_model = (**label).clone();
                 self.add_checked_labels(Arc::new(label_model), window, cx);
+                // 不立即同步，避免关闭 popover
             },
             LabelsPopoverEvent::DeSelected(label) => {
                 let label_model = (**label).clone();
                 self.rm_checked_labels(Arc::new(label_model), window, cx);
+                // 不立即同步，避免关闭 popover
             },
             LabelsPopoverEvent::LabelsChanged(label_ids) => {
                 let item_id = self.state_manager.item.id.clone();
@@ -361,10 +400,34 @@ impl ItemInfoState {
                     }
                 })
                 .detach();
+
+                // 只在 LabelsChanged 时发出更新事件，这通常在 popover 关闭时发生
+                cx.emit(ItemInfoEvent::Updated());
             },
         }
-        cx.emit(ItemInfoEvent::Updated());
-        cx.notify();
+        // 只在必要时通知 UI 更新，避免过度刷新导致 popover 关闭
+        if matches!(event, LabelsPopoverEvent::LabelsChanged(_)) {
+            cx.notify();
+        }
+    }
+
+    /// 同步标签选择状态 - 仅在需要时调用，避免过度刷新
+    fn sync_labels_selection(&mut self, cx: &mut Context<Self>) {
+        // 从当前选中的标签生成 label_ids 字符串
+        let selected_label_ids = self.label_popover_list.read(cx).get_selected_label_ids();
+
+        // 只在有实际变化时触发事件
+        if !selected_label_ids.is_empty() {
+            // 简单地发送更新事件，但不立即通知以避免关闭 popover
+            cx.emit(ItemInfoEvent::Updated());
+        }
+    }
+
+    /// 让名称输入框获得焦点
+    pub fn focus_name_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.name_input.update(cx, |input_state, cx| {
+            input_state.focus(window, cx);
+        });
     }
 
     pub fn on_priority_event(
@@ -482,7 +545,7 @@ impl ItemInfoState {
         &mut self,
         _state: &Entity<ScheduleButtonState>,
         event: &ScheduleButtonEvent,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
@@ -519,6 +582,10 @@ impl ItemInfoState {
             ScheduleButtonEvent::Cleared => {
                 // 使用 state_manager 清除 due date
                 self.state_manager.set_due_date(None);
+                // 同步更新 schedule button 状态
+                self.schedule_button_state.update(cx, |state, cx| {
+                    state.set_due_date(todos::DueDate::default(), window, cx);
+                });
                 // 🚀 使用乐观更新
                 update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 设置标志以避免在 handle_item_info_event 中重复更新
@@ -527,6 +594,7 @@ impl ItemInfoState {
             },
         }
 
+        // 强制通知 UI 更新，确保按钮显示最新状态
         cx.notify();
     }
 
@@ -817,6 +885,10 @@ impl Render for ItemInfoState {
             .rounded(px(8.0))
             .overflow_hidden()  // 确保圆角生效
             .shadow_sm()  // 添加轻微阴影
+            // 阻止点击事件冒泡，防止意外收起
+            .on_mouse_down(gpui::MouseButton::Left, |_event, _window, cx| {
+                cx.stop_propagation();
+            })
             .child(
                 h_flex()
                     .gap_2()
@@ -829,7 +901,10 @@ impl Render for ItemInfoState {
                             .checked(self.state_manager.item.checked)
                             .on_click(cx.listener(Self::toggle_finished)),
                     )
-                    .child(Input::new(&self.name_input).focus_bordered(false))
+                    .child(
+                        Input::new(&self.name_input)
+                            .focus_bordered(false)
+                    )
                     .child(
                         Button::new("item-pin")
                             .small()
@@ -974,11 +1049,11 @@ impl ItemInfo {
 }
 
 impl RenderOnce for ItemInfo {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .id(self.id.clone())
             .key_context(CONTEXT)
-            .track_focus(&self.focus_handle(cx).tab_stop(true))
+            // 移除 track_focus，让子组件（输入框）自己管理焦点
             .w_full()
             .refine_style(&self.style)
             .child(self.state.clone())
