@@ -5,8 +5,8 @@ use std::{
 
 use gpui::{
     Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div, px,
+    InteractiveElement, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce,
+    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
@@ -23,6 +23,7 @@ use todos::{
     entity::{ItemModel, LabelModel},
     enums::item_priority::ItemPriority,
 };
+use tracing::info;
 
 use super::{
     AttachmentButton, AttachmentButtonState, PriorityButton, PriorityEvent, PriorityState,
@@ -358,8 +359,11 @@ impl ItemInfoState {
         // 同步输入框内容
         let has_input_changes = self.sync_inputs(cx);
 
-        // 触发更新事件
+        // 如果有输入更改，保存所有更改
         if has_input_changes {
+            info!("Saving input changes for item: {}", self.state_manager.item.id);
+            // 🚀 使用乐观更新确保所有更改都被保存
+            update_item_optimistic(self.state_manager.item.clone(), cx);
             cx.emit(ItemInfoEvent::Updated());
         }
     }
@@ -439,11 +443,16 @@ impl ItemInfoState {
     ) {
         match event {
             PriorityEvent::Selected(priority) => {
-                self.set_priority(priority.clone() as i32);
-                // 🚀 使用乐观更新（立即更新 UI）
+                let new_priority = priority.clone() as i32;
+                info!("Priority changed to: {}", new_priority);
+
+                self.set_priority(new_priority);
+
+                // 🚀 立即进行乐观更新（更新 UI 和数据库）
                 update_item_optimistic(self.state_manager.item.clone(), cx);
-                // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.state_manager.skip_next_update = true;
+
+                // 不设置 skip_next_update，让正常的更新流程也执行
+                // 这样可以确保数据被正确保存
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -708,7 +717,9 @@ impl ItemInfoState {
     /// 如果需要最新的 labels，请使用异步方法从数据库加载
     pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Arc<LabelModel>> {
         // 从 LabelPopoverList 获取当前选中的 labels
-        self.label_popover_list.read(cx).selected_labels.clone()
+        let selected = self.label_popover_list.read(cx).selected_labels.clone();
+        info!("Getting selected labels: {} labels", selected.len());
+        selected
     }
 
     pub fn priority(&self) -> Option<ItemPriority> {
@@ -806,11 +817,45 @@ impl ItemInfoState {
         });
 
         // Labels 现在存储在 item_labels 关联表中，需要异步加载
-        // 注意：这里简化处理，实际项目中可能需要更好的状态管理
-        // 暂时清空 labels，等待异步加载完成
-        self.label_popover_list.update(cx, |this, cx| {
-            this.set_item_checked_label_id(String::new(), window, cx);
-        });
+        // 异步加载当前项目的标签
+        let item_id_for_labels = item.id.clone();
+        let label_popover_list = self.label_popover_list.clone();
+        let db_for_labels = get_db_connection(cx);
+        let this_entity = cx.entity();
+
+        cx.spawn(async move |_this, cx| {
+            let store = todos::Store::new((*db_for_labels).clone());
+            match store.get_labels_by_item(&item_id_for_labels).await {
+                Ok(item_labels) => {
+                    let label_ids: Vec<String> = item_labels.iter().map(|l| l.id.clone()).collect();
+                    let label_ids_str = label_ids.join(";");
+
+                    cx.update_entity(&label_popover_list, |popover_list, cx| {
+                        // 注意：这里不能使用 window 参数，因为它不能跨越异步边界
+                        // 我们需要在 set_item_checked_label_id 方法中处理这个问题
+                        popover_list.set_item_checked_label_id_async(label_ids_str, cx);
+                    });
+
+                    // 触发UI更新，确保标签复选框状态正确显示
+                    cx.update_entity(&this_entity, |_item_info_state, cx| {
+                        cx.notify();
+                    });
+                },
+                Err(e) => {
+                    NotificationSystem::log_error("Failed to load item labels", e);
+                    // 如果加载失败，清空标签选择
+                    cx.update_entity(&label_popover_list, |popover_list, cx| {
+                        popover_list.set_item_checked_label_id_async(String::new(), cx);
+                    });
+
+                    // 即使失败也要触发UI更新
+                    cx.update_entity(&this_entity, |_item_info_state, cx| {
+                        cx.notify();
+                    });
+                },
+            }
+        })
+        .detach();
 
         // 使用类型安全的 due_date() 方法
         self.schedule_button_state.update(cx, |this, cx| {
@@ -856,11 +901,43 @@ impl ItemInfoState {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        info!("Label toggle clicked: {} -> {}", label.name, selected);
+
+        // 先更新本地状态，确保UI立即响应
+        self.label_popover_list.update(cx, |popover_list, cx| {
+            if *selected {
+                // 添加到选中列表
+                if !popover_list.selected_labels.iter().any(|l| l.id == label.id) {
+                    popover_list.selected_labels.push(label.clone());
+                    info!("Added label to selection: {}", label.name);
+                }
+            } else {
+                // 从选中列表移除
+                let before_count = popover_list.selected_labels.len();
+                popover_list.selected_labels.retain(|l| l.id != label.id);
+                let after_count = popover_list.selected_labels.len();
+                info!(
+                    "Removed label from selection: {} (before: {}, after: {})",
+                    label.name, before_count, after_count
+                );
+            }
+
+            // 同步更新 LabelCheckListDelegate 的状态
+            popover_list.label_list.update(cx, |list, cx| {
+                list.delegate_mut()
+                    .set_item_checked_labels(popover_list.selected_labels.clone(), cx);
+            });
+
+            info!("Current selected labels count: {}", popover_list.selected_labels.len());
+        });
+
+        // 然后执行数据库操作
         if *selected {
             self.add_checked_labels(label.clone(), window, cx);
         } else {
             self.rm_checked_labels(label.clone(), window, cx);
         }
+
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();
     }
@@ -871,6 +948,15 @@ impl Render for ItemInfoState {
         let view = cx.entity();
         // 🚀 性能优化：克隆 labels 后立即释放借用，避免在闭包中持有不可变借用
         let labels = cx.global::<TodoStore>().labels.clone();
+        // 🚀 性能优化：在渲染开始时缓存选中的标签，避免在闭包中重复调用
+        let selected_labels = self.selected_labels(cx);
+
+        info!(
+            "Rendering ItemInfo: {} labels available, {} selected",
+            labels.len(),
+            selected_labels.len()
+        );
+
         let colors = SemanticColors::from_theme(cx);
         let pinned_color = if self.state_manager.item.pinned {
             colors.status_pinned
@@ -933,16 +1019,41 @@ impl Render for ItemInfoState {
                     .gap_3()
                     .p(px(8.0))
                     .flex_wrap()
-                    .children(labels.iter().enumerate().map(|(ix, label)| {
+                    .children(labels.iter().enumerate().map(|(_ix, label)| {
                         let label_clone = label.clone();
-                        Checkbox::new(format!("label-{}", ix))
-                            .label(label.name.clone())
-                            .checked(self.selected_labels(cx).iter().any(|l| l.id == label.id))
-                            .on_click(cx.listener(move |view, checked: &bool, window, cx| {
-                                // 将 Rc<LabelModel> 转换为 Arc<LabelModel>
+                        let is_checked = selected_labels.iter().any(|l| l.id == label.id);
+                        info!("Rendering label checkbox: {} (checked: {})", label.name, is_checked);
+                        // 使用简单的 div 来模拟复选框，避免 Checkbox 组件的潜在问题
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .p_1()
+                            .rounded(px(4.0))
+                            .hover(|style| style.bg(cx.theme().accent.opacity(0.1)))
+                            .cursor_pointer()
+                            .on_mouse_down(MouseButton::Left, cx.listener(move |view, _event, window, cx| {
+                                info!("Label div clicked! Label: {}", label_clone.name);
+                                let current_checked = view.selected_labels(cx).iter().any(|l| l.id == label_clone.id);
+                                let new_checked = !current_checked;
+                                info!("Toggling label: {} from {} to {}", label_clone.name, current_checked, new_checked);
                                 let label_model = label_clone.as_ref().clone();
-                                view.label_toggle_checked(Arc::new(label_model), checked, window, cx);
+                                view.label_toggle_checked(Arc::new(label_model), &new_checked, window, cx);
                             }))
+                            .child(
+                                div()
+                                    .size_4()
+                                    .border_1()
+                                    .border_color(cx.theme().border)
+                                    .rounded(px(2.0))
+                                    .when(is_checked, |style: gpui::Div| {
+                                        style.bg(cx.theme().accent).border_color(cx.theme().accent)
+                                    })
+                                    .when(is_checked, |div: gpui::Div| {
+                                        div.child("✓")
+                                    })
+                            )
+                            .child(label.name.clone())
                     }))
             )
             .child(

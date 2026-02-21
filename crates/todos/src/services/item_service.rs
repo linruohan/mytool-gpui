@@ -68,8 +68,22 @@ impl ItemService {
         update_id: &str,
     ) -> Result<ItemModel, TodoError> {
         let item_id = item.id.clone();
+        let item_priority = item.priority;
+        tracing::info!(
+            "ItemService::update_item called for item: {} with priority: {:?}",
+            item_id,
+            item_priority
+        );
+
         let mut active_model: ItemActiveModel = item.into();
+        tracing::info!("Converted to ActiveModel, priority: {:?}", active_model.priority);
+
         let result = active_model.update(&*self.db).await?;
+        tracing::info!(
+            "Database update completed for item: {} with priority: {:?}",
+            result.id,
+            result.priority
+        );
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
 

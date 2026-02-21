@@ -93,6 +93,10 @@ impl LabelsPopoverList {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.set_item_checked_label_id_async(label_ids, cx);
+    }
+
+    pub fn set_item_checked_label_id_async(&mut self, label_ids: String, cx: &mut Context<Self>) {
         let all_labels = self.label_list.read(cx).delegate()._labels.clone();
         self.selected_labels = label_ids
             .split(';')

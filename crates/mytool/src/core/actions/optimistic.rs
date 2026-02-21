@@ -162,7 +162,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
     let old_item = old_item.unwrap();
 
-    info!("Optimistically updating item: {}", item.id);
+    info!("Optimistically updating item: {} with priority: {:?}", item.id, item.priority);
 
     // 2. 立即更新 UI
     cx.update_global::<TodoStore, _>(|store, _| {
@@ -182,11 +182,16 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     // 3. 异步保存到数据库
     let db = get_db_connection(cx);
     let item_id = item.id.clone();
+    let item_priority = item.priority;
 
     cx.spawn(async move |cx| {
+        info!("Starting database save for item: {} with priority: {:?}", item_id, item_priority);
         match state_service::mod_item(item.clone(), (*db).clone()).await {
             Ok(updated_item) => {
-                info!("Successfully saved item update: {}", item_id);
+                info!(
+                    "Successfully saved item update: {} with priority: {:?}",
+                    item_id, updated_item.priority
+                );
 
                 // 更新为数据库返回的最新值
                 cx.update_global::<TodoStore, _>(|store, _| {
@@ -204,7 +209,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                 });
             },
             Err(e) => {
-                error!("Failed to save item update, rolling back");
+                error!("Failed to save item update for {}, rolling back. Error: {:?}", item_id, e);
 
                 // 4. 失败时回滚到旧值
                 cx.update_global::<TodoStore, _>(|store, _| {
