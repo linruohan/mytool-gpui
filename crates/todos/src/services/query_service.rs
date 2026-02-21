@@ -3,96 +3,95 @@
 use std::sync::Arc;
 
 use futures::future::try_join_all;
-use sea_orm::DatabaseConnection;
-use tokio::sync::Semaphore;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use crate::{
-    entity::{ItemModel, LabelModel, ProjectModel, SectionModel},
+    entity::{
+        ItemModel, LabelModel, ProjectModel, SectionModel, items, labels, projects, sections,
+    },
     error::TodoError,
-    repositories::{ItemRepository, LabelRepository, ProjectRepository, SectionRepository},
 };
 
-/// Query service for optimized batch operations
-#[derive(Clone, Debug)]
 pub struct QueryService {
     db: Arc<DatabaseConnection>,
-    semaphore: Arc<Semaphore>,
-    max_concurrent: usize,
+}
+
+impl Clone for QueryService {
+    fn clone(&self) -> Self {
+        Self { db: self.db.clone() }
+    }
+}
+
+impl std::fmt::Debug for QueryService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueryService").finish()
+    }
 }
 
 impl QueryService {
-    /// Create a new QueryService with specified concurrency limit
-    pub fn new(db: Arc<DatabaseConnection>, max_concurrent: usize) -> Self {
-        Self { db, semaphore: Arc::new(Semaphore::new(max_concurrent)), max_concurrent }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 
-    /// Batch load items by IDs with concurrency control
     pub async fn batch_load_items(&self, ids: Vec<String>) -> Result<Vec<ItemModel>, TodoError> {
-        let db = self.db.clone();
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
 
-        let futures = ids.into_iter().map(|id| {
-            let semaphore = self.semaphore.clone();
-            async move {
-                let _permit = semaphore.acquire().await.unwrap();
-                // TODO: Use repository here
-                Ok::<_, TodoError>(ItemModel::default()) // Placeholder
-            }
-        });
+        let items = items::Entity::find()
+            .filter(items::Column::Id.is_in(ids))
+            .all(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
 
-        try_join_all(futures).await
+        Ok(items)
     }
 
-    /// Batch load projects by IDs with concurrency control
     pub async fn batch_load_projects(
         &self,
         ids: Vec<String>,
     ) -> Result<Vec<ProjectModel>, TodoError> {
-        let db = self.db.clone();
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
 
-        let futures = ids.into_iter().map(|id| {
-            let semaphore = self.semaphore.clone();
-            async move {
-                let _permit = semaphore.acquire().await.unwrap();
-                // TODO: Use repository here
-                Ok::<_, TodoError>(ProjectModel::default()) // Placeholder
-            }
-        });
+        let projects = projects::Entity::find()
+            .filter(projects::Column::Id.is_in(ids))
+            .all(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
 
-        try_join_all(futures).await
+        Ok(projects)
     }
 
-    /// Batch load sections by IDs with concurrency control
     pub async fn batch_load_sections(
         &self,
         ids: Vec<String>,
     ) -> Result<Vec<SectionModel>, TodoError> {
-        let db = self.db.clone();
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
 
-        let futures = ids.into_iter().map(|id| {
-            let semaphore = self.semaphore.clone();
-            async move {
-                let _permit = semaphore.acquire().await.unwrap();
-                // TODO: Use repository here
-                Ok::<_, TodoError>(SectionModel::default()) // Placeholder
-            }
-        });
+        let sections = sections::Entity::find()
+            .filter(sections::Column::Id.is_in(ids))
+            .all(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
 
-        try_join_all(futures).await
+        Ok(sections)
     }
 
-    /// Batch load labels by IDs with concurrency control
     pub async fn batch_load_labels(&self, ids: Vec<String>) -> Result<Vec<LabelModel>, TodoError> {
-        let db = self.db.clone();
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
 
-        let futures = ids.into_iter().map(|id| {
-            let semaphore = self.semaphore.clone();
-            async move {
-                let _permit = semaphore.acquire().await.unwrap();
-                // TODO: Use repository here
-                Ok::<_, TodoError>(LabelModel::default()) // Placeholder
-            }
-        });
+        let labels = labels::Entity::find()
+            .filter(labels::Column::Id.is_in(ids))
+            .all(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
 
-        try_join_all(futures).await
+        Ok(labels)
     }
 }

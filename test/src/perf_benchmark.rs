@@ -62,7 +62,7 @@ async fn test_batch_operations(db: &sea_orm::DatabaseConnection) {
     println!("\n2. 测试批量操作性能:");
 
     // 创建查询服务
-    let query_service = QueryService::new(std::sync::Arc::new(db.clone()), 10);
+    let query_service = QueryService::new(std::sync::Arc::new(db.clone()));
 
     // 准备测试数据
     let ids: Vec<String> = (1..=100).map(|i| format!("test-id-{}", i)).collect();

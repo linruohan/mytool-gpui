@@ -1,5 +1,15 @@
-pub const TODOIST_CLIENT_ID: &str = "b0dd7d3714314b1dbbdab9ee03b6b432";
-pub const TODOIST_CLIENT_SECRET: &str = "a86dfeb12139459da3e5e2a8c197c678";
+fn get_env_or_panic(key: &str) -> String {
+    std::env::var(key).unwrap_or_else(|_| panic!("环境变量 {} 未设置", key))
+}
+
+pub fn todoist_client_id() -> String {
+    get_env_or_panic("TODOIST_CLIENT_ID")
+}
+
+pub fn todoist_client_secret() -> String {
+    get_env_or_panic("TODOIST_CLIENT_SECRET")
+}
+
 pub const TODOIST_SCOPE: &str = "data:read_write,data:delete,project:delete";
 pub const BACKUP_VERSION: &str = "2.0";
 pub const UPDATE_TIMEOUT: i32 = 1500;

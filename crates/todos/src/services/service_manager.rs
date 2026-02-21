@@ -48,8 +48,12 @@ impl ServiceManager {
             label_service.clone(),
         ));
 
-        let section_service =
-            Arc::new(SectionService::new(db.clone(), event_bus.clone(), metrics.clone()));
+        let section_service = Arc::new(SectionService::new(
+            db.clone(),
+            event_bus.clone(),
+            metrics.clone(),
+            item_service.clone(),
+        ));
 
         let project_service = Arc::new(ProjectService::new(
             db.clone(),

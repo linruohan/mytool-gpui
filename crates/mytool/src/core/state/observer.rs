@@ -227,6 +227,7 @@ impl SelectiveUpdateHelper {
             TodoStoreEvent::ProjectChanged(_) => true, // 项目变化可能影响收件箱
             TodoStoreEvent::BulkUpdate => true,
             TodoStoreEvent::ActiveProjectChanged => false,
+            TodoStoreEvent::OperationError(_) => false,
         }
     }
 
@@ -238,7 +239,7 @@ impl SelectiveUpdateHelper {
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
                 | TodoStoreEvent::BulkUpdate
-        )
+        ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
 
     /// 判断事件是否影响计划任务视图
@@ -249,7 +250,7 @@ impl SelectiveUpdateHelper {
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
                 | TodoStoreEvent::BulkUpdate
-        )
+        ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
 
     /// 判断事件是否影响已完成任务视图
@@ -260,7 +261,7 @@ impl SelectiveUpdateHelper {
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
                 | TodoStoreEvent::BulkUpdate
-        )
+        ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
 
     /// 判断事件是否影响项目视图
@@ -272,7 +273,7 @@ impl SelectiveUpdateHelper {
                 | TodoStoreEvent::ItemDeleted(_)
                 | TodoStoreEvent::ProjectChanged(_)
                 | TodoStoreEvent::BulkUpdate
-        )
+        ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
 }
 

@@ -40,7 +40,7 @@ impl Store {
     pub fn new(db: DatabaseConnection) -> Self {
         let db = Arc::new(db);
         let service_manager = ServiceManager::new(db.clone());
-        let query_service = QueryService::new(db.clone(), 10); // Max 10 concurrent queries
+        let query_service = QueryService::new(db.clone());
 
         Self {
             item_service: (*service_manager.item_service()).clone(),

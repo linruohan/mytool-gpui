@@ -16,6 +16,7 @@ pub trait SectionRepository {
     async fn find_by_id(&self, id: &str) -> Result<SectionModel, TodoError>;
     async fn find_all(&self) -> Result<Vec<SectionModel>, TodoError>;
     async fn find_by_project(&self, project_id: &str) -> Result<Vec<SectionModel>, TodoError>;
+    async fn delete(&self, id: &str) -> Result<(), TodoError>;
 }
 
 /// Implementation of SectionRepository
@@ -56,5 +57,13 @@ impl SectionRepository for SectionRepositoryImpl {
             .all(&*self.db)
             .await
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
+    }
+
+    async fn delete(&self, id: &str) -> Result<(), TodoError> {
+        SectionEntity::delete_by_id(id)
+            .exec(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
 }

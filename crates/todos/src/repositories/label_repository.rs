@@ -21,6 +21,7 @@ pub trait LabelRepository {
         name: &str,
         source_id: &str,
     ) -> Result<Option<LabelModel>, TodoError>;
+    async fn delete(&self, id: &str) -> Result<u64, TodoError>;
 }
 
 /// Implementation of LabelRepository
@@ -74,5 +75,13 @@ impl LabelRepository for LabelRepositoryImpl {
             .one(&*self.db)
             .await
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
+    }
+
+    async fn delete(&self, id: &str) -> Result<u64, TodoError> {
+        let result = LabelEntity::delete_by_id(id)
+            .exec(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
+        Ok(result.rows_affected)
     }
 }

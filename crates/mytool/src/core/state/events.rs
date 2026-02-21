@@ -23,6 +23,8 @@ pub enum TodoStoreEvent {
     BulkUpdate,
     /// 活跃项目变化
     ActiveProjectChanged,
+    /// 操作失败（用于显示错误通知）
+    OperationError(String),
 }
 
 /// 事件总线
@@ -90,7 +92,11 @@ pub struct BatchOperations {
 }
 
 impl Global for BatchOperations {}
-
+impl Default for BatchOperations {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl BatchOperations {
     /// 创建新的批量操作队列
     pub fn new() -> Self {
@@ -127,15 +133,31 @@ impl BatchOperations {
         self.pending_deletes.clear();
         self.has_pending = false;
     }
-
-    /// 获取待处理操作的数量
-    pub fn pending_count(&self) -> usize {
-        self.pending_adds.len() + self.pending_updates.len() + self.pending_deletes.len()
-    }
 }
 
-impl Default for BatchOperations {
+/// 错误通知器
+///
+/// 用于在后台任务发生错误时存储错误消息，供 UI 层显示通知
+pub struct ErrorNotifier {
+    pub last_error: Option<String>,
+}
+impl Default for ErrorNotifier {
     fn default() -> Self {
         Self::new()
+    }
+}
+impl Global for ErrorNotifier {}
+
+impl ErrorNotifier {
+    pub fn new() -> Self {
+        Self { last_error: None }
+    }
+
+    pub fn set_error(&mut self, message: String) {
+        self.last_error = Some(message);
+    }
+
+    pub fn take_error(&mut self) -> Option<String> {
+        self.last_error.take()
     }
 }

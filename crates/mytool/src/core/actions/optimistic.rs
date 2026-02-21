@@ -14,7 +14,9 @@ use tracing::{error, info, warn};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
+        state::{
+            ErrorNotifier, QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection,
+        },
     },
     state_service,
 };
@@ -128,7 +130,9 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                     &item.id,
                 );
                 error!("{}", context.format_user_message());
-                // TODO: 显示错误提示给用户
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })
@@ -223,7 +227,9 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
-                // TODO: 显示错误提示给用户
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })
@@ -287,7 +293,9 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
-                // TODO: 显示错误提示给用户
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })

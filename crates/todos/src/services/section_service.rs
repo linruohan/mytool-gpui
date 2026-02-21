@@ -14,7 +14,7 @@ use crate::{
     entity::{SectionActiveModel, SectionModel, prelude::*, sections},
     error::TodoError,
     repositories::{SectionRepository, SectionRepositoryImpl},
-    services::{EventBus, MetricsCollector},
+    services::{EventBus, ItemService, MetricsCollector},
 };
 
 /// Service for Section business operations
@@ -24,6 +24,7 @@ pub struct SectionService {
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     section_repo: SectionRepositoryImpl,
+    item_service: Arc<ItemService>,
 }
 
 impl SectionService {
@@ -32,9 +33,10 @@ impl SectionService {
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
         metrics: Arc<MetricsCollector>,
+        item_service: Arc<ItemService>,
     ) -> Self {
         let section_repo = SectionRepositoryImpl::new(db.clone());
-        Self { db, event_bus, metrics, section_repo }
+        Self { db, event_bus, metrics, section_repo, item_service }
     }
 
     /// Get a section by ID
@@ -77,10 +79,10 @@ impl SectionService {
         // 删除关联的items
         let items = self.get_items_by_section(section_id).await?;
         for item in items {
-            // TODO: 使用ItemService删除
+            self.item_service.delete_item(&item.id).await?;
         }
 
-        SectionEntity::delete_by_id(section_id).exec(&*self.db).await?;
+        self.section_repo.delete(section_id).await?;
         self.event_bus.publish(crate::services::event_bus::Event::SectionDeleted(section_id_clone));
 
         (*self.metrics).record_operation("delete_section", 1).await;
@@ -129,7 +131,7 @@ impl SectionService {
         // 归档所有items
         let items = self.get_items_by_section(section_id).await?;
         for item in items {
-            // TODO: 使用ItemService归档
+            self.item_service.archive_item(&item.id, archived).await?;
         }
 
         (*self.metrics).record_operation("archive_section", 1).await;
@@ -141,7 +143,7 @@ impl SectionService {
     /// Get all sections
     pub async fn get_all_sections(&self) -> Result<Vec<SectionModel>, TodoError> {
         let _timer = (*self.metrics).start_timer("get_all_sections");
-        let sections = SectionEntity::find().all(&*self.db).await?;
+        let sections = self.section_repo.find_all().await?;
         (*self.metrics).record_operation("get_all_sections", sections.len()).await;
         Ok(sections)
     }
@@ -152,10 +154,7 @@ impl SectionService {
         project_id: &str,
     ) -> Result<Vec<SectionModel>, TodoError> {
         let _timer = (*self.metrics).start_timer("get_sections_by_project");
-        let sections = SectionEntity::find()
-            .filter(sections::Column::ProjectId.eq(project_id))
-            .all(&*self.db)
-            .await?;
+        let sections = self.section_repo.find_by_project(project_id).await?;
         (*self.metrics).record_operation("get_sections_by_project", sections.len()).await;
         Ok(sections)
     }
@@ -219,7 +218,7 @@ impl SectionService {
             let mut new_item = item.clone();
             new_item.id = uuid::Uuid::new_v4().to_string();
             new_item.section_id = Some(duplicated_section.id.clone());
-            // TODO: 使用ItemService插入
+            self.item_service.insert_item(new_item, true).await?;
         }
 
         (*self.metrics).record_operation("duplicate_section", 1).await;

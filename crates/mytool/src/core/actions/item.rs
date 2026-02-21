@@ -7,7 +7,7 @@ use tracing::{error, info};
 
 use crate::core::{
     error_handler::{AppError, ErrorHandler, validation},
-    state::{TodoStore, get_db_connection},
+    state::{ErrorNotifier, TodoStore, get_db_connection},
 };
 
 // 刷新指定项目的 items（仅在有活跃项目时需要）
@@ -40,7 +40,9 @@ pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
                 let context =
                     ErrorHandler::handle_with_resource(AppError::Database(e), "add_item", &item.id);
                 error!("{}", context.format_user_message());
-                // TODO: 显示错误提示给用户
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })

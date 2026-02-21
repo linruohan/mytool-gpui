@@ -20,6 +20,7 @@ pub trait ItemRepository {
     async fn find_by_parent(&self, parent_id: &str) -> Result<Vec<ItemModel>, TodoError>;
     async fn find_checked(&self) -> Result<Vec<ItemModel>, TodoError>;
     async fn find_unchecked(&self) -> Result<Vec<ItemModel>, TodoError>;
+    async fn delete(&self, id: &str) -> Result<(), TodoError>;
 }
 
 /// Implementation of ItemRepository
@@ -89,5 +90,13 @@ impl ItemRepository for ItemRepositoryImpl {
             .all(&*self.db)
             .await
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
+    }
+
+    async fn delete(&self, id: &str) -> Result<(), TodoError> {
+        ItemEntity::delete_by_id(id)
+            .exec(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
 }

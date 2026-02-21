@@ -4,10 +4,11 @@
 //! events. It includes support for automatic subscription cancellation when subscriptions are
 //! dropped.
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, broadcast};
+use uuid::Uuid;
 
 /// Event types for the event bus
 ///
@@ -94,7 +95,7 @@ pub enum Event {
 pub struct Subscription {
     rx: broadcast::Receiver<Event>,
     event_bus: EventBus,
-    listener_id: Option<usize>,
+    listener_id: Option<Uuid>,
 }
 
 impl Drop for Subscription {
@@ -125,7 +126,7 @@ impl Subscription {
     pub fn new(
         rx: broadcast::Receiver<Event>,
         event_bus: EventBus,
-        listener_id: Option<usize>,
+        listener_id: Option<Uuid>,
     ) -> Self {
         Self { rx, event_bus, listener_id }
     }
@@ -146,7 +147,7 @@ impl Subscription {
 #[derive(Clone, Debug)]
 pub struct EventBus {
     tx: Arc<broadcast::Sender<Event>>,
-    listeners: Arc<Mutex<Vec<usize>>>, // Store listener IDs instead of receivers
+    listeners: Arc<Mutex<HashSet<Uuid>>>, // Store listener IDs instead of receivers
 }
 
 impl EventBus {
@@ -156,7 +157,7 @@ impl EventBus {
     /// A new EventBus instance
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(100);
-        Self { tx: Arc::new(tx), listeners: Arc::new(Mutex::new(Vec::new())) }
+        Self { tx: Arc::new(tx), listeners: Arc::new(Mutex::new(HashSet::new())) }
     }
 
     /// Subscribe to events
@@ -186,9 +187,9 @@ impl EventBus {
     /// A Subscription instance with automatic cancellation
     pub async fn subscribe_with_auto_cancel(&self) -> Subscription {
         let rx = self.tx.subscribe();
+        let listener_id = Uuid::new_v4();
         let mut listeners = self.listeners.lock().await;
-        let listener_id = listeners.len();
-        listeners.push(listener_id);
+        listeners.insert(listener_id);
         Subscription::new(rx, self.clone(), Some(listener_id))
     }
 
@@ -204,21 +205,20 @@ impl EventBus {
     ///
     /// # Parameters
     /// - `rx`: The broadcast receiver for events
-    pub async fn add_listener(&self, _rx: broadcast::Receiver<Event>) {
+    pub async fn add_listener(&self, _rx: broadcast::Receiver<Event>) -> Uuid {
+        let listener_id = Uuid::new_v4();
         let mut listeners = self.listeners.lock().await;
-        let listener_id = listeners.len();
-        listeners.push(listener_id);
+        listeners.insert(listener_id);
+        listener_id
     }
 
     /// Remove a listener from the event bus
     ///
     /// # Parameters
-    /// - `index`: The index of the listener to remove
-    pub async fn remove_listener(&self, index: usize) {
+    /// - `id`: The ID of the listener to remove
+    pub async fn remove_listener(&self, id: Uuid) {
         let mut listeners = self.listeners.lock().await;
-        if index < listeners.len() {
-            listeners.remove(index);
-        }
+        listeners.remove(&id);
     }
 }
 

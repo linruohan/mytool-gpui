@@ -53,6 +53,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化批量操作队列
     cx.set_global(BatchOperations::new());
 
+    // 初始化错误通知器
+    cx.set_global(ErrorNotifier::new());
+
     // 🚀 初始化观察者注册表（解决过度订阅问题）
     cx.set_global(ObserverRegistry::new());
 

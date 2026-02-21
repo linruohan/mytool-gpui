@@ -24,7 +24,8 @@ gconfig.workspace = true
 
 
 [dev-dependencies]
-
+tokio-test = "0.4"
+mockall = "0.13"
 
 [lib]
 doc = false

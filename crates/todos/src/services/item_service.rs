@@ -82,23 +82,16 @@ impl ItemService {
     pub async fn delete_item(&self, item_id: &str) -> Result<(), TodoError> {
         let item_id_clone = item_id.to_string();
 
-        // 使用迭代方式处理子项，避免递归调用导致的无限大小 future 问题
         let mut items_to_delete = vec![item_id.to_string()];
 
         while let Some(current_id) = items_to_delete.pop() {
-            // 查找当前项的子项
-            let subitems = ItemEntity::find()
-                .filter(items::Column::ParentId.eq(&current_id))
-                .all(&*self.db)
-                .await?;
+            let subitems = self.item_repo.find_by_parent(&current_id).await?;
 
-            // 将子项添加到删除队列
             for item in subitems {
                 items_to_delete.push(item.id);
             }
 
-            // 删除当前项（item_labels 关联记录会通过数据库级联删除自动清理）
-            ItemEntity::delete_by_id(&current_id).exec(&*self.db).await?;
+            self.item_repo.delete(&current_id).await?;
         }
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemDeleted(item_id_clone));
@@ -181,26 +174,22 @@ impl ItemService {
         let item_model = active_model.update(&*self.db).await?;
 
         if complete_subitems {
-            // 使用迭代方式处理子项目，避免递归
-            let mut subitems = ItemEntity::find()
-                .filter(items::Column::ParentId.eq(item_id))
-                .all(&*self.db)
-                .await?;
-            for item in subitems {
-                // 直接更新子项目，不递归调用
-                let sub_active_model = ItemActiveModel {
-                    id: Set(item.id.to_string()),
-                    checked: Set(item_model.checked),
-                    completed_at: Set(if item_model.checked {
-                        Some(chrono::Utc::now().naive_utc())
-                    } else {
-                        None
-                    }),
-                    ..item.into()
-                };
-                sub_active_model.update(&*self.db).await?;
+            let subitems = self.item_repo.find_by_parent(item_id).await?;
+            if !subitems.is_empty() {
+                let checked_value = item_model.checked;
+                let completed_at_value =
+                    if checked_value { Some(chrono::Utc::now().naive_utc()) } else { None };
+
+                let sub_ids: Vec<String> = subitems.into_iter().map(|i| i.id).collect();
+
+                crate::entity::items::Entity::update_many()
+                    .col_expr(items::Column::Checked, Expr::value(checked_value))
+                    .col_expr(items::Column::CompletedAt, Expr::value(completed_at_value))
+                    .filter(items::Column::Id.is_in(sub_ids))
+                    .exec(&*self.db)
+                    .await?;
             }
-        };
+        }
 
         // 不处理父项目的状态更新，避免递归
 
