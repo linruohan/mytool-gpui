@@ -445,6 +445,10 @@ impl ItemInfoState {
                 cx.notify();
             },
             LabelsPopoverEvent::LabelsChanged(label_ids) => {
+                info!(
+                    "on_labels_event: LabelsChanged - item_id: {}, label_ids: '{}'",
+                    self.state_manager.item.id, label_ids
+                );
                 let item_id = self.state_manager.item.id.clone();
                 let db = get_db_connection(cx);
                 let label_ids_clone = label_ids.clone();
@@ -1072,9 +1076,17 @@ impl ItemInfoState {
             .collect::<Vec<_>>()
             .join(";")
             .to_string();
+        info!(
+            "label_toggle_checked: updating labels - item_id: {}, selected_label_ids: '{}'",
+            self.state_manager.item.id, selected_label_ids
+        );
         self.state_manager.update_item(|item| {
             item.labels = Some(selected_label_ids.clone());
         });
+        info!(
+            "label_toggle_checked: updated labels - item_id: {}, labels: {:?}",
+            self.state_manager.item.id, self.state_manager.item.labels
+        );
 
         // 持久化到数据库
         let item_id = self.state_manager.item.id.clone();

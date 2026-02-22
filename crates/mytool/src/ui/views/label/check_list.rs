@@ -12,6 +12,7 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
 };
 use todos::entity::LabelModel;
+use tracing::info;
 
 use crate::LabelsPopoverList;
 
@@ -75,10 +76,6 @@ impl RenderOnce for LabelCheckListItem {
                     .justify_start()
                     .gap_3()
                     .text_color(text_color)
-                    // 阻止点击事件冒泡，防止ItemInfo被意外收起
-                    .on_mouse_down(gpui::MouseButton::Left, |_event, _window, cx| {
-                        cx.stop_propagation();
-                    })
                     .child(Checkbox::new("label-checked").checked(self.checked))
                     .child(
                         Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
@@ -146,6 +143,7 @@ impl LabelCheckListDelegate {
     }
 
     pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
+        info!("LabelCheckListDelegate::update_labels called: {} labels", labels.len());
         self._labels = labels;
         // 如果没有标签，创建一个空的 section
         if self._labels.is_empty() {
@@ -157,6 +155,12 @@ impl LabelCheckListDelegate {
                 self.selected_index = Some(IndexPath::default());
             }
         }
+        info!(
+            "LabelCheckListDelegate::update_labels: matched_labels sections: {}, first section \
+             len: {}",
+            self.matched_labels.len(),
+            self.matched_labels.first().map(|s| s.len()).unwrap_or(0)
+        );
         // 保持 checked_list 不变，确保选中状态在标签更新后仍然保留
     }
 
@@ -241,13 +245,17 @@ impl ListDelegate for LabelCheckListDelegate {
         _: &mut Window,
         cx: &mut Context<ListState<Self>>,
     ) {
+        info!("LabelCheckListDelegate::set_selected_index called: {:?}", ix);
         self.selected_index = ix;
         cx.notify();
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
+        info!("LabelCheckListDelegate::confirm called: secondary={}", secondary);
         if let Some(label) = self.selected_label() {
+            info!("LabelCheckListDelegate::confirm: selected label={}", label.name);
             let is_checked = self.checked_list.iter().any(|l| l.id == label.id);
+            info!("LabelCheckListDelegate::confirm: is_checked={}", is_checked);
 
             if secondary {
                 // Shift+Enter: 取消选中
@@ -265,6 +273,8 @@ impl ListDelegate for LabelCheckListDelegate {
                     window.dispatch_action(Box::new(SelectedCheckLabel), cx);
                 }
             }
+        } else {
+            info!("LabelCheckListDelegate::confirm: no selected label found");
         }
     }
 }

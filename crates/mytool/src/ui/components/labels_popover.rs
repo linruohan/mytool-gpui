@@ -15,6 +15,7 @@ use gpui_component::{
     v_flex,
 };
 use todos::entity::LabelModel;
+use tracing::info;
 
 use crate::{
     LabelCheckListDelegate, SelectedCheckLabel, UnSelectedCheckLabel, todo_state::TodoStore,
@@ -115,9 +116,12 @@ impl LabelsPopoverList {
     }
 
     fn update_label_selection(&mut self, select: bool, cx: &mut Context<Self>) {
+        info!("update_label_selection called: select={}", select);
         let picker = self.label_list.read(cx);
         if let Some(label) = picker.delegate().selected_label() {
+            info!("update_label_selection: selected label={}", label.name);
             let contains = self.selected_labels.iter().any(|l| l.id == label.id);
+            info!("update_label_selection: contains={}, select={}", contains, select);
             if (select && !contains) || (!select && contains) {
                 if select {
                     self.selected_labels.push(label.clone());
@@ -132,8 +136,12 @@ impl LabelsPopoverList {
                 });
                 // 发送标签ID字符串
                 self.emit_labels_changed(cx);
+            } else {
+                info!("update_label_selection: condition not met, skipping emit_labels_changed");
             }
             // 移除cx.notify()调用，避免每次点击标签都重新渲染组件导致popover关闭
+        } else {
+            info!("update_label_selection: no selected label found");
         }
     }
 
@@ -143,6 +151,7 @@ impl LabelsPopoverList {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        info!("selected_label action received");
         self.update_label_selection(true, cx);
     }
 
@@ -152,6 +161,7 @@ impl LabelsPopoverList {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        info!("unselected_label action received");
         self.update_label_selection(false, cx);
     }
 
@@ -230,6 +240,11 @@ impl LabelsPopoverList {
     fn emit_labels_changed(&self, cx: &mut Context<Self>) {
         let label_ids =
             self.selected_labels.iter().map(|label| label.id.clone()).collect::<Vec<_>>().join(";");
+        info!(
+            "emit_labels_changed: selected_labels count: {}, label_ids: '{}'",
+            self.selected_labels.len(),
+            label_ids
+        );
         cx.emit(LabelsPopoverEvent::LabelsChanged(label_ids));
     }
 

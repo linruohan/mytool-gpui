@@ -88,6 +88,10 @@ impl ItemRowState {
 
                     // 更新 item_info 中的状态
                     this.item_info.update(cx, |this_info, cx| {
+                        // 关键修复：直接更新 state_manager.item，确保 ItemRowState.render
+                        // 能获取到最新的 item 包括 labels 字段的更新
+                        this_info.state_manager.item = updated_item.clone();
+
                         // 无论是否是标签更新，都使用 update_item_without_reloading_labels
                         // 这样可以避免覆盖用户正在进行的编辑
                         this_info.update_item_without_reloading_labels(
@@ -108,10 +112,24 @@ impl ItemRowState {
                 this.item_info.update(cx, |state, cx| {
                     state.handle_item_info_event(event, cx);
                 });
-                // 直接从 item_info 中获取最新的 item，确保及时更新
+                // 关键修复：直接从 item_info 中获取最新的 item，确保及时更新
+                // 这确保了当 labels 更新时，ItemRowState 能立即获取到最新的 item
                 let latest_item = this.item_info.read(cx).state_manager.item.clone();
-                this.item = latest_item;
+
+                // 检查是否是标签更新
+                let is_label_update = this.item.labels != latest_item.labels;
+
+                this.item = latest_item.clone();
                 this.update_version += 1; // 增加版本号，强制重新渲染
+
+                // 添加调试日志
+                use tracing::info;
+                info!(
+                    "ItemRowState subscribe: item updated - id: {}, labels: {:?}, version: {}, \
+                     is_label_update: {}",
+                    latest_item.id, latest_item.labels, this.update_version, is_label_update
+                );
+
                 cx.notify();
             }),
         ];
@@ -307,16 +325,11 @@ impl Render for ItemRowState {
         let item = self.item_info.read(cx).state_manager.item.clone();
 
         // 添加调试日志，跟踪标签变化
-
         // info!(
         //     "ItemRow render - item id: {}, labels: {:?}, version: {}",
         //     item.id, item.labels, self.update_version
         // );
         let _version = self.update_version; // 获取当前版本号
-        // info!(
-        //     "ItemRow render - item id: {}, labels: {:?}, version: {}",
-        //     item.id, item.labels, version
-        // );
         let item_info = self.item_info.clone();
         let is_open = self.is_open;
         let is_focused = self.is_focused;

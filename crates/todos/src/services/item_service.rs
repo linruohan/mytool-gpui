@@ -473,9 +473,27 @@ impl ItemService {
     }
 
     /// Get all items (including completed and incomplete)
+    ///
+    /// 关键修复：同时加载每个 item 的 labels 并填充到 ItemModel.labels 字段
+    /// 这样 UI 可以直接从 item.labels 获取标签列表，而不需要额外查询
     pub async fn get_all_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_all_items");
-        let items = ItemEntity::find().all(&*self.db).await?;
+        let mut items = ItemEntity::find().all(&*self.db).await?;
+
+        // 关键修复：为每个 item 加载 labels
+        for item in &mut items {
+            match self.get_labels_by_item(&item.id).await {
+                Ok(labels) => {
+                    let label_ids: Vec<String> = labels.iter().map(|l| l.id.clone()).collect();
+                    item.labels = Some(label_ids.join(";"));
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to load labels for item {}: {:?}", item.id, e);
+                    item.labels = None;
+                },
+            }
+        }
+
         self.metrics.record_operation("get_all_items", items.len());
         Ok(items)
     }
