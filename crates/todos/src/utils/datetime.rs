@@ -24,21 +24,22 @@ impl DateTime {
     }
 
     pub fn get_relative_date_from_date(&self, datetime: &NaiveDateTime) -> String {
-        let mut returned = "";
+        let mut returned = String::new();
         let format_str = self.get_default_date_format_from_date(datetime).clone();
-        if (self.is_today(datetime)) {
-            returned = "Today";
+        if self.is_today(datetime) {
+            returned = "Today".to_string();
         } else if self.is_tomorrow(datetime) {
-            returned = "Tomorrow";
+            returned = "Tomorrow".to_string();
         } else if self.is_yesterday(datetime) {
-            returned = "Yesterday";
+            returned = "Yesterday".to_string();
         } else {
-            returned = format_str.as_str();
+            // 使用 format 方法将日期格式化为字符串，而不是直接返回格式字符串
+            returned = datetime.format(&format_str).to_string();
         }
         if self.has_time(datetime) {
             return format!("{} {}", returned, datetime.format(self.get_default_time_format()));
         }
-        returned.to_string()
+        returned
     }
 
     pub fn get_relative_datetime(&self, datetime: NaiveDateTime) -> String {

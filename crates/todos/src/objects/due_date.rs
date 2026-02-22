@@ -40,7 +40,19 @@ impl Default for DueDate {
 
 impl DueDate {
     pub fn datetime(&self) -> Option<NaiveDateTime> {
-        NaiveDateTime::from_str(&self.date).ok()
+        // 支持两种格式：带T的ISO格式和不带T的格式
+        if self.date.is_empty() {
+            return None;
+        }
+        // 先尝试标准ISO格式 (2025-02-22T17:30:00)
+        if let Ok(dt) = NaiveDateTime::from_str(&self.date) {
+            return Some(dt);
+        }
+        // 再尝试带空格的格式 (2025-02-22 17:30:00)
+        if let Ok(dt) = NaiveDateTime::parse_from_str(&self.date, "%Y-%m-%d %H:%M:%S") {
+            return Some(dt);
+        }
+        None
     }
 
     pub fn set_datetime(&mut self, value: NaiveDateTime) {
