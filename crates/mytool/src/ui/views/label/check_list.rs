@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder,
+    App, Context, ElementId, Entity, EventEmitter, Hsla, InteractiveElement, IntoElement,
+    ParentElement, RenderOnce, SharedString, Styled, Task, Window, actions, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath, Selectable,
@@ -74,6 +75,10 @@ impl RenderOnce for LabelCheckListItem {
                     .justify_start()
                     .gap_3()
                     .text_color(text_color)
+                    // 阻止点击事件冒泡，防止ItemInfo被意外收起
+                    .on_mouse_down(gpui::MouseButton::Left, |_event, _window, cx| {
+                        cx.stop_propagation();
+                    })
                     .child(Checkbox::new("label-checked").checked(self.checked))
                     .child(
                         Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(

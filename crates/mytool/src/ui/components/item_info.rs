@@ -379,15 +379,39 @@ impl ItemInfoState {
             LabelsPopoverEvent::Selected(label) => {
                 let label_model = (**label).clone();
                 self.add_checked_labels(Arc::new(label_model), window, cx);
-                // 不立即同步，避免关闭 popover
-                // 但需要通知 UI 更新，确保标签状态正确显示
+                // 更新 state_manager.item.labels 字段
+                let selected_label_ids = self
+                    .selected_labels(cx)
+                    .iter()
+                    .map(|l| l.id.clone())
+                    .collect::<Vec<_>>()
+                    .join(";")
+                    .to_string();
+                self.state_manager.update_item(|item| {
+                    item.labels = Some(selected_label_ids.clone());
+                });
+                // 不跳过更新，让 update_item_optimistic 更新 TodoStore
+                // 发送一个事件，让 ItemRowState 收到通知，从而更新 item
+                cx.emit(ItemInfoEvent::Updated());
                 cx.notify();
             },
             LabelsPopoverEvent::DeSelected(label) => {
                 let label_model = (**label).clone();
                 self.rm_checked_labels(Arc::new(label_model), window, cx);
-                // 不立即同步，避免关闭 popover
-                // 但需要通知 UI 更新，确保标签状态正确显示
+                // 更新 state_manager.item.labels 字段
+                let selected_label_ids = self
+                    .selected_labels(cx)
+                    .iter()
+                    .map(|l| l.id.clone())
+                    .collect::<Vec<_>>()
+                    .join(";")
+                    .to_string();
+                self.state_manager.update_item(|item| {
+                    item.labels = Some(selected_label_ids.clone());
+                });
+                // 不跳过更新，让 update_item_optimistic 更新 TodoStore
+                // 发送一个事件，让 ItemRowState 收到通知，从而更新 item
+                cx.emit(ItemInfoEvent::Updated());
                 cx.notify();
             },
             LabelsPopoverEvent::LabelsChanged(label_ids) => {
@@ -403,15 +427,28 @@ impl ItemInfoState {
                         .collect();
 
                     let store = todos::Store::new((*db).clone());
-                    if let Err(e) = store.set_item_labels(&item_id, &label_ids_vec).await {
-                        NotificationSystem::log_error("Failed to set item labels", e);
+                    match store.set_item_labels(&item_id, &label_ids_vec).await {
+                        Ok(_) => {
+                            NotificationSystem::debug(format!(
+                                "Labels updated for item {}: {:?}",
+                                item_id, label_ids_vec
+                            ));
+                        },
+                        Err(e) => {
+                            NotificationSystem::log_error("Failed to set item labels", e);
+                        },
                     }
                 })
                 .detach();
 
-                // 移除 ItemInfoEvent::Updated() 调用，避免触发不必要的更新导致 ItemInfo 收起
-                // 标签已经通过 add_checked_labels/rm_checked_labels 方法保存到数据库
-                // 但需要通知 UI 更新，确保标签状态正确显示
+                // 更新 state_manager.item.labels 字段
+                self.state_manager.update_item(|item| {
+                    item.labels = Some(label_ids.clone());
+                });
+                // 不跳过更新，让 update_item_optimistic 更新 TodoStore
+                // 发送一个事件，让 ItemRowState 收到通知，从而更新 item
+                cx.emit(ItemInfoEvent::Updated());
+                // 通知 UI 更新，确保标签状态正确显示
                 cx.notify();
             },
         }
@@ -927,13 +964,69 @@ impl ItemInfoState {
     ) {
         info!("Label toggle clicked: {} -> {}", label.name, selected);
 
-        // 直接执行数据库操作
+        // 先更新 label_popover_list 的状态，确保两个UI保持同步
+        self.label_popover_list.update(cx, |popover_list, cx| {
+            if *selected {
+                // 添加到选中列表
+                if !popover_list.selected_labels.iter().any(|l| l.id == label.id) {
+                    popover_list.selected_labels.push(label.clone());
+                }
+            } else {
+                // 从选中列表移除
+                popover_list.selected_labels.retain(|l| l.id != label.id);
+            }
+            // 同步更新 LabelCheckListDelegate 的 checked_list
+            popover_list.label_list.update(cx, |list, cx| {
+                list.delegate_mut()
+                    .set_item_checked_labels(popover_list.selected_labels.clone(), cx);
+            });
+        });
+
+        // 执行数据库操作
         if *selected {
             self.add_checked_labels(label.clone(), window, cx);
         } else {
             self.rm_checked_labels(label.clone(), window, cx);
         }
 
+        // 更新 state_manager.item.labels 字段
+        let selected_label_ids = self
+            .selected_labels(cx)
+            .iter()
+            .map(|l| l.id.clone())
+            .collect::<Vec<_>>()
+            .join(";")
+            .to_string();
+        self.state_manager.update_item(|item| {
+            item.labels = Some(selected_label_ids.clone());
+        });
+
+        // 持久化到数据库
+        let item_id = self.state_manager.item.id.clone();
+        let db = get_db_connection(cx);
+        let label_ids_vec: Vec<String> = selected_label_ids
+            .split(';')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+
+        cx.spawn(async move |_this, _cx| {
+            let store = todos::Store::new((*db).clone());
+            match store.set_item_labels(&item_id, &label_ids_vec).await {
+                Ok(_) => {
+                    NotificationSystem::debug(format!(
+                        "Labels updated for item {}: {:?}",
+                        item_id, label_ids_vec
+                    ));
+                },
+                Err(e) => {
+                    NotificationSystem::log_error("Failed to set item labels", e);
+                },
+            }
+        })
+        .detach();
+
+        // 不跳过更新，让 update_item_optimistic 更新 TodoStore
         // 触发UI更新
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();

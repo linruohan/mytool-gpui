@@ -97,7 +97,8 @@ impl LabelsPopoverList {
     }
 
     pub fn set_item_checked_label_id_async(&mut self, label_ids: String, cx: &mut Context<Self>) {
-        let all_labels = self.label_list.read(cx).delegate()._labels.clone();
+        // 直接从全局 TodoStore 获取所有标签，确保能获取到最新的标签列表
+        let all_labels = cx.global::<TodoStore>().labels.clone();
         self.selected_labels = label_ids
             .split(';')
             .filter_map(|label_id| {

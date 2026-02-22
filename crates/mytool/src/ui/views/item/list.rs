@@ -62,7 +62,15 @@ impl RenderOnce for ItemListItem {
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
         // 注意：labels 现在存储在 item_labels 关联表中
         // 这里简化处理，实际项目中可能需要异步加载
-        let item_labels: Vec<String> = Vec::new(); // 临时为空，需要从关联表加载
+        // 从 ItemModel 的 labels 字段获取标签 ID
+        let item_labels: Vec<String> = self
+            .item
+            .labels
+            .as_ref()
+            .map(|labels_str| {
+                labels_str.split(';').filter(|id| !id.is_empty()).map(|id| id.to_string()).collect()
+            })
+            .unwrap_or_default();
 
         self.base
             .px_2()
@@ -99,8 +107,8 @@ impl RenderOnce for ItemListItem {
                                 .when(self.item.checked, |this| this.line_through()),
                         ),
                     )
-                    // 暂时禁用 labels 显示，需要从关联表异步加载
-                    .when(false, |this| {
+                    // 显示标签
+                    .when(!item_labels.is_empty(), |this| {
                         this.child(
                             h_flex().gap_1().flex().children(
                                 item_labels

@@ -107,6 +107,11 @@ impl ItemRowState {
 
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        use tracing::info;
+        info!(
+            "toggle_expand called, current is_open: {}, new is_open: {}",
+            self.is_open, !self.is_open
+        );
         // 如果当前是展开状态，收缩时保存所有修改
         if self.is_open {
             self.save_all_changes(cx);
