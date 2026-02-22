@@ -14,7 +14,8 @@ mytool = { path = "crates/mytool" } # 主工具库，包含核心功能和命令
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui
 gpui = { git = "https://github.com/zed-industries/zed" }
-gpui-macros = "0.2.2"
+gpui_macros =  { git = "https://github.com/zed-industries/zed"}
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
@@ -103,6 +104,10 @@ resvg = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }
 taffy = { opt-level = 3 }
 ttf-parser = { opt-level = 3 }
+gpui = { opt-level = 3 }
+gpui_platform = { opt-level = 3 }
+gpui_macros = { opt-level = 3 }
+tree-sitter = { opt-level = 3 }
 
 [profile.release]
 opt-level = 3
