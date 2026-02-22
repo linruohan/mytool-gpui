@@ -460,15 +460,22 @@ impl ItemInfoState {
                         .map(|s| s.to_string())
                         .collect();
 
+                    info!(
+                        "set_item_labels: item_id={}, label_ids_vec={:?}",
+                        item_id, label_ids_vec
+                    );
+
                     let store = todos::Store::new((*db).clone());
                     match store.set_item_labels(&item_id, &label_ids_vec).await {
                         Ok(_) => {
+                            info!("set_item_labels: SUCCESS for item {}", item_id);
                             NotificationSystem::debug(format!(
                                 "Labels updated for item {}: {:?}",
                                 item_id, label_ids_vec
                             ));
                         },
                         Err(e) => {
+                            info!("set_item_labels: FAILED for item {} - {:?}", item_id, e);
                             NotificationSystem::log_error("Failed to set item labels", e);
                         },
                     }

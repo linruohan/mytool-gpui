@@ -182,22 +182,42 @@ impl ItemLabelRepository for ItemLabelRepositoryImpl {
     async fn set_item_labels(&self, item_id: &str, label_ids: &[String]) -> Result<(), TodoError> {
         use crate::entity::item_labels::ActiveModel;
 
+        tracing::info!(
+            "ItemLabelRepository::set_item_labels START - item_id: {}, label_ids: {:?}",
+            item_id, label_ids
+        );
+
         // 1. 删除旧关联
-        self.remove_all_labels_from_item(item_id).await?;
+        tracing::info!("Removing all old labels from item: {}", item_id);
+        let deleted_count = self.remove_all_labels_from_item(item_id).await?;
+        tracing::info!("Removed {} old labels from item: {}", deleted_count, item_id);
 
         // 2. 添加新关联
+        tracing::info!("Adding {} new labels to item: {}", label_ids.len(), item_id);
         for label_id in label_ids {
+            tracing::info!("Inserting label_id: {} for item_id: {}", label_id, item_id);
             let active_model = ActiveModel {
                 item_id: Set(item_id.to_string()),
                 label_id: Set(label_id.clone()),
                 ..Default::default()
             };
 
-            active_model.insert(&*self.db).await.map_err(|e| {
-                TodoError::DatabaseError(format!("Failed to set item labels: {}", e))
-            })?;
+            match active_model.insert(&*self.db).await {
+                Ok(_) => tracing::info!("Successfully inserted label_id: {}", label_id),
+                Err(e) => {
+                    tracing::error!("Failed to insert label_id: {} - {:?}", label_id, e);
+                    return Err(TodoError::DatabaseError(format!(
+                        "Failed to set item labels: {}",
+                        e
+                    )));
+                }
+            }
         }
 
+        tracing::info!(
+            "ItemLabelRepository::set_item_labels SUCCESS - item_id: {}",
+            item_id
+        );
         Ok(())
     }
 
@@ -211,14 +231,25 @@ impl ItemLabelRepository for ItemLabelRepositoryImpl {
     async fn remove_all_labels_from_item(&self, item_id: &str) -> Result<u64, TodoError> {
         use crate::entity::item_labels::Column;
 
-        ItemLabelEntity::delete_many()
-            .filter(Column::ItemId.eq(item_id))
-            .exec(&*self.db)
-            .await
-            .map(|res| res.rows_affected)
-            .map_err(|e| {
-                TodoError::DatabaseError(format!("Failed to remove all labels from item: {}", e))
-            })
+        tracing::info!("remove_all_labels_from_item: building query for item_id: {}", item_id);
+        let query = ItemLabelEntity::delete_many()
+            .filter(Column::ItemId.eq(item_id));
+        
+        tracing::info!("remove_all_labels_from_item: executing query...");
+        let start = std::time::Instant::now();
+        let result = query.exec(&*self.db).await;
+        let elapsed = start.elapsed();
+        
+        match result {
+            Ok(res) => {
+                tracing::info!("remove_all_labels_from_item: SUCCESS - deleted {} rows in {:?}", res.rows_affected, elapsed);
+                Ok(res.rows_affected)
+            },
+            Err(e) => {
+                tracing::error!("remove_all_labels_from_item: FAILED - {:?} in {:?}", e, elapsed);
+                Err(TodoError::DatabaseError(format!("Failed to remove all labels from item: {}", e)))
+            }
+        }
     }
 
     /// 删除 Label 的所有 Item 关联

@@ -30,15 +30,15 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     let mut options = ConnectOptions::new(base_url);
 
     // 🚀 关键修复：优化连接池配置
-    // SQLite 需要足够的连接来处理并发操作
+    // SQLite 是单线程的，连接数不宜过多，避免竞争
     options
-            .min_connections(10)  // 增加最小连接数，减少连接创建开销
-            .max_connections(50) // 增加最大连接数，支持更多并发操作
+            .min_connections(1)  // 最小连接数为1，避免不必要的连接
+            .max_connections(5)  // 最大连接数为5，SQLite单线程不需要太多连接
             .connect_timeout(Duration::from_secs(10)) // 连接超时时间
-            .acquire_timeout(Duration::from_secs(60)) // 增加获取连接超时时间
+            .acquire_timeout(Duration::from_secs(30)) // 获取连接超时时间
             .idle_timeout(Duration::from_secs(300)) // 空闲超时时间
             .max_lifetime(Duration::from_secs(1800)) // 最大生命周期
-            .sqlx_logging(false); // 禁用 SQL 日志，减少 IO 开销
+            .sqlx_logging(true); // 启用 SQL 日志，方便调试
 
     let db = Database::connect(options).await?;
 
@@ -61,6 +61,39 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
             },
         )?;
     }
+
+    // 🚀 关键修复：执行 setup.sql 初始化数据库表
+    // 确保所有表（包括 item_labels）都已创建
+    tracing::info!("Executing setup.sql to initialize database tables...");
+    let setup_sql = include_str!("../../setup.sql");
+    let mut executed_count = 0;
+    let mut skipped_count = 0;
+    for statement in setup_sql.split(';') {
+        let stmt = statement.trim();
+        if !stmt.is_empty() && !stmt.starts_with("--") && !stmt.starts_with("/*") {
+            tracing::info!("Executing SQL: {}...", &stmt[..std::cmp::min(50, stmt.len())]);
+            if let Err(e) =
+                db.execute(Statement::from_string(DbBackend::Sqlite, stmt.to_string())).await
+            {
+                // 忽略 "table already exists" 错误，这是正常的
+                let error_str = format!("{:?}", e);
+                if error_str.contains("already exists") {
+                    tracing::info!("Table already exists, skipping");
+                    skipped_count += 1;
+                } else {
+                    tracing::warn!("Failed to execute setup statement: {:?}", e);
+                    skipped_count += 1;
+                }
+            } else {
+                executed_count += 1;
+            }
+        }
+    }
+    tracing::info!(
+        "Database tables initialized successfully: {} executed, {} skipped",
+        executed_count,
+        skipped_count
+    );
 
     db.ping().await?;
     tracing::info!("SQLite database connection successful with WAL mode: {}", db_path);
