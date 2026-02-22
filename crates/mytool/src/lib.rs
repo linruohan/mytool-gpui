@@ -176,11 +176,23 @@ pub fn create_new_window_with_size<F, E>(
 impl Global for AppState {}
 
 pub fn init(cx: &mut App) {
+    // 初始化日志系统 - 默认显示 info 级别日志
+    // 可以通过设置环境变量 RUST_LOG=debug 或 RUST_LOG=mytool=trace 来调整级别
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        tracing_subscriber::EnvFilter::new("info")
+            .add_directive("gpui_component=info".parse().unwrap())
+            .add_directive("mytool=info".parse().unwrap())
+            .add_directive("todos=info".parse().unwrap())
+    });
+
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(tracing_subscriber::EnvFilter::from_default_env().add_directive(
-            "gpui_component=trace".parse().expect("failed to parse env filter directive"),
-        ))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_file(true)
+                .with_line_number(true)
+                .with_target(false),
+        )
+        .with(env_filter)
         .init();
 
     gpui_component::init(cx);

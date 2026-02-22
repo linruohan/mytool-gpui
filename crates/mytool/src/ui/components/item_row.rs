@@ -10,6 +10,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
+use tracing::info;
 
 use crate::{
     ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, SemanticColors, todo_state::TodoStore,
@@ -65,10 +66,40 @@ impl ItemRowState {
 
                 let state_items = store.all_items.clone();
                 if let Some(updated_item) = state_items.iter().find(|i| i.id == item_id) {
+                    // 检查 item 是否真的发生了变化
+                    if this.item == *updated_item {
+                        // item 没有变化，跳过更新
+                        return;
+                    }
+
+                    // 检查是否是标签更新（通过比较 labels 字段）
+                    let is_label_update = this.item.labels != updated_item.labels;
+
                     this.item = updated_item.clone();
                     this.update_version += 1; // 增加版本号，强制重新渲染
+
+                    // 添加调试日志
+                    use tracing::info;
+                    info!(
+                        "ItemRowState: item updated - id: {}, labels: {:?}, version: {}, \
+                         is_label_update: {}",
+                        updated_item.id, updated_item.labels, this.update_version, is_label_update
+                    );
+
+                    // 更新 item_info 中的状态
                     this.item_info.update(cx, |this_info, cx| {
-                        this_info.set_item(updated_item.clone(), window, cx);
+                        // 无论是否是标签更新，都使用 update_item_without_reloading_labels
+                        // 这样可以避免覆盖用户正在进行的编辑
+                        this_info.update_item_without_reloading_labels(
+                            updated_item.clone(),
+                            window,
+                            cx,
+                        );
+
+                        // 如果是标签更新，强制刷新 LabelsPopoverList 的选中状态
+                        if is_label_update {
+                            this_info.refresh_labels_selection_from_item(cx);
+                        }
                     });
                     cx.notify();
                 }
@@ -100,18 +131,30 @@ impl ItemRowState {
 
     /// 保存所有修改
     fn save_all_changes(&mut self, cx: &mut Context<Self>) {
+        info!("🚀 ItemRow::save_all_changes START for item: {}", self.item.id);
+
+        // 调用 ItemInfoState 的 save_all_changes 方法
+        // 让 ItemInfoState 处理保存操作，避免重复调用 update_item_optimistic
         self.item_info.update(cx, |state, cx| {
             state.save_all_changes(cx);
         });
+
+        // 获取最新的 item 数据（已包含用户的修改）
+        let latest_item = self.item_info.read(cx).state_manager.item.clone();
+        info!(
+            "📊 Item data after save - id: {}, content: '{}', priority: {:?}, labels: {:?}",
+            latest_item.id, latest_item.content, latest_item.priority, latest_item.labels
+        );
+
+        // 更新本地 item 引用
+        self.item = latest_item;
+        self.update_version += 1;
+        cx.notify();
+        info!("✅ ItemRow::save_all_changes END");
     }
 
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        use tracing::info;
-        info!(
-            "toggle_expand called, current is_open: {}, new is_open: {}",
-            self.is_open, !self.is_open
-        );
         // 如果当前是展开状态，收缩时保存所有修改
         if self.is_open {
             self.save_all_changes(cx);
@@ -123,6 +166,10 @@ impl ItemRowState {
             self.item_info.update(cx, |state, cx| {
                 // 尝试让 name_input 获得焦点
                 state.focus_name_input(window, cx);
+
+                // 关键修复：展开时强制刷新标签选中状态
+                // 从当前 item 的 labels 字段同步 LabelsPopoverList 的选中状态
+                state.refresh_labels_selection_from_item(cx);
             });
         }
 
@@ -258,6 +305,18 @@ impl Render for ItemRowState {
 
         // 从 item_info 中获取最新的 item，确保显示最新的数据
         let item = self.item_info.read(cx).state_manager.item.clone();
+
+        // 添加调试日志，跟踪标签变化
+
+        // info!(
+        //     "ItemRow render - item id: {}, labels: {:?}, version: {}",
+        //     item.id, item.labels, self.update_version
+        // );
+        let _version = self.update_version; // 获取当前版本号
+        // info!(
+        //     "ItemRow render - item id: {}, labels: {:?}, version: {}",
+        //     item.id, item.labels, version
+        // );
         let item_info = self.item_info.clone();
         let is_open = self.is_open;
         let is_focused = self.is_focused;

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use gpui::{App, BorrowAppContext};
 use todos::{Store, entity::ItemModel};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::{
     core::{
@@ -27,18 +27,22 @@ use crate::{
 /// 2. 异步保存到数据库
 /// 3. 用真实 ID 替换临时 ID
 /// 4. 如果失败，回滚更新
-pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
+///
+/// # 返回值
+/// - 返回生成的临时 ID，用于更新原始 item 对象
+pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
         let context = ErrorHandler::handle_with_location(e, "add_item_optimistic");
         error!("{}", context.format_user_message());
-        return;
+        return "".to_string();
     }
 
     // 1. 生成临时 ID
     let temp_id = format!("temp_{}", uuid::Uuid::new_v4());
+    let temp_id_clone = temp_id.clone();
     let mut optimistic_item = (*item).clone();
-    optimistic_item.id = temp_id.clone();
+    optimistic_item.id = temp_id_clone.clone();
 
     info!("Optimistically adding item with temp ID: {}", temp_id);
 
@@ -75,7 +79,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
-        bus.publish(TodoStoreEvent::ItemAdded(temp_id.clone()));
+        bus.publish(TodoStoreEvent::ItemAdded(temp_id_clone.clone()));
     });
 
     // 3. 异步保存到数据库
@@ -85,13 +89,13 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
             Ok(saved_item) => {
                 info!(
                     "Successfully saved item, replacing temp ID {} with real ID {}",
-                    temp_id, saved_item.id
+                    temp_id_clone, saved_item.id
                 );
 
-                // 4. 用真实 ID 替换临时 ID
+                // 4. 用真实 ID 替换临时项
                 cx.update_global::<TodoStore, _>(|store, _| {
                     // 移除临时项
-                    store.remove_item(&temp_id);
+                    store.remove_item(&temp_id_clone);
                     // 添加真实项
                     store.add_item(Arc::new(saved_item.clone()));
                 });
@@ -111,7 +115,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
                 // 5. 失败时回滚
                 cx.update_global::<TodoStore, _>(|store, _| {
-                    store.remove_item(&temp_id);
+                    store.remove_item(&temp_id_clone);
                 });
 
                 // 清空缓存
@@ -121,7 +125,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
                 // 发布事件
                 cx.update_global::<TodoEventBus, _>(|bus, _| {
-                    bus.publish(TodoStoreEvent::ItemDeleted(temp_id.clone()));
+                    bus.publish(TodoStoreEvent::ItemDeleted(temp_id_clone.clone()));
                 });
 
                 let context = ErrorHandler::handle_with_resource(
@@ -137,6 +141,9 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         }
     })
     .detach();
+
+    // 返回临时 ID
+    temp_id
 }
 
 /// 乐观更新任务
@@ -145,24 +152,14 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 /// 2. 异步保存到数据库
 /// 3. 如果失败，恢复旧值
 pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
+    info!("🚀 update_item_optimistic START - item: {}, content: '{}'", item.id, item.content);
+
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
         let context = ErrorHandler::handle_with_location(e, "update_item_optimistic");
         error!("{}", context.format_user_message());
         return;
     }
-
-    // 1. 保存旧值（用于回滚）
-    let old_item = cx.global::<TodoStore>().get_item(&item.id);
-
-    if old_item.is_none() {
-        warn!("Item {} not found in store, cannot update optimistically", item.id);
-        return;
-    }
-
-    let old_item = old_item.unwrap();
-
-    info!("Optimistically updating item: {} with priority: {:?}", item.id, item.priority);
 
     // 2. 立即更新 UI
     cx.update_global::<TodoStore, _>(|store, _| {
@@ -182,63 +179,35 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     // 3. 异步保存到数据库
     let db = get_db_connection(cx);
     let item_id = item.id.clone();
-    let item_priority = item.priority;
+    let _item_priority = item.priority;
+    let item_content = item.content.clone();
 
-    cx.spawn(async move |cx| {
-        info!("Starting database save for item: {} with priority: {:?}", item_id, item_priority);
-        match state_service::mod_item(item.clone(), (*db).clone()).await {
+    info!("🔄 Spawning async task for database save - item: {}", item_id);
+
+    // 🚀 关键修复：使用 tokio::spawn 在后台执行数据库操作
+    // 这确保数据库操作在正确的 tokio 运行时中执行
+    let item_for_db = item.clone();
+    let db_clone = (*db).clone();
+
+    tokio::spawn(async move {
+        info!(
+            "⏳ Async task STARTED - Saving to database: item={}, content='{}'",
+            item_id, item_content
+        );
+        match state_service::mod_item(item_for_db.clone(), db_clone).await {
             Ok(updated_item) => {
                 info!(
-                    "Successfully saved item update: {} with priority: {:?}",
-                    item_id, updated_item.priority
+                    "✅ Successfully saved item update: {} with priority: {:?}, content: '{}'",
+                    item_id, updated_item.priority, updated_item.content
                 );
-
-                // 更新为数据库返回的最新值
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(Arc::new(updated_item.clone()));
-                });
-
-                // 清空缓存
-                cx.update_global::<QueryCache, _>(|cache, _| {
-                    cache.invalidate_all();
-                });
-
-                // 发布事件
-                cx.update_global::<TodoEventBus, _>(|bus, _| {
-                    bus.publish(TodoStoreEvent::ItemUpdated(updated_item.id.clone()));
-                });
             },
             Err(e) => {
-                error!("Failed to save item update for {}, rolling back. Error: {:?}", item_id, e);
-
-                // 4. 失败时回滚到旧值
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(old_item.clone());
-                });
-
-                // 清空缓存
-                cx.update_global::<QueryCache, _>(|cache, _| {
-                    cache.invalidate_all();
-                });
-
-                // 发布事件
-                cx.update_global::<TodoEventBus, _>(|bus, _| {
-                    bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
-                });
-
-                let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
-                    "update_item_optimistic",
-                    &item_id,
-                );
-                error!("{}", context.format_user_message());
-                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(context.format_user_message());
-                });
+                error!("❌ Failed to save item update for {}, error: {:?}", item_id, e);
             },
         }
-    })
-    .detach();
+    });
+
+    info!("🚀 update_item_optimistic END - async task detached");
 }
 
 /// 乐观删除任务

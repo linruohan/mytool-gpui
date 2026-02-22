@@ -3,12 +3,13 @@
 //! This module provides business logic for Item operations,
 //! separating it from data access layer.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QuerySelect, Set, prelude::Expr,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter, QuerySelect, Set, prelude::Expr,
 };
+use tokio::time;
 
 use crate::{
     entity::{ItemActiveModel, ItemModel, items, prelude::*},
@@ -61,6 +62,67 @@ impl ItemService {
         Ok(item_model)
     }
 
+    /// 重试机制包装函数
+    async fn with_retry<F, T>(&self, operation: F, item_id: String) -> Result<T, TodoError>
+    where
+        F: Fn()
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, TodoError>> + Send>>,
+        T: Send,
+    {
+        const MAX_RETRIES: usize = 3;
+        const RETRY_DELAY: Duration = Duration::from_millis(1000);
+
+        let mut last_error: Option<TodoError> = None;
+
+        for attempt in 0..MAX_RETRIES {
+            match operation().await {
+                Ok(result) => {
+                    if attempt > 0 {
+                        tracing::info!(
+                            "✅ Retry succeeded for item {} on attempt {}",
+                            item_id,
+                            attempt + 1
+                        );
+                    }
+                    return Ok(result);
+                },
+                Err(e) => {
+                    // 检查是否是可以重试的错误类型
+                    if matches!(e, TodoError::DbError(_))
+                        || matches!(e, TodoError::DatabaseError(_))
+                    {
+                        if attempt < MAX_RETRIES - 1 {
+                            tracing::warn!(
+                                "⚠️  Retrying operation for item {} (attempt {} of {}) after \
+                                 error: {:?}",
+                                item_id,
+                                attempt + 1,
+                                MAX_RETRIES,
+                                e
+                            );
+                            time::sleep(RETRY_DELAY).await;
+                        } else {
+                            // 最后一次尝试失败，记录错误
+                            tracing::error!(
+                                "❌ All attempts failed for item {} after {} tries, error: {:?}",
+                                item_id,
+                                MAX_RETRIES,
+                                e
+                            );
+                        }
+                        last_error = Some(e);
+                    } else {
+                        // 非重试错误，直接返回
+                        return Err(e);
+                    }
+                },
+            }
+        }
+
+        Err(last_error
+            .unwrap_or_else(|| TodoError::DatabaseError("Unknown error during retry".to_string())))
+    }
+
     /// Update an existing item
     pub async fn update_item(
         &self,
@@ -69,25 +131,128 @@ impl ItemService {
     ) -> Result<ItemModel, TodoError> {
         let item_id = item.id.clone();
         let item_priority = item.priority;
+        let item_content = item.content.clone();
         tracing::info!(
-            "ItemService::update_item called for item: {} with priority: {:?}",
+            "ItemService::update_item called for item: {} with priority: {:?}, content: '{}'",
             item_id,
-            item_priority
+            item_priority,
+            item_content
         );
 
-        let mut active_model: ItemActiveModel = item.into();
-        tracing::info!("Converted to ActiveModel, priority: {:?}", active_model.priority);
+        // 使用重试机制执行数据库操作
+        let now = chrono::Utc::now().naive_utc();
 
-        let result = active_model.update(&*self.db).await?;
+        let update_result = self
+            .with_retry(
+                || {
+                    let db = self.db.clone();
+                    let item_clone = item.clone();
+                    let item_id_clone = item_id.clone();
+                    let now_clone = now;
+
+                    Box::pin(async move {
+                        tracing::info!("🔍 Executing update_many for item: {}", item_id_clone);
+
+                        let result = items::Entity::update_many()
+                            .col_expr(
+                                items::Column::Content,
+                                Expr::value(item_clone.content.clone()),
+                            )
+                            .col_expr(
+                                items::Column::Description,
+                                Expr::value(item_clone.description.clone()),
+                            )
+                            .col_expr(items::Column::Due, Expr::value(item_clone.due.clone()))
+                            .col_expr(items::Column::UpdatedAt, Expr::value(now_clone))
+                            .col_expr(
+                                items::Column::SectionId,
+                                Expr::value(item_clone.section_id.clone()),
+                            )
+                            .col_expr(
+                                items::Column::ProjectId,
+                                Expr::value(item_clone.project_id.clone()),
+                            )
+                            .col_expr(
+                                items::Column::ParentId,
+                                Expr::value(item_clone.parent_id.clone()),
+                            )
+                            .col_expr(items::Column::Priority, Expr::value(item_clone.priority))
+                            .col_expr(
+                                items::Column::ChildOrder,
+                                Expr::value(item_clone.child_order),
+                            )
+                            .col_expr(items::Column::DayOrder, Expr::value(item_clone.day_order))
+                            .col_expr(items::Column::Checked, Expr::value(item_clone.checked))
+                            .col_expr(items::Column::IsDeleted, Expr::value(item_clone.is_deleted))
+                            .col_expr(items::Column::Collapsed, Expr::value(item_clone.collapsed))
+                            .col_expr(items::Column::Pinned, Expr::value(item_clone.pinned))
+                            .col_expr(items::Column::Labels, Expr::value(item_clone.labels.clone()))
+                            .col_expr(
+                                items::Column::ExtraData,
+                                Expr::value(item_clone.extra_data.clone()),
+                            )
+                            .col_expr(
+                                items::Column::ItemType,
+                                Expr::value(item_clone.item_type.clone()),
+                            )
+                            .filter(items::Column::Id.eq(item_id_clone.clone()))
+                            .exec(&*db)
+                            .await;
+
+                        match &result {
+                            Ok(res) => {
+                                tracing::info!(
+                                    "✅ update_many success, rows affected: {}",
+                                    res.rows_affected
+                                );
+                            },
+                            Err(e) => {
+                                tracing::error!(
+                                    "❌ update_many failed for item {}: {:?}",
+                                    item_id_clone,
+                                    e
+                                );
+                            },
+                        }
+
+                        result.map_err(TodoError::from)
+                    })
+                },
+                item_id.clone(),
+            )
+            .await?;
+
+        // 从数据库重新获取更新后的记录
+        let updated_item = self
+            .with_retry(
+                || {
+                    let item_id_clone = item_id.clone();
+                    let service = self.clone();
+
+                    Box::pin(async move {
+                        tracing::info!("🔍 Fetching updated item from database: {}", item_id_clone);
+                        service.get_item(&item_id_clone).await.ok_or_else(|| {
+                            TodoError::NotFound(format!(
+                                "Failed to fetch updated item: {}",
+                                item_id_clone
+                            ))
+                        })
+                    })
+                },
+                item_id.clone(),
+            )
+            .await?;
+
         tracing::info!(
-            "Database update completed for item: {} with priority: {:?}",
-            result.id,
-            result.priority
+            "✅ Database Update Success - Item ID: {}, Content: '{}', Priority: {:?}",
+            updated_item.id,
+            updated_item.content,
+            updated_item.priority
         );
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
 
-        Ok(result)
+        Ok(updated_item)
     }
 
     /// Delete an item and its children

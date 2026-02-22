@@ -562,10 +562,15 @@ impl Store {
         &self,
         items: Vec<ItemModel>,
     ) -> Result<Vec<ItemModel>, TodoError> {
+        use sea_orm::TransactionTrait;
+
+        let db = self.db();
+        let txn = db.begin().await?;
+
         let mut results = Vec::with_capacity(items.len());
 
         for item in items {
-            match self.insert_item(item, true).await {
+            match self.item_service.insert_item(item, true).await {
                 Ok(inserted) => results.push(inserted),
                 Err(e) => {
                     tracing::error!("Failed to insert item in batch: {:?}", e);
@@ -574,6 +579,7 @@ impl Store {
             }
         }
 
+        txn.commit().await?;
         Ok(results)
     }
 
@@ -585,10 +591,15 @@ impl Store {
         &self,
         items: Vec<ItemModel>,
     ) -> Result<Vec<ItemModel>, TodoError> {
+        use sea_orm::TransactionTrait;
+
+        let db = self.db();
+        let txn = db.begin().await?;
+
         let mut results = Vec::with_capacity(items.len());
 
         for item in items {
-            match self.update_item(item, "").await {
+            match self.item_service.update_item(item, "").await {
                 Ok(updated) => results.push(updated),
                 Err(e) => {
                     tracing::error!("Failed to update item in batch: {:?}", e);
@@ -597,6 +608,7 @@ impl Store {
             }
         }
 
+        txn.commit().await?;
         Ok(results)
     }
 
@@ -605,10 +617,15 @@ impl Store {
     /// Deletes multiple items in a single transaction for better performance.
     /// Returns the number of successfully deleted items.
     pub async fn batch_delete_items(&self, item_ids: Vec<String>) -> Result<usize, TodoError> {
+        use sea_orm::TransactionTrait;
+
+        let db = self.db();
+        let txn = db.begin().await?;
+
         let mut deleted_count = 0;
 
         for item_id in item_ids {
-            match self.delete_item(&item_id).await {
+            match self.item_service.delete_item(&item_id).await {
                 Ok(_) => deleted_count += 1,
                 Err(e) => {
                     tracing::error!("Failed to delete item {} in batch: {:?}", item_id, e);
@@ -617,6 +634,7 @@ impl Store {
             }
         }
 
+        txn.commit().await?;
         Ok(deleted_count)
     }
 
@@ -630,10 +648,15 @@ impl Store {
         checked: bool,
         complete_sub_items: bool,
     ) -> Result<usize, TodoError> {
+        use sea_orm::TransactionTrait;
+
+        let db = self.db();
+        let txn = db.begin().await?;
+
         let mut updated_count = 0;
 
         for item_id in item_ids {
-            match self.complete_item(&item_id, checked, complete_sub_items).await {
+            match self.item_service.complete_item(&item_id, checked, complete_sub_items).await {
                 Ok(_) => updated_count += 1,
                 Err(e) => {
                     tracing::error!("Failed to complete item {} in batch: {:?}", item_id, e);
@@ -642,6 +665,7 @@ impl Store {
             }
         }
 
+        txn.commit().await?;
         Ok(updated_count)
     }
 }

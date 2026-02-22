@@ -11,4 +11,6 @@ pub enum TodoError {
     IDNotFound,
     #[error("{0} already exists")]
     AlreadyExists(String),
+    #[error("Operation timeout: {0}")]
+    Timeout(String),
 }

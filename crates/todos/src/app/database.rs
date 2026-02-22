@@ -28,21 +28,42 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     let base_url = format!("sqlite://{}?mode=rwc", db_path);
 
     let mut options = ConnectOptions::new(base_url);
-    let pool_size = db_config.pool_size();
-    let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as u32;
 
+    // 🚀 关键修复：优化连接池配置
+    // SQLite 需要足够的连接来处理并发操作
     options
-        .min_connections(min(cpus, 5))
-        .max_connections(max(pool_size, cpus * 4))
-        .connect_timeout(Duration::from_secs(10))
-        .acquire_timeout(Duration::from_secs(30))
-        .idle_timeout(Duration::from_secs(60))
-        .max_lifetime(Duration::from_secs(1800))
-        .sqlx_logging(false);
+            .min_connections(10)  // 增加最小连接数，减少连接创建开销
+            .max_connections(50) // 增加最大连接数，支持更多并发操作
+            .connect_timeout(Duration::from_secs(10)) // 连接超时时间
+            .acquire_timeout(Duration::from_secs(60)) // 增加获取连接超时时间
+            .idle_timeout(Duration::from_secs(300)) // 空闲超时时间
+            .max_lifetime(Duration::from_secs(1800)) // 最大生命周期
+            .sqlx_logging(false); // 禁用 SQL 日志，减少 IO 开销
 
     let db = Database::connect(options).await?;
+
+    // 🚀 关键修复：在连接建立后执行 PRAGMA 设置以支持并发写入
+    // - journal_mode=WAL: 使用 WAL 模式，允许并发读写
+    // - busy_timeout: 等待锁释放的超时时间（毫秒）
+    // - synchronous=NORMAL: 平衡性能和数据安全
+    let pragma_statements = [
+        "PRAGMA journal_mode = WAL;",
+        "PRAGMA busy_timeout = 60000;",
+        "PRAGMA synchronous = NORMAL;",
+        "PRAGMA cache_size = -20000;", // 20MB cache
+    ];
+
+    for pragma in pragma_statements {
+        db.execute(Statement::from_string(DbBackend::Sqlite, pragma.to_string())).await.map_err(
+            |e| {
+                tracing::warn!("Failed to execute pragma '{}': {:?}", pragma, e);
+                e
+            },
+        )?;
+    }
+
     db.ping().await?;
-    tracing::info!("SQLite database connection successful: {}", db_path);
+    tracing::info!("SQLite database connection successful with WAL mode: {}", db_path);
     Ok(db)
 }
 

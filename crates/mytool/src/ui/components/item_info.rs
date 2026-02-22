@@ -244,10 +244,13 @@ impl ItemInfoState {
                 let store = cx.global::<TodoStore>();
                 // 查找当前 item 是否在 store 中
                 if let Some(updated_item) = store.get_item(&this.state_manager.item.id) {
-                    // 如果找到，更新状态
-                    this.state_manager.item = updated_item;
-                    // 触发重新渲染
-                    cx.notify();
+                    // 只有当 item 确实发生变化时才更新，避免不必要的渲染
+                    if this.state_manager.item != updated_item {
+                        // 如果找到且发生变化，更新状态
+                        this.state_manager.item = updated_item;
+                        // 触发重新渲染
+                        cx.notify();
+                    }
                 }
             }),
         ];
@@ -359,11 +362,38 @@ impl ItemInfoState {
         // 同步输入框内容
         let has_input_changes = self.sync_inputs(cx);
 
-        // 如果有输入更改，保存所有更改
-        if has_input_changes {
-            info!("Saving input changes for item: {}", self.state_manager.item.id);
-            // 🚀 使用乐观更新确保所有更改都被保存
-            update_item_optimistic(self.state_manager.item.clone(), cx);
+        // 检查是否有任何状态变更需要保存
+        let current_item = &self.state_manager.item;
+
+        // 🚀 关键修复：根据任务是否有 ID 来决定是添加还是更新
+        info!(
+            "save_all_changes called for item: {}, has_input_changes: {}, content: '{}'",
+            current_item.id, has_input_changes, current_item.content
+        );
+
+        // 根据 item.id 是否为空来决定是添加新任务还是更新现有任务
+        if current_item.id.is_empty() {
+            // 新建任务：使用 add_item_optimistic
+            info!(
+                "Triggering add_item_optimistic for new item with content: '{}'",
+                current_item.content
+            );
+            let temp_id = add_item_optimistic(current_item.clone(), cx);
+
+            // 更新原始 item 对象的 ID 为临时 ID
+            if !temp_id.is_empty() {
+                info!("Updating original item ID to temp ID: {}", temp_id);
+                let temp_id_clone = temp_id.clone();
+                self.state_manager.update_item(|item| {
+                    item.id = temp_id_clone.clone();
+                });
+            }
+
+            cx.emit(ItemInfoEvent::Added());
+        } else {
+            // 现有任务：只发射事件，让 handle_item_info_event 处理保存
+            // 避免重复调用 update_item_optimistic
+            info!("Emitting Updated event for item: {}", current_item.id);
             cx.emit(ItemInfoEvent::Updated());
         }
     }
@@ -682,11 +712,11 @@ impl ItemInfoState {
                 add_item_optimistic(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::Updated() => {
-                // 检查是否需要跳过此次更新（避免重复调用）
-                if !self.state_manager.skip_next_update && self.state_manager.can_update() {
-                    // 🚀 使用乐观更新（立即更新任务）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
+                // 🚀 关键修复：总是触发更新，确保所有变更都被保存
+                // 移除了 skip_next_update 和 can_update 限制，因为这可能导致数据丢失
+                info!("Handling Updated event for item: {}", self.state_manager.item.id);
+                // 🚀 使用乐观更新（立即更新任务）
+                update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 重置标志
                 self.state_manager.skip_next_update = false;
             },
@@ -779,7 +809,6 @@ impl ItemInfoState {
     pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Arc<LabelModel>> {
         // 从 LabelPopoverList 获取当前选中的 labels
         let selected = self.label_popover_list.read(cx).selected_labels.clone();
-        info!("Getting selected labels: {} labels", selected.len());
         selected
     }
 
@@ -804,8 +833,50 @@ impl ItemInfoState {
 
     // set item of item_info
     pub fn set_item(&mut self, item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
+        self.set_item_internal(item, window, cx, true);
+    }
+
+    /// 更新 item 但不重新加载标签（用于避免覆盖用户的标签更改）
+    pub fn update_item_without_reloading_labels(
+        &mut self,
+        item: Arc<ItemModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_item_internal(item, window, cx, false);
+    }
+
+    /// 从当前 item 的 labels 字段刷新 LabelsPopoverList 的选中状态
+    /// 用于在外部标签更新后同步 UI 状态
+    pub fn refresh_labels_selection_from_item(&mut self, cx: &mut Context<Self>) {
+        let item_labels_str = self.state_manager.item.labels.clone().unwrap_or_default();
+
+        // 更新 LabelsPopoverList 的选中状态
+        self.label_popover_list.update(cx, |popover_list, cx| {
+            popover_list.set_item_checked_label_id_async(item_labels_str.clone(), cx);
+        });
+
+        // 通知 ItemInfoState 更新
+        cx.notify();
+    }
+
+    /// 内部方法：设置 item，可选择是否重新加载标签
+    fn set_item_internal(
+        &mut self,
+        item: Arc<ItemModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        reload_labels: bool,
+    ) {
         // 更新 state_manager
         self.state_manager = ItemStateManager::new(item.clone());
+
+        // 添加调试日志
+
+        // info!(
+        //     "set_item_internal called - item id: {}, labels: {:?}, reload_labels: {}",
+        //     item.id, item.labels, reload_labels
+        // );
 
         self.name_input.update(cx, |this, cx| {
             this.set_value(item.content.clone(), window, cx);
@@ -878,45 +949,49 @@ impl ItemInfoState {
         });
 
         // Labels 现在存储在 item_labels 关联表中，需要异步加载
-        // 异步加载当前项目的标签
-        let item_id_for_labels = item.id.clone();
-        let label_popover_list = self.label_popover_list.clone();
-        let db_for_labels = get_db_connection(cx);
-        let this_entity = cx.entity();
+        // 只有在 reload_labels 为 true 时才重新加载标签
+        if reload_labels {
+            // 异步加载当前项目的标签
+            let item_id_for_labels = item.id.clone();
+            let label_popover_list = self.label_popover_list.clone();
+            let db_for_labels = get_db_connection(cx);
+            let this_entity = cx.entity();
 
-        cx.spawn(async move |_this, cx| {
-            let store = todos::Store::new((*db_for_labels).clone());
-            match store.get_labels_by_item(&item_id_for_labels).await {
-                Ok(item_labels) => {
-                    let label_ids: Vec<String> = item_labels.iter().map(|l| l.id.clone()).collect();
-                    let label_ids_str = label_ids.join(";");
+            cx.spawn(async move |_this, cx| {
+                let store = todos::Store::new((*db_for_labels).clone());
+                match store.get_labels_by_item(&item_id_for_labels).await {
+                    Ok(item_labels) => {
+                        let label_ids: Vec<String> =
+                            item_labels.iter().map(|l| l.id.clone()).collect();
+                        let label_ids_str = label_ids.join(";");
 
-                    cx.update_entity(&label_popover_list, |popover_list, cx| {
-                        // 注意：这里不能使用 window 参数，因为它不能跨越异步边界
-                        // 我们需要在 set_item_checked_label_id 方法中处理这个问题
-                        popover_list.set_item_checked_label_id_async(label_ids_str, cx);
-                    });
+                        cx.update_entity(&label_popover_list, |popover_list, cx| {
+                            // 注意：这里不能使用 window 参数，因为它不能跨越异步边界
+                            // 我们需要在 set_item_checked_label_id 方法中处理这个问题
+                            popover_list.set_item_checked_label_id_async(label_ids_str, cx);
+                        });
 
-                    // 触发UI更新，确保标签复选框状态正确显示
-                    cx.update_entity(&this_entity, |_item_info_state, cx| {
-                        cx.notify();
-                    });
-                },
-                Err(e) => {
-                    NotificationSystem::log_error("Failed to load item labels", e);
-                    // 如果加载失败，清空标签选择
-                    cx.update_entity(&label_popover_list, |popover_list, cx| {
-                        popover_list.set_item_checked_label_id_async(String::new(), cx);
-                    });
+                        // 触发UI更新，确保标签复选框状态正确显示
+                        cx.update_entity(&this_entity, |_item_info_state, cx| {
+                            cx.notify();
+                        });
+                    },
+                    Err(e) => {
+                        NotificationSystem::log_error("Failed to load item labels", e);
+                        // 如果加载失败，清空标签选择
+                        cx.update_entity(&label_popover_list, |popover_list, cx| {
+                            popover_list.set_item_checked_label_id_async(String::new(), cx);
+                        });
 
-                    // 即使失败也要触发UI更新
-                    cx.update_entity(&this_entity, |_item_info_state, cx| {
-                        cx.notify();
-                    });
-                },
-            }
-        })
-        .detach();
+                        // 即使失败也要触发UI更新
+                        cx.update_entity(&this_entity, |_item_info_state, cx| {
+                            cx.notify();
+                        });
+                    },
+                }
+            })
+            .detach();
+        }
 
         // 使用类型安全的 due_date() 方法
         self.schedule_button_state.update(cx, |this, cx| {
@@ -1041,12 +1116,6 @@ impl Render for ItemInfoState {
         // 🚀 性能优化：在渲染开始时缓存选中的标签，避免在闭包中重复调用
         let selected_labels = self.selected_labels(cx);
 
-        info!(
-            "Rendering ItemInfo: {} labels available, {} selected",
-            labels.len(),
-            selected_labels.len()
-        );
-
         let colors = SemanticColors::from_theme(cx);
         let pinned_color = if self.state_manager.item.pinned {
             colors.status_pinned
@@ -1113,7 +1182,7 @@ impl Render for ItemInfoState {
                         let label_clone = label.clone();
                         let view_clone = view.clone();
                         let is_checked = selected_labels.iter().any(|l| l.id == label.id);
-                        info!("Rendering label checkbox: {} (checked: {})", label.name, is_checked);
+                        // info!("Rendering label checkbox: {} (checked: {})", label.name, is_checked);
                         // 使用 gpui_component::checkbox::Checkbox 组件
                         div()
                             .flex()

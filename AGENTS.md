@@ -6,7 +6,7 @@ This file provides guidance for AI coding agents working in this repository.
 
 MyTool-GPUI is a Rust-based desktop todo/task management application built with GPUI framework from Zed Industries. Uses Sea-ORM with SQLite for data persistence.
 
-**Toolchain:** `x86_64-pc-windows-gnu` (MSYS2 environment)
+**Toolchain:** `x86_64-pc-windows-msvc` (MSYS2 environment)
 **Workspace:** 3 crates - `mytool` (GUI), `todos` (core library), `gconfig` (config)
 
 ---

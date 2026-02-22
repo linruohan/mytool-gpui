@@ -54,14 +54,15 @@ impl Selectable for ItemListItem {
 
 impl RenderOnce for ItemListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        // info!("ItemListItem rendering - id: {}, labels: {:?}", self.item.id, self.item.labels);
+
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         let labels = cx.global::<TodoStore>().labels.clone();
         let label_map: HashMap<&str, &Arc<LabelModel>> =
             labels.iter().map(|l| (l.id.as_str(), l)).collect();
-        // 注意：labels 现在存储在 item_labels 关联表中
-        // 这里简化处理，实际项目中可能需要异步加载
+
         // 从 ItemModel 的 labels 字段获取标签 ID
         let item_labels: Vec<String> = self
             .item
@@ -71,6 +72,8 @@ impl RenderOnce for ItemListItem {
                 labels_str.split(';').filter(|id| !id.is_empty()).map(|id| id.to_string()).collect()
             })
             .unwrap_or_default();
+
+        // info!("ItemListItem parsed labels - id: {}, parsed: {:?}", self.item.id, item_labels);
 
         self.base
             .px_2()

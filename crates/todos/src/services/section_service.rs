@@ -121,12 +121,14 @@ impl SectionService {
             .ok_or_else(|| TodoError::NotFound("section not found".to_string()))?;
 
         let archived_new = if section.is_archived == archived { !archived } else { archived };
+        // Fix: Explicitly set the id field to ensure the UPDATE query works correctly
         let active_model = SectionActiveModel {
+            id: Set(section_id.to_string()),
             is_archived: Set(archived_new),
             archived_at: Set(Some(chrono::Utc::now().naive_utc())),
             ..section.into()
         };
-        active_model.update(&*self.db).await?;
+        SectionEntity::update(active_model).exec(&*self.db).await?;
 
         // 归档所有items
         let items = self.get_items_by_section(section_id).await?;
