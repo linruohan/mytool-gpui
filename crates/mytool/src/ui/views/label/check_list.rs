@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
+    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath, Selectable,
@@ -69,23 +69,22 @@ impl RenderOnce for LabelCheckListItem {
             .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
             .rounded(cx.theme().radius)
             .child(
-                h_flex().items_center().justify_between().gap_2().text_color(text_color).child(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .justify_end()
-                        .child(Checkbox::new("label-checked").checked(self.checked))
-                        .child(
-                            Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
-                                gpui::rgb(
-                                    u32::from_str_radix(&self.label.color[1..], 16)
-                                        .ok()
-                                        .unwrap_or_default(),
-                                ),
-                            )),
-                        )
-                        .child(div().w(px(120.)).child(self.label.name.clone())),
-                ),
+                h_flex()
+                    .items_center()
+                    .justify_start()
+                    .gap_3()
+                    .text_color(text_color)
+                    .child(Checkbox::new("label-checked").checked(self.checked))
+                    .child(
+                        Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
+                            gpui::rgb(
+                                u32::from_str_radix(&self.label.color[1..], 16)
+                                    .ok()
+                                    .unwrap_or_default(),
+                            ),
+                        )),
+                    )
+                    .child(div().flex_1().child(self.label.name.clone())),
             )
     }
 }

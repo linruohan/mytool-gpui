@@ -132,7 +132,7 @@ impl LabelsPopoverList {
                 // 发送标签ID字符串
                 self.emit_labels_changed(cx);
             }
-            cx.notify();
+            // 移除cx.notify()调用，避免每次点击标签都重新渲染组件导致popover关闭
         }
     }
 
@@ -222,7 +222,7 @@ impl LabelsPopoverList {
             self.emit_labels_changed(cx);
         }
 
-        cx.notify();
+        // 移除cx.notify()调用，避免创建新标签后popover关闭
     }
 
     // 发送标签变更事件
