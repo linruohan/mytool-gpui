@@ -3694,6 +3694,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "embed-resource",
+ "futures",
  "gpui",
  "gpui-component",
  "gpui-component-assets",

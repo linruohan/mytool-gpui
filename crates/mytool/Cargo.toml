@@ -22,6 +22,7 @@ uuid.workspace = true
 
 sea-orm.workspace = true
 tokio.workspace = true
+futures.workspace = true
 itertools.workspace = true
 rfd.workspace = true
 toml.workspace = true

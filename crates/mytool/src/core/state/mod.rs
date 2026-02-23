@@ -2,6 +2,7 @@ mod cache;
 mod database;
 mod events;
 mod observer;
+mod pending_tasks;
 mod store;
 
 use std::sync::Arc;
@@ -11,6 +12,7 @@ pub use database::*;
 pub use events::*;
 use gpui::App;
 pub use observer::*;
+pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
 use todos::entity;
@@ -62,6 +64,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 🚀 初始化脏标记系统
     cx.set_global(DirtyFlags::new());
 
+    // 🚀 初始化待处理任务状态（用于跟踪异步保存操作）
+    cx.set_global(PendingTasksState::new());
+
     // 异步加载数据
     cx.spawn(async move |cx| {
         // 加载数据到 TodoStore（唯一数据源）
@@ -69,9 +74,12 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let items = crate::state_service::load_items(db.clone()).await;
         println!("[DEBUG] Loaded {} items", items.len());
 
-        // 打印每个项目的pinned状态
+        // 打印每个项目的pinned状态和due
         for item in &items {
-            println!("[DEBUG] Item {}: content={}, pinned={}", item.id, item.content, item.pinned);
+            println!(
+                "[DEBUG] Item {}: content={}, pinned={}, due={:?}",
+                item.id, item.content, item.pinned, item.due
+            );
         }
 
         // 检查 inbox 条件的任务
@@ -82,7 +90,13 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         println!("[DEBUG] Found {} inbox items (no project ID)", inbox_items.len());
 
         for (i, item) in inbox_items.iter().enumerate() {
-            println!("[DEBUG] Inbox item {}: {}, pinned={}", i + 1, item.content, item.pinned);
+            println!(
+                "[DEBUG] Inbox item {}: {}, pinned={}, due={:?}",
+                i + 1,
+                item.content,
+                item.pinned,
+                item.due
+            );
         }
 
         println!("[DEBUG] Loading projects...");

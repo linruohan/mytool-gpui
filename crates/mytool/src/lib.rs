@@ -3,6 +3,7 @@ extern crate rust_i18n;
 
 i18n!("locales");
 
+use crate::core::state::PendingTasksState;
 use gpui::{
     Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, KeyBinding, Pixels,
     SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
@@ -216,7 +217,53 @@ pub fn init(cx: &mut App) {
     ]);
 
     cx.on_action(|_: &Quit, cx: &mut App| {
-        cx.quit();
+        // 🚀 检查是否有未完成的保存任务
+        let pending_count = cx.global::<PendingTasksState>().pending_count();
+
+        if pending_count > 0 {
+            tracing::info!(
+                "🔄 Quit requested but {} pending tasks, waiting for completion...",
+                pending_count
+            );
+
+            // 异步等待任务完成后再退出
+            cx.spawn(async move |cx| {
+                // 等待所有任务完成（最多等待 5 秒）
+                let max_wait = std::time::Duration::from_secs(5);
+                let start = std::time::Instant::now();
+                let check_interval = std::time::Duration::from_millis(100);
+
+                loop {
+                    let remaining =
+                        cx.update_global::<PendingTasksState, _>(|state, _| state.pending_count());
+
+                    if remaining == 0 {
+                        tracing::info!("✅ All pending tasks completed, quitting...");
+                        break;
+                    }
+
+                    if start.elapsed() >= max_wait {
+                        tracing::warn!(
+                            "⚠️ Timeout waiting for {} pending tasks, forcing quit...",
+                            remaining
+                        );
+                        break;
+                    }
+
+                    // 等待一小段时间再检查
+                    tokio::time::sleep(check_interval).await;
+                }
+
+                // 退出应用
+                cx.update(|cx| {
+                    cx.quit();
+                });
+            })
+            .detach();
+        } else {
+            tracing::info!("✅ No pending tasks, quitting immediately...");
+            cx.quit();
+        }
     });
 
     cx.on_action(|_: &About, cx: &mut App| {

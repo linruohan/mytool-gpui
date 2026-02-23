@@ -371,6 +371,8 @@ impl TodoStore {
     ///
     /// 如果任务已存在则更新，否则添加到列表末尾
     pub fn update_item(&mut self, item: Arc<ItemModel>) {
+        tracing::info!("TodoStore::update_item called - id: {}, due: {:?}", item.id, item.due);
+
         if let Some(pos) = self.all_items.iter().position(|i| i.id == item.id) {
             // 先克隆 old_item，避免借用冲突
             let old_item = self.all_items[pos].clone();

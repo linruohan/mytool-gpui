@@ -132,11 +132,13 @@ impl ItemService {
         let item_id = item.id.clone();
         let item_priority = item.priority;
         let item_content = item.content.clone();
+        let item_due = item.due.clone();
         tracing::info!(
-            "ItemService::update_item called for item: {} with priority: {:?}, content: '{}'",
+            "ItemService::update_item called for item: {} with priority: {:?}, content: '{}', due: {:?}",
             item_id,
             item_priority,
-            item_content
+            item_content,
+            item_due
         );
 
         // 使用重试机制执行数据库操作
@@ -152,6 +154,28 @@ impl ItemService {
 
                     Box::pin(async move {
                         tracing::info!("🔍 Executing update_many for item: {}", item_id_clone);
+
+                        // 先检查数据库中是否存在这个 item
+                        let existing_item = items::Entity::find()
+                            .filter(items::Column::Id.eq(item_id_clone.clone()))
+                            .one(&*db)
+                            .await?;
+
+                        if existing_item.is_none() {
+                            tracing::error!(
+                                "❌ Item {} not found in database! Cannot update.",
+                                item_id_clone
+                            );
+                            return Err(TodoError::NotFound(format!(
+                                "Item {} not found in database",
+                                item_id_clone
+                            )));
+                        }
+
+                        tracing::info!(
+                            "✅ Item {} found in database, proceeding with update",
+                            item_id_clone
+                        );
 
                         let result = items::Entity::update_many()
                             .col_expr(
@@ -244,10 +268,11 @@ impl ItemService {
             .await?;
 
         tracing::info!(
-            "✅ Database Update Success - Item ID: {}, Content: '{}', Priority: {:?}",
+            "✅ Database Update Success - Item ID: {}, Content: '{}', Priority: {:?}, Due: {:?}",
             updated_item.id,
             updated_item.content,
-            updated_item.priority
+            updated_item.priority,
+            updated_item.due
         );
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
@@ -480,8 +505,12 @@ impl ItemService {
         let _timer = self.metrics.start_timer("get_all_items");
         let mut items = ItemEntity::find().all(&*self.db).await?;
 
+        tracing::info!("get_all_items: loaded {} items from database", items.len());
+
         // 关键修复：为每个 item 加载 labels
         for item in &mut items {
+            tracing::debug!("get_all_items: item {} has due: {:?}", item.id, item.due);
+
             match self.get_labels_by_item(&item.id).await {
                 Ok(labels) => {
                     let label_ids: Vec<String> = labels.iter().map(|l| l.id.clone()).collect();

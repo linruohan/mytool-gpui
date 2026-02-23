@@ -25,6 +25,19 @@ pub enum TodoStoreEvent {
     ActiveProjectChanged,
     /// 操作失败（用于显示错误通知）
     OperationError(String),
+    /// 保存状态变化
+    SaveStatusChanged(SaveStatus),
+}
+
+/// 保存状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaveStatus {
+    /// 空闲，没有正在进行的保存操作
+    Idle,
+    /// 正在保存
+    Saving,
+    /// 保存错误
+    HasError,
 }
 
 /// 事件总线

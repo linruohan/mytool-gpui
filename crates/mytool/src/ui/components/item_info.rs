@@ -813,8 +813,7 @@ impl ItemInfoState {
     /// 如果需要最新的 labels，请使用异步方法从数据库加载
     pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Arc<LabelModel>> {
         // 从 LabelPopoverList 获取当前选中的 labels
-        let selected = self.label_popover_list.read(cx).selected_labels.clone();
-        selected
+        self.label_popover_list.read(cx).selected_labels.clone()
     }
 
     pub fn priority(&self) -> Option<ItemPriority> {
@@ -1191,7 +1190,7 @@ impl Render for ItemInfoState {
                     .gap_3()
                     .p(px(8.0))
                     .flex_wrap()
-                    .children(labels.iter().enumerate().map(|(_ix, label)| {
+                    .children(labels.iter().map(|label| {
                         let label_clone = label.clone();
                         let view_clone = view.clone();
                         let is_checked = selected_labels.iter().any(|l| l.id == label.id);

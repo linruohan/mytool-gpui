@@ -15,7 +15,8 @@ use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
         state::{
-            ErrorNotifier, QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection,
+            ErrorNotifier, PendingTasksState, QueryCache, TodoEventBus, TodoStore, TodoStoreEvent,
+            get_db_connection,
         },
     },
     state_service,
@@ -84,9 +85,25 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
 
     // 3. 异步保存到数据库
     let db = get_db_connection(cx);
+
+    // 🚀 跟踪待处理任务
+    let task_id = format!("add_item_{}", temp_id);
+    cx.update_global::<PendingTasksState, _>(|state, _| {
+        state.increment(&task_id);
+    });
+
+    // 🚀 使用 tokio::spawn 在 tokio 运行时上执行数据库操作
+    let item_clone = item.clone();
+    let (tx, rx) = futures::channel::oneshot::channel();
+
+    tokio::spawn(async move {
+        let result = state_service::add_item(item_clone.clone(), (*db).clone()).await;
+        let _ = tx.send(result);
+    });
+
     cx.spawn(async move |cx| {
-        match state_service::add_item(item.clone(), (*db).clone()).await {
-            Ok(saved_item) => {
+        match rx.await {
+            Ok(Ok(saved_item)) => {
                 info!(
                     "Successfully saved item, replacing temp ID {} with real ID {}",
                     temp_id_clone, saved_item.id
@@ -110,7 +127,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     bus.publish(TodoStoreEvent::ItemUpdated(saved_item.id.clone()));
                 });
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("Failed to save item, rolling back optimistic update");
 
                 // 5. 失败时回滚
@@ -137,8 +154,21 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
                     notifier.set_error(context.format_user_message());
                 });
+
+                // 设置错误状态
+                cx.update_global::<PendingTasksState, _>(|state, _| {
+                    state.set_error(context.format_user_message());
+                });
+            },
+            Err(_) => {
+                error!("❌ Database operation channel closed for item {}", temp_id_clone);
             },
         }
+
+        // 🚀 任务完成，减少计数
+        cx.update_global::<PendingTasksState, _>(|state, _| {
+            state.decrement(&task_id);
+        });
     })
     .detach();
 
@@ -180,35 +210,63 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let db = get_db_connection(cx);
     let item_id = item.id.clone();
     let _item_priority = item.priority;
-    let item_content = item.content.clone();
+    let _item_content = item.content.clone();
+    let item_due = item.due.clone();
 
-    info!("🔄 Spawning async task for database save - item: {}", item_id);
+    info!("🔄 Spawning async task for database save - item: {}, due: {:?}", item_id, item_due);
 
-    // 🚀 关键修复：使用 cx.spawn 而不是 tokio::spawn
-    // 这样 GPUI 可以在应用关闭前等待这些异步任务完成，避免数据丢失
+    // 🚀 跟踪待处理任务
+    let task_id = format!("update_item_{}", item_id);
+    cx.update_global::<PendingTasksState, _>(|state, _| {
+        state.increment(&task_id);
+    });
+
+    // 🚀 关键修复：使用 tokio::spawn 在 tokio 运行时上执行数据库操作
+    // Sea-ORM 需要 tokio 运行时，而 cx.spawn 运行在 GPUI 的 smol 运行时上
     let item_for_db = item.clone();
+    let (tx, rx) = futures::channel::oneshot::channel();
+
+    // 在 tokio 运行时上执行数据库操作
+    tokio::spawn(async move {
+        let result = state_service::mod_item(item_for_db.clone(), (*db).clone()).await;
+        let _ = tx.send(result);
+    });
+
+    // 在 GPUI 运行时上等待结果并更新状态
     cx.spawn(async move |cx| {
-        info!(
-            "⏳ Async task STARTED - Saving to database: item={}, content='{}'",
-            item_id, item_content
-        );
-        match state_service::mod_item(item_for_db.clone(), (*db).clone()).await {
-            Ok(updated_item) => {
+        match rx.await {
+            Ok(Ok(updated_item)) => {
                 info!(
-                    "✅ Successfully saved item update: {} with priority: {:?}, content: '{}'",
-                    item_id, updated_item.priority, updated_item.content
+                    "✅ Successfully saved item update: {} with priority: {:?}, content: '{}', due={:?}",
+                    item_id, updated_item.priority, updated_item.content, updated_item.due
                 );
                 // 保存成功后，更新 TodoStore 中的 item 为数据库返回的最新状态
                 cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(Arc::new(updated_item));
                 });
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("❌ Failed to save item update for {}, error: {:?}", item_id, e);
-                // 保存失败时，可以在这里添加错误处理逻辑
-                // 例如：回滚 UI 状态或显示错误提示
+
+                // 设置错误状态
+                let error_msg = format!("Failed to save item {}: {:?}", item_id, e);
+                cx.update_global::<PendingTasksState, _>(|state, _| {
+                    state.set_error(error_msg);
+                });
+
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(format!("保存失败: {}", item_id));
+                });
+            },
+            Err(_) => {
+                error!("❌ Database operation channel closed for item {}", item_id);
             },
         }
+
+        // 🚀 任务完成，减少计数
+        cx.update_global::<PendingTasksState, _>(|state, _| {
+            state.decrement(&task_id);
+        });
     })
     .detach();
 
@@ -243,12 +301,27 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     // 2. 异步从数据库删除
     let db = get_db_connection(cx);
 
+    // 🚀 跟踪待处理任务
+    let task_id = format!("delete_item_{}", item_id);
+    cx.update_global::<PendingTasksState, _>(|state, _| {
+        state.increment(&task_id);
+    });
+
+    // 🚀 使用 tokio::spawn 在 tokio 运行时上执行数据库操作
+    let item_clone = item.clone();
+    let (tx, rx) = futures::channel::oneshot::channel();
+
+    tokio::spawn(async move {
+        let result = state_service::del_item(item_clone.clone(), (*db).clone()).await;
+        let _ = tx.send(result);
+    });
+
     cx.spawn(async move |cx| {
-        match state_service::del_item(item.clone(), (*db).clone()).await {
-            Ok(_) => {
+        match rx.await {
+            Ok(Ok(_)) => {
                 info!("Successfully deleted item from database: {}", item_id);
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("Failed to delete item from database, restoring");
 
                 // 3. 失败时恢复任务
@@ -275,8 +348,21 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
                     notifier.set_error(context.format_user_message());
                 });
+
+                // 设置错误状态
+                cx.update_global::<PendingTasksState, _>(|state, _| {
+                    state.set_error(context.format_user_message());
+                });
+            },
+            Err(_) => {
+                error!("❌ Database operation channel closed for item {}", item_id);
             },
         }
+
+        // 🚀 任务完成，减少计数
+        cx.update_global::<PendingTasksState, _>(|state, _| {
+            state.decrement(&task_id);
+        });
     })
     .detach();
 }
@@ -325,28 +411,53 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 
     // 2. 异步保存到数据库（使用 cx.spawn 确保应用在关闭前等待任务完成）
     let db = get_db_connection(cx);
-    let item_id_clone = item_id.clone();
 
-    cx.spawn(async move |_cx| {
+    // 🚀 跟踪待处理任务
+    let task_id = format!("pin_item_{}", item_id);
+    cx.update_global::<PendingTasksState, _>(|state, _| {
+        state.increment(&task_id);
+    });
+
+    // 🚀 使用 tokio::spawn 在 tokio 运行时上执行数据库操作
+    let item_id_for_db = item_id.clone();
+    let item_id_for_log = item_id.clone();
+    let (tx, rx) = futures::channel::oneshot::channel();
+
+    tokio::spawn(async move {
         let store = Store::new((*db).clone());
+        let result = store.update_item_pin(&item_id_for_db, pinned).await;
+        let _ = tx.send(result);
+    });
 
-        let result = store.update_item_pin(&item_id_clone, pinned).await;
-
-        match result {
-            Ok(_) => {
-                info!("Successfully saved pinned status: {}", item_id_clone);
+    cx.spawn(async move |cx| {
+        match rx.await {
+            Ok(Ok(_)) => {
+                info!("Successfully saved pinned status: {}", item_id_for_log);
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("Failed to save pinned status: {:?}", e);
 
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
                     "set_item_pinned_optimistic",
-                    &item_id_clone,
+                    &item_id_for_log,
                 );
                 error!("{}", context.format_user_message());
+
+                // 设置错误状态
+                cx.update_global::<PendingTasksState, _>(|state, _| {
+                    state.set_error(context.format_user_message());
+                });
+            },
+            Err(_) => {
+                error!("❌ Database operation channel closed for item {}", item_id_for_log);
             },
         }
+
+        // 🚀 任务完成，减少计数
+        cx.update_global::<PendingTasksState, _>(|state, _| {
+            state.decrement(&task_id);
+        });
     })
     .detach();
 }
@@ -384,12 +495,28 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     // 2. 异步保存到数据库
     let db = get_db_connection(cx);
 
+    // 🚀 跟踪待处理任务
+    let task_id = format!("complete_item_{}", item_id);
+    cx.update_global::<PendingTasksState, _>(|state, _| {
+        state.increment(&task_id);
+    });
+
+    // 🚀 使用 tokio::spawn 在 tokio 运行时上执行数据库操作
+    let item_clone = item.clone();
+    let (tx, rx) = futures::channel::oneshot::channel();
+
+    tokio::spawn(async move {
+        let result =
+            state_service::finish_item(item_clone.clone(), checked, false, (*db).clone()).await;
+        let _ = tx.send(result);
+    });
+
     cx.spawn(async move |cx| {
-        match state_service::finish_item(item.clone(), checked, false, (*db).clone()).await {
-            Ok(_) => {
+        match rx.await {
+            Ok(Ok(_)) => {
                 info!("Successfully saved completion status: {}", item_id);
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("Failed to save completion status, rolling back");
 
                 // 3. 失败时回滚
@@ -418,8 +545,21 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+
+                // 设置错误状态
+                cx.update_global::<PendingTasksState, _>(|state, _| {
+                    state.set_error(context.format_user_message());
+                });
+            },
+            Err(_) => {
+                error!("❌ Database operation channel closed for item {}", item_id);
             },
         }
+
+        // 🚀 任务完成，减少计数
+        cx.update_global::<PendingTasksState, _>(|state, _| {
+            state.decrement(&task_id);
+        });
     })
     .detach();
 }

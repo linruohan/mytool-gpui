@@ -228,6 +228,7 @@ impl SelectiveUpdateHelper {
             TodoStoreEvent::BulkUpdate => true,
             TodoStoreEvent::ActiveProjectChanged => false,
             TodoStoreEvent::OperationError(_) => false,
+            TodoStoreEvent::SaveStatusChanged(_) => false,
         }
     }
 

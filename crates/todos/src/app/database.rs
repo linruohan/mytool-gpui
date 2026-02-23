@@ -33,9 +33,9 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     // SQLite 是单线程的，连接数不宜过多，避免竞争
     options
             .min_connections(1)  // 最小连接数为1，避免不必要的连接
-            .max_connections(5)  // 最大连接数为5，SQLite单线程不需要太多连接
-            .connect_timeout(Duration::from_secs(10)) // 连接超时时间
-            .acquire_timeout(Duration::from_secs(30)) // 获取连接超时时间
+            .max_connections(10)  // 🔧 加大最大连接数为10
+            .connect_timeout(Duration::from_secs(30)) // 🔧 连接超时时间加大到30秒
+            .acquire_timeout(Duration::from_secs(60)) // 🔧 获取连接超时时间加大到60秒
             .idle_timeout(Duration::from_secs(300)) // 空闲超时时间
             .max_lifetime(Duration::from_secs(1800)) // 最大生命周期
             .sqlx_logging(true); // 启用 SQL 日志，方便调试

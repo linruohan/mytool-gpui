@@ -14,11 +14,13 @@ use gpui_component::{
     scroll::ScrollbarShow,
 };
 
+use crate::ui::components::SaveStatusIndicator;
 use crate::{SelectFont, SelectRadius, SelectScrollbarShow, ToggleListActiveHighlight, app_menus};
 
 pub struct AppTitleBar {
     app_menu_bar: Entity<AppMenuBar>,
     font_size_selector: Entity<FontSizeSelector>,
+    save_status_indicator: Entity<SaveStatusIndicator>,
     child: Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
     _subscriptions: Vec<Subscription>,
 }
@@ -31,10 +33,12 @@ impl AppTitleBar {
     ) -> Self {
         let app_menu_bar = app_menus::init(title, cx);
         let font_size_selector = cx.new(|cx| FontSizeSelector::new(window, cx));
+        let save_status_indicator = cx.new(|cx| SaveStatusIndicator::new(window, cx));
 
         Self {
             app_menu_bar,
             font_size_selector,
+            save_status_indicator,
             child: Rc::new(|_, _| div().into_any_element()),
             _subscriptions: vec![],
         }
@@ -66,6 +70,7 @@ impl Render for AppTitleBar {
                     .gap_2()
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child((self.child.clone())(window, cx))
+                    .child(self.save_status_indicator.clone())
                     .child(
                         Label::new("theme:")
                             .secondary(cx.theme().theme_name())

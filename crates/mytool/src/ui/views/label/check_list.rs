@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, Entity, EventEmitter, Hsla, InteractiveElement, IntoElement,
-    ParentElement, RenderOnce, SharedString, Styled, Task, Window, actions, div,
-    prelude::FluentBuilder,
+    App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
+    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath, Selectable,
