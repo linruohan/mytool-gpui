@@ -3,7 +3,7 @@ extern crate rust_i18n;
 
 i18n!("locales");
 
-use crate::core::state::PendingTasksState;
+use crate::core::state::{PendingTasksState, TokioTasksTracker};
 use gpui::{
     Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, KeyBinding, Pixels,
     SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
@@ -219,17 +219,28 @@ pub fn init(cx: &mut App) {
     cx.on_action(|_: &Quit, cx: &mut App| {
         // 🚀 检查是否有未完成的保存任务
         let pending_count = cx.global::<PendingTasksState>().pending_count();
+        let tokio_pending = cx.global::<TokioTasksTracker>().pending_count();
 
-        if pending_count > 0 {
+        if pending_count > 0 || tokio_pending > 0 {
             tracing::info!(
-                "🔄 Quit requested but {} pending tasks, waiting for completion...",
-                pending_count
+                "🔄 Quit requested but {} pending tasks (tokio: {}), waiting for completion...",
+                pending_count,
+                tokio_pending
             );
 
-            // 异步等待任务完成后再退出
+            // 🚀 关键修复：使用阻塞方式等待 tokio 任务完成
+            // 这确保在 tokio runtime 关闭前所有数据库操作完成
+            let tracker = cx.global::<TokioTasksTracker>().clone();
+            let remaining = tracker.wait_all(std::time::Duration::from_secs(10));
+
+            if remaining > 0 {
+                tracing::warn!("⚠️ {} tokio tasks did not complete in time", remaining);
+            }
+
+            // 异步等待 GPUI 任务完成后再退出
             cx.spawn(async move |cx| {
-                // 等待所有任务完成（最多等待 5 秒）
-                let max_wait = std::time::Duration::from_secs(5);
+                // 等待所有 GPUI 任务完成（最多等待 3 秒）
+                let max_wait = std::time::Duration::from_secs(3);
                 let start = std::time::Instant::now();
                 let check_interval = std::time::Duration::from_millis(100);
 

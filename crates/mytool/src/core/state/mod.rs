@@ -4,6 +4,7 @@ mod events;
 mod observer;
 mod pending_tasks;
 mod store;
+mod tokio_tasks;
 
 use std::sync::Arc;
 
@@ -16,6 +17,7 @@ pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
 use todos::entity;
+pub use tokio_tasks::*;
 
 /// 获取数据库连接的便捷函数
 ///
@@ -66,6 +68,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
     // 🚀 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
+
+    // 🚀 初始化 tokio 任务追踪器
+    cx.set_global(TokioTasksTracker::new());
 
     // 异步加载数据
     cx.spawn(async move |cx| {

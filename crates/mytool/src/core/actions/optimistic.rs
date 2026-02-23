@@ -16,7 +16,7 @@ use crate::{
         error_handler::{AppError, ErrorHandler, validation},
         state::{
             ErrorNotifier, PendingTasksState, QueryCache, TodoEventBus, TodoStore, TodoStoreEvent,
-            get_db_connection,
+            TokioTasksTracker, get_db_connection,
         },
     },
     state_service,
@@ -226,10 +226,21 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let item_for_db = item.clone();
     let (tx, rx) = futures::channel::oneshot::channel();
 
+    // 获取 TokioTasksTracker
+    let tracker = cx.global::<TokioTasksTracker>().clone();
+
     // 在 tokio 运行时上执行数据库操作
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         let result = state_service::mod_item(item_for_db.clone(), (*db).clone()).await;
         let _ = tx.send(result);
+
+        // 任务完成，通知追踪器
+        tracker.task_completed();
+    });
+
+    // 注册到追踪器
+    cx.update_global::<TokioTasksTracker, _>(|tracker, _| {
+        tracker.add_task(handle);
     });
 
     // 在 GPUI 运行时上等待结果并更新状态
