@@ -6,3 +6,4 @@ pub mod notification; // 通知和日志系统
 pub mod services; // 服务层
 pub mod shortcuts; // 快捷键
 pub mod state; // 状态管理
+pub mod tokio_runtime; // Tokio runtime handle 存储

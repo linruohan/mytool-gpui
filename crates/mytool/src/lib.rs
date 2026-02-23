@@ -3,7 +3,6 @@ extern crate rust_i18n;
 
 i18n!("locales");
 
-use crate::core::state::{PendingTasksState, TokioTasksTracker};
 use gpui::{
     Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, KeyBinding, Pixels,
     SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
@@ -17,7 +16,7 @@ use gpui_component::{
 use serde::Deserialize;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 // 核心模块
-mod core;
+pub mod core;
 
 // UI 模块
 mod ui;
@@ -217,64 +216,8 @@ pub fn init(cx: &mut App) {
     ]);
 
     cx.on_action(|_: &Quit, cx: &mut App| {
-        // 🚀 检查是否有未完成的保存任务
-        let pending_count = cx.global::<PendingTasksState>().pending_count();
-        let tokio_pending = cx.global::<TokioTasksTracker>().pending_count();
-
-        if pending_count > 0 || tokio_pending > 0 {
-            tracing::info!(
-                "🔄 Quit requested but {} pending tasks (tokio: {}), waiting for completion...",
-                pending_count,
-                tokio_pending
-            );
-
-            // 🚀 关键修复：使用阻塞方式等待 tokio 任务完成
-            // 这确保在 tokio runtime 关闭前所有数据库操作完成
-            let tracker = cx.global::<TokioTasksTracker>().clone();
-            let remaining = tracker.wait_all(std::time::Duration::from_secs(10));
-
-            if remaining > 0 {
-                tracing::warn!("⚠️ {} tokio tasks did not complete in time", remaining);
-            }
-
-            // 异步等待 GPUI 任务完成后再退出
-            cx.spawn(async move |cx| {
-                // 等待所有 GPUI 任务完成（最多等待 3 秒）
-                let max_wait = std::time::Duration::from_secs(3);
-                let start = std::time::Instant::now();
-                let check_interval = std::time::Duration::from_millis(100);
-
-                loop {
-                    let remaining =
-                        cx.update_global::<PendingTasksState, _>(|state, _| state.pending_count());
-
-                    if remaining == 0 {
-                        tracing::info!("✅ All pending tasks completed, quitting...");
-                        break;
-                    }
-
-                    if start.elapsed() >= max_wait {
-                        tracing::warn!(
-                            "⚠️ Timeout waiting for {} pending tasks, forcing quit...",
-                            remaining
-                        );
-                        break;
-                    }
-
-                    // 等待一小段时间再检查
-                    tokio::time::sleep(check_interval).await;
-                }
-
-                // 退出应用
-                cx.update(|cx| {
-                    cx.quit();
-                });
-            })
-            .detach();
-        } else {
-            tracing::info!("✅ No pending tasks, quitting immediately...");
-            cx.quit();
-        }
+        tracing::info!("🚀 Quit requested, exiting...");
+        cx.quit();
     });
 
     cx.on_action(|_: &About, cx: &mut App| {
