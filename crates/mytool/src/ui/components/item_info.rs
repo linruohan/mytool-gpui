@@ -391,9 +391,9 @@ impl ItemInfoState {
 
             cx.emit(ItemInfoEvent::Added());
         } else {
-            // 现有任务：只发射事件，让 handle_item_info_event 处理保存
-            // 避免重复调用 update_item_optimistic
-            info!("Emitting Updated event for item: {}", current_item.id);
+            // 现有任务：直接调用 update_item_optimistic 保存到数据库
+            info!("Calling update_item_optimistic for item: {}", current_item.id);
+            update_item_optimistic(self.state_manager.item.clone(), cx);
             cx.emit(ItemInfoEvent::Updated());
         }
     }
@@ -642,30 +642,27 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 🚀 使用乐观更新（立即更新 UI）
+                // 🚀 使用乐观更新（立即更新 UI 和数据库）
                 update_item_optimistic(self.state_manager.item.clone(), cx);
-                // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.state_manager.skip_next_update = true;
+                // 只发射事件通知父组件，不再在 handle_item_info_event 中重复保存
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::TimeSelected(_time_str) => {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 🚀 使用乐观更新
+                // 🚀 使用乐观更新（立即更新 UI 和数据库）
                 update_item_optimistic(self.state_manager.item.clone(), cx);
-                // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.state_manager.skip_next_update = true;
+                // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::RecurrencySelected(_recurrency_type) => {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 🚀 使用乐观更新
+                // 🚀 使用乐观更新（立即更新 UI 和数据库）
                 update_item_optimistic(self.state_manager.item.clone(), cx);
-                // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.state_manager.skip_next_update = true;
+                // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::Cleared => {
@@ -675,10 +672,9 @@ impl ItemInfoState {
                 self.schedule_button_state.update(cx, |state, cx| {
                     state.set_due_date(todos::DueDate::default(), window, cx);
                 });
-                // 🚀 使用乐观更新
+                // 🚀 使用乐观更新（立即更新 UI 和数据库）
                 update_item_optimistic(self.state_manager.item.clone(), cx);
-                // 设置标志以避免在 handle_item_info_event 中重复更新
-                self.state_manager.skip_next_update = true;
+                // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
         }
@@ -723,11 +719,9 @@ impl ItemInfoState {
                 add_item_optimistic(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::Updated() => {
-                // 🚀 关键修复：总是触发更新，确保所有变更都被保存
-                // 移除了 skip_next_update 和 can_update 限制，因为这可能导致数据丢失
+                // 🚀 Updated 事件的发射者应该已经调用了 update_item_optimistic 来保存数据
+                // 这里只需要通知 UI 更新即可，避免重复保存
                 info!("Handling Updated event for item: {}", self.state_manager.item.id);
-                // 🚀 使用乐观更新（立即更新任务）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
                 // 重置标志
                 self.state_manager.skip_next_update = false;
             },

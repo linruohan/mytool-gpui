@@ -184,7 +184,8 @@ impl ItemLabelRepository for ItemLabelRepositoryImpl {
 
         tracing::info!(
             "ItemLabelRepository::set_item_labels START - item_id: {}, label_ids: {:?}",
-            item_id, label_ids
+            item_id,
+            label_ids
         );
 
         // 1. 删除旧关联
@@ -210,14 +211,11 @@ impl ItemLabelRepository for ItemLabelRepositoryImpl {
                         "Failed to set item labels: {}",
                         e
                     )));
-                }
+                },
             }
         }
 
-        tracing::info!(
-            "ItemLabelRepository::set_item_labels SUCCESS - item_id: {}",
-            item_id
-        );
+        tracing::info!("ItemLabelRepository::set_item_labels SUCCESS - item_id: {}", item_id);
         Ok(())
     }
 
@@ -232,23 +230,29 @@ impl ItemLabelRepository for ItemLabelRepositoryImpl {
         use crate::entity::item_labels::Column;
 
         tracing::info!("remove_all_labels_from_item: building query for item_id: {}", item_id);
-        let query = ItemLabelEntity::delete_many()
-            .filter(Column::ItemId.eq(item_id));
-        
+        let query = ItemLabelEntity::delete_many().filter(Column::ItemId.eq(item_id));
+
         tracing::info!("remove_all_labels_from_item: executing query...");
         let start = std::time::Instant::now();
         let result = query.exec(&*self.db).await;
         let elapsed = start.elapsed();
-        
+
         match result {
             Ok(res) => {
-                tracing::info!("remove_all_labels_from_item: SUCCESS - deleted {} rows in {:?}", res.rows_affected, elapsed);
+                tracing::info!(
+                    "remove_all_labels_from_item: SUCCESS - deleted {} rows in {:?}",
+                    res.rows_affected,
+                    elapsed
+                );
                 Ok(res.rows_affected)
             },
             Err(e) => {
                 tracing::error!("remove_all_labels_from_item: FAILED - {:?} in {:?}", e, elapsed);
-                Err(TodoError::DatabaseError(format!("Failed to remove all labels from item: {}", e)))
-            }
+                Err(TodoError::DatabaseError(format!(
+                    "Failed to remove all labels from item: {}",
+                    e
+                )))
+            },
         }
     }
 

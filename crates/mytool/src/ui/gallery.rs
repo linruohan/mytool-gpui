@@ -28,12 +28,15 @@ impl Gallery {
                 cx.notify()
             }
         })];
-        let stories = vec![("Components", vec![
-            StoryContainer::panel::<WelcomeStory>(window, cx),
-            StoryContainer::panel::<CalendarStory>(window, cx),
-            StoryContainer::panel::<TodoStory>(window, cx),
-            StoryContainer::panel::<ListStory>(window, cx),
-        ])];
+        let stories = vec![(
+            "Components",
+            vec![
+                StoryContainer::panel::<WelcomeStory>(window, cx),
+                StoryContainer::panel::<CalendarStory>(window, cx),
+                StoryContainer::panel::<TodoStory>(window, cx),
+                StoryContainer::panel::<ListStory>(window, cx),
+            ],
+        )];
 
         let mut this = Self {
             search_input,

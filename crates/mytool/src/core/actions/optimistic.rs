@@ -184,28 +184,33 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
     info!("🔄 Spawning async task for database save - item: {}", item_id);
 
-    // 🚀 关键修复：使用 tokio::spawn 在后台执行数据库操作
-    // 这确保数据库操作在正确的 tokio 运行时中执行
+    // 🚀 关键修复：使用 cx.spawn 而不是 tokio::spawn
+    // 这样 GPUI 可以在应用关闭前等待这些异步任务完成，避免数据丢失
     let item_for_db = item.clone();
-    let db_clone = (*db).clone();
-
-    tokio::spawn(async move {
+    cx.spawn(async move |cx| {
         info!(
             "⏳ Async task STARTED - Saving to database: item={}, content='{}'",
             item_id, item_content
         );
-        match state_service::mod_item(item_for_db.clone(), db_clone).await {
+        match state_service::mod_item(item_for_db.clone(), (*db).clone()).await {
             Ok(updated_item) => {
                 info!(
                     "✅ Successfully saved item update: {} with priority: {:?}, content: '{}'",
                     item_id, updated_item.priority, updated_item.content
                 );
+                // 保存成功后，更新 TodoStore 中的 item 为数据库返回的最新状态
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.update_item(Arc::new(updated_item));
+                });
             },
             Err(e) => {
                 error!("❌ Failed to save item update for {}, error: {:?}", item_id, e);
+                // 保存失败时，可以在这里添加错误处理逻辑
+                // 例如：回滚 UI 状态或显示错误提示
             },
         }
-    });
+    })
+    .detach();
 
     info!("🚀 update_item_optimistic END - async task detached");
 }
@@ -318,40 +323,21 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
         bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
     });
 
-    // 2. 异步保存到数据库（在后台执行，避免阻塞UI线程）
+    // 2. 异步保存到数据库（使用 cx.spawn 确保应用在关闭前等待任务完成）
     let db = get_db_connection(cx);
     let item_id_clone = item_id.clone();
-    let pinned_clone = pinned;
 
-    // 在后台执行数据库操作
-    tokio::spawn(async move {
-        // 解引用Arc获取DatabaseConnection
+    cx.spawn(async move |_cx| {
         let store = Store::new((*db).clone());
 
-        let result = store.update_item_pin(&item_id_clone, pinned_clone).await;
+        let result = store.update_item_pin(&item_id_clone, pinned).await;
 
         match result {
             Ok(_) => {
                 info!("Successfully saved pinned status: {}", item_id_clone);
-
-                // 验证保存是否成功：重新从数据库加载并检查
-                let verify_result = store.get_item(&item_id_clone).await;
-
-                if let Some(verified_item) = verify_result {
-                    info!(
-                        "Verified pinned status in database: item {} has pinned = {}",
-                        item_id_clone, verified_item.pinned
-                    );
-                } else {
-                    error!("Failed to verify pinned status in database: item not found");
-                }
             },
             Err(e) => {
                 error!("Failed to save pinned status: {:?}", e);
-
-                // 注意：由于App类型不支持clone，我们无法在后台任务中回滚UI状态
-                // 但数据库操作失败不会影响已经更新的UI状态，只是数据不会持久化
-                // 在下一次应用启动时，数据会从数据库重新加载，恢复到原始状态
 
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
@@ -361,7 +347,8 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
                 error!("{}", context.format_user_message());
             },
         }
-    });
+    })
+    .detach();
 }
 
 /// 乐观完成任务

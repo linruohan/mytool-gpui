@@ -373,9 +373,12 @@ mod tests {
     fn test_dropdown_event_clone() {
         let event = DropdownEvent::Selected("test".to_string());
         let cloned = event.clone();
-        assert_eq!("test", match cloned {
-            DropdownEvent::Selected(s) => s,
-        });
+        assert_eq!(
+            "test",
+            match cloned {
+                DropdownEvent::Selected(s) => s,
+            }
+        );
     }
 
     #[test]

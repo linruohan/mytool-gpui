@@ -11,129 +11,147 @@ use gpui::actions;
 
 // ==================== 任务操作快捷键 ====================
 
-actions!(task_shortcuts, [
-    /// 新建任务 (Cmd/Ctrl + N)
-    NewTask,
-    /// 编辑任务 (Cmd/Ctrl + E)
-    EditTask,
-    /// 删除任务 (Cmd/Ctrl + D 或 Delete)
-    DeleteTask,
-    /// 完成/取消完成任务 (Cmd/Ctrl + Enter)
-    ToggleTaskComplete,
-    /// 置顶/取消置顶任务 (Cmd/Ctrl + P)
-    ToggleTaskPin,
-    /// 复制任务 (Cmd/Ctrl + Shift + D)
-    DuplicateTask,
-    /// 移动任务到项目 (Cmd/Ctrl + M)
-    MoveTaskToProject,
-    /// 设置任务优先级 (Cmd/Ctrl + 1/2/3)
-    SetTaskPriority,
-    /// 添加标签 (Cmd/Ctrl + L)
-    AddLabel,
-    /// 设置截止日期 (Cmd/Ctrl + T)
-    SetDueDate,
-]);
+actions!(
+    task_shortcuts,
+    [
+        /// 新建任务 (Cmd/Ctrl + N)
+        NewTask,
+        /// 编辑任务 (Cmd/Ctrl + E)
+        EditTask,
+        /// 删除任务 (Cmd/Ctrl + D 或 Delete)
+        DeleteTask,
+        /// 完成/取消完成任务 (Cmd/Ctrl + Enter)
+        ToggleTaskComplete,
+        /// 置顶/取消置顶任务 (Cmd/Ctrl + P)
+        ToggleTaskPin,
+        /// 复制任务 (Cmd/Ctrl + Shift + D)
+        DuplicateTask,
+        /// 移动任务到项目 (Cmd/Ctrl + M)
+        MoveTaskToProject,
+        /// 设置任务优先级 (Cmd/Ctrl + 1/2/3)
+        SetTaskPriority,
+        /// 添加标签 (Cmd/Ctrl + L)
+        AddLabel,
+        /// 设置截止日期 (Cmd/Ctrl + T)
+        SetDueDate,
+    ]
+);
 
 // ==================== 导航快捷键 ====================
 
-actions!(navigation_shortcuts, [
-    /// 显示收件箱 (Cmd/Ctrl + 1)
-    ShowInbox,
-    /// 显示今日任务 (Cmd/Ctrl + 2)
-    ShowToday,
-    /// 显示计划任务 (Cmd/Ctrl + 3)
-    ShowScheduled,
-    /// 显示已完成任务 (Cmd/Ctrl + 4)
-    ShowCompleted,
-    /// 显示置顶任务 (Cmd/Ctrl + 5)
-    ShowPinned,
-    /// 显示标签视图 (Cmd/Ctrl + 6)
-    ShowLabels,
-    /// 下一个视图 (Cmd/Ctrl + ])
-    NextView,
-    /// 上一个视图 (Cmd/Ctrl + [)
-    PreviousView,
-    /// 返回 (Cmd/Ctrl + Left)
-    GoBack,
-    /// 前进 (Cmd/Ctrl + Right)
-    GoForward,
-]);
+actions!(
+    navigation_shortcuts,
+    [
+        /// 显示收件箱 (Cmd/Ctrl + 1)
+        ShowInbox,
+        /// 显示今日任务 (Cmd/Ctrl + 2)
+        ShowToday,
+        /// 显示计划任务 (Cmd/Ctrl + 3)
+        ShowScheduled,
+        /// 显示已完成任务 (Cmd/Ctrl + 4)
+        ShowCompleted,
+        /// 显示置顶任务 (Cmd/Ctrl + 5)
+        ShowPinned,
+        /// 显示标签视图 (Cmd/Ctrl + 6)
+        ShowLabels,
+        /// 下一个视图 (Cmd/Ctrl + ])
+        NextView,
+        /// 上一个视图 (Cmd/Ctrl + [)
+        PreviousView,
+        /// 返回 (Cmd/Ctrl + Left)
+        GoBack,
+        /// 前进 (Cmd/Ctrl + Right)
+        GoForward,
+    ]
+);
 
 // ==================== 搜索和过滤快捷键 ====================
 
-actions!(search_shortcuts, [
-    /// 搜索任务 (Cmd/Ctrl + F)
-    SearchTasks,
-    /// 按标签过滤 (Cmd/Ctrl + Shift + L)
-    FilterByLabel,
-    /// 按项目过滤 (Cmd/Ctrl + Shift + P)
-    FilterByProject,
-    /// 按优先级过滤 (Cmd/Ctrl + Shift + 1/2/3)
-    FilterByPriority,
-    /// 清除过滤器 (Cmd/Ctrl + Shift + C)
-    ClearFilters,
-    /// 显示所有任务 (Cmd/Ctrl + Shift + A)
-    ShowAllTasks,
-]);
+actions!(
+    search_shortcuts,
+    [
+        /// 搜索任务 (Cmd/Ctrl + F)
+        SearchTasks,
+        /// 按标签过滤 (Cmd/Ctrl + Shift + L)
+        FilterByLabel,
+        /// 按项目过滤 (Cmd/Ctrl + Shift + P)
+        FilterByProject,
+        /// 按优先级过滤 (Cmd/Ctrl + Shift + 1/2/3)
+        FilterByPriority,
+        /// 清除过滤器 (Cmd/Ctrl + Shift + C)
+        ClearFilters,
+        /// 显示所有任务 (Cmd/Ctrl + Shift + A)
+        ShowAllTasks,
+    ]
+);
 
 // ==================== 选择和批量操作快捷键 ====================
 
-actions!(selection_shortcuts, [
-    /// 选择所有任务 (Cmd/Ctrl + A)
-    SelectAllTasks,
-    /// 取消选择 (Esc)
-    DeselectAll,
-    /// 选择上一个任务 (Up)
-    SelectPreviousTask,
-    /// 选择下一个任务 (Down)
-    SelectNextTask,
-    /// 批量完成选中任务 (Cmd/Ctrl + Shift + Enter)
-    BatchCompleteSelected,
-    /// 批量删除选中任务 (Cmd/Ctrl + Shift + Delete)
-    BatchDeleteSelected,
-    /// 批量移动选中任务 (Cmd/Ctrl + Shift + M)
-    BatchMoveSelected,
-]);
+actions!(
+    selection_shortcuts,
+    [
+        /// 选择所有任务 (Cmd/Ctrl + A)
+        SelectAllTasks,
+        /// 取消选择 (Esc)
+        DeselectAll,
+        /// 选择上一个任务 (Up)
+        SelectPreviousTask,
+        /// 选择下一个任务 (Down)
+        SelectNextTask,
+        /// 批量完成选中任务 (Cmd/Ctrl + Shift + Enter)
+        BatchCompleteSelected,
+        /// 批量删除选中任务 (Cmd/Ctrl + Shift + Delete)
+        BatchDeleteSelected,
+        /// 批量移动选中任务 (Cmd/Ctrl + Shift + M)
+        BatchMoveSelected,
+    ]
+);
 
 // ==================== 项目和分区快捷键 ====================
 
-actions!(project_shortcuts, [
-    /// 新建项目 (Cmd/Ctrl + Shift + N)
-    NewProject,
-    /// 编辑项目 (Cmd/Ctrl + Shift + E)
-    EditProject,
-    /// 删除项目 (Cmd/Ctrl + Shift + D)
-    DeleteProject,
-    /// 归档项目 (Cmd/Ctrl + Shift + A)
-    ArchiveProject,
-    /// 新建分区 (Cmd/Ctrl + Alt + N)
-    NewSection,
-    /// 编辑分区 (Cmd/Ctrl + Alt + E)
-    EditSection,
-    /// 删除分区 (Cmd/Ctrl + Alt + D)
-    DeleteSection,
-]);
+actions!(
+    project_shortcuts,
+    [
+        /// 新建项目 (Cmd/Ctrl + Shift + N)
+        NewProject,
+        /// 编辑项目 (Cmd/Ctrl + Shift + E)
+        EditProject,
+        /// 删除项目 (Cmd/Ctrl + Shift + D)
+        DeleteProject,
+        /// 归档项目 (Cmd/Ctrl + Shift + A)
+        ArchiveProject,
+        /// 新建分区 (Cmd/Ctrl + Alt + N)
+        NewSection,
+        /// 编辑分区 (Cmd/Ctrl + Alt + E)
+        EditSection,
+        /// 删除分区 (Cmd/Ctrl + Alt + D)
+        DeleteSection,
+    ]
+);
 
 // ==================== 视图和窗口快捷键 ====================
 
-actions!(view_shortcuts, [
-    /// 切换侧边栏 (Cmd/Ctrl + B)
-    ToggleSidebar,
-    /// 切换全屏 (Cmd/Ctrl + Shift + F)
-    ToggleFullscreen,
-    /// 放大 (Cmd/Ctrl + =)
-    ZoomIn,
-    /// 缩小 (Cmd/Ctrl + -)
-    ZoomOut,
-    /// 重置缩放 (Cmd/Ctrl + 0)
-    ResetZoom,
-    /// 刷新视图 (Cmd/Ctrl + R)
-    RefreshView,
-    /// 打开设置 (Cmd/Ctrl + ,)
-    OpenSettings,
-    /// 打开帮助 (F1)
-    OpenHelp,
-]);
+actions!(
+    view_shortcuts,
+    [
+        /// 切换侧边栏 (Cmd/Ctrl + B)
+        ToggleSidebar,
+        /// 切换全屏 (Cmd/Ctrl + Shift + F)
+        ToggleFullscreen,
+        /// 放大 (Cmd/Ctrl + =)
+        ZoomIn,
+        /// 缩小 (Cmd/Ctrl + -)
+        ZoomOut,
+        /// 重置缩放 (Cmd/Ctrl + 0)
+        ResetZoom,
+        /// 刷新视图 (Cmd/Ctrl + R)
+        RefreshView,
+        /// 打开设置 (Cmd/Ctrl + ,)
+        OpenSettings,
+        /// 打开帮助 (F1)
+        OpenHelp,
+    ]
+);
 
 // ==================== 快捷键配置 ====================
 
