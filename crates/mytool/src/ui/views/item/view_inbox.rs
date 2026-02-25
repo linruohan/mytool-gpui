@@ -169,14 +169,13 @@ impl ItemsPanel {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to delete the item?")
                         .on_ok({
                             let view = view.clone();
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let view = view.clone();
                                 let item = item.clone();
                                 view.update(cx, |_view, cx| {
@@ -187,7 +186,7 @@ impl ItemsPanel {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled delete.", cx);
                             true
                         })
@@ -203,20 +202,17 @@ impl ItemsPanel {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to finish the item?")
                         .on_ok({
                             let view = view.clone();
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let view = view.clone();
-                                // 创建一个新的 ItemModel 实例并修改它
                                 let mut item_model = (*item).clone();
-                                item_model.checked = true; //切换为完成状态
+                                item_model.checked = true;
                                 let updated_item = Arc::new(item_model);
-                                println!("updated_item: {:?}", updated_item);
                                 view.update(cx, |_view, cx| {
                                     cx.emit(ItemEvent::Finished(updated_item));
                                     cx.notify();
@@ -225,7 +221,7 @@ impl ItemsPanel {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled.", cx);
                             true
                         })

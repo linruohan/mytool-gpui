@@ -7,6 +7,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
+    dialog::{DialogAction, DialogClose, DialogFooter},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
@@ -150,39 +151,36 @@ impl LabelsPanel {
                         .child(Input::new(&name_input))
                         .child(ColorGroup::new(&color)),
                 )
-                .footer({
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            DialogClose::new()
+                                .child(Button::new("cancel").label("Cancel").outline()),
+                        )
+                        .child(
+                            DialogAction::new()
+                                .child(Button::new("save").primary().label(button_label)),
+                        ),
+                )
+                .on_ok({
                     let view = view.clone();
                     let ori_label = ori_label.clone();
                     let name_input_clone = name_input.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("save").primary().label(button_label).on_click({
-                                let view = view.clone();
-                                let ori_label = ori_label.clone();
-                                let name_input_clone1 = name_input_clone.clone();
-                                move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                    view.update(cx, |view, cx| {
-                                        let label = Arc::new(LabelModel {
-                                            name: name_input_clone1.read(cx).value().to_string(),
-                                            color: view.selected_color.unwrap_or_default().to_hex(),
-                                            ..ori_label.clone()
-                                        });
-                                        println!("show_label_dialog: label: {:?}", label.clone());
-                                        // 根据模式发射不同事件
-                                        if is_edit {
-                                            cx.emit(LabelEvent::Modified(label));
-                                        } else {
-                                            cx.emit(LabelEvent::Added(label));
-                                        }
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
-                                window.close_dialog(cx);
-                            }),
-                        ]
+                    move |_, _window: &mut Window, cx| {
+                        view.update(cx, |view, cx| {
+                            let label = Arc::new(LabelModel {
+                                name: name_input_clone.read(cx).value().to_string(),
+                                color: view.selected_color.unwrap_or_default().to_hex(),
+                                ..ori_label.clone()
+                            });
+                            if is_edit {
+                                cx.emit(LabelEvent::Modified(label));
+                            } else {
+                                cx.emit(LabelEvent::Added(label));
+                            }
+                            cx.notify();
+                        });
+                        true
                     }
                 })
         });
@@ -195,14 +193,13 @@ impl LabelsPanel {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to delete the label?")
                         .on_ok({
                             let view = view.clone();
                             let label = label.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let view = view.clone();
                                 let label = label.clone();
                                 view.update(cx, |_view, cx| {
@@ -213,7 +210,7 @@ impl LabelsPanel {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled delete.", cx);
                             true
                         })

@@ -14,9 +14,7 @@ use tracing::{error, info};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{
-            QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection,
-        },
+        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
         tokio_runtime,
     },
     state_service,

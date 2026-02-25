@@ -137,19 +137,18 @@ impl TodayBoard {
             if let Some(item) = item_some {
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to delete the item?")
                         .on_ok({
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 delete_item(item.clone(), cx);
                                 window.push_notification("You have delete ok.", cx);
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled delete.", cx);
                             true
                         })

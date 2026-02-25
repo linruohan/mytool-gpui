@@ -91,18 +91,16 @@ impl ItemsScheduledPanel {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to finish the item?")
                         .on_ok({
                             let view = view.clone();
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let view = view.clone();
-                                // 创建一个新的 ItemModel 实例并修改它
                                 let mut item_model = (*item).clone();
-                                item_model.checked = false; //切换为未完成状态
+                                item_model.checked = false;
                                 let updated_item = Arc::new(item_model);
                                 view.update(cx, |_view, cx| {
                                     cx.emit(ItemsScheduledEvent::Scheduled(updated_item.clone()));
@@ -112,7 +110,7 @@ impl ItemsScheduledPanel {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled.", cx);
                             true
                         })

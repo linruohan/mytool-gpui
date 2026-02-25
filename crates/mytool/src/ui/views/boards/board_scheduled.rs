@@ -149,21 +149,20 @@ impl ScheduledBoard {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to delete the item?")
                         .on_ok({
                             let view = view.clone();
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let _view = view.clone();
                                 delete_item(item.clone(), cx);
                                 window.push_notification("You have delete ok.", cx);
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled delete.", cx);
                             true
                         })
@@ -179,16 +178,14 @@ impl ScheduledBoard {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child(if item.pinned { "Unpin this item?" } else { "Pin this item?" })
                         .on_ok({
                             let view = view.clone();
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let _view = view.clone();
-                                // 切换置顶状态
                                 let mut item_model = (*item).clone();
                                 item_model.pinned = !item.pinned;
                                 update_item(Arc::new(item_model), cx);
@@ -199,7 +196,7 @@ impl ScheduledBoard {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("Operation canceled.", cx);
                             true
                         })
@@ -215,16 +212,14 @@ impl ScheduledBoard {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Mark this item as completed?")
                         .on_ok({
                             let view = view.clone();
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let _view = view.clone();
-                                // 标记为完成状态
                                 let mut item_model = (*item).clone();
                                 item_model.checked = true;
                                 update_item(Arc::new(item_model), cx);
@@ -232,7 +227,7 @@ impl ScheduledBoard {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("Operation canceled.", cx);
                             true
                         })

@@ -4,6 +4,7 @@ use gpui::{Context, ParentElement, Render, Styled, Window, prelude::*};
 use gpui_component::{
     WindowExt,
     button::{Button, ButtonVariants},
+    dialog::{DialogAction, DialogClose, DialogFooter},
     input::{Input, InputState},
     v_flex,
 };
@@ -68,10 +69,8 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
 
     window.open_dialog(cx, move |modal, _, _| {
         let dialog_config = dialog_config.clone();
-        let config = config.clone();
         let content_fn = content_fn.clone();
         let save_fn = save_fn.clone();
-        let cancel_label = dialog_config.cancel_label.clone();
 
         modal
             .title(dialog_config.title.clone())
@@ -79,22 +78,21 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
             .keyboard(dialog_config.keyboard)
             .overlay_closable(dialog_config.overlay_closable)
             .child((content_fn)())
-            .footer(move |_, _, _, _| {
-                let config = config.clone();
-                let cancel_label = cancel_label.clone();
-                let save_fn = save_fn.clone();
-
-                vec![
-                    Button::new("save").primary().label(&config.button_label).on_click(
-                        move |_, window, cx| {
-                            window.close_dialog(cx);
-                            (save_fn)(cx);
-                        },
-                    ),
-                    Button::new("cancel").label(&cancel_label).on_click(move |_, window, cx| {
-                        window.close_dialog(cx);
-                    }),
-                ]
+            .footer(
+                DialogFooter::new()
+                    .child(
+                        DialogClose::new().child(Button::new("cancel").label("Cancel").outline()),
+                    )
+                    .child(DialogAction::new().child(Button::new("ok").label("Save").primary())),
+            )
+            .on_ok(move |_, window, cx| {
+                (save_fn)(cx);
+                window.push_notification("You have pressed restart.", cx);
+                true
+            })
+            .on_cancel(|_, window, cx| {
+                window.push_notification("You have pressed later.", cx);
+                true
             })
     });
 }
@@ -199,10 +197,16 @@ where
         let on_ok = on_ok.clone();
 
         dialog
-            .confirm()
             .overlay(true)
             .overlay_closable(true)
             .child(message)
+            .footer(
+                DialogFooter::new()
+                    .child(
+                        DialogClose::new().child(Button::new("cancel").label("Cancel").outline()),
+                    )
+                    .child(DialogAction::new().child(Button::new("ok").label("Confirm").primary())),
+            )
             .on_ok(move |_, window, cx| {
                 on_ok(cx);
                 window.push_notification("You have delete ok.", cx);

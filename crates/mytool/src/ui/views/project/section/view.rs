@@ -7,6 +7,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
+    dialog::{DialogAction, DialogClose, DialogFooter},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
     v_flex,
@@ -153,8 +154,6 @@ impl SectionsPanel {
         let view = cx.entity().clone();
         let color = self.color.clone();
 
-        // 注意：这个 dialog 包含颜色选择，所以需要自定义实现
-        // 暂时保留原有的实现，因为它包含额外的 ColorGroup 组件
         let dialog_title = if is_edit { "Edit Label" } else { "New Label" };
         let button_section = if is_edit { "Save" } else { "Add" };
         window.open_dialog(cx, move |modal, _, _| {
@@ -169,44 +168,38 @@ impl SectionsPanel {
                         .child(Input::new(&name_input))
                         .child(ColorGroup::new(&color)),
                 )
-                .footer({
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            DialogClose::new()
+                                .child(Button::new("cancel").label("Cancel").outline()),
+                        )
+                        .child(
+                            DialogAction::new()
+                                .child(Button::new("save").primary().label(button_section)),
+                        ),
+                )
+                .on_ok({
                     let view = view.clone();
                     let ori_section = ori_section.clone();
                     let name_input_clone = name_input.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("save").primary().label(button_section).on_click({
-                                let view = view.clone();
-                                let ori_section = ori_section.clone();
-                                let name_input_clone1 = name_input_clone.clone();
-                                move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                    view.update(cx, |view, cx| {
-                                        let section = Arc::new(SectionModel {
-                                            name: name_input_clone1.read(cx).value().to_string(),
-                                            color: Option::from(
-                                                view.selected_color.unwrap_or_default().to_hex(),
-                                            ),
-                                            ..ori_section.clone()
-                                        });
-                                        println!(
-                                            "show_section_dialog: section: {:?}",
-                                            section.clone()
-                                        );
-                                        // 根据模式发射不同事件
-                                        if is_edit {
-                                            cx.emit(SectionEvent::Modified(section));
-                                        } else {
-                                            cx.emit(SectionEvent::Added(section));
-                                        }
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
-                                window.close_dialog(cx);
-                            }),
-                        ]
+                    move |_, _window: &mut Window, cx| {
+                        view.update(cx, |view, cx| {
+                            let section = Arc::new(SectionModel {
+                                name: name_input_clone.read(cx).value().to_string(),
+                                color: Option::from(
+                                    view.selected_color.unwrap_or_default().to_hex(),
+                                ),
+                                ..ori_section.clone()
+                            });
+                            if is_edit {
+                                cx.emit(SectionEvent::Modified(section));
+                            } else {
+                                cx.emit(SectionEvent::Added(section));
+                            }
+                            cx.notify();
+                        });
+                        true
                     }
                 })
         });
@@ -219,14 +212,13 @@ impl SectionsPanel {
                 let view = cx.entity().clone();
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to delete the section?")
                         .on_ok({
                             let view = view.clone();
                             let section = section.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let view = view.clone();
                                 let section = section.clone();
                                 view.update(cx, |_view, cx| {
@@ -237,7 +229,7 @@ impl SectionsPanel {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled delete.", cx);
                             true
                         })

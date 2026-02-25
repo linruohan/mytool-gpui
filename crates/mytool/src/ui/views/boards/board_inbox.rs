@@ -211,13 +211,12 @@ impl InboxBoard {
             if let Some(item) = item_some {
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child("Are you sure to finish the item?")
                         .on_ok({
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let mut item_model = (*item).clone();
                                 item_model.checked = true;
                                 update_item(Arc::new(item_model), cx);
@@ -225,7 +224,7 @@ impl InboxBoard {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("You have canceled.", cx);
                             true
                         })
@@ -240,13 +239,12 @@ impl InboxBoard {
             if let Some(item) = item_some {
                 window.open_dialog(cx, move |dialog, _, _| {
                     dialog
-                        .confirm()
                         .overlay(true)
                         .overlay_closable(true)
                         .child(if item.pinned { "Unpin this item?" } else { "Pin this item?" })
                         .on_ok({
                             let item = item.clone();
-                            move |_, window, cx| {
+                            move |_, window: &mut Window, cx| {
                                 let mut item_model = (*item).clone();
                                 item_model.pinned = !item.pinned;
                                 update_item(Arc::new(item_model), cx);
@@ -257,7 +255,7 @@ impl InboxBoard {
                                 true
                             }
                         })
-                        .on_cancel(|_, window, cx| {
+                        .on_cancel(|_, window: &mut Window, cx| {
                             window.push_notification("Operation canceled.", cx);
                             true
                         })

@@ -8,6 +8,7 @@ use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    dialog::{DialogAction, DialogClose, DialogFooter},
     input::{Input, InputState},
     list::{ListEvent, ListState},
     v_flex,
@@ -172,38 +173,34 @@ impl ProjectsPanel {
                         .child(ColorGroup::new(&color))
                         .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
                 )
-                .footer({
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            DialogClose::new()
+                                .child(Button::new("cancel").label("Cancel").outline()),
+                        )
+                        .child(
+                            DialogAction::new().child(Button::new("add").primary().label("Add")),
+                        ),
+                )
+                .on_ok({
                     let view = view.clone();
                     let ori_project = ori_project.clone();
                     let input1 = name_input.clone();
-                    move |_, _, _, _cx| {
-                        vec![
-                            Button::new("add").primary().label("Add").on_click({
-                                let view = view.clone();
-                                let ori_project = ori_project.clone();
-                                let input1 = input1.clone();
-                                move |_, window, cx| {
-                                    window.close_dialog(cx);
-                                    view.update(cx, |view, cx| {
-                                        let project = Arc::new(ProjectModel {
-                                            name: input1.read(cx).value().to_string(),
-                                            due_date: view.project_due.clone(),
-                                            color: Some(
-                                                view.selected_color
-                                                    .map(|c| c.to_hex())
-                                                    .unwrap_or_default(),
-                                            ),
-                                            ..ori_project.clone()
-                                        });
-                                        cx.emit(ProjectEvent::Added(project));
-                                        cx.notify();
-                                    });
-                                }
-                            }),
-                            Button::new("cancel").label("Cancel").on_click(move |_, window, cx| {
-                                window.close_dialog(cx);
-                            }),
-                        ]
+                    move |_, _window: &mut Window, cx| {
+                        view.update(cx, |view, cx| {
+                            let project = Arc::new(ProjectModel {
+                                name: input1.read(cx).value().to_string(),
+                                due_date: view.project_due.clone(),
+                                color: Some(
+                                    view.selected_color.map(|c| c.to_hex()).unwrap_or_default(),
+                                ),
+                                ..ori_project.clone()
+                            });
+                            cx.emit(ProjectEvent::Added(project));
+                            cx.notify();
+                        });
+                        true
                     }
                 })
         });

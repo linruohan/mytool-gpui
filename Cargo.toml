@@ -15,7 +15,7 @@ gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_macros =  { git = "https://github.com/zed-industries/zed"}
-gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
