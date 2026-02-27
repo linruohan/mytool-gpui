@@ -128,78 +128,65 @@ pub struct ErrorContext {
 impl ErrorContext {
     pub fn new(error: AppError) -> Self {
         let (severity, user_message, recovery_suggestions) = match &error {
-            AppError::Database(_e) => (
-                ErrorSeverity::Error,
-                "数据库操作失败，请稍后重试".to_string(),
-                vec![
+            AppError::Database(_e) => {
+                (ErrorSeverity::Error, "数据库操作失败，请稍后重试".to_string(), vec![
                     "检查数据库文件是否存在".to_string(),
                     "尝试重启应用".to_string(),
                     "如果问题持续，请联系技术支持".to_string(),
-                ],
-            ),
-            AppError::Validation(msg) => (
-                ErrorSeverity::Warning,
-                format!("输入验证失败: {}", msg),
-                vec!["请检查输入内容是否符合要求".to_string()],
-            ),
-            AppError::Permission(msg) => (
-                ErrorSeverity::Error,
-                format!("权限不足: {}", msg),
-                vec!["请检查您的权限设置".to_string(), "联系管理员获取必要权限".to_string()],
-            ),
-            AppError::NotFound(resource) => (
-                ErrorSeverity::Warning,
-                format!("未找到: {}", resource),
-                vec!["请确认资源是否存在".to_string(), "尝试刷新页面".to_string()],
-            ),
-            AppError::Network(msg) => (
-                ErrorSeverity::Error,
-                format!("网络错误: {}", msg),
-                vec![
-                    "检查网络连接".to_string(),
-                    "稍后重试".to_string(),
-                    "如果问题持续，请检查防火墙设置".to_string(),
-                ],
-            ),
-            AppError::FileSystem(e) => (
-                ErrorSeverity::Error,
-                format!("文件操作失败: {}", e),
-                vec![
+                ])
+            },
+            AppError::Validation(msg) => {
+                (ErrorSeverity::Warning, format!("输入验证失败: {}", msg), vec![
+                    "请检查输入内容是否符合要求".to_string(),
+                ])
+            },
+            AppError::Permission(msg) => {
+                (ErrorSeverity::Error, format!("权限不足: {}", msg), vec![
+                    "请检查您的权限设置".to_string(),
+                    "联系管理员获取必要权限".to_string(),
+                ])
+            },
+            AppError::NotFound(resource) => {
+                (ErrorSeverity::Warning, format!("未找到: {}", resource), vec![
+                    "请确认资源是否存在".to_string(),
+                    "尝试刷新页面".to_string(),
+                ])
+            },
+            AppError::Network(msg) => (ErrorSeverity::Error, format!("网络错误: {}", msg), vec![
+                "检查网络连接".to_string(),
+                "稍后重试".to_string(),
+                "如果问题持续，请检查防火墙设置".to_string(),
+            ]),
+            AppError::FileSystem(e) => {
+                (ErrorSeverity::Error, format!("文件操作失败: {}", e), vec![
                     "检查文件路径是否正确".to_string(),
                     "确认有足够的磁盘空间".to_string(),
                     "检查文件权限".to_string(),
-                ],
-            ),
-            AppError::Config(msg) => (
-                ErrorSeverity::Critical,
-                format!("配置错误: {}", msg),
-                vec![
-                    "检查配置文件格式".to_string(),
-                    "恢复默认配置".to_string(),
-                    "重新安装应用".to_string(),
-                ],
-            ),
-            AppError::Parse(msg) => (
-                ErrorSeverity::Warning,
-                format!("解析失败: {}", msg),
-                vec!["检查数据格式是否正确".to_string()],
-            ),
-            AppError::Concurrency(msg) => (
-                ErrorSeverity::Warning,
-                format!("并发冲突: {}", msg),
-                vec!["请稍后重试".to_string()],
-            ),
+                ])
+            },
+            AppError::Config(msg) => (ErrorSeverity::Critical, format!("配置错误: {}", msg), vec![
+                "检查配置文件格式".to_string(),
+                "恢复默认配置".to_string(),
+                "重新安装应用".to_string(),
+            ]),
+            AppError::Parse(msg) => (ErrorSeverity::Warning, format!("解析失败: {}", msg), vec![
+                "检查数据格式是否正确".to_string(),
+            ]),
+            AppError::Concurrency(msg) => {
+                (ErrorSeverity::Warning, format!("并发冲突: {}", msg), vec![
+                    "请稍后重试".to_string(),
+                ])
+            },
             AppError::Internal(_msg) => (
                 ErrorSeverity::Critical,
                 "应用内部错误，请联系技术支持".to_string(),
                 vec!["尝试重启应用".to_string(), "如果问题持续，请报告此错误".to_string()],
             ),
             AppError::Cancelled => (ErrorSeverity::Info, "操作已取消".to_string(), vec![]),
-            AppError::Timeout(msg) => (
-                ErrorSeverity::Warning,
-                format!("操作超时: {}", msg),
-                vec!["请稍后重试".to_string(), "检查网络连接".to_string()],
-            ),
+            AppError::Timeout(msg) => (ErrorSeverity::Warning, format!("操作超时: {}", msg), vec![
+                "请稍后重试".to_string(),
+                "检查网络连接".to_string(),
+            ]),
             AppError::Other(msg) => {
                 (ErrorSeverity::Error, msg.clone(), vec!["请稍后重试".to_string()])
             },

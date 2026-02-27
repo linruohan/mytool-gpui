@@ -134,7 +134,8 @@ impl ItemService {
         let item_content = item.content.clone();
         let item_due = item.due.clone();
         tracing::info!(
-            "ItemService::update_item called for item: {} with priority: {:?}, content: '{}', due: {:?}",
+            "ItemService::update_item called for item: {} with priority: {:?}, content: '{}', \
+             due: {:?}",
             item_id,
             item_priority,
             item_content,

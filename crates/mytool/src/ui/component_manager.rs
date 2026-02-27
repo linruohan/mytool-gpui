@@ -21,15 +21,12 @@ impl ComponentManager {
                 cx.notify()
             }
         })];
-        let stories = vec![(
-            "Components",
-            vec![
-                StoryContainer::panel::<crate::WelcomeStory>(window, cx),
-                StoryContainer::panel::<crate::CalendarStory>(window, cx),
-                StoryContainer::panel::<crate::TodoStory>(window, cx),
-                StoryContainer::panel::<crate::ListStory>(window, cx),
-            ],
-        )];
+        let stories = vec![("Components", vec![
+            StoryContainer::panel::<crate::WelcomeStory>(window, cx),
+            StoryContainer::panel::<crate::CalendarStory>(window, cx),
+            StoryContainer::panel::<crate::TodoStory>(window, cx),
+            StoryContainer::panel::<crate::ListStory>(window, cx),
+        ])];
 
         let mut this = Self {
             search_input,

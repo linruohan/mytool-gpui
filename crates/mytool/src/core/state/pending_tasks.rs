@@ -2,8 +2,10 @@
 //!
 //! 用于跟踪正在进行的异步数据库操作，确保应用关闭前所有数据都已保存。
 
-use std::sync::RwLock;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{
+    RwLock,
+    atomic::{AtomicBool, AtomicUsize, Ordering},
+};
 
 use gpui::Global;
 use tracing::info;

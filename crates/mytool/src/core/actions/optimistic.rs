@@ -172,7 +172,8 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         match result {
             Ok(updated_item) => {
                 info!(
-                    "✅ Successfully saved item update: {} with priority: {:?}, content: '{}', due={:?}",
+                    "✅ Successfully saved item update: {} with priority: {:?}, content: '{}', \
+                     due={:?}",
                     item_id, updated_item.priority, updated_item.content, updated_item.due
                 );
 

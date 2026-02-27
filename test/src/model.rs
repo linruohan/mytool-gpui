@@ -75,10 +75,9 @@ impl Job {
     async fn get_case_list_by_jobid(&self, job_id: &str) -> Vec<Case> {
         // 模拟网络/数据库请求延迟
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        vec![
-            Case { id: format!("case_{}_{}", job_id, 1) },
-            Case { id: format!("case_{}_{}", job_id, 2) },
-        ]
+        vec![Case { id: format!("case_{}_{}", job_id, 1) }, Case {
+            id: format!("case_{}_{}", job_id, 2),
+        }]
     }
 
     // 模拟根据 case_id 获取日志记录（异步）

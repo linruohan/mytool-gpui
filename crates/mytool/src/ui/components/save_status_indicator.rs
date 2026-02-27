@@ -6,8 +6,12 @@
 //! - 错误：显示 "保存失败" + 错误图标
 
 use gpui::{Context, IntoElement, ParentElement, Render, Styled, Window, div, px};
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme, IconName, Sizable, h_flex, label::Label};
+use gpui_component::{
+    ActiveTheme, IconName, Sizable,
+    button::{Button, ButtonVariants},
+    h_flex,
+    label::Label,
+};
 
 use crate::core::state::{PendingTasksState, SaveStatus};
 
