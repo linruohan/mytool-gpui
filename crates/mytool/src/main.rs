@@ -1,11 +1,8 @@
 // Turns off console window on Windows, but not when building with dev profile.
-// 临时注释掉这行,以便在 release 模式下也能看到控制台日志输出
+// 临时注释掉这行，以便在 release 模式下也能看到控制台日志输出
 // #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 use gpui_component_assets::Assets;
-use mytool::{
-    MainView, init_plugins,
-    todo_state::{get_todo_conn, state_init},
-};
+use mytool::{MainView, init_plugins, todo_state::get_todo_conn};
 
 #[tokio::main]
 async fn main() {
@@ -16,7 +13,8 @@ async fn main() {
 
     app.run(move |cx| {
         mytool::init(cx);
-        state_init(cx, db);
+        // 🚀 初始化状态（包括预初始化 Store）
+        mytool::todo_state::state_init(cx, db);
         init_plugins(cx);
         cx.activate(true);
         mytool::create_new_window(

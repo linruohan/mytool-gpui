@@ -441,14 +441,16 @@ impl ItemInfoState {
                 });
             }
 
-            // 🚀 关键修复：同步保存 item 到数据库，确保数据在应用退出前完成持久化
-            info!("Calling mod_item synchronously for item: {}", item_id);
-            let db = get_db_connection(cx);
+            // 🚀 关键修复：使用全局 Store 保存 item 到数据库，避免重复创建 Store 导致死锁
+            info!("Calling mod_item_with_store synchronously for item: {}", item_id);
+            let db_state = cx.global::<crate::todo_state::DBState>().clone();
             let item_for_save = self.state_manager.item.clone();
             let item_id_for_save = item_id.clone();
 
             tokio_runtime::run_db_operation(async move {
-                match state_service::mod_item(item_for_save, (*db).clone()).await {
+                // 🚀 在异步上下文中获取或创建 Store
+                let store = db_state.get_or_create_store().await;
+                match state_service::mod_item_with_store(item_for_save, store).await {
                     Ok(_updated_item) => {
                         info!("save_all_changes: item saved successfully: {}", item_id_for_save);
                     },

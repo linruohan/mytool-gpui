@@ -58,15 +58,15 @@ impl PatchManager {
             if patch.version > current_version {
                 tracing::info!("Applying patch version {}: {}", patch.version, patch.description);
 
-                // 执行补丁 SQL
-                for statement in patch.sql.split(';') {
-                    let stmt = statement.trim();
-                    if !stmt.is_empty() && !stmt.starts_with("--") && !stmt.starts_with("/*") {
-                        tracing::debug!("Executing patch SQL: {}", stmt);
-                        self.db
-                            .execute(Statement::from_string(sea_orm::DbBackend::Sqlite, stmt))
-                            .await?;
-                    }
+                // 🔧 关键修复：正确分割 SQL 语句，处理 TRIGGER 定义
+                // TRIGGER 定义中包含多个分号，需要作为一个整体执行
+                let statements = Self::split_sql_statements(patch.sql);
+
+                for stmt in statements {
+                    tracing::debug!("Executing patch SQL: {}", stmt);
+                    self.db
+                        .execute(Statement::from_string(sea_orm::DbBackend::Sqlite, stmt))
+                        .await?;
                 }
 
                 // 更新版本
@@ -76,6 +76,81 @@ impl PatchManager {
         }
 
         Ok(())
+    }
+
+    /// 🔧 关键方法：正确分割 SQL 语句
+    ///
+    /// 问题：简单的按分号分割会破坏 TRIGGER 定义，因为 TRIGGER 内部包含多个分号
+    /// 解决方案：跟踪括号和 BEGIN/END 块，确保 TRIGGER 定义保持完整
+    fn split_sql_statements(sql: &str) -> Vec<String> {
+        let mut statements = Vec::new();
+        let mut current = String::new();
+        let mut in_trigger_body = false; // 是否在 TRIGGER 的 BEGIN...END 块内
+        let mut paren_depth = 0; // 括号深度
+
+        for line in sql.lines() {
+            let trimmed_line = line.trim();
+
+            // 跳过空行和注释
+            if trimmed_line.is_empty()
+                || trimmed_line.starts_with("--")
+                || trimmed_line.starts_with("/*")
+            {
+                continue;
+            }
+
+            // 检查是否进入 TRIGGER 定义（查找 "BEGIN" 关键字）
+            if trimmed_line.contains("BEGIN") && !trimmed_line.contains("END") {
+                in_trigger_body = true;
+            }
+
+            // 计算括号深度
+            for ch in trimmed_line.chars() {
+                if ch == '(' {
+                    paren_depth += 1;
+                } else if ch == ')' {
+                    paren_depth -= 1;
+                }
+            }
+
+            // 添加到当前语句
+            if !current.is_empty() {
+                current.push(' ');
+            }
+            current.push_str(trimmed_line);
+
+            // 检查是否结束 TRIGGER 定义（查找 "END;"）
+            if in_trigger_body && trimmed_line == "END;" {
+                in_trigger_body = false;
+                // 移除末尾的分号，添加完整语句
+                if current.ends_with(';') {
+                    current.pop();
+                }
+                statements.push(current.trim().to_string());
+                current = String::new();
+                continue;
+            }
+
+            // 如果不在 TRIGGER 体内，且以分号结尾，且括号已闭合，则是一个完整语句
+            if !in_trigger_body && trimmed_line.ends_with(';') && paren_depth == 0 {
+                // 移除末尾的分号
+                if current.ends_with(';') {
+                    current.pop();
+                }
+                statements.push(current.trim().to_string());
+                current = String::new();
+            }
+        }
+
+        // 处理剩余的语句（如果没有分号结尾）
+        if !current.is_empty() {
+            let stmt = current.trim().to_string();
+            if !stmt.is_empty() && !stmt.starts_with("--") {
+                statements.push(stmt);
+            }
+        }
+
+        statements
     }
 
     pub async fn get_current_version(&self) -> Result<i32, DbErr> {

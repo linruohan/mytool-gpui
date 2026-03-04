@@ -42,9 +42,16 @@ impl ServiceManager {
         let event_bus = Arc::new(EventBus::new());
         let metrics = Arc::new(MetricsCollector::new());
 
-        // Get database configuration outside async block to avoid RwLockReadGuard thread safety
-        // issues
-        let database_config = gconfig::get().read().unwrap().database().clone();
+        // 🚀 关键修复：使用 try_read 避免死锁
+        // 如果无法获取锁，panic 并提示可能的死锁问题
+        let database_config = gconfig::get()
+            .try_read()
+            .expect(
+                "Failed to acquire gconfig read lock - possible deadlock detected! Please report \
+                 this issue.",
+            )
+            .database()
+            .clone();
 
         // Create new components
         let database_manager = Arc::new(DatabaseManager::new(database_config).await?);

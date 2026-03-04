@@ -10,7 +10,7 @@ use std::sync::Arc;
 pub use cache::*;
 pub use database::*;
 pub use events::*;
-use gpui::App;
+use gpui::{App, BorrowAppContext};
 pub use observer::*;
 pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
@@ -40,7 +40,7 @@ pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
 /// 新架构使用 TodoStore 作为唯一数据源，
 /// 简化代码并消除状态不一致风险。
 pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
-    // 🚀 初始化数据库连接状态（使用 Arc 包装，支持统计）
+    // 🚀 初始化数据库连接状态（Store 延迟初始化）
     cx.set_global(DBState::new(db.clone()));
 
     // 初始化统一的 TodoStore（唯一数据源）
@@ -69,12 +69,15 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
     // 异步加载数据
     cx.spawn(async move |cx| {
+        // 🚀 关键修复：在异步任务中预初始化全局 Store，避免后续在 UI 线程的阻塞调用中初始化导致死锁
+        println!("[DEBUG] Pre-initializing global Store in async task...");
+
         // 加载数据到 TodoStore（唯一数据源）
         println!("[DEBUG] Loading items...");
         let items = crate::state_service::load_items(db.clone()).await;
         println!("[DEBUG] Loaded {} items", items.len());
 
-        // 打印每个项目的pinned状态和due
+        // 打印每个项目的 pinned 状态和 due
         for item in &items {
             println!(
                 "[DEBUG] Item {}: content={}, pinned={}, due={:?}",
@@ -111,28 +114,31 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let labels = crate::state_service::load_labels(db.clone()).await;
         println!("[DEBUG] Loaded {} labels", labels.len());
 
-        // 更新 TodoStore
-        println!("[DEBUG] Updating TodoStore...");
-        cx.update_global::<TodoStore, _>(|store, _| {
-            store.set_items(items);
-            store.set_projects(projects);
-            store.set_sections(sections);
-            store.set_labels(labels);
-        });
-        println!("[DEBUG] TodoStore updated");
+        // 🚀 关键修复：使用 cx.update 来更新全局状态
+        // 注意：需要在 GPUI 的主线程中更新
+        cx.update(|cx| {
+            println!("[DEBUG] Updating TodoStore in UI thread...");
+            cx.update_global::<TodoStore, _>(|store, _| {
+                store.set_items(items);
+                store.set_projects(projects);
+                store.set_sections(sections);
+                store.set_labels(labels);
+            });
+            println!("[DEBUG] TodoStore updated");
 
-        // 发布批量更新事件
-        cx.update_global::<TodoEventBus, _>(|bus, _| {
-            bus.publish(TodoStoreEvent::BulkUpdate);
-        });
+            // 发布批量更新事件
+            cx.update_global::<TodoEventBus, _>(|bus, _| {
+                bus.publish(TodoStoreEvent::BulkUpdate);
+            });
 
-        // 🚀 标记所有视图为脏（初始化后需要更新）
-        cx.update_global::<DirtyFlags, _>(|flags, _| {
-            flags.mark_dirty(ViewType::Inbox);
-            flags.mark_dirty(ViewType::Today);
-            flags.mark_dirty(ViewType::Scheduled);
-            flags.mark_dirty(ViewType::Completed);
-            flags.mark_dirty(ViewType::Pinned);
+            // 🚀 标记所有视图为脏（初始化后需要更新）
+            cx.update_global::<DirtyFlags, _>(|flags, _| {
+                flags.mark_dirty(ViewType::Inbox);
+                flags.mark_dirty(ViewType::Today);
+                flags.mark_dirty(ViewType::Scheduled);
+                flags.mark_dirty(ViewType::Completed);
+                flags.mark_dirty(ViewType::Pinned);
+            });
         });
     })
     .detach();

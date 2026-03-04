@@ -8,11 +8,12 @@ use std::{
 
 use gpui::Global;
 use sea_orm::DatabaseConnection;
+use todos::Store;
+use tokio::sync::OnceCell;
 
 /// 数据库连接状态
 ///
-/// 存储全局数据库连接，供旧的状态管理代码使用。
-/// 新代码建议使用 TodoStore，它会自动管理数据加载。
+/// 存储全局数据库连接和 Store 实例，供业务逻辑使用。
 ///
 /// 注意：DatabaseConnection 内部已经使用了 Arc 进行连接池管理，
 /// 所以克隆操作是轻量级的（只增加引用计数）。
@@ -21,15 +22,44 @@ use sea_orm::DatabaseConnection;
 /// - 使用 Arc 包装，明确表达共享语义
 /// - 添加连接统计，便于监控和诊断
 /// - 支持连接健康检查
+/// - 🚀 新增：延迟初始化全局 Store 实例，避免重复创建
+#[derive(Clone)]
 pub struct DBState {
     pub conn: Arc<DatabaseConnection>,
+    store: OnceCell<Arc<Store>>, // 🚀 延迟初始化的 Store
     stats: Arc<ConnectionStats>,
 }
 
 impl DBState {
-    /// 创建新的数据库状态
+    /// 创建新的数据库状态（异步版本，会预初始化 Store）
+    pub async fn new_async(conn: DatabaseConnection) -> Self {
+        let conn_arc = Arc::new(conn);
+        // 🚀 关键修复：在异步上下文中初始化 Store，避免死锁
+        eprintln!("🔍 [DEBUG] DBState::new_async: Creating Store...");
+        let store = Store::new((*conn_arc).clone()).await;
+        match store {
+            Ok(s) => {
+                eprintln!("✅ [DEBUG] DBState::new_async: Store created successfully");
+                Self {
+                    conn: conn_arc,
+                    store: OnceCell::new_with(Some(Arc::new(s))),
+                    stats: Arc::new(ConnectionStats::new()),
+                }
+            },
+            Err(e) => {
+                eprintln!("❌ [DEBUG] DBState::new_async: Failed to create Store: {:?}", e);
+                panic!("Failed to create Store: {:?}", e);
+            },
+        }
+    }
+
+    /// 创建新的数据库状态（同步版本，Store 延迟初始化）
     pub fn new(conn: DatabaseConnection) -> Self {
-        Self { conn: Arc::new(conn), stats: Arc::new(ConnectionStats::new()) }
+        Self {
+            conn: Arc::new(conn),
+            store: OnceCell::new(), // 延迟初始化
+            stats: Arc::new(ConnectionStats::new()),
+        }
     }
 
     /// 获取数据库连接（轻量级克隆）
@@ -37,6 +67,39 @@ impl DBState {
     pub fn get_connection(&self) -> Arc<DatabaseConnection> {
         self.stats.record_access();
         self.conn.clone()
+    }
+
+    /// 🚀 获取或创建全局 Store 实例（异步）
+    pub async fn get_or_create_store(&self) -> Arc<Store> {
+        eprintln!("🔍 [DEBUG] get_or_create_store: called");
+        let store = self
+            .store
+            .get_or_init(|| async {
+                eprintln!("🔍 [DEBUG] get_or_create_store: initializing Store...");
+                let store = Store::new((*self.conn).clone()).await;
+                match store {
+                    Ok(s) => {
+                        eprintln!("✅ [DEBUG] get_or_create_store: Store initialized successfully");
+                        Arc::new(s)
+                    },
+                    Err(e) => {
+                        eprintln!(
+                            "❌ [DEBUG] get_or_create_store: Failed to create Store: {:?}",
+                            e
+                        );
+                        panic!("Failed to create Store: {:?}", e);
+                    },
+                }
+            })
+            .await
+            .clone();
+        eprintln!("✅ [DEBUG] get_or_create_store: returning Store");
+        store
+    }
+
+    /// 🚀 获取 Store（如果已初始化）
+    pub fn get_store(&self) -> Option<Arc<Store>> {
+        self.store.get().cloned()
     }
 
     /// 获取连接统计信息

@@ -32,13 +32,13 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     // 🚀 关键修复：优化连接池配置
     // SQLite 是单线程的，连接数不宜过多，避免竞争
     options
-            .min_connections(1)  // 最小连接数为1，避免不必要的连接
-            .max_connections(10)  // 🔧 加大最大连接数为10
-            .connect_timeout(Duration::from_secs(30)) // 🔧 连接超时时间加大到30秒
-            .acquire_timeout(Duration::from_secs(60)) // 🔧 获取连接超时时间加大到60秒
+            .min_connections(1)  // 最小连接数为 1，避免不必要的连接
+            .max_connections(10)  // 🔧 加大最大连接数为 10
+            .connect_timeout(Duration::from_secs(30)) // 🔧 连接超时时间加大到 30 秒
+            .acquire_timeout(Duration::from_secs(60)) // 🔧 获取连接超时时间加大到 60 秒
             .idle_timeout(Duration::from_secs(300)) // 空闲超时时间
             .max_lifetime(Duration::from_secs(1800)) // 最大生命周期
-            .sqlx_logging(true); // 启用 SQL 日志，方便调试
+            .sqlx_logging(false); // 🔧 临时关闭 SQL 日志，避免事务提交问题
 
     let db = Database::connect(options).await?;
 
