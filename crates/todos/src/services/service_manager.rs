@@ -9,10 +9,11 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 
 use crate::{
+    app::{DatabaseManager, PatchManager, TransactionManager},
     error::TodoError,
     services::{
-        DateValidationService, EventBus, ItemService, LabelService, MetricsCollector,
-        ProjectService, ReminderService, SectionService,
+        DateValidationService, EventBus, EventRecorder, ItemService, LabelService,
+        MetricsCollector, ProjectService, ReminderService, SectionService,
     },
 };
 
@@ -20,6 +21,9 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ServiceManager {
     db: Arc<DatabaseConnection>,
+    database_manager: Arc<DatabaseManager>,
+    transaction_manager: Arc<TransactionManager>,
+    event_recorder: Arc<EventRecorder>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     item_service: Arc<ItemService>,
@@ -28,13 +32,28 @@ pub struct ServiceManager {
     label_service: Arc<LabelService>,
     reminder_service: Arc<ReminderService>,
     date_validation_service: Arc<DateValidationService>,
+    // 用于跟踪是否已经应用过补丁
+    patches_applied: bool,
 }
 
 impl ServiceManager {
     /// Create a new ServiceManager
-    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+    pub async fn new(db: Arc<DatabaseConnection>) -> Result<Self, TodoError> {
         let event_bus = Arc::new(EventBus::new());
         let metrics = Arc::new(MetricsCollector::new());
+
+        // Get database configuration outside async block to avoid RwLockReadGuard thread safety
+        // issues
+        let database_config = gconfig::get().read().unwrap().database().clone();
+
+        // Create new components
+        let database_manager = Arc::new(DatabaseManager::new(database_config).await?);
+        let transaction_manager = Arc::new(TransactionManager::new(db.clone()));
+        let event_recorder = Arc::new(EventRecorder::new(db.clone()));
+
+        // Apply database patches
+        let patch_manager = PatchManager::new(db.clone());
+        patch_manager.apply_patches().await?;
 
         // Create services with dependencies
         // Note: Services are created in order of dependency
@@ -68,8 +87,11 @@ impl ServiceManager {
 
         let date_validation_service = Arc::new(DateValidationService::new(db.clone()));
 
-        Self {
+        Ok(Self {
             db,
+            database_manager,
+            transaction_manager,
+            event_recorder,
             event_bus,
             metrics,
             item_service,
@@ -78,7 +100,8 @@ impl ServiceManager {
             label_service,
             reminder_service,
             date_validation_service,
-        }
+            patches_applied: false,
+        })
     }
 
     /// Get the database connection
@@ -124,5 +147,26 @@ impl ServiceManager {
     /// Get the date validation service
     pub fn date_validation_service(&self) -> &DateValidationService {
         &self.date_validation_service
+    }
+
+    /// Get the database manager
+    pub fn database_manager(&self) -> &DatabaseManager {
+        &self.database_manager
+    }
+
+    /// Get the transaction manager
+    pub fn transaction_manager(&self) -> &TransactionManager {
+        &self.transaction_manager
+    }
+
+    /// Get the patch manager
+    /// Note: PatchManager is not stored in ServiceManager anymore, this method is deprecated
+    pub fn patch_manager(&self) -> &PatchManager {
+        panic!("PatchManager is not stored in ServiceManager anymore")
+    }
+
+    /// Get the event recorder
+    pub fn event_recorder(&self) -> &EventRecorder {
+        &self.event_recorder
     }
 }

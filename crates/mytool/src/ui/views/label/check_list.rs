@@ -142,11 +142,17 @@ impl LabelCheckListDelegate {
     }
 
     pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
+        // 只在标签列表真正变化时更新
+        if self._labels == labels {
+            return;
+        }
+
         info!("LabelCheckListDelegate::update_labels called: {} labels", labels.len());
         self._labels = labels;
-        // 如果没有标签，创建一个空的 section
+
+        // 只有当有标签时才创建 section
         if self._labels.is_empty() {
-            self.matched_labels = vec![vec![]];
+            self.matched_labels = vec![];
             self.selected_index = None;
         } else {
             self.matched_labels = vec![self._labels.clone()];
@@ -154,6 +160,7 @@ impl LabelCheckListDelegate {
                 self.selected_index = Some(IndexPath::default());
             }
         }
+
         info!(
             "LabelCheckListDelegate::update_labels: matched_labels sections: {}, first section \
              len: {}",
@@ -213,7 +220,7 @@ impl ListDelegate for LabelCheckListDelegate {
 
     fn items_count(&self, section: usize, _: &App) -> usize {
         // 检查 section 是否在范围内
-        if section < self.matched_labels.len() { self.matched_labels[section].len() } else { 0 }
+        self.matched_labels.get(section).map(|s| s.len()).unwrap_or(0)
     }
 
     fn render_item(
@@ -222,19 +229,13 @@ impl ListDelegate for LabelCheckListDelegate {
         _: &mut Window,
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
-        // 检查 matched_labels 是否为空或索引是否越界
-        if ix.section >= self.matched_labels.len() {
-            return None;
-        }
-
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(label) =
-            self.matched_labels.get(ix.section).and_then(|section| section.get(ix.row))
-        {
-            let checked = self.checked_list.iter().any(|l| l.id == label.id);
-            return Some(LabelCheckListItem::new(ix, label.clone(), selected, checked));
+        if let Some(section) = self.matched_labels.get(ix.section) {
+            if let Some(label) = section.get(ix.row) {
+                let checked = self.checked_list.iter().any(|l| l.id == label.id);
+                return Some(LabelCheckListItem::new(ix, label.clone(), selected, checked));
+            }
         }
-
         None
     }
 

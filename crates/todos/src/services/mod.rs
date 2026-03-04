@@ -1,5 +1,6 @@
 pub mod date_validation_service;
 pub mod event_bus;
+pub mod event_recorder;
 pub mod filtered_subscription;
 pub mod item_service;
 pub mod label_service;
@@ -12,6 +13,7 @@ pub mod service_manager;
 pub mod store;
 pub use date_validation_service::DateValidationService;
 pub use event_bus::{EventBus, Subscription};
+pub use event_recorder::EventRecorder;
 pub use filtered_subscription::FilteredSubscription;
 pub use item_service::ItemService;
 pub use label_service::{LabelService, LabelStats};

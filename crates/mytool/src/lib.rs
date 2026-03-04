@@ -183,6 +183,8 @@ pub fn init(cx: &mut App) {
             .add_directive("gpui_component=info".parse().unwrap())
             .add_directive("mytool=info".parse().unwrap())
             .add_directive("todos=info".parse().unwrap())
+            .add_directive("sqlx=warn".parse().unwrap())
+            .add_directive("todos::app::patch=warn".parse().unwrap())
     });
 
     tracing_subscriber::registry()

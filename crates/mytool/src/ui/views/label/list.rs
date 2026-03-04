@@ -163,9 +163,14 @@ impl LabelListDelegate {
 
     pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
         self._labels = labels;
-        self.matched_labels = vec![self._labels.clone()];
-        if !self.matched_labels.is_empty() && self.selected_index.is_none() {
-            self.selected_index = Some(IndexPath::default());
+        if self._labels.is_empty() {
+            self.matched_labels = vec![];
+            self.selected_index = None;
+        } else {
+            self.matched_labels = vec![self._labels.clone()];
+            if self.selected_index.is_none() {
+                self.selected_index = Some(IndexPath::default());
+            }
         }
     }
 
@@ -188,7 +193,7 @@ impl ListDelegate for LabelListDelegate {
     }
 
     fn items_count(&self, section: usize, _: &App) -> usize {
-        self.matched_labels[section].len()
+        self.matched_labels.get(section).map(|s| s.len()).unwrap_or(0)
     }
 
     fn render_item(
@@ -198,9 +203,11 @@ impl ListDelegate for LabelListDelegate {
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(label) = self.matched_labels[ix.section].get(ix.row) {
-            let checked = self.checked_labels.contains(label);
-            return Some(LabelListItem::new(ix, label.clone(), selected, checked));
+        if let Some(section) = self.matched_labels.get(ix.section) {
+            if let Some(label) = section.get(ix.row) {
+                let checked = self.checked_labels.contains(label);
+                return Some(LabelListItem::new(ix, label.clone(), selected, checked));
+            }
         }
         None
     }

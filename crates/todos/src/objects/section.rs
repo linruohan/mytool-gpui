@@ -24,7 +24,7 @@ impl Section {
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async { Store::new(self.db.clone()) }).await
+        self.store.get_or_init(|| async { Store::new(self.db.clone()).await.unwrap() }).await
     }
 
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {

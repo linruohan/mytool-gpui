@@ -418,7 +418,7 @@ impl ItemInfoState {
 
                 // 同步执行标签保存，确保在 update_item 之前完成
                 tokio_runtime::run_db_operation(async move {
-                    let store = todos::Store::new((*db).clone());
+                    let store = todos::Store::new((*db).clone()).await.unwrap();
                     match store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await {
                         Ok(_) => {
                             info!(
@@ -816,7 +816,7 @@ impl ItemInfoState {
         });
 
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new((*db).clone());
+            let store = todos::Store::new((*db).clone()).await.unwrap();
             match store.add_label_to_item(&item_id, &label_name).await {
                 Ok(_) => {
                     NotificationSystem::debug(format!("Label '{}' added to item", label_name));
@@ -850,7 +850,7 @@ impl ItemInfoState {
         });
 
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new((*db).clone());
+            let store = todos::Store::new((*db).clone()).await.unwrap();
             match store.remove_label_from_item(&item_id, &label_id).await {
                 Ok(_) => {
                     NotificationSystem::debug("Label removed from item");
@@ -1018,7 +1018,7 @@ impl ItemInfoState {
             let this_entity = cx.entity();
 
             cx.spawn(async move |_this, cx| {
-                let store = todos::Store::new((*db_for_labels).clone());
+                let store = todos::Store::new((*db_for_labels).clone()).await.unwrap();
                 match store.get_labels_by_item(&item_id_for_labels).await {
                     Ok(item_labels) => {
                         let label_ids: Vec<String> =
@@ -1154,7 +1154,7 @@ impl ItemInfoState {
             .collect();
 
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new((*db).clone());
+            let store = todos::Store::new((*db).clone()).await.unwrap();
             match store.set_item_labels(&item_id, &label_ids_vec).await {
                 Ok(_) => {
                     NotificationSystem::debug(format!(

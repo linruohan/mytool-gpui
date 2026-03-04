@@ -37,12 +37,12 @@ pub struct Store {
 
 impl Store {
     /// Create a new Store
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub async fn new(db: DatabaseConnection) -> Result<Self, TodoError> {
         let db = Arc::new(db);
-        let service_manager = ServiceManager::new(db.clone());
+        let service_manager = ServiceManager::new(db.clone()).await?;
         let query_service = QueryService::new(db.clone());
 
-        Self {
+        Ok(Self {
             item_service: (*service_manager.item_service()).clone(),
             project_service: (*service_manager.project_service()).clone(),
             section_service: (*service_manager.section_service()).clone(),
@@ -51,7 +51,7 @@ impl Store {
             date_validation_service: (*service_manager.date_validation_service()).clone(),
             service_manager,
             query_service,
-        }
+        })
     }
 
     /// Get the service manager

@@ -244,7 +244,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 
     cx.spawn(async move |_cx| {
         let result = {
-            let store = todos::Store::new((*db).clone());
+            let store = todos::Store::new((*db).clone()).await.unwrap();
             store.update_item_pin(&item_id_clone, pinned).await
         };
 
