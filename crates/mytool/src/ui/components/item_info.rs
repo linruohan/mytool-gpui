@@ -23,7 +23,7 @@ use todos::{
     entity::{ItemModel, LabelModel},
     enums::item_priority::ItemPriority,
 };
-use tracing::info;
+use tracing::{error, info};
 
 use super::{
     AttachmentButton, AttachmentButtonState, PriorityButton, PriorityEvent, PriorityState,
@@ -35,8 +35,10 @@ use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     core::{
         notification::{NotificationExt, NotificationSystem},
-        state::{TodoStore, get_db_connection},
+        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
+        tokio_runtime,
     },
+    state_service,
     todo_actions::{
         // 🚀 使用乐观更新（性能优化）
         add_item_optimistic,
@@ -362,17 +364,27 @@ impl ItemInfoState {
         // 同步输入框内容
         let has_input_changes = self.sync_inputs(cx);
 
-        // 检查是否有任何状态变更需要保存
-        let current_item = &self.state_manager.item;
+        // 先克隆需要的数据，避免借用冲突
+        let current_item = self.state_manager.item.clone();
+        let item_id = current_item.id.clone();
+        let item_labels_str = current_item.labels.clone().unwrap_or_default();
+
+        // 获取当前选中的标签
+        let selected_label_ids: Vec<String> =
+            self.selected_labels(cx).iter().map(|l| l.id.clone()).collect();
+        let new_labels_str = selected_label_ids.join(";");
+
+        let labels_changed = item_labels_str != new_labels_str;
 
         // 🚀 关键修复：根据任务是否有 ID 来决定是添加还是更新
         info!(
-            "save_all_changes called for item: {}, has_input_changes: {}, content: '{}'",
-            current_item.id, has_input_changes, current_item.content
+            "save_all_changes called for item: {}, has_input_changes: {}, content: '{}', \
+             labels_changed: {}",
+            item_id, has_input_changes, current_item.content, labels_changed
         );
 
         // 根据 item.id 是否为空来决定是添加新任务还是更新现有任务
-        if current_item.id.is_empty() {
+        if item_id.is_empty() {
             // 新建任务：使用 add_item_optimistic
             info!(
                 "Triggering add_item_optimistic for new item with content: '{}'",
@@ -391,9 +403,80 @@ impl ItemInfoState {
 
             cx.emit(ItemInfoEvent::Added());
         } else {
-            // 现有任务：直接调用 update_item_optimistic 保存到数据库
-            info!("Calling update_item_optimistic for item: {}", current_item.id);
-            update_item_optimistic(self.state_manager.item.clone(), cx);
+            // 🚀 关键修复：统一保存所有修改，包括标签
+            info!(
+                "save_all_changes: item={}, labels_changed={}, old_labels='{}', new_labels='{}'",
+                item_id, labels_changed, item_labels_str, new_labels_str
+            );
+
+            // 如果标签发生变化，先保存标签
+            if labels_changed {
+                info!("save_all_changes: saving labels for item {}", item_id);
+                let db = get_db_connection(cx);
+                let label_ids_to_save = selected_label_ids.clone();
+                let item_id_for_labels = item_id.clone();
+
+                // 同步执行标签保存，确保在 update_item 之前完成
+                tokio_runtime::run_db_operation(async move {
+                    let store = todos::Store::new((*db).clone());
+                    match store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await {
+                        Ok(_) => {
+                            info!(
+                                "save_all_changes: labels saved successfully for item {}",
+                                item_id_for_labels
+                            );
+                        },
+                        Err(e) => {
+                            error!(
+                                "save_all_changes: failed to save labels for item {}: {:?}",
+                                item_id_for_labels, e
+                            );
+                        },
+                    }
+                });
+
+                // 更新本地 item 的 labels 字段
+                self.state_manager.update_item(|item| {
+                    item.labels = Some(new_labels_str.clone());
+                });
+            }
+
+            // 🚀 关键修复：同步保存 item 到数据库，确保数据在应用退出前完成持久化
+            info!("Calling mod_item synchronously for item: {}", item_id);
+            let db = get_db_connection(cx);
+            let item_for_save = self.state_manager.item.clone();
+            let item_id_for_save = item_id.clone();
+
+            tokio_runtime::run_db_operation(async move {
+                match state_service::mod_item(item_for_save, (*db).clone()).await {
+                    Ok(_updated_item) => {
+                        info!("save_all_changes: item saved successfully: {}", item_id_for_save);
+                    },
+                    Err(e) => {
+                        error!(
+                            "save_all_changes: failed to save item {}: {:?}",
+                            item_id_for_save, e
+                        );
+                    },
+                }
+            });
+
+            // 使用 cx.spawn() 更新 TodoStore 和发布事件
+            let item_for_store = self.state_manager.item.clone();
+            let item_id_for_store = item_id.clone();
+            cx.spawn(async move |_this, cx| {
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.update_item(item_for_store.clone());
+                });
+                cx.update_global::<QueryCache, _>(|cache, _| {
+                    cache.invalidate_all();
+                });
+                cx.update_global::<TodoEventBus, _>(|bus, _| {
+                    bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_store.clone()));
+                });
+            })
+            .detach();
+
             cx.emit(ItemInfoEvent::Updated());
         }
     }
@@ -449,47 +532,20 @@ impl ItemInfoState {
                     "on_labels_event: LabelsChanged - item_id: {}, label_ids: '{}'",
                     self.state_manager.item.id, label_ids
                 );
-                let item_id = self.state_manager.item.id.clone();
-                let db = get_db_connection(cx);
-                let label_ids_clone = label_ids.clone();
 
-                cx.spawn(async move |_this, _cx| {
-                    let label_ids_vec: Vec<String> = label_ids_clone
-                        .split(';')
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string())
-                        .collect();
-
-                    info!(
-                        "set_item_labels: item_id={}, label_ids_vec={:?}",
-                        item_id, label_ids_vec
-                    );
-
-                    let store = todos::Store::new((*db).clone());
-                    match store.set_item_labels(&item_id, &label_ids_vec).await {
-                        Ok(_) => {
-                            info!("set_item_labels: SUCCESS for item {}", item_id);
-                            NotificationSystem::debug(format!(
-                                "Labels updated for item {}: {:?}",
-                                item_id, label_ids_vec
-                            ));
-                        },
-                        Err(e) => {
-                            info!("set_item_labels: FAILED for item {} - {:?}", item_id, e);
-                            NotificationSystem::log_error("Failed to set item labels", e);
-                        },
-                    }
-                })
-                .detach();
-
-                // 更新 state_manager.item.labels 字段
+                // 🚀 关键修复：只更新本地状态，不立即保存
+                // 标签保存会在 save_all_changes 中统一处理，避免并发写锁竞争
                 self.state_manager.update_item(|item| {
                     item.labels = Some(label_ids.clone());
                 });
-                // 不跳过更新，让 update_item_optimistic 更新 TodoStore
-                // 发送一个事件，让 ItemRowState 收到通知，从而更新 item
+
+                // 更新 LabelsPopoverList 的选中状态
+                self.label_popover_list.update(cx, |popover_list, cx| {
+                    popover_list.set_item_checked_label_id_async(label_ids.clone(), cx);
+                });
+
+                // 发送事件通知 UI 更新
                 cx.emit(ItemInfoEvent::Updated());
-                // 通知 UI 更新，确保标签状态正确显示
                 cx.notify();
             },
         }

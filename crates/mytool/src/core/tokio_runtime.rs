@@ -6,7 +6,7 @@
 
 use std::sync::OnceLock;
 
-use tokio::runtime::Runtime;
+use tokio::runtime::{Handle, Runtime};
 
 /// 全局独立的 Tokio Runtime（专门用于数据库操作）
 static DB_RUNTIME: OnceLock<Runtime> = OnceLock::new();
@@ -24,13 +24,26 @@ fn get_db_runtime() -> &'static Runtime {
 }
 
 /// 在独立的 tokio runtime 中执行异步操作（阻塞当前线程直到完成）
+///
+/// 注意：如果在现有 runtime 中调用，会使用新线程执行，避免 "runtime within runtime" 错误
 pub fn run_db_operation<F, T>(future: F) -> T
 where
     F: std::future::Future<Output = T> + Send + 'static,
     T: Send + 'static,
 {
-    let runtime = get_db_runtime();
-    runtime.block_on(future)
+    // 检查是否在现有 runtime 中
+    if Handle::try_current().is_ok() {
+        // 在现有 runtime 中：使用 std::thread::spawn 执行，避免 "runtime within runtime" 错误
+        let handle = std::thread::spawn(move || {
+            let runtime = get_db_runtime();
+            runtime.block_on(future)
+        });
+        handle.join().expect("Failed to join db operation thread")
+    } else {
+        // 不在 runtime 中：直接使用独立 runtime
+        let runtime = get_db_runtime();
+        runtime.block_on(future)
+    }
 }
 
 /// 在独立的 tokio runtime 中执行异步操作（非阻塞，返回 JoinHandle）
