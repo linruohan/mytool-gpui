@@ -91,7 +91,7 @@ impl RenderOnce for ProjectListItem {
                                             .icon(IconName::EditSymbolic)
                                             .on_click(move |_event, _window, _cx| {
                                                 let project = self.project.clone();
-                                                println!("edit project:{:?}", project);
+                                                tracing::debug!("edit project:{:?}", project);
                                             }),
                                     )
                                     .child(
@@ -100,7 +100,7 @@ impl RenderOnce for ProjectListItem {
                                             .small()
                                             .ghost()
                                             .on_click(|_, _, _cx| {
-                                                println!("delete project:");
+                                                tracing::debug!("delete project:");
                                             }),
                                     ),
                             ),
@@ -201,7 +201,7 @@ impl ListDelegate for ProjectListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with secondary: {}", secondary);
+        tracing::debug!("Confirmed with secondary: {}", secondary);
         window.dispatch_action(Box::new(SelectedProject), cx);
     }
 }

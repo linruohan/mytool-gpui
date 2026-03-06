@@ -54,7 +54,7 @@ impl ProjectsPanel {
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
-                    println!("project Color changed to: {:?}", color.unwrap().to_hex());
+                    tracing::debug!("project Color changed to: {:?}", color.unwrap().to_hex());
                 },
             }),
             cx.subscribe_in(&project_list, window, |this, _, ev: &ListEvent, window, cx| {
@@ -109,7 +109,7 @@ impl ProjectsPanel {
                 self.update_projects(cx);
             },
             ProjectEvent::Added(project) => {
-                println!("handle_project_event:");
+                tracing::debug!("handle_project_event:");
                 self.add_project(cx, project.clone())
             },
             ProjectEvent::Modified(project) => self.mod_project(cx, project.clone()),
@@ -126,7 +126,7 @@ impl ProjectsPanel {
         self.active_index
             .filter(|_| is_edit)
             .and_then(|index| {
-                println!("show_label_dialog: active index: {}", index);
+                tracing::debug!("show_label_dialog: active index: {}", index);
                 self.get_selected_project(IndexPath::new(index), cx)
             })
             .map(|label| {
@@ -239,7 +239,7 @@ impl ProjectsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
             let ret = crate::state_service::add_project(project.clone(), (*db).clone()).await;
-            println!("add_project {:?}", ret);
+            tracing::debug!("add_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
@@ -259,7 +259,7 @@ impl ProjectsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
             let ret = crate::state_service::mod_project(project.clone(), (*db).clone()).await;
-            println!("mod_project {:?}", ret);
+            tracing::debug!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
@@ -279,7 +279,7 @@ impl ProjectsPanel {
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
             let ret = crate::state_service::del_project(project.clone(), (*db).clone()).await;
-            println!("mod_project {:?}", ret);
+            tracing::debug!("mod_project {:?}", ret);
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();

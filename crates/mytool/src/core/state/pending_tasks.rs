@@ -58,11 +58,7 @@ impl PendingTasksState {
     /// 完成一个任务（减少计数）
     pub fn end_task(&self, description: &str) {
         let count = self.pending_count.fetch_sub(1, Ordering::SeqCst);
-        info!(
-            "✅ Pending task completed: {} (remaining: {})",
-            description,
-            count.saturating_sub(1)
-        );
+        info!("Pending task completed: {} (remaining: {})", description, count.saturating_sub(1));
 
         if let Ok(mut descriptions) = self.task_descriptions.write()
             && let Some(pos) = descriptions.iter().position(|d| d == description)

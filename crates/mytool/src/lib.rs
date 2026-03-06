@@ -280,7 +280,7 @@ pub fn init(cx: &mut App) {
                 .on_active(on_active);
 
             cx.on_focus_in(&container.focus_handle, window, |this: &mut StoryContainer, _, _| {
-                println!("StoryContainer focus in: {}", this.name);
+                tracing::debug!("StoryContainer focus in: {}", this.name);
             })
             .detach();
 

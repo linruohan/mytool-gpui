@@ -79,7 +79,7 @@ impl ItemsScheduledPanel {
     pub fn handle_schedule_event(&mut self, event: &ItemsScheduledEvent, _cx: &mut Context<Self>) {
         match event {
             ItemsScheduledEvent::Scheduled(_item) => {
-                println!("toggle finished item:");
+                tracing::debug!("toggle finished item:");
             },
         }
     }

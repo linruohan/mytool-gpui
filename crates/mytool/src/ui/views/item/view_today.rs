@@ -80,7 +80,7 @@ impl ItemsTodayPanel {
     pub fn handle_today_event(&mut self, event: &ItemsTodayEvent, _cx: &mut Context<Self>) {
         match event {
             ItemsTodayEvent::Finished(_item) => {
-                println!("toggle finished item:");
+                tracing::debug!("toggle finished item:");
             },
         }
     }

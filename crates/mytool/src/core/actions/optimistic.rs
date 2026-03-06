@@ -64,18 +64,16 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     let temp_id_for_log = temp_id_clone.clone();
 
     cx.spawn(async move |_cx| {
-        info!("🔄 Saving new item to database: {}", temp_id_for_log);
         let result = state_service::add_item_with_store(item_clone.clone(), store).await;
 
         match result {
             Ok(saved_item) => {
                 info!(
-                    "✅ Successfully saved item, replacing temp ID {} with real ID {}",
+                    "Successfully saved item, replacing temp ID {} with real ID {}",
                     temp_id_for_log, saved_item.id
                 );
             },
             Err(e) => {
-                error!("❌ Failed to save item");
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
                     "add_item_optimistic",
@@ -97,8 +95,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
 /// 2. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
 /// 3. 如果失败，记录错误日志
 pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
-    info!("🚀 update_item_optimistic START - item: {}, content: '{}'", item.id, item.content);
-
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
         let context = ErrorHandler::handle_with_location(e, "update_item_optimistic");
@@ -126,21 +122,18 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let item_id = item.id.clone();
     let item_for_db = item.clone();
 
-    info!("🔄 Saving to database - item: {}", item_id);
-
     cx.spawn(async move |_cx| {
         let result = state_service::mod_item_with_store(item_for_db.clone(), store).await;
 
         match result {
             Ok(updated_item) => {
                 info!(
-                    "✅ Successfully saved item update: {} with priority: {:?}, content: '{}', \
+                    "Successfully saved item update: {} with priority: {:?}, content: '{}', \
                      due={:?}",
                     item_id, updated_item.priority, updated_item.content, updated_item.due
                 );
             },
             Err(e) => {
-                error!("❌ Failed to save item update for {}", item_id);
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
                     "update_item_optimistic",
@@ -151,8 +144,6 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         }
     })
     .detach();
-
-    info!("🚀 update_item_optimistic END - database save spawned");
 }
 
 /// 乐观删除任务
@@ -184,17 +175,14 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let store = get_store(cx);
     let item_clone = item.clone();
 
-    info!("🔄 Deleting item from database: {}", item_id);
-
     cx.spawn(async move |_cx| {
         let result = state_service::del_item_with_store(item_clone.clone(), store).await;
 
         match result {
             Ok(_) => {
-                info!("✅ Successfully deleted item from database: {}", item_id);
+                info!("Successfully deleted item from database: {}", item_id);
             },
             Err(e) => {
-                error!("❌ Failed to delete item from database");
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
                     "delete_item_optimistic",
@@ -240,17 +228,14 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
     let store = get_store(cx);
     let item_id_clone = item_id.clone();
 
-    info!("🔄 Saving pinned status to database: {}", item_id);
-
     cx.spawn(async move |_cx| {
         let result = store.update_item_pin(&item_id_clone, pinned).await;
 
         match result {
             Ok(_) => {
-                info!("✅ Successfully saved pinned status: {}", item_id);
+                info!("Successfully saved pinned status: {}", item_id);
             },
             Err(e) => {
-                error!("❌ Failed to save pinned status: {:?}", e);
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
                     "set_item_pinned_optimistic",
@@ -297,18 +282,15 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     let store = get_store(cx);
     let item_clone = item.clone();
 
-    info!("🔄 Saving completion status to database: {}", item_id);
-
     cx.spawn(async move |_cx| {
         let result =
             state_service::finish_item_with_store(item_clone.clone(), checked, false, store).await;
 
         match result {
             Ok(_) => {
-                info!("✅ Successfully saved completion status: {}", item_id);
+                info!("Successfully saved completion status: {}", item_id);
             },
             Err(e) => {
-                error!("❌ Failed to save completion status");
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
                     "complete_item_optimistic",

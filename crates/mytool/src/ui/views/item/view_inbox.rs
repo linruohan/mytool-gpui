@@ -111,7 +111,7 @@ impl ItemsPanel {
     fn initialize_item_model(&self, _is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
         self.active_index
             .and_then(|index| {
-                println!("show_label_dialog: active index: {}", index);
+                tracing::debug!("show_label_dialog: active index: {}", index);
                 self.get_selected_item(IndexPath::new(index), cx)
             })
             .map(|label| {

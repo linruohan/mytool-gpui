@@ -66,7 +66,7 @@ pub fn get_store(cx: &App) -> Arc<todos::Store> {
 /// 新架构使用 TodoStore 作为唯一数据源，
 /// 简化代码并消除状态不一致风险。
 pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
-    // 🚀 初始化数据库连接状态（Store 延迟初始化）
+    // 初始化数据库连接状态
     cx.set_global(DBState::new(db.clone()));
 
     // 初始化统一的 TodoStore（唯一数据源）
@@ -84,26 +84,26 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化错误通知器
     cx.set_global(ErrorNotifier::new());
 
-    // 🚀 初始化观察者注册表（解决过度订阅问题）
+    // 初始化观察者注册表
     cx.set_global(ObserverRegistry::new());
 
-    // 🚀 初始化脏标记系统
+    // 初始化脏标记系统
     cx.set_global(DirtyFlags::new());
 
-    // 🚀 初始化待处理任务状态（用于跟踪异步保存操作）
+    // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
 
     // 异步加载数据并预初始化 Store
     cx.spawn(async move |cx| {
-        // 🚀 关键修复：在异步任务中使用全局 Store，避免重复创建
-        println!("[DEBUG] Loading data using global Store...");
+        // 使用全局 Store 加载数据
+        tracing::info!("Loading data using global Store...");
 
         // 获取全局 Store 实例
         let store = cx.update_global::<DBState, _>(|state, _| state.get_store());
 
         // 加载数据到 TodoStore（唯一数据源）
         let items = crate::state_service::load_items_with_store(store.clone()).await;
-        println!("[DEBUG] Loaded {} items", items.len());
+        tracing::info!("Loaded {} items", items.len());
 
         // 打印每个项目的 pinned 状态和 due
         // for item in &items {
@@ -113,12 +113,11 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         //     );
         // }
 
-        // 检查 inbox 条件的任务
         let inbox_items: Vec<&entity::ItemModel> = items
             .iter()
             .filter(|item| item.project_id.is_none() || item.project_id.as_deref() == Some(""))
             .collect();
-        println!("[DEBUG] Found {} inbox items (no project ID)", inbox_items.len());
+        tracing::info!("Found {} inbox items (no project ID)", inbox_items.len());
 
         // for (i, item) in inbox_items.iter().enumerate() {
         //     println!(
@@ -131,19 +130,19 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         // }
 
         let projects = crate::state_service::load_projects_with_store(store.clone()).await;
-        println!("[DEBUG] Loaded {} projects", projects.len());
+        tracing::info!("Loaded {} projects", projects.len());
 
         let sections = crate::state_service::load_sections_with_store(store.clone()).await;
-        println!("[DEBUG] Loaded {} sections", sections.len());
+        tracing::info!("Loaded {} sections", sections.len());
 
         let labels = crate::state_service::load_labels_with_store(store.clone()).await;
-        println!("[DEBUG] Loaded {} labels", labels.len());
+        tracing::info!("Loaded {} labels", labels.len());
 
-        // 🚀 关键修复：将加载的数据更新到 TodoStore
+        // 将加载的数据更新到 TodoStore
         // 使用 cx.update_global 在异步上下文中安全地更新全局状态
         cx.update_global::<TodoStore, _>(|store, _| {
-            println!(
-                "[DEBUG] Updating TodoStore with {} items, {} projects, {} sections, {} labels",
+            tracing::info!(
+                "Updating TodoStore with {} items, {} projects, {} sections, {} labels",
                 items.len(),
                 projects.len(),
                 sections.len(),
@@ -155,7 +154,7 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
             store.set_labels(labels);
         });
 
-        println!("[DEBUG] ✅ TodoStore updated successfully, UI will be notified");
+        tracing::info!("TodoStore updated successfully, UI will be notified");
     })
     .detach();
 }

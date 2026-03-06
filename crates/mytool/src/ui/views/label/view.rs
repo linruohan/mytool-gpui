@@ -52,7 +52,7 @@ impl LabelsPanel {
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
-                    println!("label Color changed to: {:?}", color.unwrap().to_hex());
+                    tracing::debug!("label Color changed to: {:?}", color.unwrap().to_hex());
                 },
             }),
             cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| {
@@ -97,7 +97,7 @@ impl LabelsPanel {
     }
 
     pub fn handle_label_event(&mut self, event: &LabelEvent, cx: &mut Context<Self>) {
-        println!("handle_label_event:");
+        tracing::debug!("handle_label_event:");
         match event {
             LabelEvent::Added(label) => add_label(label.clone(), cx),
             LabelEvent::Modified(label) => update_label(label.clone(), cx),
@@ -110,7 +110,7 @@ impl LabelsPanel {
         self.active_index
             .filter(|_| is_edit)
             .and_then(|index| {
-                println!("show_label_dialog: active index: {}", index);
+                tracing::debug!("show_label_dialog: active index: {}", index);
                 self.get_selected_label(IndexPath::new(index), cx)
             })
             .map(|label| {

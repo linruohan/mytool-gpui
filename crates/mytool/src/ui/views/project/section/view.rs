@@ -55,7 +55,7 @@ impl SectionsPanel {
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorGroupEvent::Change(color) => {
                     this.selected_color = *color;
-                    println!("section Color changed to: {:?}", color.unwrap().to_hex());
+                    tracing::debug!("section Color changed to: {:?}", color.unwrap().to_hex());
                 },
             }),
             cx.subscribe_in(&section_list, window, |this, _, ev: &ListEvent, window, cx| {
@@ -101,7 +101,7 @@ impl SectionsPanel {
     }
 
     pub fn handle_section_event(&mut self, event: &SectionEvent, cx: &mut Context<Self>) {
-        println!("handle_section_event:");
+        tracing::debug!("handle_section_event:");
         match event {
             SectionEvent::Added(section) => add_section(section.clone(), cx),
             SectionEvent::Modified(section) => update_section(section.clone(), cx),
@@ -119,7 +119,7 @@ impl SectionsPanel {
         self.active_index
             .filter(|_| is_edit)
             .and_then(|index| {
-                println!("show_section_dialog: active index: {}", index);
+                tracing::debug!("show_section_dialog: active index: {}", index);
                 self.get_selected_section(IndexPath::new(index), cx)
             })
             .map(|section| {

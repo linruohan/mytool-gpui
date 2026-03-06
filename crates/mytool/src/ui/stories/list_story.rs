@@ -107,20 +107,20 @@ impl ListStory {
             }),
             cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
                 LabelsPopoverEvent::Selected(label) => {
-                    println!("label_popover_list select: {:?}", label);
+                    tracing::debug!("label_popover_list select: {:?}", label);
                 },
                 LabelsPopoverEvent::DeSelected(_model) => {},
                 LabelsPopoverEvent::LabelsChanged(_labels) => {},
             }),
             cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
                 ListEvent::Select(ix) => {
-                    println!("List Selected: {:?}", ix);
+                    tracing::debug!("List Selected: {:?}", ix);
                 },
                 ListEvent::Confirm(ix) => {
-                    println!("List Confirmed: {:?}", ix);
+                    tracing::debug!("List Confirmed: {:?}", ix);
                 },
                 ListEvent::Cancel => {
-                    println!("List Cancelled");
+                    tracing::debug!("List Cancelled");
                 },
             }),
         ];
@@ -130,7 +130,7 @@ impl ListStory {
             let labels = load_items((*db).clone()).await;
             let rc_labels: Vec<Arc<ItemModel>> =
                 labels.iter().map(|label| Arc::new(label.clone())).collect();
-            println!("list_story: len labels: {}", rc_labels.len());
+            tracing::debug!("list_story: len labels: {}", rc_labels.len());
             cx.update_entity(&company_list_clone, |list, cx| {
                 list.delegate_mut().update_items(rc_labels);
                 cx.notify();

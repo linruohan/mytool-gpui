@@ -173,19 +173,11 @@ impl ItemRowState {
 
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        eprintln!(
-            "🔄🔄🔄 toggle_expand called - is_open: {}, item_id: {}",
-            self.is_open, self.item.id
-        );
-        info!("🔄🔄🔄 toggle_expand called - is_open: {}, item_id: {}", self.is_open, self.item.id);
-
         // 如果当前是展开状态，收缩时保存所有修改
         if self.is_open {
-            eprintln!("📥📥📥 toggle_expand: was open, will save - item_id: {}", self.item.id);
             self.save_all_changes(cx);
         }
         self.is_open = !self.is_open;
-        eprintln!("🔄🔄🔄 toggle_expand: new is_open: {}", self.is_open);
 
         // 如果展开，尝试让第一个输入框获得焦点
         if self.is_open {
@@ -216,12 +208,9 @@ impl ItemRowState {
     /// 收起详情面板并保存修改
     fn collapse(&mut self, cx: &mut Context<Self>) {
         if self.is_open {
-            eprintln!("🔻🔻🔻 COLLAPSE called - saving item: {}", self.item.id);
-            info!("🔻🔻🔻 COLLAPSE called - saving item: {}", self.item.id);
             self.save_all_changes(cx);
             self.is_open = false;
             cx.notify();
-            eprintln!("🔒🔒🔒 COLLAPSE completed - item: {}", self.item.id);
         }
     }
 

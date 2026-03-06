@@ -14,14 +14,14 @@ async fn main() {
     let db = match get_todo_conn().await {
         Ok(db) => db,
         Err(e) => {
-            eprintln!("Failed to connect to database: {:?}", e);
+            tracing::error!("Failed to connect to database: {:?}", e);
             process::exit(1);
         },
     };
 
     app.run(move |cx| {
         mytool::init(cx);
-        // 🚀 初始化状态（包括预初始化 Store）
+        // 初始化状态
         mytool::todo_state::state_init(cx, db);
         init_plugins(cx);
         cx.activate(true);

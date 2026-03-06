@@ -362,7 +362,7 @@ impl ItemInfoState {
     /// 保存所有修改到数据库
     pub fn save_all_changes(&mut self, cx: &mut Context<Self>) {
         // 🚨 添加明显的日志标记，方便调试
-        eprintln!("🔔🔔🔔 save_all_changes START - item_id: {}", self.state_manager.item.id);
+        tracing::debug!("save_all_changes START - item_id: {}", self.state_manager.item.id);
         info!("🔔🔔🔔 save_all_changes START - item_id: {}", self.state_manager.item.id);
 
         // 同步输入框内容
@@ -416,7 +416,6 @@ impl ItemInfoState {
             // 如果标签发生变化，先保存标签
             if labels_changed {
                 info!("save_all_changes: saving labels for item {}", item_id);
-                eprintln!("🏷️🏷️🏷️ Saving labels for item: {}", item_id);
                 let label_ids_to_save = selected_label_ids.clone();
                 let item_id_for_labels = item_id.clone();
 
@@ -426,25 +425,17 @@ impl ItemInfoState {
                 // 同步执行标签保存，确保在 update_item 之前完成
                 tokio_runtime::run_db_operation(async move {
                     let store = db_state.get_store();
-                    eprintln!("📦📦📦 Executing label save for item: {}", item_id_for_labels);
+                    tracing::debug!("Executing label save for item: {}", item_id_for_labels);
                     match store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await {
                         Ok(_) => {
                             info!(
                                 "save_all_changes: labels saved successfully for item {}",
                                 item_id_for_labels
                             );
-                            eprintln!(
-                                "✅✅✅ Labels saved successfully for item: {}",
-                                item_id_for_labels
-                            );
                         },
                         Err(e) => {
                             error!(
                                 "save_all_changes: failed to save labels for item {}: {:?}",
-                                item_id_for_labels, e
-                            );
-                            eprintln!(
-                                "❌❌❌ Failed to save labels for item {}: {:?}",
                                 item_id_for_labels, e
                             );
                         },
@@ -455,35 +446,27 @@ impl ItemInfoState {
                 self.state_manager.update_item(|item| {
                     item.labels = Some(new_labels_str.clone());
                 });
-                eprintln!("🏁🏁🏁 Label save completed for item: {}", item_id);
+                tracing::debug!("Label save completed for item: {}", item_id);
             }
 
-            // 🚀 关键修复：使用全局 Store 保存 item 到数据库，避免重复创建 Store 导致死锁
-            info!("Calling mod_item_with_store synchronously for item: {}", item_id);
-            eprintln!("💾💾💾 Calling mod_item_with_store for item: {}", item_id);
+            tracing::debug!("Calling mod_item_with_store synchronously for item: {}", item_id);
             let db_state = cx.global::<crate::todo_state::DBState>().clone();
             let item_for_save = self.state_manager.item.clone();
             let item_id_for_save = item_id.clone();
 
             tokio_runtime::run_db_operation(async move {
-                // 🚀 直接使用已初始化的 Store，不需要再次创建
                 let store = db_state.get_store();
-                eprintln!("📦📦📦 Executing database save for item: {}", item_id_for_save);
+                tracing::debug!("Executing database save for item: {}", item_id_for_save);
                 match state_service::mod_item_with_store(item_for_save, store).await {
                     Ok(_updated_item) => {
-                        info!("save_all_changes: item saved successfully: {}", item_id_for_save);
-                        eprintln!("✅✅✅ Item saved successfully: {}", item_id_for_save);
+                        tracing::info!("Item saved successfully: {}", item_id_for_save);
                     },
                     Err(e) => {
-                        error!(
-                            "save_all_changes: failed to save item {}: {:?}",
-                            item_id_for_save, e
-                        );
-                        eprintln!("❌❌❌ Failed to save item {}: {:?}", item_id_for_save, e);
+                        tracing::error!("Failed to save item {}: {:?}", item_id_for_save, e);
                     },
                 }
             });
-            eprintln!("🏁🏁🏁 Database operation completed for item: {}", item_id);
+            tracing::debug!("Database operation completed for item: {}", item_id);
 
             // 使用 cx.spawn() 更新 TodoStore 和发布事件
             let item_for_store = self.state_manager.item.clone();

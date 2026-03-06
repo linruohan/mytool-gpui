@@ -96,10 +96,10 @@ impl ErrorSeverity {
 
     pub fn icon(&self) -> &'static str {
         match self {
-            Self::Info => "ℹ️",
-            Self::Warning => "⚠️",
-            Self::Error => "❌",
-            Self::Critical => "🔥",
+            Self::Info => "[INFO]",
+            Self::Warning => "[WARN]",
+            Self::Error => "[ERROR]",
+            Self::Critical => "[CRITICAL]",
         }
     }
 }

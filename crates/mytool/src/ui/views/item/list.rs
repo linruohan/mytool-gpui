@@ -284,7 +284,7 @@ impl ListDelegate for ItemListDelegate {
     }
 
     fn confirm(&mut self, secondary: bool, window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        println!("Confirmed with items: {}", secondary);
+        tracing::debug!("Confirmed with items: {}", secondary);
         window.dispatch_action(Box::new(SelectedItem), cx);
         let item_some = self.selected_item();
         if let Some(item) = item_some {
