@@ -36,10 +36,15 @@ impl DBState {
         // 🚀 关键修复：同步创建 Store，避免 OnceCell 的死锁问题
         // 虽然这会阻塞应用启动，但只发生一次
         eprintln!("🔍 [DEBUG] DBState::new: Creating Store synchronously...");
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let store = runtime.block_on(async {
-            Store::new((*conn_arc).clone()).await.expect("Failed to create Store")
+
+        // 🔧 修复：使用 tokio::task::block_in_place 来在 async 上下文中运行阻塞代码
+        // 这会在当前线程上安全地执行阻塞操作
+        let store = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                Store::new((*conn_arc).clone()).await.expect("Failed to create Store")
+            })
         });
+
         eprintln!("✅ [DEBUG] DBState::new: Store created successfully");
 
         Self { conn: conn_arc, store: Arc::new(store), stats: Arc::new(ConnectionStats::new()) }

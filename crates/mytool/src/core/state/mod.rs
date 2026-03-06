@@ -18,8 +18,11 @@ pub use store::*;
 use todos::entity;
 
 /// 获取数据库连接的便捷函数
-pub async fn get_todo_conn() -> DatabaseConnection {
-    todos::init_db().await.expect("Failed to initialize database")
+///
+/// # Returns
+/// 返回 Result 类型，允许调用者处理错误
+pub async fn get_todo_conn() -> Result<DatabaseConnection, sea_orm::DbErr> {
+    todos::init_db().await
 }
 
 /// 获取数据库连接的便捷函数
