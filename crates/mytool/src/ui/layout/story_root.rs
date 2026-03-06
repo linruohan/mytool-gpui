@@ -6,9 +6,9 @@ use gpui_component::{Root, v_flex};
 
 use crate::AppTitleBar;
 pub struct StoryRoot {
-    focus_handle: FocusHandle,
-    title_bar: Entity<AppTitleBar>,
-    view: AnyView,
+    pub(crate) focus_handle: FocusHandle,
+    pub(crate) title_bar: Entity<AppTitleBar>,
+    pub(crate) view: AnyView,
 }
 
 impl StoryRoot {
@@ -35,25 +35,20 @@ impl Render for StoryRoot {
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
 
-        div()
-            .id("story-root")
-            // Global ShowPanelInfo / ToggleSearch actions are handled centrally by the app
-            // (so we don't attach local listeners here to avoid duplication).
-            .size_full()
-            .child(
-                v_flex()
-                    .size_full()
-                    .child(self.title_bar.clone())
-                    .child(
-                        div()
-                            .track_focus(&self.focus_handle)
-                            .flex_1()
-                            .overflow_hidden()
-                            .child(self.view.clone()),
-                    )
-                    .children(sheet_layer)
-                    .children(dialog_layer)
-                    .children(notification_layer),
-            )
+        div().id("story-root").size_full().child(
+            v_flex()
+                .size_full()
+                .child(self.title_bar.clone())
+                .child(
+                    div()
+                        .track_focus(&self.focus_handle)
+                        .flex_1()
+                        .overflow_hidden()
+                        .child(self.view.clone()),
+                )
+                .children(sheet_layer)
+                .children(dialog_layer)
+                .children(notification_layer),
+        )
     }
 }

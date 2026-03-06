@@ -10,7 +10,7 @@ use std::sync::Arc;
 pub use cache::*;
 pub use database::*;
 pub use events::*;
-use gpui::{App, BorrowAppContext};
+use gpui::App;
 pub use observer::*;
 pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
@@ -76,7 +76,7 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     cx.set_global(PendingTasksState::new());
 
     // 异步加载数据并预初始化 Store
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         // 🚀 关键修复：在异步任务中预初始化全局 Store，避免后续在 UI 线程的阻塞调用中初始化导致死锁
         println!("[DEBUG] Pre-initializing global Store in async task...");
 
@@ -126,9 +126,23 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let labels = crate::state_service::load_labels(db.clone()).await;
         println!("[DEBUG] Loaded {} labels", labels.len());
 
-        // 🚀 关键修复：不在此处更新 UI，让组件自行加载
-        // 由于我们无法在 async move 中访问 cx，所以改为在组件首次渲染时加载数据
-        println!("[DEBUG] Data loaded, but UI update skipped - will be loaded on demand");
+        // 🚀 关键修复：将加载的数据更新到 TodoStore
+        // 使用 cx.update_global 在异步上下文中安全地更新全局状态
+        cx.update_global::<TodoStore, _>(|store, _| {
+            println!(
+                "[DEBUG] Updating TodoStore with {} items, {} projects, {} sections, {} labels",
+                items.len(),
+                projects.len(),
+                sections.len(),
+                labels.len()
+            );
+            store.set_items(items);
+            store.set_projects(projects);
+            store.set_sections(sections);
+            store.set_labels(labels);
+        });
+
+        println!("[DEBUG] ✅ TodoStore updated successfully, UI will be notified");
     })
     .detach();
 }

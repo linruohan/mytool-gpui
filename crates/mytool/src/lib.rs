@@ -12,6 +12,7 @@ use gpui_component::{
     dock::{PanelInfo, register_panel},
     h_flex,
     scroll::ScrollbarShow,
+    text::markdown,
 };
 use serde::Deserialize;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
@@ -72,7 +73,6 @@ actions!(mytool, [
     About,
     Open,
     Quit,
-    CloseWindow,
     ToggleSearch,
     TestAction,
     Tab,
@@ -140,33 +140,27 @@ pub fn create_new_window_with_size<F, E>(
             ..Default::default()
         };
 
-        let window_result = cx.open_window(options, |window, cx| {
-            let view = crate_view_fn(window, cx);
-            let story_root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
+        let window = cx
+            .open_window(options, |window, cx| {
+                let view = crate_view_fn(window, cx);
+                let story_root = cx.new(|cx| StoryRoot::new(title.clone(), view, window, cx));
 
-            // Set focus to the StoryRoot to enable it's actions.
-            let focus_handle = story_root.focus_handle(cx);
-            window.defer(cx, move |window, cx| {
-                focus_handle.focus(window, cx);
-            });
+                // Set focus to the StoryRoot to enable it's actions.
+                let focus_handle = story_root.focus_handle(cx);
+                window.defer(cx, move |window, cx| {
+                    focus_handle.focus(window, cx);
+                });
 
-            cx.new(|cx| Root::new(story_root, window, cx))
-        });
+                cx.new(|cx| Root::new(story_root, window, cx))
+            })
+            .expect("failed to open window");
 
-        let window = match window_result {
-            Ok(win) => win,
-            Err(e) => {
-                tracing::error!("failed to open window: {:?}", e);
-                return Ok::<_, anyhow::Error>(());
-            },
-        };
-
-        if let Err(e) = window.update(cx, |_, window, _| {
-            window.activate_window();
-            window.set_window_title(&title);
-        }) {
-            tracing::error!("failed to update window: {:?}", e);
-        }
+        window
+            .update(cx, |_, window, _| {
+                window.activate_window();
+                window.set_window_title(&title);
+            })
+            .expect("failed to update window");
 
         Ok::<_, anyhow::Error>(())
     })
@@ -215,7 +209,6 @@ pub fn init(cx: &mut App) {
     ]);
 
     cx.on_action(|_: &Quit, cx: &mut App| {
-        tracing::info!("🚀 Quit requested, exiting...");
         cx.quit();
     });
 
@@ -251,35 +244,29 @@ pub fn init(cx: &mut App) {
         }
     });
 
-    cx.on_action(|_: &ToggleSearch, cx: &mut App| {
+    cx.on_action(|_: &About, cx: &mut App| {
         if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
             cx.defer(move |cx| {
                 window
-                    .update(cx, |_root, window, cx| {
-                        // Respect focused input: if an input is focused, ignore toggle
-                        if window.has_focused_input(cx) {
-                            return;
-                        }
-                        window.push_notification("You have toggled search.", cx);
+                    .update(cx, |_, window, cx| {
+                        window.defer(cx, |window, cx| {
+                            window.open_alert_dialog(cx, |alert, _, _| {
+                                alert.title("About").description(markdown(
+                                    "GPUI Component mytool\n\n\
+                                    Version 0.1.0\n\n\
+                                    https://github/linruohan/gpui-component",
+                                ))
+                            });
+                        });
                     })
-                    .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
-                    .ok();
+                    .unwrap();
             });
         }
     });
 
     register_panel(cx, PANEL_NAME, |_, _, info, window, cx| {
         let story_state = match info {
-            PanelInfo::Panel(value) => {
-                serde_json::from_value::<StoryState>(value.clone()).unwrap_or_else(|e| {
-                    tracing::error!(
-                        "failed to deserialize panel StoryState: {:?}. Falling back to ListStory",
-                        e
-                    );
-                    // Fallback to a default StoryState that points to ListStory
-                    StoryState { story_klass: SharedString::from("ListStory") }
-                })
-            },
+            PanelInfo::Panel(value) => StoryState::from_value(value.clone()),
             _ => {
                 unreachable!("Invalid PanelInfo: {:?}", info)
             },
@@ -297,8 +284,8 @@ pub fn init(cx: &mut App) {
             })
             .detach();
 
-            container.name = SharedString::from(title);
-            container.description = SharedString::from(description);
+            container.name = title.into();
+            container.description = description.into();
             container.closable = closable;
             container.zoomable = zoomable;
             container

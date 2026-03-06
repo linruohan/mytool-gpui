@@ -10,10 +10,14 @@ pub struct StoryState {
 }
 
 impl StoryState {
-    pub(crate) fn to_value(&self) -> serde_json::Value {
+    pub fn to_value(&self) -> serde_json::Value {
         serde_json::json!({
             "story_klass": self.story_klass,
         })
+    }
+
+    pub fn from_value(value: serde_json::Value) -> Self {
+        serde_json::from_value(value).unwrap()
     }
 
     pub(crate) fn to_story(
