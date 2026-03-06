@@ -95,6 +95,14 @@ pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -
     Store::new(db).await.unwrap().get_items_by_project(project_id).await.unwrap_or_default()
 }
 
+/// 🚀 新增：使用全局 Store 获取 items by project_id
+pub async fn get_items_by_project_id_with_store(
+    project_id: &str,
+    store: Arc<Store>,
+) -> Vec<ItemModel> {
+    store.get_items_by_project(project_id).await.unwrap_or_default()
+}
+
 // ==================== 批量操作 ====================
 
 /// 批量添加任务

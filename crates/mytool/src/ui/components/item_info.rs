@@ -361,6 +361,10 @@ impl ItemInfoState {
 
     /// 保存所有修改到数据库
     pub fn save_all_changes(&mut self, cx: &mut Context<Self>) {
+        // 🚨 添加明显的日志标记，方便调试
+        eprintln!("🔔🔔🔔 save_all_changes START - item_id: {}", self.state_manager.item.id);
+        info!("🔔🔔🔔 save_all_changes START - item_id: {}", self.state_manager.item.id);
+
         // 同步输入框内容
         let has_input_changes = self.sync_inputs(cx);
 
@@ -412,23 +416,35 @@ impl ItemInfoState {
             // 如果标签发生变化，先保存标签
             if labels_changed {
                 info!("save_all_changes: saving labels for item {}", item_id);
-                let db = get_db_connection(cx);
+                eprintln!("🏷️🏷️🏷️ Saving labels for item: {}", item_id);
                 let label_ids_to_save = selected_label_ids.clone();
                 let item_id_for_labels = item_id.clone();
 
+                // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+                let db_state = cx.global::<crate::todo_state::DBState>().clone();
+
                 // 同步执行标签保存，确保在 update_item 之前完成
                 tokio_runtime::run_db_operation(async move {
-                    let store = todos::Store::new((*db).clone()).await.unwrap();
+                    let store = db_state.get_store();
+                    eprintln!("📦📦📦 Executing label save for item: {}", item_id_for_labels);
                     match store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await {
                         Ok(_) => {
                             info!(
                                 "save_all_changes: labels saved successfully for item {}",
                                 item_id_for_labels
                             );
+                            eprintln!(
+                                "✅✅✅ Labels saved successfully for item: {}",
+                                item_id_for_labels
+                            );
                         },
                         Err(e) => {
                             error!(
                                 "save_all_changes: failed to save labels for item {}: {:?}",
+                                item_id_for_labels, e
+                            );
+                            eprintln!(
+                                "❌❌❌ Failed to save labels for item {}: {:?}",
                                 item_id_for_labels, e
                             );
                         },
@@ -439,10 +455,12 @@ impl ItemInfoState {
                 self.state_manager.update_item(|item| {
                     item.labels = Some(new_labels_str.clone());
                 });
+                eprintln!("🏁🏁🏁 Label save completed for item: {}", item_id);
             }
 
             // 🚀 关键修复：使用全局 Store 保存 item 到数据库，避免重复创建 Store 导致死锁
             info!("Calling mod_item_with_store synchronously for item: {}", item_id);
+            eprintln!("💾💾💾 Calling mod_item_with_store for item: {}", item_id);
             let db_state = cx.global::<crate::todo_state::DBState>().clone();
             let item_for_save = self.state_manager.item.clone();
             let item_id_for_save = item_id.clone();
@@ -450,18 +468,22 @@ impl ItemInfoState {
             tokio_runtime::run_db_operation(async move {
                 // 🚀 直接使用已初始化的 Store，不需要再次创建
                 let store = db_state.get_store();
+                eprintln!("📦📦📦 Executing database save for item: {}", item_id_for_save);
                 match state_service::mod_item_with_store(item_for_save, store).await {
                     Ok(_updated_item) => {
                         info!("save_all_changes: item saved successfully: {}", item_id_for_save);
+                        eprintln!("✅✅✅ Item saved successfully: {}", item_id_for_save);
                     },
                     Err(e) => {
                         error!(
                             "save_all_changes: failed to save item {}: {:?}",
                             item_id_for_save, e
                         );
+                        eprintln!("❌❌❌ Failed to save item {}: {:?}", item_id_for_save, e);
                     },
                 }
             });
+            eprintln!("🏁🏁🏁 Database operation completed for item: {}", item_id);
 
             // 使用 cx.spawn() 更新 TodoStore 和发布事件
             let item_for_store = self.state_manager.item.clone();
@@ -803,7 +825,7 @@ impl ItemInfoState {
     ) {
         let item_id = self.state_manager.item.id.clone();
         let label_name = label.name.clone();
-        let db = get_db_connection(cx);
+        let _db = get_db_connection(cx);
 
         // 先更新本地状态，确保UI立即响应且状态保持一致
         self.label_popover_list.update(cx, |popover_list, cx| {
@@ -817,8 +839,11 @@ impl ItemInfoState {
             }
         });
 
+        // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
+
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new((*db).clone()).await.unwrap();
+            let store = db_state.get_store();
             match store.add_label_to_item(&item_id, &label_name).await {
                 Ok(_) => {
                     NotificationSystem::debug(format!("Label '{}' added to item", label_name));
@@ -839,9 +864,9 @@ impl ItemInfoState {
     ) {
         let item_id = self.state_manager.item.id.clone();
         let label_id = label.id.clone();
-        let db = get_db_connection(cx);
+        let _db = get_db_connection(cx);
 
-        // 先更新本地状态，确保UI立即响应且状态保持一致
+        // 先更新本地状态，确保 UI 立即响应且状态保持一致
         self.label_popover_list.update(cx, |popover_list, cx| {
             popover_list.selected_labels.retain(|l| l.id != label.id);
             // 同步更新 LabelCheckListDelegate 的 checked_list
@@ -851,8 +876,11 @@ impl ItemInfoState {
             });
         });
 
+        // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
+
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new((*db).clone()).await.unwrap();
+            let store = db_state.get_store();
             match store.remove_label_from_item(&item_id, &label_id).await {
                 Ok(_) => {
                     NotificationSystem::debug("Label removed from item");
@@ -1016,11 +1044,11 @@ impl ItemInfoState {
             // 异步加载当前项目的标签
             let item_id_for_labels = item.id.clone();
             let label_popover_list = self.label_popover_list.clone();
-            let db_for_labels = get_db_connection(cx);
+            let db_state = cx.global::<crate::todo_state::DBState>().clone();
             let this_entity = cx.entity();
 
             cx.spawn(async move |_this, cx| {
-                let store = todos::Store::new((*db_for_labels).clone()).await.unwrap();
+                let store = db_state.get_store();
                 match store.get_labels_by_item(&item_id_for_labels).await {
                     Ok(item_labels) => {
                         let label_ids: Vec<String> =
@@ -1148,15 +1176,17 @@ impl ItemInfoState {
 
         // 持久化到数据库
         let item_id = self.state_manager.item.id.clone();
-        let db = get_db_connection(cx);
         let label_ids_vec: Vec<String> = selected_label_ids
             .split(';')
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
             .collect();
 
+        // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
+
         cx.spawn(async move |_this, _cx| {
-            let store = todos::Store::new((*db).clone()).await.unwrap();
+            let store = db_state.get_store();
             match store.set_item_labels(&item_id, &label_ids_vec).await {
                 Ok(_) => {
                     NotificationSystem::debug(format!(

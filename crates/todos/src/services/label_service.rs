@@ -89,14 +89,19 @@ impl LabelService {
     }
 
     /// Get or create a label by name
+    ///
+    /// 关键修复：首先全局查找 name（忽略 source_id），避免 UNIQUE constraint 错误
+    /// 因为 labels 表有 UNIQUE(name) 约束，相同 name 的 label 只能存在一个
     pub async fn get_or_create_label(
         &self,
         name: &str,
-        source_id: &str,
+        _source_id: &str,
     ) -> Result<LabelModel, TodoError> {
         let _timer = self.metrics.start_timer("get_or_create_label");
 
-        if let Some(label) = self.label_repo.find_by_name(name, source_id).await? {
+        // 关键修复：首先只按 name 查找（全局查找），不指定 source_id
+        // 这样可以找到已存在的同名 label，避免尝试插入导致 UNIQUE constraint 错误
+        if let Some(label) = self.find_label_by_name_global(name).await? {
             return Ok(label);
         }
 
@@ -104,7 +109,7 @@ impl LabelService {
             id: uuid::Uuid::new_v4().to_string(),
             name: name.to_string(),
             color: "#ff0000".to_string(),
-            source_id: Some(source_id.to_string()),
+            source_id: Some(_source_id.to_string()),
             backend_type: Some("local".to_string()),
             is_deleted: false,
             is_favorite: false,
@@ -114,6 +119,15 @@ impl LabelService {
         let label = self.insert_label(new_label).await?;
         self.metrics.record_operation("get_or_create_label", 1).await;
         Ok(label)
+    }
+
+    /// 全局查找 label by name（不考虑 source_id）
+    async fn find_label_by_name_global(&self, name: &str) -> Result<Option<LabelModel>, TodoError> {
+        LabelEntity::find()
+            .filter(labels::Column::Name.eq(name))
+            .one(&*self.db)
+            .await
+            .map_err(|e| TodoError::DatabaseError(e.to_string()))
     }
 
     /// Get labels by source

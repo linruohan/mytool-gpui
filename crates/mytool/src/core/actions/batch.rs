@@ -10,11 +10,10 @@
 use std::sync::Arc;
 
 use gpui::{App, AsyncApp};
-use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
 use tracing::{error, info};
 
-use crate::core::state::{TodoStore, get_db_connection};
+use crate::core::state::TodoStore;
 
 /// 批量操作队列
 ///
@@ -75,22 +74,23 @@ pub fn batch_add_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
         return;
     }
 
-    let db = get_db_connection(cx);
     let item_count = items.len();
 
     info!("Batch adding {} items", item_count);
 
     cx.spawn(async move |cx| {
+        let store =
+            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
         let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
 
-        match crate::state_service::batch_add_items(items_vec, (*db).clone()).await {
+        match crate::state_service::batch_add_items(items_vec, (*store.db()).clone()).await {
             Ok(new_items) => {
                 info!("Successfully added {} items in batch", new_items.len());
 
                 // 批量更新 TodoStore
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in new_items {
-                        store.add_item(Arc::new(item));
+                        todo_store.add_item(Arc::new(item));
                     }
                 });
             },
@@ -110,22 +110,23 @@ pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
         return;
     }
 
-    let db = get_db_connection(cx);
     let item_count = items.len();
 
     info!("Batch updating {} items", item_count);
 
     cx.spawn(async move |cx| {
+        let store =
+            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
         let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
 
-        match crate::state_service::batch_update_items(items_vec, (*db).clone()).await {
+        match crate::state_service::batch_update_items(items_vec, (*store.db()).clone()).await {
             Ok(updated_items) => {
                 info!("Successfully updated {} items in batch", updated_items.len());
 
                 // 批量更新 TodoStore
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in updated_items {
-                        store.update_item(Arc::new(item));
+                        todo_store.update_item(Arc::new(item));
                     }
                 });
             },
@@ -145,21 +146,23 @@ pub fn batch_delete_items(item_ids: Vec<String>, cx: &mut App) {
         return;
     }
 
-    let db = get_db_connection(cx);
     let item_count = item_ids.len();
     let ids_clone = item_ids.clone();
 
     info!("Batch deleting {} items", item_count);
 
     cx.spawn(async move |cx| {
-        match crate::state_service::batch_delete_items(item_ids, (*db).clone()).await {
+        let store =
+            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
+
+        match crate::state_service::batch_delete_items(item_ids, (*store.db()).clone()).await {
             Ok(deleted_count) => {
                 info!("Successfully deleted {} items in batch", deleted_count);
 
                 // 批量更新 TodoStore
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item_id in ids_clone {
-                        store.remove_item(&item_id);
+                        todo_store.remove_item(&item_id);
                     }
                 });
             },
@@ -179,18 +182,20 @@ pub fn batch_complete_items(item_ids: Vec<String>, checked: bool, cx: &mut App) 
         return;
     }
 
-    let db = get_db_connection(cx);
     let item_count = item_ids.len();
     let ids_clone = item_ids.clone();
 
     info!("Batch {} {} items", if checked { "completing" } else { "uncompleting" }, item_count);
 
     cx.spawn(async move |cx| {
+        let store =
+            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
+
         match crate::state_service::batch_complete_items(
             ids_clone.clone(),
             checked,
             false,
-            (*db).clone(),
+            (*store.db()).clone(),
         )
         .await
         {
@@ -198,10 +203,10 @@ pub fn batch_complete_items(item_ids: Vec<String>, checked: bool, cx: &mut App) 
                 info!("Successfully updated {} items in batch", updated_count);
 
                 // 批量更新 TodoStore
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item_id in ids_clone {
                         // 查找并更新任务
-                        if let Some(item) = store.all_items.iter().find(|i| i.id == item_id) {
+                        if let Some(item) = todo_store.all_items.iter().find(|i| i.id == item_id) {
                             let mut updated_item = (**item).clone();
                             updated_item.checked = checked;
                             if checked {
@@ -209,7 +214,7 @@ pub fn batch_complete_items(item_ids: Vec<String>, checked: bool, cx: &mut App) 
                             } else {
                                 updated_item.completed_at = None;
                             }
-                            store.update_item(Arc::new(updated_item));
+                            todo_store.update_item(Arc::new(updated_item));
                         }
                     }
                 });
@@ -225,7 +230,7 @@ pub fn batch_complete_items(item_ids: Vec<String>, checked: bool, cx: &mut App) 
 /// 刷新批量操作队列
 ///
 /// 将队列中的所有操作提交到数据库
-pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp, db: DatabaseConnection) {
+pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp) {
     if queue.is_empty() {
         return;
     }
@@ -233,15 +238,19 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp, db: Da
     let total_ops = queue.total_operations();
     info!("Flushing batch queue with {} operations", total_ops);
 
+    // 获取全局 Store
+    let store = cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
+    let db = store.db();
+
     // 批量添加
     if !queue.pending_adds.is_empty() {
         let items: Vec<ItemModel> =
             queue.pending_adds.iter().map(|item| (**item).clone()).collect();
-        match crate::state_service::batch_add_items(items, db.clone()).await {
+        match crate::state_service::batch_add_items(items, (*db).clone()).await {
             Ok(new_items) => {
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in new_items {
-                        store.add_item(Arc::new(item));
+                        todo_store.add_item(Arc::new(item));
                     }
                 });
             },
@@ -255,11 +264,11 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp, db: Da
     if !queue.pending_updates.is_empty() {
         let items: Vec<ItemModel> =
             queue.pending_updates.iter().map(|item| (**item).clone()).collect();
-        match crate::state_service::batch_update_items(items, db.clone()).await {
+        match crate::state_service::batch_update_items(items, (*db).clone()).await {
             Ok(updated_items) => {
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in updated_items {
-                        store.update_item(Arc::new(item));
+                        todo_store.update_item(Arc::new(item));
                     }
                 });
             },
@@ -272,11 +281,11 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp, db: Da
     // 批量删除
     if !queue.pending_deletes.is_empty() {
         let ids = queue.pending_deletes.clone();
-        match crate::state_service::batch_delete_items(ids.clone(), db.clone()).await {
+        match crate::state_service::batch_delete_items(ids.clone(), (*db).clone()).await {
             Ok(_) => {
-                cx.update_global::<TodoStore, _>(|store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item_id in ids {
-                        store.remove_item(&item_id);
+                        todo_store.remove_item(&item_id);
                     }
                 });
             },
@@ -306,18 +315,20 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp, db: Da
                 to_complete.clone(),
                 true,
                 false,
-                db.clone(),
+                (*db).clone(),
             )
             .await
             {
                 Ok(_) => {
-                    cx.update_global::<TodoStore, _>(|store, _| {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
                         for item_id in to_complete {
-                            if let Some(item) = store.all_items.iter().find(|i| i.id == item_id) {
+                            if let Some(item) =
+                                todo_store.all_items.iter().find(|i| i.id == item_id)
+                            {
                                 let mut updated_item = (**item).clone();
                                 updated_item.checked = true;
                                 updated_item.completed_at = Some(chrono::Utc::now().naive_utc());
-                                store.update_item(Arc::new(updated_item));
+                                todo_store.update_item(Arc::new(updated_item));
                             }
                         }
                     });
@@ -334,18 +345,20 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp, db: Da
                 to_uncomplete.clone(),
                 false,
                 false,
-                db.clone(),
+                (*db).clone(),
             )
             .await
             {
                 Ok(_) => {
-                    cx.update_global::<TodoStore, _>(|store, _| {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
                         for item_id in to_uncomplete {
-                            if let Some(item) = store.all_items.iter().find(|i| i.id == item_id) {
+                            if let Some(item) =
+                                todo_store.all_items.iter().find(|i| i.id == item_id)
+                            {
                                 let mut updated_item = (**item).clone();
                                 updated_item.checked = false;
                                 updated_item.completed_at = None;
-                                store.update_item(Arc::new(updated_item));
+                                todo_store.update_item(Arc::new(updated_item));
                             }
                         }
                     });

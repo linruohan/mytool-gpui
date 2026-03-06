@@ -14,7 +14,7 @@ use tracing::{error, info};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
+        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_store},
     },
     state_service,
 };
@@ -59,13 +59,13 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     });
 
     // 3. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_clone = item.clone();
     let temp_id_for_log = temp_id_clone.clone();
 
     cx.spawn(async move |_cx| {
         info!("🔄 Saving new item to database: {}", temp_id_for_log);
-        let result = state_service::add_item(item_clone.clone(), (*db).clone()).await;
+        let result = state_service::add_item_with_store(item_clone.clone(), store).await;
 
         match result {
             Ok(saved_item) => {
@@ -122,14 +122,14 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     });
 
     // 3. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_id = item.id.clone();
     let item_for_db = item.clone();
 
     info!("🔄 Saving to database - item: {}", item_id);
 
     cx.spawn(async move |_cx| {
-        let result = state_service::mod_item(item_for_db.clone(), (*db).clone()).await;
+        let result = state_service::mod_item_with_store(item_for_db.clone(), store).await;
 
         match result {
             Ok(updated_item) => {
@@ -181,13 +181,13 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     });
 
     // 2. 异步从数据库删除（使用 cx.spawn，不阻塞 UI）
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_clone = item.clone();
 
     info!("🔄 Deleting item from database: {}", item_id);
 
     cx.spawn(async move |_cx| {
-        let result = state_service::del_item(item_clone.clone(), (*db).clone()).await;
+        let result = state_service::del_item_with_store(item_clone.clone(), store).await;
 
         match result {
             Ok(_) => {
@@ -237,16 +237,13 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
     });
 
     // 2. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_id_clone = item_id.clone();
 
     info!("🔄 Saving pinned status to database: {}", item_id);
 
     cx.spawn(async move |_cx| {
-        let result = {
-            let store = todos::Store::new((*db).clone()).await.unwrap();
-            store.update_item_pin(&item_id_clone, pinned).await
-        };
+        let result = store.update_item_pin(&item_id_clone, pinned).await;
 
         match result {
             Ok(_) => {
@@ -297,14 +294,14 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     });
 
     // 2. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_clone = item.clone();
 
     info!("🔄 Saving completion status to database: {}", item_id);
 
     cx.spawn(async move |_cx| {
         let result =
-            state_service::finish_item(item_clone.clone(), checked, false, (*db).clone()).await;
+            state_service::finish_item_with_store(item_clone.clone(), checked, false, store).await;
 
         match result {
             Ok(_) => {

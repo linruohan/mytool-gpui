@@ -43,6 +43,24 @@ pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
     cx.global::<DBState>().get_connection()
 }
 
+/// 获取全局 Store 实例的便捷函数
+///
+/// 这是一个辅助函数，用于简化从全局状态获取 Store 实例的操作。
+/// 返回的 Arc<Store> 是轻量级的，可以安全地克隆。
+///
+/// # 示例
+/// ```rust
+/// let store = get_store(cx);
+/// cx.spawn(async move |_cx| {
+///     // 使用 store 进行数据库操作
+/// })
+/// .detach();
+/// ```
+#[inline]
+pub fn get_store(cx: &App) -> Arc<todos::Store> {
+    cx.global::<DBState>().get_store()
+}
+
 /// 初始化所有状态
 ///
 /// 新架构使用 TodoStore 作为唯一数据源，
@@ -77,25 +95,23 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
     // 异步加载数据并预初始化 Store
     cx.spawn(async move |cx| {
-        // 🚀 关键修复：在异步任务中预初始化全局 Store，避免后续在 UI 线程的阻塞调用中初始化导致死锁
-        println!("[DEBUG] Pre-initializing global Store in async task...");
+        // 🚀 关键修复：在异步任务中使用全局 Store，避免重复创建
+        println!("[DEBUG] Loading data using global Store...");
 
-        // 注意：我们无法在 async move 中访问 _cx.global()
-        // 所以 Store 会在第一次调用 get_or_create_store 时初始化
-        // 但由于是在 tokio 线程池中执行，不会阻塞 UI 线程
+        // 获取全局 Store 实例
+        let store = cx.update_global::<DBState, _>(|state, _| state.get_store());
 
         // 加载数据到 TodoStore（唯一数据源）
-        println!("[DEBUG] Loading items...");
-        let items = crate::state_service::load_items(db.clone()).await;
+        let items = crate::state_service::load_items_with_store(store.clone()).await;
         println!("[DEBUG] Loaded {} items", items.len());
 
         // 打印每个项目的 pinned 状态和 due
-        for item in &items {
-            println!(
-                "[DEBUG] Item {}: content={}, pinned={}, due={:?}",
-                item.id, item.content, item.pinned, item.due
-            );
-        }
+        // for item in &items {
+        //     println!(
+        //         "[DEBUG] Item {}: content={}, pinned={}, due={:?}",
+        //         item.id, item.content, item.pinned, item.due
+        //     );
+        // }
 
         // 检查 inbox 条件的任务
         let inbox_items: Vec<&entity::ItemModel> = items
@@ -104,26 +120,23 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
             .collect();
         println!("[DEBUG] Found {} inbox items (no project ID)", inbox_items.len());
 
-        for (i, item) in inbox_items.iter().enumerate() {
-            println!(
-                "[DEBUG] Inbox item {}: {}, pinned={}, due={:?}",
-                i + 1,
-                item.content,
-                item.pinned,
-                item.due
-            );
-        }
+        // for (i, item) in inbox_items.iter().enumerate() {
+        //     println!(
+        //         "[DEBUG] Inbox item {}: {}, pinned={}, due={:?}",
+        //         i + 1,
+        //         item.content,
+        //         item.pinned,
+        //         item.due
+        //     );
+        // }
 
-        println!("[DEBUG] Loading projects...");
-        let projects = crate::state_service::load_projects(db.clone()).await;
+        let projects = crate::state_service::load_projects_with_store(store.clone()).await;
         println!("[DEBUG] Loaded {} projects", projects.len());
 
-        println!("[DEBUG] Loading sections...");
-        let sections = crate::state_service::load_sections(db.clone()).await;
+        let sections = crate::state_service::load_sections_with_store(store.clone()).await;
         println!("[DEBUG] Loaded {} sections", sections.len());
 
-        println!("[DEBUG] Loading labels...");
-        let labels = crate::state_service::load_labels(db.clone()).await;
+        let labels = crate::state_service::load_labels_with_store(store.clone()).await;
         println!("[DEBUG] Loaded {} labels", labels.len());
 
         // 🚀 关键修复：将加载的数据更新到 TodoStore

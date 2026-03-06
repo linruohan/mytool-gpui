@@ -39,14 +39,11 @@ pub struct ServiceManager {
 impl ServiceManager {
     /// Create a new ServiceManager
     pub async fn new(db: Arc<DatabaseConnection>) -> Result<Self, TodoError> {
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Starting");
-
         let event_bus = Arc::new(EventBus::new());
         let metrics = Arc::new(MetricsCollector::new());
 
         // 🚀 关键修复：使用 try_read 避免死锁
         // 如果无法获取锁，panic 并提示可能的死锁问题
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Reading gconfig...");
         let database_config = gconfig::get()
             .try_read()
             .expect(
@@ -55,54 +52,36 @@ impl ServiceManager {
             )
             .database()
             .clone();
-        eprintln!("✅ [DEBUG] ServiceManager::new: gconfig read successfully");
 
         // Create new components
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating DatabaseManager");
         let database_manager = Arc::new(DatabaseManager::new(database_config).await?);
-        eprintln!("✅ [DEBUG] ServiceManager::new: DatabaseManager created");
 
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating TransactionManager");
         let transaction_manager = Arc::new(TransactionManager::new(db.clone()));
-        eprintln!("✅ [DEBUG] ServiceManager::new: TransactionManager created");
 
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating EventRecorder");
         let event_recorder = Arc::new(EventRecorder::new(db.clone()));
-        eprintln!("✅ [DEBUG] ServiceManager::new: EventRecorder created");
 
         // Apply database patches
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating PatchManager");
         let patch_manager = PatchManager::new(db.clone());
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Applying patches");
         patch_manager.apply_patches().await?;
-        eprintln!("✅ [DEBUG] ServiceManager::new: Patches applied");
 
         // Create services with dependencies
         // Note: Services are created in order of dependency
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating LabelService");
         let label_service =
             Arc::new(LabelService::new(db.clone(), event_bus.clone(), metrics.clone()));
-        eprintln!("✅ [DEBUG] ServiceManager::new: LabelService created");
 
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating ItemService");
         let item_service = Arc::new(ItemService::new(
             db.clone(),
             event_bus.clone(),
             metrics.clone(),
             label_service.clone(),
         ));
-        eprintln!("✅ [DEBUG] ServiceManager::new: ItemService created");
-
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating SectionService");
         let section_service = Arc::new(SectionService::new(
             db.clone(),
             event_bus.clone(),
             metrics.clone(),
             item_service.clone(),
         ));
-        eprintln!("✅ [DEBUG] ServiceManager::new: SectionService created");
 
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating ProjectService");
         let project_service = Arc::new(ProjectService::new(
             db.clone(),
             event_bus.clone(),
@@ -110,18 +89,11 @@ impl ServiceManager {
             item_service.clone(),
             section_service.clone(),
         ));
-        eprintln!("✅ [DEBUG] ServiceManager::new: ProjectService created");
 
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating ReminderService");
         let reminder_service =
             Arc::new(ReminderService::new(db.clone(), event_bus.clone(), metrics.clone()));
-        eprintln!("✅ [DEBUG] ServiceManager::new: ReminderService created");
 
-        eprintln!("🔍 [DEBUG] ServiceManager::new: Creating DateValidationService");
         let date_validation_service = Arc::new(DateValidationService::new(db.clone()));
-        eprintln!("✅ [DEBUG] ServiceManager::new: DateValidationService created");
-
-        eprintln!("✅ [DEBUG] ServiceManager::new: All services created successfully");
 
         Ok(Self {
             db,

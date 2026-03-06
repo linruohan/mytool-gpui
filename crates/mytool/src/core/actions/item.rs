@@ -1,39 +1,37 @@
 use std::sync::Arc;
 
 use gpui::{App, AsyncApp};
-use sea_orm::DatabaseConnection;
 use todos::entity::ItemModel;
 use tracing::{error, info};
 
 use crate::core::{
     error_handler::{AppError, ErrorHandler, validation},
-    state::{ErrorNotifier, TodoStore, get_db_connection},
+    state::{ErrorNotifier, TodoStore, get_store},
 };
 
-// 刷新指定项目的 items（仅在有活跃项目时需要）
-async fn refresh_project_items(_project_id: &str, _cx: &mut AsyncApp, _db: DatabaseConnection) {
-    // 由于使用了 TodoStore 作为唯一数据源，不再需要单独更新 ProjectState
+// 刷新项目 items（由于使用了 TodoStore 作为唯一数据源，不再需要单独更新）
+async fn refresh_project_items(_project_id: &str, _cx: &mut AsyncApp) {
     // TodoStore 会通过观察者模式自动更新所有视图
 }
 
-// 添加 item（使用增量更新，性能最优）
+// 添加 item（使用增量更新和全局 Store）
 pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
         let context = ErrorHandler::handle_with_location(e, "add_item");
         error!("{}", context.format_user_message());
-        // TODO: 显示错误提示给用户
         return;
     }
 
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
+
     cx.spawn(async move |cx| {
-        match crate::state_service::add_item(item.clone(), (*db).clone()).await {
+        match crate::state_service::add_item_with_store(item.clone(), store).await {
             Ok(new_item) => {
                 info!("Successfully added item: {}", new_item.id);
                 // 增量更新：只添加新任务到 TodoStore
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.add_item(Arc::new(new_item));
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.add_item(Arc::new(new_item));
                 });
             },
             Err(e) => {
@@ -49,7 +47,7 @@ pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
-// 修改 item（使用增量更新，性能最优）
+// 修改 item（使用增量更新和全局 Store）
 pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
@@ -58,20 +56,20 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
         return;
     }
 
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let active_project = cx.global::<TodoStore>().active_project.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_item(item.clone(), (*db).clone()).await {
+        match crate::state_service::mod_item_with_store(item.clone(), store).await {
             Ok(updated_item) => {
                 info!("Successfully updated item: {}", updated_item.id);
                 // 增量更新：只更新修改的任务
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(Arc::new(updated_item));
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(updated_item));
                 });
                 // 如果有活跃项目，刷新项目列表
                 if let Some(active) = active_project {
-                    refresh_project_items(&active.id, cx, (*db).clone()).await;
+                    refresh_project_items(&active.id, cx).await;
                 }
             },
             Err(e) => {
@@ -87,18 +85,18 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
-// 删除 item（使用增量更新，性能最优）
+// 删除 item（使用增量更新和全局 Store）
 pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::del_item(item.clone(), (*db).clone()).await {
+        match crate::state_service::del_item_with_store(item.clone(), store).await {
             Ok(_) => {
                 info!("Successfully deleted item: {}", item_id);
                 // 增量更新：只删除指定的任务
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.remove_item(&item_id);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.remove_item(&item_id);
                 });
             },
             Err(e) => {
@@ -114,21 +112,21 @@ pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
-// 完成任务（使用增量更新，性能最优）
+// 完成任务（使用增量更新和全局 Store）
 pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::finish_item(item.clone(), true, false, (*db).clone()).await {
+        match crate::state_service::finish_item_with_store(item.clone(), true, false, store).await {
             Ok(_) => {
                 info!("Successfully completed item: {}", item_id);
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
                 updated_item.checked = true;
                 updated_item.completed_at = Some(chrono::Utc::now().naive_utc());
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(Arc::new(updated_item));
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(updated_item));
                 });
             },
             Err(e) => {
@@ -144,21 +142,22 @@ pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
-// 取消完成任务（使用增量更新，性能最优）
+// 取消完成任务（使用增量更新和全局 Store）
 pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::finish_item(item.clone(), false, false, (*db).clone()).await {
+        match crate::state_service::finish_item_with_store(item.clone(), false, false, store).await
+        {
             Ok(_) => {
                 info!("Successfully uncompleted item: {}", item_id);
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
                 updated_item.checked = false;
                 updated_item.completed_at = None;
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(Arc::new(updated_item));
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(updated_item));
                 });
             },
             Err(e) => {
@@ -174,13 +173,13 @@ pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
-// 置顶/取消置顶任务（使用增量更新，性能最优）
+// 置顶/取消置顶任务（使用增量更新和全局 Store）
 pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::pin_item(item.clone(), pinned, (*db).clone()).await {
+        match crate::state_service::pin_item_with_store(item.clone(), pinned, store).await {
             Ok(_) => {
                 info!(
                     "Successfully {} item: {}",
@@ -190,8 +189,8 @@ pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
                 // 增量更新：更新本地状态
                 let mut updated_item = (*item).clone();
                 updated_item.pinned = pinned;
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(Arc::new(updated_item));
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(updated_item));
                 });
             },
             Err(e) => {

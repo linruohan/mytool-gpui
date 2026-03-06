@@ -3,18 +3,18 @@ use std::sync::Arc;
 use gpui::App;
 use todos::entity::SectionModel;
 
-use crate::core::state::{TodoStore, get_db_connection};
+use crate::core::state::{TodoStore, get_store};
 
-// 添加section（使用增量更新，性能最优）
+// 添加 section（使用增量更新和全局 Store）
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::add_section(section.clone(), (*db).clone()).await {
+        match crate::state_service::add_section_with_store(section.clone(), store).await {
             Ok(new_section) => {
                 // 增量更新：只添加新分区到 TodoStore
                 let arc_section = Arc::new(new_section);
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.add_section(arc_section);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.add_section(arc_section);
                 });
             },
             Err(e) => tracing::error!("add_section failed: {:?}", e),
@@ -23,16 +23,16 @@ pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
     .detach();
 }
 
-// 修改section（使用增量更新，性能最优）
+// 修改 section（使用增量更新和全局 Store）
 pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_section(section.clone(), (*db).clone()).await {
+        match crate::state_service::mod_section_with_store(section.clone(), store).await {
             Ok(updated_section) => {
                 // 增量更新：只更新修改的分区
                 let arc_section = Arc::new(updated_section);
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_section(arc_section);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_section(arc_section);
                 });
             },
             Err(e) => tracing::error!("update_section failed: {:?}", e),
@@ -41,16 +41,16 @@ pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
     .detach();
 }
 
-// 删除section（使用增量更新，性能最优）
+// 删除 section（使用增量更新和全局 Store）
 pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let section_id = section.id.clone();
     cx.spawn(async move |cx| {
-        match crate::state_service::del_section(section.clone(), (*db).clone()).await {
+        match crate::state_service::del_section_with_store(section.clone(), store).await {
             Ok(_) => {
                 // 增量更新：只删除指定的分区
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.remove_section(&section_id);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.remove_section(&section_id);
                 });
             },
             Err(e) => tracing::error!("delete_section failed: {:?}", e),

@@ -6,10 +6,10 @@ use tracing::{error, info};
 
 use crate::{
     error_handler::{AppError, ErrorHandler, validation},
-    core::state::{get_db_connection, TodoStore},
+    core::state::{get_store, TodoStore},
 };
 
-// 添加project（使用增量更新，性能最优）
+// 添加 project（使用增量更新和全局 Store）
 pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
     // 验证输入
     if let Err(e) = validation::validate_project_name(&project.name) {
@@ -18,15 +18,15 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
         return;
     }
 
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::add_project(project.clone(), (*db).clone()).await {
+        match crate::state_service::add_project_with_store(project.clone(), store).await {
             Ok(new_project) => {
                 info!("Successfully added project: {}", new_project.id);
                 // 增量更新：只添加新项目到 TodoStore
                 let arc_project = Arc::new(new_project);
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
-                    store.add_project(arc_project);
+                let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.add_project(arc_project);
                 });
             }
             Err(e) => {
@@ -42,7 +42,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
     .detach();
 }
 
-// 修改project（使用增量更新，性能最优）
+// 修改 project（使用增量更新和全局 Store）
 pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
     // 验证输入
     if let Err(e) = validation::validate_project_name(&project.name) {
@@ -51,15 +51,15 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
         return;
     }
 
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_project(project.clone(), (*db).clone()).await {
+        match crate::state_service::mod_project_with_store(project.clone(), store).await {
             Ok(updated_project) => {
                 info!("Successfully updated project: {}", updated_project.id);
                 // 增量更新：只更新修改的项目
                 let arc_project = Arc::new(updated_project);
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_project(arc_project);
+                let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_project(arc_project);
                 });
             }
             Err(e) => {
@@ -75,18 +75,18 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
     .detach();
 }
 
-// 删除project（使用增量更新，性能最优）
+// 删除 project（使用增量更新和全局 Store）
 pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
-    let db = get_db_connection(cx);
+    let store = get_store(cx);
     let project_id = project.id.clone();
-    
+
     cx.spawn(async move |cx| {
-        match crate::state_service::del_project(project.clone(), (*db).clone()).await {
+        match crate::state_service::del_project_with_store(project.clone(), store).await {
             Ok(_) => {
                 info!("Successfully deleted project: {}", project_id);
                 // 增量更新：只删除指定的项目
-                let _ = cx.update_global::<TodoStore, _>(|store, _| {
-                    store.remove_project(&project_id);
+                let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.remove_project(&project_id);
                 });
             }
             Err(e) => {
