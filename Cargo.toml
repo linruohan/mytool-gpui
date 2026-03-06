@@ -9,13 +9,18 @@ resolver = "2"
 
 [workspace.dependencies]
 # inner crates
-todos = { path = "crates/todos" } # todos库，提供核心的任务管理功能
-mytool = { path = "crates/mytool" } # 主工具库，包含核心功能和命令行接口
+todos = { path = "crates/todos" }     # todos库，提供核心的任务管理功能
+mytool = { path = "crates/mytool" }   # 主工具库，包含核心功能和命令行接口
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui
 gpui = { git = "https://github.com/zed-industries/zed" }
-gpui_macros =  { git = "https://github.com/zed-industries/zed"}
-gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
+    "font-kit",
+    "x11",
+    "wayland",
+    "runtime_shaders",
+] }
+gpui_macros = { git = "https://github.com/zed-industries/zed" }
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
@@ -23,7 +28,12 @@ anyhow = "1.0.101"
 # rand = "0.8.5"
 # 启用 small_rng 特性，使用更快的随机数生成器
 rand = { version = "0.8.5", features = ["small_rng"] }
-tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio = { version = "1.49.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "sync",
+    "time",
+] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1"
 serde_repr = "0.1"
@@ -49,7 +59,11 @@ thiserror = "2.0.18"
 async-trait = "0.1.89"
 # futures = "0.3.31"
 # 精简特性，减少编译时间和体积
-futures = { version = "0.3.31", default-features = false, features = ["std", "async-await", "executor"] }
+futures = { version = "0.3.31", default-features = false, features = [
+    "std",
+    "async-await",
+    "executor",
+] }
 strum = { version = "0.27.2", features = ["derive"] }
 uuid = { version = "1.20.0", features = [
     "v4",

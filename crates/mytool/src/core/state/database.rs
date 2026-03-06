@@ -3,13 +3,12 @@ use std::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use gpui::Global;
 use sea_orm::DatabaseConnection;
 use todos::Store;
-use tokio::sync::OnceCell;
 
 /// 数据库连接状态
 ///
@@ -22,44 +21,28 @@ use tokio::sync::OnceCell;
 /// - 使用 Arc 包装，明确表达共享语义
 /// - 添加连接统计，便于监控和诊断
 /// - 支持连接健康检查
-/// - 🚀 新增：延迟初始化全局 Store 实例，避免重复创建
+/// - 🚀 新增：预初始化全局 Store 实例，避免重复创建和死锁
 #[derive(Clone)]
 pub struct DBState {
     pub conn: Arc<DatabaseConnection>,
-    store: OnceCell<Arc<Store>>, // 🚀 延迟初始化的 Store
+    pub store: Arc<Store>, // 🚀 预初始化的 Store
     stats: Arc<ConnectionStats>,
 }
 
 impl DBState {
-    /// 创建新的数据库状态（异步版本，会预初始化 Store）
-    pub async fn new_async(conn: DatabaseConnection) -> Self {
-        let conn_arc = Arc::new(conn);
-        // 🚀 关键修复：在异步上下文中初始化 Store，避免死锁
-        eprintln!("🔍 [DEBUG] DBState::new_async: Creating Store...");
-        let store = Store::new((*conn_arc).clone()).await;
-        match store {
-            Ok(s) => {
-                eprintln!("✅ [DEBUG] DBState::new_async: Store created successfully");
-                Self {
-                    conn: conn_arc,
-                    store: OnceCell::new_with(Some(Arc::new(s))),
-                    stats: Arc::new(ConnectionStats::new()),
-                }
-            },
-            Err(e) => {
-                eprintln!("❌ [DEBUG] DBState::new_async: Failed to create Store: {:?}", e);
-                panic!("Failed to create Store: {:?}", e);
-            },
-        }
-    }
-
-    /// 创建新的数据库状态（同步版本，Store 延迟初始化）
+    /// 创建新的数据库状态（同步版本，会阻塞创建 Store）
     pub fn new(conn: DatabaseConnection) -> Self {
-        Self {
-            conn: Arc::new(conn),
-            store: OnceCell::new(), // 延迟初始化
-            stats: Arc::new(ConnectionStats::new()),
-        }
+        let conn_arc = Arc::new(conn);
+        // 🚀 关键修复：同步创建 Store，避免 OnceCell 的死锁问题
+        // 虽然这会阻塞应用启动，但只发生一次
+        eprintln!("🔍 [DEBUG] DBState::new: Creating Store synchronously...");
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let store = runtime.block_on(async {
+            Store::new((*conn_arc).clone()).await.expect("Failed to create Store")
+        });
+        eprintln!("✅ [DEBUG] DBState::new: Store created successfully");
+
+        Self { conn: conn_arc, store: Arc::new(store), stats: Arc::new(ConnectionStats::new()) }
     }
 
     /// 获取数据库连接（轻量级克隆）
@@ -69,37 +52,10 @@ impl DBState {
         self.conn.clone()
     }
 
-    /// 🚀 获取或创建全局 Store 实例（异步）
-    pub async fn get_or_create_store(&self) -> Arc<Store> {
-        eprintln!("🔍 [DEBUG] get_or_create_store: called");
-        let store = self
-            .store
-            .get_or_init(|| async {
-                eprintln!("🔍 [DEBUG] get_or_create_store: initializing Store...");
-                let store = Store::new((*self.conn).clone()).await;
-                match store {
-                    Ok(s) => {
-                        eprintln!("✅ [DEBUG] get_or_create_store: Store initialized successfully");
-                        Arc::new(s)
-                    },
-                    Err(e) => {
-                        eprintln!(
-                            "❌ [DEBUG] get_or_create_store: Failed to create Store: {:?}",
-                            e
-                        );
-                        panic!("Failed to create Store: {:?}", e);
-                    },
-                }
-            })
-            .await
-            .clone();
-        eprintln!("✅ [DEBUG] get_or_create_store: returning Store");
-        store
-    }
-
-    /// 🚀 获取 Store（如果已初始化）
-    pub fn get_store(&self) -> Option<Arc<Store>> {
-        self.store.get().cloned()
+    /// 🚀 获取全局 Store 实例（轻量级克隆）
+    #[inline]
+    pub fn get_store(&self) -> Arc<Store> {
+        self.store.clone()
     }
 
     /// 获取连接统计信息
@@ -116,65 +72,37 @@ impl DBState {
 impl Global for DBState {}
 
 /// 连接统计信息
+#[derive(Debug, Clone)]
+pub struct ConnectionStatsSnapshot {
+    pub access_count: usize,
+    pub last_access: Option<Instant>,
+}
+
+/// 连接统计收集器
 struct ConnectionStats {
-    /// 总访问次数
-    total_accesses: AtomicUsize,
-    /// 创建时间
-    created_at: Instant,
+    access_count: AtomicUsize,
+    last_access: std::sync::Mutex<Option<Instant>>,
 }
 
 impl ConnectionStats {
     fn new() -> Self {
-        Self { total_accesses: AtomicUsize::new(0), created_at: Instant::now() }
+        Self { access_count: AtomicUsize::new(0), last_access: std::sync::Mutex::new(None) }
     }
 
-    #[inline]
     fn record_access(&self) {
-        self.total_accesses.fetch_add(1, Ordering::Relaxed);
+        self.access_count.fetch_add(1, Ordering::Relaxed);
+        *self.last_access.lock().unwrap() = Some(Instant::now());
     }
 
     fn snapshot(&self) -> ConnectionStatsSnapshot {
         ConnectionStatsSnapshot {
-            total_accesses: self.total_accesses.load(Ordering::Relaxed),
-            uptime: self.created_at.elapsed(),
+            access_count: self.access_count.load(Ordering::Relaxed),
+            last_access: *self.last_access.lock().unwrap(),
         }
     }
 
     fn reset(&self) {
-        self.total_accesses.store(0, Ordering::Relaxed);
+        self.access_count.store(0, Ordering::Relaxed);
+        *self.last_access.lock().unwrap() = None;
     }
-}
-
-/// 连接统计快照
-#[derive(Debug, Clone)]
-pub struct ConnectionStatsSnapshot {
-    /// 总访问次数
-    pub total_accesses: usize,
-    /// 运行时间
-    pub uptime: Duration,
-}
-
-impl ConnectionStatsSnapshot {
-    /// 计算平均访问频率（次/秒）
-    pub fn access_rate(&self) -> f64 {
-        let seconds = self.uptime.as_secs_f64();
-        if seconds > 0.0 { self.total_accesses as f64 / seconds } else { 0.0 }
-    }
-
-    /// 格式化输出统计信息
-    pub fn format(&self) -> String {
-        format!(
-            "DB Stats: {} accesses in {:.2}s (rate: {:.2}/s)",
-            self.total_accesses,
-            self.uptime.as_secs_f64(),
-            self.access_rate()
-        )
-    }
-}
-
-/// 初始化数据库连接
-///
-/// 返回一个新的数据库连接实例。
-pub async fn get_todo_conn() -> DatabaseConnection {
-    todos::init_db().await.expect("init db failed")
 }

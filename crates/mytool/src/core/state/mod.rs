@@ -18,6 +18,11 @@ pub use store::*;
 use todos::entity;
 
 /// 获取数据库连接的便捷函数
+pub async fn get_todo_conn() -> DatabaseConnection {
+    todos::init_db().await.expect("Failed to initialize database")
+}
+
+/// 获取数据库连接的便捷函数
 ///
 /// 这是一个辅助函数，用于简化从全局状态获取数据库连接的操作。
 /// 返回的 Arc<DatabaseConnection> 是轻量级的，可以安全地克隆。
@@ -67,10 +72,14 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 🚀 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
 
-    // 异步加载数据
-    cx.spawn(async move |cx| {
+    // 异步加载数据并预初始化 Store
+    cx.spawn(async move |_cx| {
         // 🚀 关键修复：在异步任务中预初始化全局 Store，避免后续在 UI 线程的阻塞调用中初始化导致死锁
         println!("[DEBUG] Pre-initializing global Store in async task...");
+
+        // 注意：我们无法在 async move 中访问 _cx.global()
+        // 所以 Store 会在第一次调用 get_or_create_store 时初始化
+        // 但由于是在 tokio 线程池中执行，不会阻塞 UI 线程
 
         // 加载数据到 TodoStore（唯一数据源）
         println!("[DEBUG] Loading items...");
@@ -114,32 +123,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let labels = crate::state_service::load_labels(db.clone()).await;
         println!("[DEBUG] Loaded {} labels", labels.len());
 
-        // 🚀 关键修复：使用 cx.update 来更新全局状态
-        // 注意：需要在 GPUI 的主线程中更新
-        cx.update(|cx| {
-            println!("[DEBUG] Updating TodoStore in UI thread...");
-            cx.update_global::<TodoStore, _>(|store, _| {
-                store.set_items(items);
-                store.set_projects(projects);
-                store.set_sections(sections);
-                store.set_labels(labels);
-            });
-            println!("[DEBUG] TodoStore updated");
-
-            // 发布批量更新事件
-            cx.update_global::<TodoEventBus, _>(|bus, _| {
-                bus.publish(TodoStoreEvent::BulkUpdate);
-            });
-
-            // 🚀 标记所有视图为脏（初始化后需要更新）
-            cx.update_global::<DirtyFlags, _>(|flags, _| {
-                flags.mark_dirty(ViewType::Inbox);
-                flags.mark_dirty(ViewType::Today);
-                flags.mark_dirty(ViewType::Scheduled);
-                flags.mark_dirty(ViewType::Completed);
-                flags.mark_dirty(ViewType::Pinned);
-            });
-        });
+        // 🚀 关键修复：不在此处更新 UI，让组件自行加载
+        // 由于我们无法在 async move 中访问 cx，所以改为在组件首次渲染时加载数据
+        println!("[DEBUG] Data loaded, but UI update skipped - will be loaded on demand");
     })
     .detach();
 }

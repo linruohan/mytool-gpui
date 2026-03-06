@@ -448,8 +448,8 @@ impl ItemInfoState {
             let item_id_for_save = item_id.clone();
 
             tokio_runtime::run_db_operation(async move {
-                // 🚀 在异步上下文中获取或创建 Store
-                let store = db_state.get_or_create_store().await;
+                // 🚀 直接使用已初始化的 Store，不需要再次创建
+                let store = db_state.get_store();
                 match state_service::mod_item_with_store(item_for_save, store).await {
                     Ok(_updated_item) => {
                         info!("save_all_changes: item saved successfully: {}", item_id_for_save);
