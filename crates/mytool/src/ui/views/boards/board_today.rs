@@ -20,7 +20,8 @@ use gpui_component::{
 };
 
 use crate::{
-    BoardBase, ItemRowState, ManageSectionsPanel, ScheduleButtonEvent, ScheduleButtonState, VisualHierarchy,
+    BoardBase, ItemRowState, ManageSectionsPanel, ScheduleButtonEvent, ScheduleButtonState,
+    VisualHierarchy,
     core::actions::batch::batch_update_items,
     section,
     todo_actions::{

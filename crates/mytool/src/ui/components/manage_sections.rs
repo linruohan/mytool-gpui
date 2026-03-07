@@ -3,22 +3,23 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
     ParentElement, Render, Styled, Window, div, prelude::FluentBuilder, px,
-    InteractiveElement,
 };
 use gpui_component::{
     ActiveTheme, Icon, IconName, IndexPath,
     button::Button,
     h_flex,
-    list::{List, ListDelegate, ListEvent, ListState, ListItem},
+    list::{List, ListDelegate, ListEvent, ListItem, ListState},
     v_flex,
 };
 use todos::entity::SectionModel;
 
-use crate::todo_state::TodoStore;
-use crate::core::actions::*;
-use crate::ui::components::{show_section_dialog, show_section_delete_dialog, SectionDialogConfig};
+use crate::{
+    core::actions::*,
+    todo_state::TodoStore,
+    ui::components::{SectionDialogConfig, show_section_delete_dialog, show_section_dialog},
+};
 
 /// Section 列表委托
 pub struct ManageSectionListDelegate {
@@ -35,11 +36,7 @@ impl Default for ManageSectionListDelegate {
 
 impl ManageSectionListDelegate {
     pub fn new() -> Self {
-        Self {
-            sections: vec![],
-            matched_sections: vec![],
-            selected_index: None,
-        }
+        Self { sections: vec![], matched_sections: vec![], selected_index: None }
     }
 
     pub fn update_sections(&mut self, sections: Vec<Arc<SectionModel>>) {
@@ -72,9 +69,7 @@ impl ListDelegate for ManageSectionListDelegate {
         self.matched_sections = vec![
             self.sections
                 .iter()
-                .filter(|section| {
-                    section.name.to_lowercase().contains(&query.to_lowercase())
-                })
+                .filter(|section| section.name.to_lowercase().contains(&query.to_lowercase()))
                 .cloned()
                 .collect(),
         ];
@@ -97,11 +92,7 @@ impl ListDelegate for ManageSectionListDelegate {
             let section_color = section
                 .color
                 .as_ref()
-                .and_then(|c| {
-                    u32::from_str_radix(&c[1..], 16)
-                        .ok()
-                        .map(|rgb| gpui::rgb(rgb))
-                })
+                .and_then(|c| u32::from_str_radix(&c[1..], 16).ok().map(|rgb| gpui::rgb(rgb)))
                 .unwrap_or(gpui::rgb(0x3b82f6));
 
             let item = div()
@@ -142,7 +133,7 @@ impl ListDelegate for ManageSectionListDelegate {
                                         .icon(IconName::Pencil)
                                         .size(px(14.0))
                                         .on_click(cx.listener(move |_this, _, _, cx| {
-                                            cx.emit(ListEvent::Confirm(ix.clone()));
+                                            cx.emit(ListEvent::Confirm(ix));
                                         })),
                                 )
                                 .child(
@@ -150,9 +141,9 @@ impl ListDelegate for ManageSectionListDelegate {
                                         .icon(IconName::Trash)
                                         .size(px(14.0))
                                         .on_click(cx.listener(move |_this, _, _, cx| {
-                                            cx.emit(ListEvent::Select(ix.clone()));
+                                            cx.emit(ListEvent::Select(ix));
                                         })),
-                                )
+                                ),
                         ),
                 );
 
@@ -171,8 +162,13 @@ impl ListDelegate for ManageSectionListDelegate {
         cx.notify();
     }
 
-    fn confirm(&mut self, _secondary: bool, _window: &mut Window, cx: &mut Context<ListState<Self>>) {
-        cx.emit(ListEvent::Confirm(self.selected_index.clone().unwrap_or_default()));
+    fn confirm(
+        &mut self,
+        _secondary: bool,
+        _window: &mut Window,
+        cx: &mut Context<ListState<Self>>,
+    ) {
+        cx.emit(ListEvent::Confirm(self.selected_index.unwrap_or_default()));
     }
 }
 
@@ -186,8 +182,9 @@ pub struct ManageSectionsPanel {
 
 impl ManageSectionsPanel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let section_list =
-            cx.new(|cx| ListState::new(ManageSectionListDelegate::new(), window, cx).selectable(false));
+        let section_list = cx.new(|cx| {
+            ListState::new(ManageSectionListDelegate::new(), window, cx).selectable(false)
+        });
 
         // 订阅 List 事件
         let section_list_for_subscribe = section_list.clone();
@@ -200,15 +197,15 @@ impl ManageSectionsPanel {
                             this.pending_edit = Some(section);
                             cx.notify();
                         }
-                    }
+                    },
                     ListEvent::Select(ix) => {
                         // 删除 Section (通过删除按钮触发)
                         if let Some(section) = list.read(cx).delegate().section_at(ix.row) {
                             this.pending_delete = Some(section);
                             cx.notify();
                         }
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }),
             // 订阅 TodoStore 变化
@@ -241,28 +238,20 @@ impl ManageSectionsPanel {
         let section_clone = section.clone();
 
         let name_input = cx.new(|cx| {
-            let mut input = gpui_component::input::InputState::new(window, cx)
-                .placeholder("Section Name");
+            let mut input =
+                gpui_component::input::InputState::new(window, cx).placeholder("Section Name");
             input.set_value(&section_name, window, cx);
             input
         });
 
         let config = SectionDialogConfig::new("Edit Section", "Save", true);
 
-        show_section_dialog(
-            window,
-            cx,
-            name_input,
-            config,
-            move |new_name, cx| {
-                // 更新 section
-                let updated_section = Arc::new(SectionModel {
-                    name: new_name,
-                    ..(*section_clone).clone()
-                });
-                update_section(updated_section, cx);
-            },
-        );
+        show_section_dialog(window, cx, name_input, config, move |new_name, cx| {
+            // 更新 section
+            let updated_section =
+                Arc::new(SectionModel { name: new_name, ..(*section_clone).clone() });
+            update_section(updated_section, cx);
+        });
     }
 
     /// 显示删除确认对话框
@@ -289,27 +278,20 @@ impl ManageSectionsPanel {
     /// 显示新建 Section 对话框
     pub fn show_new_section_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let name_input = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
-                .placeholder("Section Name")
+            gpui_component::input::InputState::new(window, cx).placeholder("Section Name")
         });
 
         let config = SectionDialogConfig::new("New Section", "Add", false);
 
-        show_section_dialog(
-            window,
-            cx,
-            name_input,
-            config,
-            move |name, cx| {
-                let new_section = Arc::new(SectionModel {
-                    id: uuid::Uuid::new_v4().to_string(),
-                    name,
-                    added_at: chrono::Utc::now().naive_utc(),
-                    ..Default::default()
-                });
-                add_section(new_section, cx);
-            },
-        );
+        show_section_dialog(window, cx, name_input, config, move |name, cx| {
+            let new_section = Arc::new(SectionModel {
+                id: uuid::Uuid::new_v4().to_string(),
+                name,
+                added_at: chrono::Utc::now().naive_utc(),
+                ..Default::default()
+            });
+            add_section(new_section, cx);
+        });
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
@@ -340,19 +322,13 @@ impl Render for ManageSectionsPanel {
         v_flex()
             .size_full()
             .gap_2()
-            .child(
-                h_flex()
-                    .justify_between()
-                    .child(div().child("Sections"))
-                    .child(
-                        Button::new("new-section")
-                            .label("New Section")
-                            .icon(IconName::Plus)
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.show_new_section_dialog(window, cx);
-                            })),
-                    ),
-            )
+            .child(h_flex().justify_between().child(div().child("Sections")).child(
+                Button::new("new-section").label("New Section").icon(IconName::Plus).on_click(
+                    cx.listener(|this, _, window, cx| {
+                        this.show_new_section_dialog(window, cx);
+                    }),
+                ),
+            ))
             .child(
                 List::new(&self.section_list)
                     .flex_1()
