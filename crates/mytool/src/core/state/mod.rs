@@ -105,29 +105,11 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let items = crate::state_service::load_items_with_store(store.clone()).await;
         tracing::info!("Loaded {} items", items.len());
 
-        // 打印每个项目的 pinned 状态和 due
-        // for item in &items {
-        //     println!(
-        //         "[DEBUG] Item {}: content={}, pinned={}, due={:?}",
-        //         item.id, item.content, item.pinned, item.due
-        //     );
-        // }
-
         let inbox_items: Vec<&entity::ItemModel> = items
             .iter()
             .filter(|item| item.project_id.is_none() || item.project_id.as_deref() == Some(""))
             .collect();
         tracing::info!("Found {} inbox items (no project ID)", inbox_items.len());
-
-        // for (i, item) in inbox_items.iter().enumerate() {
-        //     println!(
-        //         "[DEBUG] Inbox item {}: {}, pinned={}, due={:?}",
-        //         i + 1,
-        //         item.content,
-        //         item.pinned,
-        //         item.due
-        //     );
-        // }
 
         let projects = crate::state_service::load_projects_with_store(store.clone()).await;
         tracing::info!("Loaded {} projects", projects.len());
@@ -139,7 +121,6 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         tracing::info!("Loaded {} labels", labels.len());
 
         // 将加载的数据更新到 TodoStore
-        // 使用 cx.update_global 在异步上下文中安全地更新全局状态
         cx.update_global::<TodoStore, _>(|store, _| {
             tracing::info!(
                 "Updating TodoStore with {} items, {} projects, {} sections, {} labels",

@@ -34,6 +34,7 @@ impl LabelsBoard {
                     panel.handle_label_event(event, cx);
                 });
             })];
+
         Self { focus_handle: cx.focus_handle(), _subscriptions, labels_panel }
     }
 }

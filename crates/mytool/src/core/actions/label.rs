@@ -55,11 +55,11 @@ pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
     cx.spawn(async move |cx| {
         match crate::state_service::mod_label_with_store(label.clone(), store).await {
             Ok(new_label) => {
-                info!("Successfully updated label: {}", new_label.id);
+                info!("Successfully updated label: {} (name: {})", new_label.id, new_label.name);
                 // 增量更新 TodoStore
                 let arc_label = Arc::new(new_label);
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.update_label(arc_label);
+                cx.update_global::<TodoStore, _>(|todo_store, _cx| {
+                    todo_store.update_label(arc_label.clone());
                 });
             },
             Err(e) => {

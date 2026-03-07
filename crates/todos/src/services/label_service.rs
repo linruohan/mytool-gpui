@@ -67,7 +67,19 @@ impl LabelService {
     pub async fn update_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
         let _timer = self.metrics.start_timer("update_label");
         let label_id = label.id.clone();
-        let mut active_label: LabelActiveModel = label.into();
+
+        // 显式设置需要更新的字段
+        let active_label = LabelActiveModel {
+            id: Set(label.id),
+            name: Set(label.name),
+            color: Set(label.color),
+            item_order: Set(label.item_order),
+            is_deleted: Set(label.is_deleted),
+            is_favorite: Set(label.is_favorite),
+            backend_type: Set(label.backend_type),
+            source_id: Set(label.source_id),
+        };
+
         let result = active_label.update(&*self.db).await?;
 
         self.event_bus.publish(crate::services::event_bus::Event::LabelUpdated(label_id));

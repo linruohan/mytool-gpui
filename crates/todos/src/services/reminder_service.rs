@@ -88,7 +88,19 @@ impl ReminderService {
     ) -> Result<ReminderModel, TodoError> {
         let _timer = self.metrics.start_timer("update_reminder");
         let reminder_id = reminder.id.clone();
-        let mut active_reminder: ReminderActiveModel = reminder.into();
+
+        // 显式设置需要更新的字段
+        let active_reminder = ReminderActiveModel {
+            id: Set(reminder.id),
+            notify_uid: Set(reminder.notify_uid),
+            item_id: Set(reminder.item_id),
+            service: Set(reminder.service),
+            reminder_type: Set(reminder.reminder_type),
+            due: Set(reminder.due),
+            mm_offset: Set(reminder.mm_offset),
+            is_deleted: Set(reminder.is_deleted),
+        };
+
         let result = active_reminder.update(&*self.db).await?;
 
         self.event_bus.publish(crate::services::event_bus::Event::ReminderUpdated(reminder_id));

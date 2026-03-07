@@ -64,7 +64,34 @@ impl ProjectService {
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
         let _timer = self.metrics.start_timer("update_project");
         let project_id = project.id.clone();
-        let mut active_project: ProjectActiveModel = project.into();
+
+        // 显式设置需要更新的字段
+        let active_project = ProjectActiveModel {
+            id: Set(project.id),
+            name: Set(project.name),
+            color: Set(project.color),
+            backend_type: Set(project.backend_type),
+            inbox_project: Set(project.inbox_project),
+            team_inbox: Set(project.team_inbox),
+            child_order: Set(project.child_order),
+            is_deleted: Set(project.is_deleted),
+            is_archived: Set(project.is_archived),
+            is_favorite: Set(project.is_favorite),
+            shared: Set(project.shared),
+            view_style: Set(project.view_style),
+            sort_order: Set(project.sort_order),
+            parent_id: Set(project.parent_id),
+            collapsed: Set(project.collapsed),
+            icon_style: Set(project.icon_style),
+            emoji: Set(project.emoji),
+            show_completed: Set(project.show_completed),
+            description: Set(project.description),
+            due_date: Set(project.due_date),
+            inbox_section_hidded: Set(project.inbox_section_hidded),
+            sync_id: Set(project.sync_id),
+            source_id: Set(project.source_id),
+        };
+
         let result = active_project.update(&*self.db).await?;
 
         self.event_bus.publish(crate::services::event_bus::Event::ProjectUpdated(project_id));
@@ -127,10 +154,32 @@ impl ProjectService {
             .ok_or_else(|| TodoError::NotFound("project not found".to_string()))?;
 
         let archived = !project.is_archived;
+
+        // 显式设置所有字段，避免使用 ..project.into()
         ProjectEntity::update(ProjectActiveModel {
             id: Set(project_id.to_string()),
+            name: Set(project.name),
+            color: Set(project.color),
+            backend_type: Set(project.backend_type),
+            inbox_project: Set(project.inbox_project),
+            team_inbox: Set(project.team_inbox),
+            child_order: Set(project.child_order),
+            is_deleted: Set(project.is_deleted),
             is_archived: Set(archived),
-            ..project.into()
+            is_favorite: Set(project.is_favorite),
+            shared: Set(project.shared),
+            view_style: Set(project.view_style),
+            sort_order: Set(project.sort_order),
+            parent_id: Set(project.parent_id),
+            collapsed: Set(project.collapsed),
+            icon_style: Set(project.icon_style),
+            emoji: Set(project.emoji),
+            show_completed: Set(project.show_completed),
+            description: Set(project.description),
+            due_date: Set(project.due_date),
+            inbox_section_hidded: Set(project.inbox_section_hidded),
+            sync_id: Set(project.sync_id),
+            source_id: Set(project.source_id),
         })
         .exec(&*self.db)
         .await?;
@@ -153,10 +202,31 @@ impl ProjectService {
             .await
             .ok_or_else(|| TodoError::NotFound("project not found".to_string()))?;
 
+        // 显式设置所有字段，避免使用 ..project.into()
         ProjectEntity::update(ProjectActiveModel {
             id: Set(project_id.to_string()),
+            name: Set(project.name),
+            color: Set(project.color),
+            backend_type: Set(project.backend_type),
+            inbox_project: Set(project.inbox_project),
+            team_inbox: Set(project.team_inbox),
+            child_order: Set(project.child_order),
+            is_deleted: Set(project.is_deleted),
+            is_archived: Set(project.is_archived),
+            is_favorite: Set(project.is_favorite),
+            shared: Set(project.shared),
+            view_style: Set(project.view_style),
+            sort_order: Set(project.sort_order),
             parent_id: Set(Some(parent_id.to_string())),
-            ..project.into()
+            collapsed: Set(project.collapsed),
+            icon_style: Set(project.icon_style),
+            emoji: Set(project.emoji),
+            show_completed: Set(project.show_completed),
+            description: Set(project.description),
+            due_date: Set(project.due_date),
+            inbox_section_hidded: Set(project.inbox_section_hidded),
+            sync_id: Set(project.sync_id),
+            source_id: Set(project.source_id),
         })
         .exec(&*self.db)
         .await?;

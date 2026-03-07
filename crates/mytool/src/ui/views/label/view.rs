@@ -43,10 +43,14 @@ impl LabelsPanel {
         let _subscriptions = vec![
             cx.observe_global::<TodoStore>(move |_this, cx| {
                 let labels = cx.global::<TodoStore>().labels.clone();
+                let version = cx.global::<TodoStore>().version();
+                tracing::info!("TodoStore changed: version={}, {} labels", version, labels.len());
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
+                    tracing::info!("ListState updated with labels");
                     cx.notify();
                 });
+                tracing::info!("LabelsPanel notified to re-render");
                 cx.notify();
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
@@ -97,11 +101,19 @@ impl LabelsPanel {
     }
 
     pub fn handle_label_event(&mut self, event: &LabelEvent, cx: &mut Context<Self>) {
-        tracing::debug!("handle_label_event:");
         match event {
-            LabelEvent::Added(label) => add_label(label.clone(), cx),
-            LabelEvent::Modified(label) => update_label(label.clone(), cx),
-            LabelEvent::Deleted(label) => delete_label(label.clone(), cx),
+            LabelEvent::Added(label) => {
+                tracing::info!("LabelEvent::Added: {} (id: {})", label.name, label.id);
+                add_label(label.clone(), cx)
+            },
+            LabelEvent::Modified(label) => {
+                tracing::info!("LabelEvent::Modified: {} (id: {})", label.name, label.id);
+                update_label(label.clone(), cx)
+            },
+            LabelEvent::Deleted(label) => {
+                tracing::info!("LabelEvent::Deleted: {} (id: {})", label.name, label.id);
+                delete_label(label.clone(), cx)
+            },
             _ => {},
         }
     }

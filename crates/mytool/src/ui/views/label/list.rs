@@ -13,6 +13,7 @@ use todos::entity::LabelModel;
 use crate::{UnSelectedCheckLabel, VisualHierarchy};
 
 actions!(label, [SelectedLabel, UnSelectedLabel]);
+#[derive(Debug)]
 pub enum LabelEvent {
     Checked(Arc<LabelModel>),
     UnChecked(Arc<LabelModel>),
@@ -93,7 +94,8 @@ impl RenderOnce for LabelListItem {
                                 )),
                             )
                             .child(div().w(px(120.)).child(self.label.name.clone())),
-                    ),
+                    )
+                    .child(h_flex().gap(VisualHierarchy::spacing(1.0))),
             )
     }
 }
@@ -199,8 +201,8 @@ impl ListDelegate for LabelListDelegate {
     fn render_item(
         &mut self,
         ix: IndexPath,
-        _: &mut Window,
-        _: &mut Context<ListState<Self>>,
+        _window: &mut Window,
+        _cx: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
         if let Some(section) = self.matched_labels.get(ix.section) {

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window, div,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
@@ -19,7 +19,7 @@ use gpui_component::{
 };
 
 use crate::{
-    BoardBase, ItemRowState, VisualHierarchy, section,
+    BoardBase, ItemRowState, VisualHierarchy,
     todo_actions::{add_item, delete_item, update_item},
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
@@ -201,37 +201,6 @@ impl CompletedBoard {
             };
         }
     }
-
-    pub fn show_unpin_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Unpin this item?")
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                let _view = view.clone();
-                                let mut item_model = (*item).clone();
-                                item_model.pinned = false;
-                                update_item(Arc::new(item_model), cx);
-                                window.push_notification("Item unpinned.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("Operation canceled.", cx);
-                            true
-                        })
-                });
-            };
-        }
-    }
 }
 
 impl BoardView for CompletedBoard {
@@ -284,10 +253,6 @@ impl Render for CompletedBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let pinned_items = self.base.pinned_items.clone();
-        let no_section_items = self.base.no_section_items.clone();
-        let section_items_map = self.base.section_items_map.clone();
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
@@ -347,22 +312,6 @@ impl Render for CompletedBoard {
                                     }),
                             )
                             .child(
-                                Button::new("unpin-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PinSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_unpin_item_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
                                 Button::new("delete-item")
                                     .icon(IconName::UserTrashSymbolic)
                                     .small()
@@ -380,47 +329,21 @@ impl Render for CompletedBoard {
                     ),
             )
             .child(
-                v_flex().flex_1().overflow_y_scrollbar().child(
-                    v_flex()
-                        .gap(VisualHierarchy::spacing(4.0))
-                        .p(VisualHierarchy::spacing(3.0))
-                        .when(!pinned_items.is_empty(), |this| {
-                            this.child(board_renderer::render_item_section(
-                                "Pinned",
-                                &pinned_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                            ))
-                        })
-                        .when(!no_section_items.is_empty(), |this| {
-                            this.child(board_renderer::render_item_section(
-                                "No Section",
-                                &no_section_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                            ))
-                        })
-                        .children(sections.iter().filter_map(|sec| {
-                            let items = section_items_map.get(&sec.id)?;
-                            if items.is_empty() {
-                                return None;
-                            }
-
-                            let view_clone = view.clone();
-
-                            Some(section(sec.name.clone()).child(board_renderer::render_item_list(
-                                items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view_clone,
-                            )))
-                        })),
-                ),
+                v_flex()
+                    .flex_1()
+                    .overflow_y_scrollbar()
+                    .p(VisualHierarchy::spacing(3.0))
+                    .gap(VisualHierarchy::spacing(2.0))
+                    .children(item_rows.iter().enumerate().map(move |(i, item_row)| {
+                        let is_active = active_index == Some(i);
+                        board_renderer::render_item_row(
+                            i,
+                            Some(item_row.clone()),
+                            is_active,
+                            active_border,
+                            view.clone(),
+                        )
+                    })),
             )
     }
 }

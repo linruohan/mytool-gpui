@@ -62,7 +62,23 @@ impl SectionService {
     pub async fn update_section(&self, section: SectionModel) -> Result<SectionModel, TodoError> {
         let _timer = self.metrics.start_timer("update_section");
         let section_id = section.id.clone();
-        let mut active_section: SectionActiveModel = section.into();
+
+        // 显式设置需要更新的字段
+        let active_section = SectionActiveModel {
+            id: Set(section.id),
+            name: Set(section.name),
+            archived_at: Set(section.archived_at),
+            added_at: Set(section.added_at),
+            project_id: Set(section.project_id),
+            section_order: Set(section.section_order),
+            collapsed: Set(section.collapsed),
+            is_deleted: Set(section.is_deleted),
+            is_archived: Set(section.is_archived),
+            color: Set(section.color),
+            description: Set(section.description),
+            hidded: Set(section.hidded),
+        };
+
         let result = active_section.update(&*self.db).await?;
 
         self.event_bus.publish(crate::services::event_bus::Event::SectionUpdated(section_id));
@@ -97,10 +113,20 @@ impl SectionService {
             .await
             .ok_or_else(|| TodoError::NotFound("section not found".to_string()))?;
 
+        // 显式设置所有字段，避免使用 ..section.into()
         SectionEntity::update(SectionActiveModel {
             id: Set(section_id.to_string()),
+            name: Set(section.name),
+            archived_at: Set(section.archived_at),
+            added_at: Set(section.added_at),
             project_id: Set(Some(project_id.to_string())),
-            ..section.into()
+            section_order: Set(section.section_order),
+            collapsed: Set(section.collapsed),
+            is_deleted: Set(section.is_deleted),
+            is_archived: Set(section.is_archived),
+            color: Set(section.color),
+            description: Set(section.description),
+            hidded: Set(section.hidded),
         })
         .exec(&*self.db)
         .await?;
@@ -121,12 +147,20 @@ impl SectionService {
             .ok_or_else(|| TodoError::NotFound("section not found".to_string()))?;
 
         let archived_new = if section.is_archived == archived { !archived } else { archived };
-        // Fix: Explicitly set the id field to ensure the UPDATE query works correctly
+        // 显式设置所有字段，避免使用 ..section.into()
         let active_model = SectionActiveModel {
             id: Set(section_id.to_string()),
-            is_archived: Set(archived_new),
+            name: Set(section.name),
             archived_at: Set(Some(chrono::Utc::now().naive_utc())),
-            ..section.into()
+            added_at: Set(section.added_at),
+            project_id: Set(section.project_id),
+            section_order: Set(section.section_order),
+            collapsed: Set(section.collapsed),
+            is_deleted: Set(section.is_deleted),
+            is_archived: Set(archived_new),
+            color: Set(section.color),
+            description: Set(section.description),
+            hidded: Set(section.hidded),
         };
         SectionEntity::update(active_model).exec(&*self.db).await?;
 
