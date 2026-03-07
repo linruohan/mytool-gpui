@@ -14,13 +14,17 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
+    input::InputState,
+    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
 
 use crate::{
-    BoardBase, ItemRowState, VisualHierarchy, section,
-    todo_actions::{add_item, delete_item, update_item},
+    BoardBase, ItemRowState, ManageSectionsPanel, VisualHierarchy, section,
+    todo_actions::{
+        add_item, add_section, delete_item, delete_section, update_item, update_section,
+    },
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
 };
@@ -241,6 +245,84 @@ impl PinBoard {
             };
         }
     }
+
+    pub fn show_section_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: Option<String>,
+        is_edit: bool,
+    ) {
+        let sections = cx.global::<TodoStore>().sections.clone();
+        let ori_section = if is_edit {
+            sections
+                .iter()
+                .find(|s| s.id == section_id.clone().unwrap_or_default())
+                .map(|s| s.as_ref().clone())
+                .unwrap_or_default()
+        } else {
+            todos::entity::SectionModel::default()
+        };
+
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
+        if is_edit {
+            name_input.update(cx, |is, cx| {
+                is.set_value(ori_section.name.clone(), window, cx);
+                cx.notify();
+            })
+        };
+
+        let config = crate::ui::components::SectionDialogConfig::new(
+            if is_edit { "Edit Section" } else { "New Section" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        )
+        .with_overlay(false);
+
+        let view = cx.entity().clone();
+        crate::ui::components::show_section_dialog(
+            window,
+            cx,
+            name_input,
+            config,
+            move |name, cx| {
+                view.update(cx, |_view, cx| {
+                    let section =
+                        Arc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
+                    if is_edit {
+                        update_section(section, cx);
+                    } else {
+                        add_section(section, cx);
+                    }
+                    cx.notify();
+                });
+            },
+        );
+    }
+
+    pub fn show_section_delete_dialog(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<TodoStore>().sections.clone();
+        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
+        if let Some(section) = section_some {
+            let view = cx.entity().clone();
+            crate::ui::components::show_section_delete_dialog(
+                window,
+                cx,
+                "Are you sure to delete the section?",
+                move |cx| {
+                    view.update(cx, |_view, cx| {
+                        delete_section(section.clone(), cx);
+                        cx.notify();
+                    });
+                },
+            );
+        };
+    }
 }
 
 impl BoardView for PinBoard {
@@ -413,6 +495,60 @@ impl Render for PinBoard {
                                                 this.show_item_delete_dialog(window, cx);
                                                 cx.notify();
                                             })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("section-actions")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::ListSymbolic)
+                                    .label("Section")
+                                    .dropdown_menu({
+                                        let view = view.clone();
+                                        move |this, window, _cx| {
+                                            let view = view.clone();
+                                            this.item(PopupMenuItem::new("+ Add Section").on_click(
+                                                window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_section_dialog(
+                                                            window, cx, None, false,
+                                                        );
+                                                        cx.notify();
+                                                    },
+                                                ),
+                                            ))
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("Manage Sections").on_click(
+                                                    move |_, window, cx| {
+                                                        // 打开 Manage Sections 对话框
+                                                        window.open_dialog(cx, |modal, window, cx| {
+                                                            modal
+                                                                .title("Manage Sections")
+                                                                .overlay(false)
+                                                                .keyboard(true)
+                                                                .overlay_closable(true)
+                                                                .child(
+                                                                    v_flex()
+                                                                        .size_full()
+                                                                        .h(gpui::px(400.0))
+                                                                        .w(gpui::px(300.0))
+                                                                        .child(ManageSectionsPanel::view(window, cx)),
+                                                                )
+                                                                .footer(
+                                                                    gpui_component::dialog::DialogFooter::new()
+                                                                        .child(
+                                                                            gpui_component::dialog::DialogClose::new()
+                                                                                .child(Button::new("close").label("Close").primary()),
+                                                                        ),
+                                                                )
+                                                        });
+                                                    },
+                                                ),
+                                            )
                                         }
                                     }),
                             ),

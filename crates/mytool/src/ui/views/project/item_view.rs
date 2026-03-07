@@ -264,7 +264,11 @@ impl ProjectItemsPanel {
                 .map(|s| s.as_ref().clone())
                 .unwrap_or_default()
         } else {
-            todos::entity::SectionModel::default()
+            // 新建 section 时，绑定当前 project 的 project_id
+            todos::entity::SectionModel {
+                project_id: Some(self.project.id.clone()),
+                ..Default::default()
+            }
         };
 
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
@@ -435,6 +439,36 @@ impl Render for ProjectItemsPanel {
                                                 this.show_item_delete_dialog(window, cx);
                                                 cx.notify();
                                             })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("section-actions")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::ListSymbolic)
+                                    .label("Section")
+                                    .dropdown_menu({
+                                        let view = view.clone();
+                                        move |this, window, _cx| {
+                                            let view = view.clone();
+                                            this.item(
+                                                PopupMenuItem::new("+ Add Section").on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_section_dialog(window, cx, None, false);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("Manage Sections").on_click(
+                                                    window.listener_for(&view, |_this, _, _window, cx| {
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
                                         }
                                     }),
                             ),
