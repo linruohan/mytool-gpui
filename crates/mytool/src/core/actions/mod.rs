@@ -69,7 +69,7 @@
 //! 4. 保持向后兼容，旧代码继续工作
 
 mod attachment;
-mod batch;
+pub mod batch;
 mod item;
 mod label;
 mod optimistic;

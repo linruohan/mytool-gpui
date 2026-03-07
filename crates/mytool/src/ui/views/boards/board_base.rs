@@ -14,6 +14,8 @@ pub struct BoardBase {
         std::collections::HashMap<String, Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>>,
     pub pinned_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
     pub overdue_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
+    /// 过期任务分组（超过今天但还未完成，仅 Today Board 使用）
+    pub past_due_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
     pub is_today_board: bool,
     /// 分区列表（用于渲染 Section 分组）
     pub sections: Vec<std::sync::Arc<todos::entity::SectionModel>>,
@@ -29,6 +31,7 @@ impl BoardBase {
         let section_items_map = std::collections::HashMap::new();
         let pinned_items = vec![];
         let overdue_items = vec![];
+        let past_due_items = vec![];
         let sections = vec![];
 
         Self {
@@ -41,6 +44,7 @@ impl BoardBase {
             section_items_map,
             pinned_items,
             overdue_items,
+            past_due_items,
             is_today_board: false,
             sections,
         }
@@ -66,11 +70,14 @@ impl BoardBase {
     {
         // 重新计算各项
         self.pinned_items.clear();
+        self.past_due_items.clear();
         self.overdue_items.clear();
         self.no_section_items.clear();
         self.section_items_map.clear();
+        self.sections.clear();
 
-        let mut non_pinned_overdue = vec![];
+        let mut past_due = vec![];
+        let mut today_items = vec![];
         let mut non_pinned_non_overdue_no_section = vec![];
         let mut non_pinned_non_overdue_sections = std::collections::HashMap::new();
 
@@ -80,11 +87,25 @@ impl BoardBase {
             if item_model.pinned {
                 // 置顶任务放在最上方（无论是否过期）
                 self.pinned_items.push((i, item_model));
-            } else if self.is_today_board && self.is_overdue(&item_model) {
-                // 非置顶但过期的任务
-                non_pinned_overdue.push((i, item_model));
-            } else {
-                // 非置顶且非过期的任务，按section分类
+            } else if self.is_today_board && self.is_past_due(&item_model) {
+                // 过去日期的任务（超过今天但还未完成）
+                past_due.push((i, item_model));
+            } else if self.is_today_board && item_model.is_due_today() {
+                // 今天到期的任务
+                today_items.push((i, item_model));
+            } else if self.is_today_board && item_model.due_date().is_none() {
+                // Today Board 上无截止日期的任务
+                match item_model.section_id.as_deref() {
+                    None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
+                    Some(sid) => {
+                        non_pinned_non_overdue_sections
+                            .entry(sid.to_string())
+                            .or_insert_with(Vec::new)
+                            .push((i, item_model));
+                    },
+                }
+            } else if !self.is_today_board {
+                // 非 Today Board，按 section 分类
                 match item_model.section_id.as_deref() {
                     None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
                     Some(sid) => {
@@ -98,7 +119,8 @@ impl BoardBase {
         }
 
         // 组织数据结构
-        self.overdue_items = non_pinned_overdue;
+        self.past_due_items = past_due;
+        self.overdue_items = today_items; // 在 Today Board 中，overdue_items 实际上存储今天到期的任务
         self.no_section_items = non_pinned_non_overdue_no_section;
         self.section_items_map = non_pinned_non_overdue_sections;
 
@@ -112,11 +134,11 @@ impl BoardBase {
         }
     }
 
-    /// 检查任务是否过期
+    /// 检查任务是否为过去日期（超过今天）
     ///
-    /// 使用 ItemModel 的 is_overdue() 方法
-    fn is_overdue(&self, item: &std::sync::Arc<todos::entity::ItemModel>) -> bool {
-        item.is_overdue()
+    /// 使用 ItemModel 的 is_past_due() 方法
+    fn is_past_due(&self, item: &std::sync::Arc<todos::entity::ItemModel>) -> bool {
+        item.is_past_due()
     }
 }
 

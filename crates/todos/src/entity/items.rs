@@ -137,4 +137,19 @@ impl Model {
             None => false,
         }
     }
+
+    /// 检查是否为过去日期（超过今天，即昨天及之前）
+    ///
+    /// # 返回
+    /// * `true` - 如果截止日期是昨天或更早
+    /// * `false` - 如果没有截止日期或是今天及之后
+    pub fn is_past_due(&self) -> bool {
+        match self.due_datetime() {
+            Some(due) => {
+                let today = chrono::Utc::now().naive_utc().date();
+                due.date() < today
+            },
+            None => false,
+        }
+    }
 }
