@@ -60,16 +60,29 @@ impl Styled for StorySection {
 
 impl RenderOnce for StorySection {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let has_sub_title = !self.sub_title.is_empty();
+        let title_is_empty = self.title.is_empty();
+        let title_clone = self.title.clone();
+
+        // 分离 sub_title 用于标题和内容
+        let (title_element, remaining_sub_titles) = if title_is_empty && has_sub_title {
+            let mut sub_titles = self.sub_title;
+            let title = sub_titles.remove(0);
+            (title, sub_titles)
+        } else {
+            (self.title.into_any_element(), self.sub_title)
+        };
+
         GroupBox::new()
-            .id(self.title.clone())
+            .id(title_clone)
             .outline()
             .title(
                 h_flex()
                     .justify_between()
                     .w_full()
                     .gap_4()
-                    .child(self.title)
-                    .children(self.sub_title),
+                    .child(title_element)
+                    .children(remaining_sub_titles),
             )
             .content_style(
                 StyleRefinement::default()

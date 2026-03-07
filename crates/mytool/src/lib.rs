@@ -4,8 +4,9 @@ extern crate rust_i18n;
 i18n!("locales");
 
 use gpui::{
-    Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, KeyBinding, Pixels,
-    SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions, px, size,
+    Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, IntoElement, KeyBinding,
+    Pixels, SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions,
+    px, size,
 };
 use gpui_component::{
     Root, TitleBar, WindowExt,
@@ -299,6 +300,15 @@ pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
     StorySection {
         title: title.into(),
         sub_title: vec![],
+        base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_4(),
+        children: vec![],
+    }
+}
+
+pub(crate) fn section_with_title(title: impl IntoElement) -> StorySection {
+    StorySection {
+        title: "".into(),
+        sub_title: vec![title.into_any_element()],
         base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_4(),
         children: vec![],
     }

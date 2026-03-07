@@ -3,11 +3,11 @@
 //! 显示计划中任务，在其他时间去执行的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window, div,
 };
 use gpui_component::{
     ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
@@ -19,7 +19,7 @@ use gpui_component::{
 };
 
 use crate::{
-    BoardBase, ItemRowState, VisualHierarchy, section,
+    BoardBase, ItemRowState, VisualHierarchy, section_with_title,
     todo_actions::{add_item, delete_item, update_item},
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
@@ -287,13 +287,44 @@ impl Render for ScheduledBoard {
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let pinned_items = self.base.pinned_items.clone();
-        let no_section_items = self.base.no_section_items.clone();
-        let section_items_map = self.base.section_items_map.clone();
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
+
+        // 获取今天的日期（用于高亮显示）
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+        // 按日期分组 items
+        let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
+            HashMap::new();
+        let store = cx.global::<TodoStore>();
+        let all_scheduled = store.scheduled_items();
+
+        for (i, item) in all_scheduled.iter().enumerate() {
+            let date_key = item
+                .due_date()
+                .and_then(|d| {
+                    // 从 date 字符串提取日期部分（YYYY-MM-DD）
+                    // 支持格式：2025-02-22T17:30:00 或 2025-02-22 17:30:00
+                    let date_str = &d.date;
+                    // 先检查是否包含 'T'（ISO 格式）
+                    if date_str.contains('T') {
+                        date_str.split('T').next().map(String::from)
+                    } else {
+                        // 使用空格分割（带空格的格式）
+                        date_str.split(' ').next().map(String::from)
+                    }
+                })
+                .unwrap_or_else(|| "无日期".to_string());
+            items_by_date.entry(date_key).or_default().push((i, item.clone()));
+        }
+
+        // 按日期排序
+        let mut sorted_dates: Vec<_> = items_by_date.into_keys().collect();
+        sorted_dates.sort();
+
+        // 橙色用于今天的高亮 (HSLA: Hue 38, Saturation 100%, Lightness 53%, Alpha 100%)
+        let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
 
         v_flex()
             .track_focus(&self.base.focus_handle)
@@ -419,96 +450,54 @@ impl Render for ScheduledBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
-                        .when(!pinned_items.is_empty(), |this| {
-                            this.child(board_renderer::render_item_section(
-                                "Pinned",
-                                &pinned_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                            ))
-                        })
-                        .when(!no_section_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(
-                                section("No Section")
-                                    .sub_title(
-                                        h_flex().gap_1().child(
-                                            Button::new("add-item-to-no-section")
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::PlusLargeSymbolic)
-                                                .label("Add Task")
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    move |_, window, cx| {
-                                                        view.update(cx, |this, cx| {
-                                                            this.show_item_dialog(
-                                                                window, cx, false, None,
-                                                            );
-                                                            cx.notify();
-                                                        })
-                                                    }
-                                                }),
-                                        ),
-                                    )
-                                    .child(board_renderer::render_item_list(
-                                        &no_section_items,
-                                        item_rows,
-                                        active_index,
-                                        active_border,
-                                        view_clone,
-                                    )),
-                            )
-                        })
-                        .children(sections.iter().filter_map(|sec| {
-                            let items = section_items_map.get(&sec.id)?;
+                        .children(sorted_dates.into_iter().filter_map(|date| {
+                            let items = store
+                                .scheduled_items()
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, item)| {
+                                    let item_date = item
+                                        .due_date()
+                                        .and_then(|d| {
+                                            let date_str = &d.date;
+                                            // 先检查是否包含 'T'（ISO 格式）
+                                            if date_str.contains('T') {
+                                                date_str.split('T').next().map(String::from)
+                                            } else {
+                                                // 使用空格分割（带空格的格式）
+                                                date_str.split(' ').next().map(String::from)
+                                            }
+                                        })
+                                        .unwrap_or_else(|| "无日期".to_string());
+                                    item_date == date
+                                })
+                                .map(|(i, item)| (i, item.clone()))
+                                .collect::<Vec<_>>();
+
                             if items.is_empty() {
                                 return None;
                             }
 
                             let view_clone = view.clone();
-                            let section_id = sec.id.clone();
+                            let is_today = date == today;
+
+                            // 自定义渲染 section，支持当天日期橙色高亮
+                            let title_color =
+                                if is_today { orange_color } else { cx.theme().foreground };
 
                             Some(
-                                section(sec.name.clone())
-                                    .sub_title(
-                                        h_flex().gap_1().child(
-                                            Button::new(format!(
-                                                "add-item-to-section-{}",
-                                                section_id
-                                            ))
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::PlusLargeSymbolic)
-                                            .label("Add Task")
-                                            .on_click({
-                                                let view = view_clone.clone();
-                                                let section_id = section_id.clone();
-                                                move |_, window, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.show_item_dialog(
-                                                            window,
-                                                            cx,
-                                                            false,
-                                                            Some(section_id.clone()),
-                                                        );
-                                                        cx.notify();
-                                                    })
-                                                }
-                                            }),
-                                        ),
-                                    )
-                                    .child(board_renderer::render_item_list(
-                                        items,
+                                section_with_title(div().flex().items_center().gap_2().child(
+                                    div().text_base().text_color(title_color).child(date.clone()),
+                                ))
+                                .child(
+                                    board_renderer::render_item_list(
+                                        &items,
                                         item_rows,
                                         active_index,
                                         active_border,
                                         view_clone,
-                                    )),
+                                    ),
+                                ),
                             )
                         })),
                 ),
