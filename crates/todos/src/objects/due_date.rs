@@ -52,6 +52,10 @@ impl DueDate {
         if let Ok(dt) = NaiveDateTime::parse_from_str(&self.date, "%Y-%m-%d %H:%M:%S") {
             return Some(dt);
         }
+        // 最后尝试纯日期格式 (2025-02-22)，转换为当天的 00:00:00
+        if let Ok(date) = chrono::NaiveDate::from_str(&self.date) {
+            return Some(date.and_hms_opt(0, 0, 0).unwrap());
+        }
         None
     }
 

@@ -203,6 +203,7 @@ impl TodoStore {
             .filter(|item| {
                 !item.checked
                     && (item.project_id.is_none() || item.project_id.as_deref() == Some(""))
+                    && !item.is_due_today()
             })
             .cloned()
             .collect()
@@ -747,17 +748,59 @@ mod tests {
         ItemModel { id: id.to_string(), checked, pinned, due: due_json, ..Default::default() }
     }
 
+    fn create_test_item_with_project(
+        id: &str,
+        checked: bool,
+        pinned: bool,
+        due: Option<&str>,
+        project_id: &str,
+    ) -> ItemModel {
+        let mut item = create_test_item(id, checked, pinned, due);
+        item.project_id = Some(project_id.to_string());
+        item
+    }
+
     #[test]
     fn test_inbox_items() {
         let mut store = TodoStore::new();
+
+        // 创建测试数据
+        let today = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let yesterday =
+            (chrono::Utc::now() - chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let tomorrow =
+            (chrono::Utc::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+
         store.all_items = vec![
+            // 无项目、未完成、无日期 -> 应该在 Inbox
             Arc::new(create_test_item("1", false, false, None)),
+            // 无项目、已完成、无日期 -> 不应该在 Inbox
             Arc::new(create_test_item("2", true, false, None)),
+            // 无项目、未完成、有日期 -> 应该在 Inbox
             Arc::new(create_test_item("3", false, false, None)),
+            // 无项目、未完成、昨天日期 -> 应该在 Inbox (is_past_due = true)
+            Arc::new(create_test_item("4", false, false, Some(&yesterday))),
+            // 无项目、未完成、今天日期 -> 不应该在 Inbox (is_due_today = true)
+            Arc::new(create_test_item("5", false, false, Some(&today))),
+            // 无项目、未完成、明天日期 -> 应该在 Inbox (!is_due_today = true)
+            Arc::new(create_test_item("6", false, false, Some(&tomorrow))),
+            // 有项目、未完成 -> 不应该在 Inbox
+            Arc::new(create_test_item_with_project("7", false, false, None, "proj1")),
         ];
 
         let inbox = store.inbox_items();
-        assert_eq!(inbox.len(), 2);
+        // 应该在 Inbox: 1, 3, 4, 6 = 4 个
+        assert_eq!(inbox.len(), 4);
+
+        // 验证今天到期的任务不在 Inbox
+        let ids: Vec<&str> = inbox.iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&"1"));
+        assert!(ids.contains(&"3"));
+        assert!(ids.contains(&"4"));
+        assert!(ids.contains(&"6"));
+        assert!(!ids.contains(&"2")); // 已完成
+        assert!(!ids.contains(&"5")); // 今天到期
+        assert!(!ids.contains(&"7")); // 有项目
     }
 
     #[test]

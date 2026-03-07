@@ -399,7 +399,7 @@ impl Board for InboxBoard {
     }
 
     fn description() -> &'static str {
-        "所有未完成任务"
+        "未完成的无项目任务，去掉今天"
     }
 
     fn zoomable() -> Option<PanelControl> {
