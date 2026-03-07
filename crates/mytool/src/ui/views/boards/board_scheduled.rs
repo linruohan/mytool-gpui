@@ -15,6 +15,7 @@ use gpui_component::{
     dock::PanelControl,
     h_flex,
     input::InputState,
+    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
@@ -587,6 +588,29 @@ impl Render for ScheduledBoard {
                                 section_with_title(div().flex().items_center().gap_2().child(
                                     div().text_base().text_color(title_color).child(date.clone()),
                                 ))
+                                .sub_title(
+                                    h_flex().gap_1().child(
+                                        Button::new(format!("more-date-{}", date))
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::EllipsisVertical)
+                                            .dropdown_menu({
+                                                let view = view_clone.clone();
+                                                move |this, window, _cx| {
+                                                    this.item(
+                                                        PopupMenuItem::new("Show Completed Tasks")
+                                                            .on_click(window.listener_for(
+                                                                &view,
+                                                                |_this, _, _window, cx| {
+                                                                    cx.notify();
+                                                                },
+                                                            )),
+                                                    )
+                                                }
+                                            }),
+                                    ),
+                                )
                                 .child(
                                     board_renderer::render_item_list(
                                         &items,
