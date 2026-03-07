@@ -387,6 +387,15 @@ impl ItemInfoState {
             item_id, has_input_changes, current_item.content, labels_changed
         );
 
+        // 如果没有修改，直接跳过保存
+        if !has_input_changes && !labels_changed {
+            info!(
+                "save_all_changes: No changes detected for item {}, skipping database update",
+                item_id
+            );
+            return;
+        }
+
         // 根据 item.id 是否为空来决定是添加新任务还是更新现有任务
         if item_id.is_empty() {
             // 新建任务：使用 add_item_optimistic
