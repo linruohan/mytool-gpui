@@ -14,14 +14,12 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     h_flex,
     input::InputState,
-    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
 
 use crate::{
-    BoardBase, ItemRowState, ManageSectionsPanel, ScheduleButtonEvent, ScheduleButtonState,
-    VisualHierarchy,
+    BoardBase, ItemRowState, ScheduleButtonEvent, ScheduleButtonState, VisualHierarchy,
     core::actions::batch::batch_update_items,
     section,
     todo_actions::{
@@ -551,49 +549,15 @@ impl Render for TodayBoard {
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(IconName::ListSymbolic)
-                                    .label("Section")
-                                    .dropdown_menu({
+                                    .icon(IconName::PlusLargeSymbolic)
+                                    .label("添加 Section")
+                                    .on_click({
                                         let view = view.clone();
-                                        move |this, window, _cx| {
-                                            let view = view.clone();
-                                            this.item(
-                                                PopupMenuItem::new("+ Add Section").on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_section_dialog(window, cx, None, false);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Manage Sections").on_click(
-                                                    move |_, window, cx| {
-                                                        // 打开 Manage Sections 对话框
-                                                        window.open_dialog(cx, |modal, window, cx| {
-                                                            modal
-                                                                .title("Manage Sections")
-                                                                .overlay(false)
-                                                                .keyboard(true)
-                                                                .overlay_closable(true)
-                                                                .child(
-                                                                    v_flex()
-                                                                        .size_full()
-                                                                        .h(gpui::px(400.0))
-                                                                        .w(gpui::px(300.0))
-                                                                        .child(ManageSectionsPanel::view(window, cx)),
-                                                                )
-                                                                .footer(
-                                                                    gpui_component::dialog::DialogFooter::new()
-                                                                        .child(
-                                                                            gpui_component::dialog::DialogClose::new()
-                                                                                .child(Button::new("close").label("Close").primary()),
-                                                                        ),
-                                                                )
-                                                        });
-                                                    },
-                                                ),
-                                            )
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_section_dialog(window, cx, None, false);
+                                                cx.notify();
+                                            })
                                         }
                                     }),
                             ),

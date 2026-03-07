@@ -108,7 +108,13 @@ impl ItemsPanel {
         self.is_checked = *selectable;
     }
 
-    fn initialize_item_model(&self, _is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+    fn initialize_item_model(&self, is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+        // 新建 item 时直接返回默认值，不复制选中 item 的内容
+        if !is_edit {
+            return ItemModel::default();
+        }
+
+        // 编辑时才获取当前选中的 item
         self.active_index
             .and_then(|index| {
                 tracing::debug!("show_label_dialog: active index: {}", index);
@@ -124,12 +130,12 @@ impl ItemsPanel {
     pub fn show_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>, is_edit: bool) {
         let item_info = self.item_info.clone();
         let ori_item = self.initialize_item_model(is_edit, window, cx);
-        if is_edit {
-            item_info.update(cx, |state, cx| {
-                state.set_item(Arc::new(ori_item.clone()), window, cx);
-                cx.notify();
-            });
-        }
+
+        // 设置 item_info 的状态（新建和编辑都需要）
+        item_info.update(cx, |state, cx| {
+            state.set_item(Arc::new(ori_item.clone()), window, cx);
+            cx.notify();
+        });
 
         let config = crate::ui::components::ItemDialogConfig::new(
             if is_edit { "Edit Item" } else { "New Item" },

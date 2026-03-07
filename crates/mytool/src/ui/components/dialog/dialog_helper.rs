@@ -87,11 +87,11 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
             )
             .on_ok(move |_, window, cx| {
                 (save_fn)(cx);
-                window.push_notification("You have pressed restart.", cx);
+                window.push_notification("You have added.", cx);
                 true
             })
             .on_cancel(|_, window, cx| {
-                window.push_notification("You have pressed later.", cx);
+                window.push_notification("You have canceld.", cx);
                 true
             })
     });

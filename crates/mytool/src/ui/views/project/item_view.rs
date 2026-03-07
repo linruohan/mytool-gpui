@@ -169,7 +169,13 @@ impl ProjectItemsPanel {
         }
     }
 
-    fn initialize_item_model(&self, _is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+    fn initialize_item_model(&self, is_edit: bool, _: &mut Window, cx: &mut App) -> ItemModel {
+        // 新建 item 时直接返回默认值，不复制选中 item 的内容
+        if !is_edit {
+            return ItemModel::default();
+        }
+
+        // 编辑时才获取当前选中的 item
         self.active_index
             .and_then(|index| self.get_selected_item(IndexPath::new(index), cx))
             .map(|item| {
@@ -447,28 +453,15 @@ impl Render for ProjectItemsPanel {
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(IconName::ListSymbolic)
-                                    .label("Section")
-                                    .dropdown_menu({
+                                    .icon(IconName::PlusLargeSymbolic)
+                                    .label("添加 Section")
+                                    .on_click({
                                         let view = view.clone();
-                                        move |this, window, _cx| {
-                                            let view = view.clone();
-                                            this.item(
-                                                PopupMenuItem::new("+ Add Section").on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_section_dialog(window, cx, None, false);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Manage Sections").on_click(
-                                                    window.listener_for(&view, |_this, _, _window, cx| {
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_section_dialog(window, cx, None, false);
+                                                cx.notify();
+                                            })
                                         }
                                     }),
                             ),
