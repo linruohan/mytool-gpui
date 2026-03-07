@@ -218,6 +218,13 @@ impl ManageSectionsPanel {
             }),
         ];
 
+        // 初始化时主动加载一次 Sections 数据
+        let sections = cx.global::<TodoStore>().sections.clone();
+        cx.update_entity(&section_list, |list, cx| {
+            list.delegate_mut().update_sections(sections);
+            cx.notify();
+        });
+
         Self {
             focus_handle: cx.focus_handle(),
             section_list,
