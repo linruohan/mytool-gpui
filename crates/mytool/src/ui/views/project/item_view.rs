@@ -44,6 +44,7 @@ pub struct ProjectItemsPanel {
     item_info: Entity<ItemInfoState>,
     _subscriptions: Vec<Subscription>,
     focus_handle: FocusHandle,
+    pinned_items: Vec<(usize, Arc<ItemModel>)>,
     no_section_items: Vec<(usize, Arc<ItemModel>)>,
     section_items_map: std::collections::HashMap<String, Vec<(usize, Arc<ItemModel>)>>,
     /// 缓存的 TodoStore 版本号，用于优化性能
@@ -55,6 +56,7 @@ impl ProjectItemsPanel {
         let item = Arc::new(ItemModel::default());
         let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_rows = vec![];
+        let pinned_items = vec![];
         let no_section_items = vec![];
         let section_items_map = std::collections::HashMap::new();
 
@@ -80,11 +82,18 @@ impl ProjectItemsPanel {
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
-                // 重新计算no_section_items和section_items_map
+                // 重新计算 pinned_items, no_section_items 和 section_items_map
+                this.pinned_items.clear();
                 this.no_section_items.clear();
                 this.section_items_map.clear();
 
                 for (i, item) in state_items.iter().enumerate() {
+                    // 置顶任务（未完成且已置顶）
+                    if !item.checked && item.pinned {
+                        this.pinned_items.push((i, item.clone()));
+                    }
+
+                    // 按分区分组
                     match item.section_id.as_deref() {
                         None | Some("") => this.no_section_items.push((i, item.clone())),
                         Some(sid) => {
@@ -115,6 +124,7 @@ impl ProjectItemsPanel {
             _subscriptions,
             project: Arc::new(ProjectModel::default()),
             focus_handle: cx.focus_handle(),
+            pinned_items,
             no_section_items,
             section_items_map,
             cached_version: 0,
@@ -195,9 +205,14 @@ impl ProjectItemsPanel {
         let item_info = self.item_info.clone();
         let mut ori_item = self.initialize_item_model(is_edit, window, cx);
 
-        // If adding a new item with a section_id, set it
-        if !is_edit && let Some(sid) = section_id {
-            ori_item.section_id = Some(sid);
+        // If adding a new item with a section_id, set project_id and section_id
+        if !is_edit {
+            // 设置默认的 project_id
+            ori_item.project_id = Some(self.project.id.clone());
+            // 设置 section_id（如果有）
+            if let Some(sid) = section_id {
+                ori_item.section_id = Some(sid);
+            }
         }
 
         item_info.update(cx, |state, cx| {
@@ -402,18 +417,61 @@ impl Render for ProjectItemsPanel {
                             .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
-                                Button::new("add-label")
+                                Button::new("add-item")
                                     .small()
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .on_click({
+                                    .label("Add Task")
+                                    .dropdown_menu({
                                         let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, false, None);
-                                                cx.notify();
-                                            })
+                                        move |this, window, _cx| {
+                                            // 添加 "No Section" 选项
+                                            this.item(
+                                                PopupMenuItem::new("No Section").on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_dialog(window, cx, false, None);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("add-item-to-section")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::FolderOpen)
+                                    .label("Add to Section")
+                                    .dropdown_menu({
+                                        let view = view.clone();
+                                        let project_id = self.project.id.clone();
+                                        move |mut this, window, cx| {
+                                            // 获取当前 project 的所有 sections
+                                            let sections = cx.global::<TodoStore>().sections.clone();
+                                            let project_sections: Vec<_> = sections
+                                                .iter()
+                                                .filter(|s| s.project_id.as_deref() == Some(&project_id))
+                                                .collect();
+
+                                            // 为每个 section 添加菜单项
+                                            for section in project_sections {
+                                                let section_id = section.id.clone();
+                                                let section_name = section.name.clone();
+                                                this = this.item(
+                                                    PopupMenuItem::new(section_name).on_click(
+                                                        window.listener_for(&view, move |this, _, window, cx| {
+                                                            this.show_item_dialog(window, cx, false, Some(section_id.clone()));
+                                                            cx.notify();
+                                                        }),
+                                                    ),
+                                                );
+                                            }
+
+                                            this
                                         }
                                     }),
                             )
@@ -471,6 +529,65 @@ impl Render for ProjectItemsPanel {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
+                        // 1. Pinned 分组
+                        .when(!self.pinned_items.is_empty(), |this| {
+                            let view_clone = view.clone();
+                            let view_clone_for_dropdown = view_clone.clone();
+                            let pinned_items = self.pinned_items.clone();
+                            let item_rows = self.item_rows.clone();
+                            let active_index = self.active_index;
+                            let active_border = cx.theme().list_active_border;
+
+                            // 渲染 pinned items 列表
+                            let pinned_items_view = v_flex()
+                                .gap(VisualHierarchy::spacing(2.0))
+                                .w_full()
+                                .children(pinned_items.into_iter().map(move |(i, _item)| {
+                                    let view = view_clone.clone();
+                                    let is_active = active_index == Some(i);
+                                    let item_row = item_rows.get(i).cloned();
+                                    div()
+                                        .id(("pinned-item", i))
+                                        .on_click(move |_, _, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.active_index = Some(i);
+                                                cx.notify();
+                                            });
+                                        })
+                                        .when(is_active, |this| {
+                                            this.border_color(active_border)
+                                        })
+                                        .children(item_row.map(|row| ItemRow::new(&row)))
+                                }));
+
+                            this.child(
+                                section("Pinned")
+                                    .sub_title(
+                                        h_flex().gap(VisualHierarchy::spacing(1.0)).child(
+                                            Button::new("more-pinned")
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::EllipsisVertical)
+                                                .dropdown_menu({
+                                                    let view = view_clone_for_dropdown.clone();
+                                                    move |this, window, _cx| {
+                                                        this.item(
+                                                            PopupMenuItem::new("Show Completed Tasks")
+                                                                .on_click(
+                                                                    window.listener_for(&view, |_this, _, _window, cx| {
+                                                                        cx.notify();
+                                                                    }),
+                                                                ),
+                                                        )
+                                                    }
+                                                }),
+                                        ),
+                                    )
+                                    .child(pinned_items_view),
+                            )
+                        })
+                        // 2. No Section 分组
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(

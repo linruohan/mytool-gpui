@@ -13,7 +13,7 @@ use gpui_component::{IconName, v_flex};
 use todos::entity::ItemModel;
 
 use super::board_base::BoardView;
-use crate::{ItemRow, ItemRowState, VisualHierarchy, section};
+use crate::{ItemRow, ItemRowState, VisualHierarchy};
 
 /// Board 配置结构
 ///
@@ -124,25 +124,4 @@ where
         let is_active = active_index == Some(*i);
         render_item_row(*i, item_row, is_active, active_border, view.clone())
     }))
-}
-
-/// 渲染带标题的任务区块（Pinned / Overdue 等）
-pub fn render_item_section<V>(
-    title: impl ToString,
-    items: &[(usize, Arc<ItemModel>)],
-    item_rows: &[Entity<ItemRowState>],
-    active_index: Option<usize>,
-    active_border: gpui::Hsla,
-    view: Entity<V>,
-) -> impl IntoElement
-where
-    V: BoardView + Render,
-{
-    section(title.to_string()).child(render_item_list(
-        items,
-        item_rows,
-        active_index,
-        active_border,
-        view,
-    ))
 }

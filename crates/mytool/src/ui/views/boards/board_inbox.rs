@@ -572,14 +572,16 @@ impl Render for InboxBoard {
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(board_renderer::render_item_section(
-                                "Pinned",
-                                &pinned_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                            ))
+                            this.child(
+                                section("Pinned")
+                                    .child(board_renderer::render_item_list(
+                                        &pinned_items,
+                                        item_rows,
+                                        active_index,
+                                        active_border,
+                                        view.clone(),
+                                    ))
+                            )
                         })
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();

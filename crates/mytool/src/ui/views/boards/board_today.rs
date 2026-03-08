@@ -627,8 +627,7 @@ impl Render for TodayBoard {
                                                 }),
                                         ),
                                     )
-                                    .child(board_renderer::render_item_section(
-                                        "Pinned",
+                                    .child(board_renderer::render_item_list(
                                         &pinned_items,
                                         item_rows,
                                         active_index,
@@ -704,8 +703,7 @@ impl Render for TodayBoard {
                                                 }),
                                         ),
                                     )
-                                    .child(board_renderer::render_item_section(
-                                        "Today",
+                                    .child(board_renderer::render_item_list(
                                         &overdue_items,
                                         item_rows,
                                         active_index,

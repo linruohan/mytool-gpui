@@ -308,6 +308,17 @@ impl TodoStore {
             .collect()
     }
 
+    /// 获取指定项目的置顶任务（未完成且已置顶）
+    pub fn pinned_items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
+        self.all_items
+            .iter()
+            .filter(|item| {
+                item.project_id.as_deref() == Some(project_id) && !item.checked && item.pinned
+            })
+            .cloned()
+            .collect()
+    }
+
     /// 获取指定分区的任务
     pub fn items_by_section(&self, section_id: &str) -> Vec<Arc<ItemModel>> {
         self.all_items

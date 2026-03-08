@@ -579,8 +579,7 @@ impl Render for PinBoard {
                                                 }),
                                         ),
                                     )
-                                    .child(board_renderer::render_item_section(
-                                        "Pinned",
+                                    .child(board_renderer::render_item_list(
                                         &pinned_items,
                                         item_rows,
                                         active_index,
