@@ -553,7 +553,7 @@ impl Render for InboxBoard {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .label("添加 Section")
+                                    .label("Add Section")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {

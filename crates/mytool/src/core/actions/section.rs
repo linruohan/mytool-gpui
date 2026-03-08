@@ -5,7 +5,7 @@ use todos::entity::SectionModel;
 
 use crate::core::state::{TodoStore, get_store};
 
-// 添加 section（使用增量更新和全局 Store）
+// Add Section（使用增量更新和全局 Store）
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
     let store = get_store(cx);
     cx.spawn(async move |cx| {

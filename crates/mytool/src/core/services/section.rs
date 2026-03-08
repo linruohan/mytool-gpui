@@ -21,7 +21,7 @@ pub async fn add_section(
     Store::new(db).await?.insert_section(section.as_ref().clone()).await
 }
 
-/// 使用全局 Store 添加 section（推荐）
+/// 使用全局 Store Add Section（推荐）
 pub async fn add_section_with_store(
     section: Arc<SectionModel>,
     store: Arc<Store>,
