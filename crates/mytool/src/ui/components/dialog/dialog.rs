@@ -1,4 +1,5 @@
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct DialogConfig {
     pub title: String,
     pub overlay: bool,

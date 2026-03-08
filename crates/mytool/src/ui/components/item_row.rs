@@ -206,6 +206,7 @@ impl ItemRowState {
     }
 
     /// 收起详情面板并保存修改
+    #[allow(dead_code)]
     fn collapse(&mut self, cx: &mut Context<Self>) {
         if self.is_open {
             self.save_all_changes(cx);

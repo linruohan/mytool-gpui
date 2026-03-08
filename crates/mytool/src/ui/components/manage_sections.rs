@@ -92,7 +92,7 @@ impl ListDelegate for ManageSectionListDelegate {
             let section_color = section
                 .color
                 .as_ref()
-                .and_then(|c| u32::from_str_radix(&c[1..], 16).ok().map(|rgb| gpui::rgb(rgb)))
+                .and_then(|c| u32::from_str_radix(&c[1..], 16).ok().map(gpui::rgb))
                 .unwrap_or(gpui::rgb(0x3b82f6));
 
             let item = div()
@@ -188,7 +188,7 @@ impl ManageSectionsPanel {
 
         // 订阅 List 事件
         let section_list_for_subscribe = section_list.clone();
-        let _subscriptions = vec![
+        let _subscriptions = [
             cx.subscribe(&section_list, move |this, list, event: &ListEvent, cx| {
                 match event {
                     ListEvent::Confirm(ix) => {

@@ -329,13 +329,12 @@ impl ItemInfoState {
                 // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
-            InputEvent::PressEnter { secondary } => {
-                if !*secondary {
+            InputEvent::PressEnter { secondary }
+                if !*secondary
                     // Enter 键时保存（仅在变更时）
-                    if self.sync_inputs(cx) {
-                        cx.emit(ItemInfoEvent::Updated());
-                    }
-                }
+                    && self.sync_inputs(cx) =>
+            {
+                cx.emit(ItemInfoEvent::Updated());
             },
             InputEvent::Blur => {
                 // 失焦时自动保存
@@ -568,6 +567,7 @@ impl ItemInfoState {
     }
 
     /// 同步标签选择状态 - 仅在需要时调用，避免过度刷新
+    #[allow(dead_code)]
     fn sync_labels_selection(&mut self, cx: &mut Context<Self>) {
         // 从当前选中的标签生成 label_ids 字符串
         let selected_label_ids = self.label_popover_list.read(cx).get_selected_label_ids();

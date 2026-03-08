@@ -230,11 +230,11 @@ impl ListDelegate for LabelCheckListDelegate {
         _: &mut Context<ListState<Self>>,
     ) -> Option<Self::Item> {
         let selected = Some(ix) == self.selected_index || Some(ix) == self.confirmed_index;
-        if let Some(section) = self.matched_labels.get(ix.section) {
-            if let Some(label) = section.get(ix.row) {
-                let checked = self.checked_list.iter().any(|l| l.id == label.id);
-                return Some(LabelCheckListItem::new(ix, label.clone(), selected, checked));
-            }
+        if let Some(section) = self.matched_labels.get(ix.section)
+            && let Some(label) = section.get(ix.row)
+        {
+            let checked = self.checked_list.iter().any(|l| l.id == label.id);
+            return Some(LabelCheckListItem::new(ix, label.clone(), selected, checked));
         }
         None
     }
