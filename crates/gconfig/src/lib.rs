@@ -76,15 +76,21 @@ pub struct AppConfig {
     config_path: Option<PathBuf>,
 }
 
-/// 查找workspace根目录
+/// 查找 workspace 根目录
 ///
-/// 从当前目录向上查找，直到找到包含application.toml的目录
-fn find_workspace_root(current_dir: &Path) -> PathBuf {
-    let mut dir = current_dir.to_path_buf();
+/// 从可执行文件所在目录或当前目录向上查找，直到找到包含 application.toml 的目录
+fn find_workspace_root() -> PathBuf {
+    // 优先使用可执行文件所在目录
+    let start_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe_path| exe_path.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-    // 最多向上查找5层
-    for _ in 0..5 {
-        // 检查当前目录是否有application.toml
+    let mut dir = start_dir.clone();
+
+    // 最多向上查找 10 层
+    for _ in 0..3 {
+        // 检查当前目录是否有 application.toml
         if dir.join("application.toml").exists() {
             return dir;
         }
@@ -97,8 +103,8 @@ fn find_workspace_root(current_dir: &Path) -> PathBuf {
         }
     }
 
-    // 如果找不到，返回当前目录
-    dir
+    // 如果找不到，返回可执行文件所在目录或当前目录
+    start_dir
 }
 
 impl AppConfig {
@@ -146,7 +152,7 @@ impl AppConfig {
     ///
     /// 根据环境查找对应的配置文件
     fn find_config_file(env: Environment) -> Result<PathBuf> {
-        let workspace_root = find_workspace_root(Path::new("."));
+        let workspace_root = find_workspace_root();
         let config_filename = match env {
             Environment::Development => "application.toml",
             Environment::Production => "application-prod.toml",
