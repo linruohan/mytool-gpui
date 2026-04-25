@@ -1,6 +1,6 @@
 use chrono::Local;
 use gpui::{
-    Action, AppContext, Context, Corner, Entity, FocusHandle, InteractiveElement, ParentElement,
+    Action, Anchor, AppContext, Context, Entity, FocusHandle, InteractiveElement, ParentElement,
     Render, SharedString, Styled, Subscription, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
@@ -302,7 +302,7 @@ impl Render for ScheduleButtonState {
                     .tooltip("set schedule")
                     .icon(IconName::Calendar)
                     .label(SharedString::from(self.get_display_text()))
-                    .dropdown_menu_with_anchor(Corner::TopLeft, move |this, window, cx| {
+                    .dropdown_menu_with_anchor(Anchor::TopLeft, move |this, window, cx| {
                         let choose_date_label = choose_date_label.clone();
                         let repeat_hint = repeat_hint.clone();
                         let time_hint = time_hint.clone();
@@ -379,7 +379,7 @@ impl Render for ScheduleButtonState {
                     }),
             )
             .when(self.show_date_picker, move |this| {
-                this.child(DatePicker::new(&date_picker_for_when).cleanable(true).w(px(260.)))
+                this.child(DatePicker::new(&date_picker_for_when).cleanable(true))
             })
     }
 }

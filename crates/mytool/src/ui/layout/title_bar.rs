@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, AppContext, Context, Corner, Entity, FocusHandle, InteractiveElement as _,
+    Anchor, AnyElement, App, AppContext, Context, Entity, FocusHandle, InteractiveElement as _,
     IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Subscription,
     Window, div, px,
 };
@@ -40,7 +40,6 @@ impl AppTitleBar {
         }
     }
 
-    #[allow(dead_code)]
     pub fn child<F, E>(mut self, f: F) -> Self
     where
         E: IntoElement,
@@ -215,7 +214,7 @@ impl Render for FontSizeSelector {
                                 Box::new(ToggleListActiveHighlight),
                             )
                     })
-                    .anchor(Corner::TopRight),
+                    .anchor(Anchor::TopRight),
             )
     }
 }

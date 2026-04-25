@@ -1,6 +1,6 @@
 use gpui::{
-    Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
+    Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
     Icon, IconName, Sizable, Size, StyledExt,
@@ -280,7 +280,7 @@ where
     }
 
     v_flex().on_action(cx.listener(S::on_action_select)).child(button.dropdown_menu_with_anchor(
-        gpui::Corner::TopLeft,
+        gpui::Anchor::TopLeft,
         move |this: gpui_component::menu::PopupMenu, _, _| {
             let mut this = this.scrollable(true).max_h(px(400.));
 

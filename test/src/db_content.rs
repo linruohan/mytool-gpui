@@ -1,7 +1,7 @@
-use sea_orm::{Database, DbErr, Statement};
+use sea_orm::{ConnectionTrait, Database, DbErr, Statement};
 
 #[tokio::main]
-async fn main() -> Result<(), DbErr> {
+pub(crate) async fn main() -> Result<(), DbErr> {
     println!("=== 检查数据库内容 ===");
 
     // 连接数据库
@@ -85,7 +85,7 @@ async fn main() -> Result<(), DbErr> {
                     let id: String = row.try_get(0)?;
                     let title: String = row.try_get(1)?;
                     let status: String = row.try_get(2)?;
-                    println!("   - {}: {} (status: {})");
+                    println!("   -: (status:)");
                 }
             }
         },

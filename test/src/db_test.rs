@@ -2,7 +2,7 @@ use gconfig::{DatabaseConfig, get};
 use sea_orm::{Database, DbErr};
 
 #[tokio::main]
-async fn main() -> Result<(), DbErr> {
+pub(crate) async fn main() -> Result<(), DbErr> {
     println!("=== 测试数据库连接 ===");
 
     // 1. 检查配置加载

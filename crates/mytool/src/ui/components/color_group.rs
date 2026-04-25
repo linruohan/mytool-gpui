@@ -1,7 +1,7 @@
 use gpui::{
-    Action, App, AppContext, Bounds, Context, Corner, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render,
-    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Action, Anchor, App, AppContext, Bounds, Context, ElementId, Entity, EventEmitter,
+    FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels,
+    Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
     Subscription, Window, actions, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
@@ -164,7 +164,7 @@ pub struct ColorGroup {
     label: Option<SharedString>,
     icon: Option<Icon>,
     size: Size,
-    anchor: Corner,
+    anchor: Anchor,
 }
 
 impl ColorGroup {
@@ -178,7 +178,7 @@ impl ColorGroup {
             size: Size::Small,
             label: None,
             icon: None,
-            anchor: Corner::TopLeft,
+            anchor: Anchor::TopLeft,
         }
     }
 
@@ -211,7 +211,7 @@ impl ColorGroup {
     /// Set the anchor corner of the color picker.
     ///
     /// Default is `Corner::TopLeft`.
-    pub fn anchor(mut self, anchor: Corner) -> Self {
+    pub fn anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = anchor;
         self
     }
@@ -315,11 +315,6 @@ impl RenderOnce for ColorGroup {
                     .child(
                         div()
                             .id("color-picker-square")
-                            .bg(cx.theme().background)
-                            .border_1()
-                            .shadow_xs()
-                            .rounded_full()
-                            .overflow_hidden()
                             .size_with(self.size)
                             .when_some(state.value, |this, value| {
                                 this.bg(value)
