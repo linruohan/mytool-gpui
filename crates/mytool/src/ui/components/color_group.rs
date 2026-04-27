@@ -1,7 +1,7 @@
 use gpui::{
-    Action, Anchor, App, AppContext, Bounds, Context, ElementId, Entity, EventEmitter,
-    FocusHandle, Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels,
-    Render, RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Action, Anchor, App, AppContext, Bounds, Context, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, Hsla, InteractiveElement as _, IntoElement, ParentElement, Pixels, Render,
+    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
     Subscription, Window, actions, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{

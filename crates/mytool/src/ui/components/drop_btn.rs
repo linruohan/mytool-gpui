@@ -1,6 +1,6 @@
 use gpui::{
-    Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
+    Action, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement,
+    ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
     Icon, IconName, Sizable, Size, StyledExt,
