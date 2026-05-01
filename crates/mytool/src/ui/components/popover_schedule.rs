@@ -1,7 +1,7 @@
 use chrono::Local;
 use gpui::{
     Action, Anchor, AppContext, Context, Entity, FocusHandle, InteractiveElement, ParentElement,
-    Render, SharedString, Styled, Subscription, Window, prelude::FluentBuilder, px,
+    Render, SharedString, Subscription, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     IconName, Side,
