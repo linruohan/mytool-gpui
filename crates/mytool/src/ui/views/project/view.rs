@@ -208,9 +208,6 @@ impl ProjectsPanel {
 
     // 更新projects
     fn update_projects(&mut self, cx: &mut Context<Self>) {
-        if !self.is_loading {
-            return;
-        }
         let db = cx.global::<DBState>().conn.clone();
         cx.spawn(async move |this, cx| {
             let projects = load_projects((*db).clone()).await;
@@ -236,18 +233,26 @@ impl ProjectsPanel {
         }
         self.is_loading = true;
         cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::state_service::add_project(project.clone(), (*db).clone()).await;
-            tracing::debug!("add_project {:?}", ret);
+        let store = cx.global::<DBState>().get_store();
+        let this = cx.weak_entity();
+        cx.spawn(async move |_this, cx| {
+            match crate::state_service::add_project_with_store(project.clone(), store).await {
+                Ok(new_project) => {
+                    tracing::info!("Successfully added project: {}", new_project.id);
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.add_project(Arc::new(new_project));
+                    });
+                },
+                Err(e) => {
+                    tracing::error!("Failed to add project: {:?}", e);
+                },
+            }
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
-            })
-            .ok();
+            }).ok();
         })
         .detach();
-        self.update_projects(cx);
     }
 
     pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
@@ -256,18 +261,26 @@ impl ProjectsPanel {
         }
         self.is_loading = true;
         cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::state_service::mod_project(project.clone(), (*db).clone()).await;
-            tracing::debug!("mod_project {:?}", ret);
+        let store = cx.global::<DBState>().get_store();
+        let this = cx.weak_entity();
+        cx.spawn(async move |_this, cx| {
+            match crate::state_service::mod_project_with_store(project.clone(), store).await {
+                Ok(updated_project) => {
+                    tracing::info!("Successfully updated project: {}", updated_project.id);
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_project(Arc::new(updated_project));
+                    });
+                },
+                Err(e) => {
+                    tracing::error!("Failed to update project: {:?}", e);
+                },
+            }
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
-            })
-            .ok();
+            }).ok();
         })
         .detach();
-        self.update_projects(cx);
     }
 
     pub fn del_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
@@ -276,18 +289,27 @@ impl ProjectsPanel {
         }
         self.is_loading = true;
         cx.notify();
-        let db = cx.global::<DBState>().conn.clone();
-        cx.spawn(async move |this: WeakEntity<ProjectsPanel>, cx| {
-            let ret = crate::state_service::del_project(project.clone(), (*db).clone()).await;
-            tracing::debug!("mod_project {:?}", ret);
+        let store = cx.global::<DBState>().get_store();
+        let this = cx.weak_entity();
+        let project_id = project.id.clone();
+        cx.spawn(async move |_this, cx| {
+            match crate::state_service::del_project_with_store(project.clone(), store).await {
+                Ok(_) => {
+                    tracing::info!("Successfully deleted project: {}", project_id);
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.remove_project(&project_id);
+                    });
+                },
+                Err(e) => {
+                    tracing::error!("Failed to delete project: {:?}", e);
+                },
+            }
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
-            })
-            .ok();
+            }).ok();
         })
         .detach();
-        self.update_projects(cx);
     }
 }
 
