@@ -132,15 +132,10 @@ impl DatabaseManager {
         if path_obj.is_absolute() {
             path.to_string()
         } else {
-            let mut base_path = std::env::current_dir().expect("获取当前目录失败");
-
-            while !base_path.join("crates").exists() {
-                if let Some(parent) = base_path.parent() {
-                    base_path = parent.to_path_buf();
-                } else {
-                    break;
-                }
-            }
+            let base_path = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| std::env::current_dir().expect("获取当前目录失败"));
 
             base_path.join(path).to_str().expect("转换路径失败").to_string()
         }
