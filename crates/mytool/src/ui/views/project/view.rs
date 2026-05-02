@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
-    Styled, Subscription, WeakEntity, Window,
+    Styled, Subscription, Window,
 };
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
@@ -250,7 +250,8 @@ impl ProjectsPanel {
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
-            }).ok();
+            })
+            .ok();
         })
         .detach();
     }
@@ -278,7 +279,8 @@ impl ProjectsPanel {
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
-            }).ok();
+            })
+            .ok();
         })
         .detach();
     }
@@ -307,7 +309,8 @@ impl ProjectsPanel {
             this.update(cx, |this, cx| {
                 this.is_loading = false;
                 cx.notify();
-            }).ok();
+            })
+            .ok();
         })
         .detach();
     }
