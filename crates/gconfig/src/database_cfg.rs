@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 
 /// 数据库配置结构体
@@ -58,8 +60,20 @@ impl DatabaseConfig {
     }
 
     /// 获取完整的 SQLite 连接 URL
+    ///
+    /// 数据库路径默认相对于可执行文件所在目录解析
     pub fn sqlite_url(&self) -> String {
-        format!("sqlite://{}?mode=rwc", self.sqlite_path())
+        let db_path = self.sqlite_path();
+        let absolute_path: PathBuf = if PathBuf::from(db_path).is_absolute() {
+            PathBuf::from(db_path)
+        } else {
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(db_path)
+        };
+        format!("sqlite://{}?mode=rwc", absolute_path.display())
     }
 
     /// 获取数据库主机
