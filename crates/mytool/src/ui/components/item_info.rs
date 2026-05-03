@@ -27,9 +27,10 @@ use tracing::{error, info};
 
 use super::{
     AttachmentButton, AttachmentButtonState, PriorityButton, PriorityEvent, PriorityState,
-    ProjectButton, ProjectButtonEvent, ProjectButtonState, ReminderButton, ReminderButtonEvent,
-    ReminderButtonState, ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton,
-    SectionEvent, SectionState,
+    ProjectButton, ProjectButtonEvent, ProjectButtonState, RecurrencyButton, RecurrencyButtonEvent,
+    RecurrencyButtonState, ReminderButton, ReminderButtonEvent, ReminderButtonState,
+    ScheduleButton, ScheduleButtonEvent, ScheduleButtonState, SectionButton, SectionEvent,
+    SectionState,
 };
 use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
@@ -211,6 +212,7 @@ pub struct ItemInfoState {
     project_state: Entity<ProjectButtonState>,
     section_state: Entity<SectionState>,
     schedule_button_state: Entity<ScheduleButtonState>,
+    recurrency_button_state: Entity<RecurrencyButtonState>,
     label_popover_list: Entity<LabelsPopoverList>,
     attachment_state: Entity<AttachmentButtonState>,
     reminder_state: Entity<ReminderButtonState>,
@@ -244,6 +246,14 @@ impl ItemInfoState {
             }
             state
         });
+        let recurrency_button_state = cx.new(|cx| {
+            let mut state = RecurrencyButtonState::new(window, cx);
+            // 如果有 due_date 且有重复设置，初始化 recurrency_button_state
+            if let Some(due_date) = item.due_date() {
+                state.set_due_date(due_date, cx);
+            }
+            state
+        });
         let attachment_state = cx.new(|cx| AttachmentButtonState::new(item.id.clone(), window, cx));
         let reminder_state = cx.new(|cx| ReminderButtonState::new(item.id.clone(), window, cx));
 
@@ -255,6 +265,7 @@ impl ItemInfoState {
             cx.subscribe_in(&project_state, window, Self::on_project_event),
             cx.subscribe_in(&section_state, window, Self::on_section_event),
             cx.subscribe_in(&schedule_button_state, window, Self::on_schedule_event),
+            cx.subscribe_in(&recurrency_button_state, window, Self::on_recurrency_event),
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
@@ -281,6 +292,7 @@ impl ItemInfoState {
             project_state,
             section_state,
             schedule_button_state,
+            recurrency_button_state,
             label_popover_list,
             attachment_state,
             reminder_state,
@@ -308,6 +320,7 @@ impl ItemInfoState {
             || self.project_state.focus_handle(cx).is_focused(window)
             || self.section_state.focus_handle(cx).is_focused(window)
             || self.schedule_button_state.focus_handle(cx).is_focused(window)
+            || self.recurrency_button_state.focus_handle(cx).is_focused(window)
             || self.label_popover_list.focus_handle(cx).is_focused(window)
             || self.attachment_state.focus_handle(cx).is_focused(window)
             || self.reminder_state.focus_handle(cx).is_focused(window)
@@ -401,8 +414,8 @@ impl ItemInfoState {
 
         // 🚀 关键修复：根据任务是否有 ID 来决定是添加还是更新
         info!(
-            "save_all_changes called for item: {}, has_input_changes: {}, has_unsaved_changes: {}, \
-             content: '{}', labels_changed: {}",
+            "save_all_changes called for item: {}, has_input_changes: {}, has_unsaved_changes: \
+             {}, content: '{}', labels_changed: {}",
             item_id, has_input_changes, has_unsaved_changes, current_item.content, labels_changed
         );
 
@@ -779,6 +792,46 @@ impl ItemInfoState {
         cx.notify();
     }
 
+    pub fn on_recurrency_event(
+        &mut self,
+        _state: &Entity<RecurrencyButtonState>,
+        event: &RecurrencyButtonEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            RecurrencyButtonEvent::RecurrencyChanged(due_date) => {
+                // 使用 state_manager 更新 due date
+                self.state_manager.set_due_date(Some(due_date.clone()));
+                // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                update_item_optimistic(self.state_manager.item.clone(), cx);
+                // 只发射事件通知父组件
+                cx.emit(ItemInfoEvent::Updated());
+            },
+            RecurrencyButtonEvent::Cleared => {
+                // 清除重复设置，但保留原有的 due_date
+                let current_due_date = self.state_manager.item.due_date();
+                if let Some(mut due_date) = current_due_date {
+                    due_date.recurrency_type = todos::enums::RecurrencyType::NONE;
+                    due_date.recurrency_interval = 0;
+                    due_date.is_recurring = false;
+                    due_date.recurrency_supported = false;
+                    due_date.recurrency_end = "".to_string();
+                    due_date.recurrency_count = 0;
+                    due_date.recurrency_weeks = "".to_string();
+                    self.state_manager.set_due_date(Some(due_date));
+                }
+                // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                update_item_optimistic(self.state_manager.item.clone(), cx);
+                // 只发射事件通知父组件
+                cx.emit(ItemInfoEvent::Updated());
+            },
+        }
+
+        // 强制通知 UI 更新，确保按钮显示最新状态
+        cx.notify();
+    }
+
     pub fn on_reminder_event(
         &mut self,
         _state: &Entity<ReminderButtonState>,
@@ -1101,6 +1154,15 @@ impl ItemInfoState {
             this.set_due_date(todos::DueDate::default(), window, cx);
         });
 
+        // 更新 recurrency_button_state
+        self.recurrency_button_state.update(cx, |this, cx| {
+            if let Some(due_date) = item.due_date() {
+                this.set_due_date(due_date, cx);
+            } else {
+                this.set_due_date(todos::DueDate::default(), cx);
+            }
+        });
+
         // 异步加载附件和提醒
         let item_id = item.id.clone();
         let attachment_state = self.attachment_state.clone();
@@ -1328,7 +1390,8 @@ impl Render for ItemInfoState {
                                 .gap_1()
                                 .overflow_x_hidden()
                                 .flex_nowrap()
-                                .child(ScheduleButton::new(&self.schedule_button_state)),
+                                .child(ScheduleButton::new(&self.schedule_button_state))
+                                .child(RecurrencyButton::new(&self.recurrency_button_state)),
                         ),
                     )
                     .child(
