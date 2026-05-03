@@ -71,6 +71,85 @@ impl TodoStory {
                     });
                 },
             ),
+            // 监听 TodoStore 的变化，当 active_project 变化时更新 UI
+            cx.observe_global::<TodoStore>(|this, cx| {
+                let todo_store = cx.global::<TodoStore>();
+
+                // 检查 active_project 是否变化
+                match &todo_store.active_project {
+                    Some(active_project) => {
+                        // 检查是否与当前 active_project 不同
+                        let is_different = this
+                            .active_project
+                            .as_ref()
+                            .map(|p| p.id != active_project.id)
+                            .unwrap_or(true);
+
+                        if is_different {
+                            tracing::debug!(
+                                "TodoStory: 检测到 active_project 变化，切换到项目: {}",
+                                active_project.name
+                            );
+
+                            // 提前克隆需要的数据，避免借用冲突
+                            let active_project_clone = active_project.clone();
+
+                            // 找到新项目在列表中的索引
+                            let new_index = todo_store
+                                .projects
+                                .iter()
+                                .position(|p| p.id == active_project_clone.id);
+
+                            // 更新 TodoStory 的 active_project
+                            this.active_project = Some(active_project_clone.clone());
+
+                            // 更新 project_panel 的 active_index
+                            this.project_panel.update(cx, |panel, cx| {
+                                panel.update_active_index(new_index);
+                                cx.notify();
+                            });
+
+                            // 更新 project_items_panel
+                            this.project_items_panel.update(cx, |panel, cx| {
+                                panel.set_project(active_project_clone.clone(), cx);
+                                cx.notify();
+                            });
+
+                            // 清除 board_panel 的选中状态
+                            this.board_panel.update(cx, |panel, cx| {
+                                panel.update_active_index(None);
+                                cx.notify();
+                            });
+
+                            cx.notify();
+                        }
+                    },
+                    None => {
+                        // active_project 为 None，表示所有项目都被删除
+                        // 检查之前是否有活跃项目
+                        if this.active_project.is_some() {
+                            tracing::debug!("TodoStory: 所有项目已删除，切换到 Inbox 视图");
+
+                            // 清除 TodoStory 的 active_project
+                            this.active_project = None;
+
+                            // 清除 project_panel 的 active_index
+                            this.project_panel.update(cx, |panel, cx| {
+                                panel.update_active_index(None);
+                                cx.notify();
+                            });
+
+                            // 切换到 Inbox 视图（board_panel 的第一个视图，索引为 0）
+                            this.board_panel.update(cx, |panel, cx| {
+                                panel.update_active_index(Some(0));
+                                cx.notify();
+                            });
+
+                            cx.notify();
+                        }
+                    },
+                }
+            }),
         ];
         Self {
             collapsed: false,

@@ -445,11 +445,53 @@ impl TodoStore {
         self.version += 1;
     }
 
-    /// 删除单个项目
-    pub fn remove_project(&mut self, id: &str) {
+    /// 删除单个项目，并返回下一个应该激活的项目
+    ///
+    /// 删除逻辑：
+    /// 1. 找到被删除项目的索引位置
+    /// 2. 如果删除的是当前活跃项目，则自动选择下一个项目
+    /// 3. 如果删除的是最后一个项目，则选择前一个项目
+    /// 4. 如果没有其他项目了，返回 None
+    pub fn remove_project(&mut self, id: &str) -> Option<Arc<ProjectModel>> {
+        // 找到被删除项目的索引
+        let removed_index = self.projects.iter().position(|p| p.id == id);
+
+        // 从列表中移除项目
         self.projects.retain(|p| p.id != id);
+
+        // 检查是否删除的是当前活跃项目
+        let is_active_project = self.active_project.as_ref().map(|p| p.id == id).unwrap_or(false);
+
+        // 计算下一个应该激活的项目
+        let next_project = if is_active_project {
+            if let Some(index) = removed_index {
+                // 优先选择同一位置的下一个项目（因为删除后，原来的 index+1 变成了 index）
+                // 如果 index 超出范围，则选择最后一个
+                if index < self.projects.len() {
+                    self.projects.get(index).cloned()
+                } else if index > 0 {
+                    self.projects.get(index - 1).cloned()
+                } else {
+                    // 如果只有一个项目且被删除了，返回 None
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            // 如果删除的不是当前活跃项目，保持当前活跃项目不变
+            self.active_project.clone()
+        };
+
+        // 更新活跃项目
+        if is_active_project {
+            self.active_project = next_project.clone();
+        }
+
         // 增加版本号
         self.version += 1;
+
+        next_project
     }
 
     /// 添加单个项目
