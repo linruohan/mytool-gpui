@@ -105,7 +105,7 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
 /// - `cx`: 上下文
 /// - `item_info`: ItemInfo 状态实体
 /// - `config`: 对话框配置
-/// - `on_save`: 保存回调，接收 item 数据
+/// - `on_save`: 保存后的额外回调（保存已由 save_all_changes 处理）
 pub fn show_item_dialog<T, F>(
     window: &mut Window,
     cx: &mut Context<T>,
@@ -131,7 +131,13 @@ pub fn show_item_dialog<T, F>(
             let item_info = item_info.clone();
             let on_save = on_save.clone();
             move |app_cx: &mut gpui::App| {
+                // 🚀 关键修复：调用 save_all_changes 统一处理保存（包括标签、新增/更新等）
+                item_info.update(app_cx, |state, cx| {
+                    state.save_all_changes(cx);
+                });
+                // 获取保存后的 item（可能已包含新生成的 ID）
                 let item = item_info.read(app_cx).state_manager.item.clone();
+                // 调用额外的回调（如通知等，不再重复保存）
                 on_save(item, app_cx);
             }
         },

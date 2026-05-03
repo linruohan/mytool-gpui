@@ -61,6 +61,8 @@ pub struct ItemStateManager {
     last_update_time: Option<Instant>,
     /// 更新间隔（毫秒）
     update_interval: Duration,
+    /// 标记是否有未保存的修改
+    has_unsaved_changes: bool,
 }
 
 impl ItemStateManager {
@@ -71,7 +73,23 @@ impl ItemStateManager {
             skip_next_update: false,
             last_update_time: None,
             update_interval: Duration::from_millis(500), // 500ms 更新间隔
+            has_unsaved_changes: false,
         }
+    }
+
+    /// 标记有未保存的修改
+    pub fn mark_dirty(&mut self) {
+        self.has_unsaved_changes = true;
+    }
+
+    /// 标记所有修改已保存
+    pub fn mark_clean(&mut self) {
+        self.has_unsaved_changes = false;
+    }
+
+    /// 检查是否有未保存的修改
+    pub fn is_dirty(&self) -> bool {
+        self.has_unsaved_changes
     }
 
     /// 统一的状态更新方法
@@ -323,6 +341,8 @@ impl ItemInfoState {
                 } else {
                     self.state_manager.set_description(Some(text));
                 }
+                // 🚀 关键修复：标记有未保存的修改
+                self.state_manager.mark_dirty();
                 // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
@@ -376,15 +396,18 @@ impl ItemInfoState {
 
         let labels_changed = item_labels_str != new_labels_str;
 
+        // 🚀 关键修复：检查是否有未保存的修改（使用 dirty 标志）
+        let has_unsaved_changes = self.state_manager.is_dirty();
+
         // 🚀 关键修复：根据任务是否有 ID 来决定是添加还是更新
         info!(
-            "save_all_changes called for item: {}, has_input_changes: {}, content: '{}', \
-             labels_changed: {}",
-            item_id, has_input_changes, current_item.content, labels_changed
+            "save_all_changes called for item: {}, has_input_changes: {}, has_unsaved_changes: {}, \
+             content: '{}', labels_changed: {}",
+            item_id, has_input_changes, has_unsaved_changes, current_item.content, labels_changed
         );
 
         // 如果没有修改，直接跳过保存
-        if !has_input_changes && !labels_changed {
+        if !has_input_changes && !labels_changed && !has_unsaved_changes {
             info!(
                 "save_all_changes: No changes detected for item {}, skipping database update",
                 item_id
@@ -411,6 +434,8 @@ impl ItemInfoState {
             }
 
             cx.emit(ItemInfoEvent::Added());
+            // 🚀 标记已保存
+            self.state_manager.mark_clean();
         } else {
             // 🚀 关键修复：统一保存所有修改，包括标签
             info!(
@@ -490,6 +515,8 @@ impl ItemInfoState {
             .detach();
 
             cx.emit(ItemInfoEvent::Updated());
+            // 🚀 标记已保存
+            self.state_manager.mark_clean();
         }
     }
 

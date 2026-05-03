@@ -22,9 +22,7 @@ use gpui_component::{
 
 use crate::{
     BoardBase, ItemRowState, VisualHierarchy, section,
-    todo_actions::{
-        add_item, add_section, delete_item, delete_section, update_item, update_section,
-    },
+    todo_actions::{add_section, delete_item, delete_section, update_item, update_section},
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
 };
@@ -146,12 +144,8 @@ impl PinBoard {
             is_edit,
         );
 
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, move |item, cx| {
-            if is_edit {
-                update_item(item, cx);
-            } else {
-                add_item(item, cx);
-            }
+        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {
+            // 🚀 保存已由 save_all_changes 处理，这里不需要再调用 add_item/update_item
         });
     }
 
