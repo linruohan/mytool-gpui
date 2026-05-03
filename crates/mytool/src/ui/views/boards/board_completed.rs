@@ -310,21 +310,6 @@ impl Render for CompletedBoard {
                                             })
                                         }
                                     }),
-                            )
-                            .child(
-                                Button::new("delete-item")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_delete_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
                             ),
                     ),
             )

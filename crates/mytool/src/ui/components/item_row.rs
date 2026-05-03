@@ -325,11 +325,6 @@ impl Render for ItemRowState {
         // 从 item_info 中获取最新的 item，确保显示最新的数据
         let item = self.item_info.read(cx).state_manager.item.clone();
 
-        // 添加调试日志，跟踪标签变化
-        // info!(
-        //     "ItemRow render - item id: {}, labels: {:?}, version: {}",
-        //     item.id, item.labels, self.update_version
-        // );
         let _version = self.update_version; // 获取当前版本号
         let item_info = self.item_info.clone();
         let is_open = self.is_open;

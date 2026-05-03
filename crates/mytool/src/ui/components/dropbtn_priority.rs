@@ -122,10 +122,10 @@ mod tests {
 
     #[test]
     fn test_priority_display_name() {
-        assert_eq!("None", ItemPriority::NONE.display_name());
-        assert_eq!("Low", ItemPriority::LOW.display_name());
-        assert_eq!("Medium", ItemPriority::MEDIUM.display_name());
-        assert_eq!("High", ItemPriority::HIGH.display_name());
+        assert_eq!("Priority 4: NONE", ItemPriority::NONE.display_name());
+        assert_eq!("Priority 3: Low", ItemPriority::LOW.display_name());
+        assert_eq!("Priority 2: Medium", ItemPriority::MEDIUM.display_name());
+        assert_eq!("Priority 1: High", ItemPriority::HIGH.display_name());
     }
 
     #[test]

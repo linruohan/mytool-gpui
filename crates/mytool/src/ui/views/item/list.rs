@@ -54,8 +54,6 @@ impl Selectable for ItemListItem {
 
 impl RenderOnce for ItemListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        // info!("ItemListItem rendering - id: {}, labels: {:?}", self.item.id, self.item.labels);
-
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
@@ -72,8 +70,6 @@ impl RenderOnce for ItemListItem {
                 labels_str.split(';').filter(|id| !id.is_empty()).map(|id| id.to_string()).collect()
             })
             .unwrap_or_default();
-
-        // info!("ItemListItem parsed labels - id: {}, parsed: {:?}", self.item.id, item_labels);
 
         self.base
             .px_2()

@@ -147,7 +147,6 @@ impl LabelCheckListDelegate {
             return;
         }
 
-        // info!("LabelCheckListDelegate::update_labels called: {} labels", labels.len());
         self._labels = labels;
 
         // 只有当有标签时才创建 section
@@ -161,12 +160,6 @@ impl LabelCheckListDelegate {
             }
         }
 
-        // info!(
-        //     "LabelCheckListDelegate::update_labels: matched_labels sections: {}, first section \
-        //      len: {}",
-        //     self.matched_labels.len(),
-        //     self.matched_labels.first().map(|s| s.len()).unwrap_or(0)
-        // );
         // 保持 checked_list 不变，确保选中状态在标签更新后仍然保留
     }
 

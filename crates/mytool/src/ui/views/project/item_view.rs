@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
     InteractiveElement as _, MouseButton, ParentElement, Render, StatefulInteractiveElement as _,
     Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme as _, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme as _, Colorize, IconName, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    dialog::{DialogAction, DialogClose, DialogFooter},
     h_flex,
-    input::InputState,
+    input::{Input, InputState},
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
@@ -18,10 +20,11 @@ use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, VisualHierarchy, section,
+    ColorGroup, ColorGroupEvent, ColorGroupState, ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow,
+    ItemRowState, VisualHierarchy, section,
     todo_actions::{
-        add_project_item, add_section, delete_project_item, delete_section, load_project_items,
-        update_project_item, update_section,
+        add_project_item, add_section, delete_project, delete_project_item, delete_section,
+        load_project_items, update_project, update_project_item, update_section,
     },
     todo_state::TodoStore,
 };
@@ -47,8 +50,10 @@ pub struct ProjectItemsPanel {
     pinned_items: Vec<(usize, Arc<ItemModel>)>,
     no_section_items: Vec<(usize, Arc<ItemModel>)>,
     section_items_map: std::collections::HashMap<String, Vec<(usize, Arc<ItemModel>)>>,
-    /// 缓存的 TodoStore 版本号，用于优化性能
     cached_version: usize,
+    color: Entity<ColorGroupState>,
+    selected_color: Option<Hsla>,
+    project_due: Option<String>,
 }
 
 impl ProjectItemsPanel {
@@ -59,18 +64,17 @@ impl ProjectItemsPanel {
         let pinned_items = vec![];
         let no_section_items = vec![];
         let section_items_map = std::collections::HashMap::new();
+        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
 
-        let _subscriptions =
-            vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+        let _subscriptions = vec![
+            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let todo_store = cx.global::<TodoStore>();
 
-                // 性能优化：检查版本号，只在数据变化时更新
                 if this.cached_version == todo_store.version() {
                     return;
                 }
                 this.cached_version = todo_store.version();
 
-                // 检查 project.id 是否有效
                 if this.project.id.is_empty() {
                     tracing::debug!("ProjectItemsPanel: project.id 为空,跳过加载 items");
                     return;
@@ -82,18 +86,15 @@ impl ProjectItemsPanel {
                     .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
                     .collect();
 
-                // 重新计算 pinned_items, no_section_items 和 section_items_map
                 this.pinned_items.clear();
                 this.no_section_items.clear();
                 this.section_items_map.clear();
 
                 for (i, item) in state_items.iter().enumerate() {
-                    // 置顶任务（未完成且已置顶）
                     if !item.checked && item.pinned {
                         this.pinned_items.push((i, item.clone()));
                     }
 
-                    // 按分区分组
                     match item.section_id.as_deref() {
                         None | Some("") => this.no_section_items.push((i, item.clone())),
                         Some(sid) => {
@@ -115,7 +116,13 @@ impl ProjectItemsPanel {
 
                 tracing::debug!("ProjectItemsPanel 已更新, items 数量: {}", this.item_rows.len());
                 cx.notify();
-            })];
+            }),
+            cx.subscribe(&color, |this, _, ev, _| match ev {
+                ColorGroupEvent::Change(color) => {
+                    this.selected_color = *color;
+                },
+            }),
+        ];
 
         Self {
             active_index: Some(0),
@@ -128,6 +135,9 @@ impl ProjectItemsPanel {
             no_section_items,
             section_items_map,
             cached_version: 0,
+            color,
+            selected_color: None,
+            project_due: None,
         }
     }
 
@@ -382,6 +392,108 @@ impl ProjectItemsPanel {
             window.push_notification("Section archived successfully.", cx);
         }
     }
+
+    /// 显示项目编辑对话框，支持修改项目名称、颜色和截止日期
+    pub fn show_project_edit_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
+        name_input.update(cx, |is, cx| {
+            is.set_value(self.project.name.clone(), window, cx);
+            cx.notify();
+        });
+
+        let color = self.color.clone();
+        if let Some(project_color) = &self.project.color {
+            if let Ok(hsla_color) = gpui::Hsla::parse_hex(project_color) {
+                color.update(cx, |cs, cx| {
+                    cs.set_value(hsla_color, window, cx);
+                    cx.notify();
+                });
+            }
+        }
+
+        let now = chrono::Local::now().naive_local().date();
+        let project_due = cx.new(|cx| {
+            let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
+            if let Some(due) = &self.project.due_date {
+                if let Ok(date) = chrono::NaiveDate::parse_from_str(due, "%Y-%m-%d") {
+                    picker.set_date(date, window, cx);
+                }
+            } else {
+                picker.set_date(now, window, cx);
+            }
+            picker
+        });
+
+        let view = cx.entity().clone();
+        let ori_project = self.project.as_ref().clone();
+        let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
+            DatePickerEvent::Change(date) => {
+                this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
+            },
+        });
+
+        window.open_dialog(cx, move |modal, _, _| {
+            modal
+                .title("Edit Project")
+                .overlay(false)
+                .keyboard(true)
+                .overlay_closable(true)
+                .child(
+                    v_flex()
+                        .gap(VisualHierarchy::spacing(3.0))
+                        .child(Input::new(&name_input))
+                        .child(ColorGroup::new(&color))
+                        .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
+                )
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            DialogClose::new()
+                                .child(Button::new("cancel").label("Cancel").outline()),
+                        )
+                        .child(
+                            DialogAction::new().child(Button::new("save").primary().label("Save")),
+                        ),
+                )
+                .on_ok({
+                    let view = view.clone();
+                    let ori_project = ori_project.clone();
+                    let name_input = name_input.clone();
+                    move |_, _window: &mut Window, cx| {
+                        view.update(cx, |view, cx| {
+                            let updated_project = Arc::new(ProjectModel {
+                                name: name_input.read(cx).value().to_string(),
+                                due_date: view.project_due.clone().or(ori_project.due_date.clone()),
+                                color: Some(
+                                    view.selected_color.map(|c| c.to_hex()).unwrap_or_default(),
+                                ),
+                                ..ori_project.clone()
+                            });
+                            update_project(updated_project, cx);
+                            cx.notify();
+                        });
+                        true
+                    }
+                })
+        });
+    }
+
+    /// 显示项目删除确认对话框
+    pub fn show_project_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let project = self.project.clone();
+        let view = cx.entity().clone();
+        crate::ui::components::show_delete_dialog(
+            window,
+            cx,
+            "Are you sure to delete this project? All tasks and sections will be deleted.",
+            move |cx| {
+                view.update(cx, |_view, cx| {
+                    delete_project(project.clone(), cx);
+                    cx.notify();
+                });
+            },
+        );
+    }
 }
 
 impl Focusable for ProjectItemsPanel {
@@ -407,8 +519,45 @@ impl Render for ProjectItemsPanel {
                     .border_b_1()
                     .border_color(cx.theme().border)
                     .justify_between()
-                    .items_start()
-                    .child(v_flex().child(div().text_xl().child(self.project.name.clone())))
+                    .items_center()
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .gap(VisualHierarchy::spacing(2.0))
+                            .child(div().text_xl().child(self.project.name.clone()))
+                            .child(
+                                Button::new("edit-project")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditSymbolic)
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_project_edit_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("delete-project")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::UserTrashSymbolic)
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_project_delete_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            ),
+                    )
                     .child(
                         div()
                             .flex()

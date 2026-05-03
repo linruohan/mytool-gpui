@@ -451,54 +451,6 @@ impl Render for PinBoard {
                             .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
-                                Button::new("add-label")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, false, None);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("edit-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, true, None);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("finish-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::CheckmarkSmallSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_finish_item_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
                                 Button::new("unpin-item")
                                     .small()
                                     .ghost()
@@ -514,38 +466,6 @@ impl Render for PinBoard {
                                         }
                                     }),
                             )
-                            .child(
-                                Button::new("delete-item")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_delete_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("section-actions")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .label("Add Section")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_section_dialog(window, cx, None, false);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            ),
                     ),
             )
             .child(

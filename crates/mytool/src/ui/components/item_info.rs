@@ -63,9 +63,6 @@ pub struct ItemStateManager {
     update_interval: Duration,
 }
 
-// 注意：此 debounce 函数已定义但未使用
-// 考虑移除或在需要时使用它来优化频繁的用户输入事件
-
 impl ItemStateManager {
     /// 创建新的 ItemStateManager
     pub fn new(item: Arc<ItemModel>) -> Self {
@@ -953,13 +950,6 @@ impl ItemInfoState {
         // 更新 state_manager
         self.state_manager = ItemStateManager::new(item.clone());
 
-        // 添加调试日志
-
-        // info!(
-        //     "set_item_internal called - item id: {}, labels: {:?}, reload_labels: {}",
-        //     item.id, item.labels, reload_labels
-        // );
-
         self.name_input.update(cx, |this, cx| {
             this.set_value(item.content.clone(), window, cx);
         });
@@ -1274,8 +1264,6 @@ impl Render for ItemInfoState {
                         let label_clone = label.clone();
                         let view_clone = view.clone();
                         let is_checked = selected_labels.iter().any(|l| l.id == label.id);
-                        // info!("Rendering label checkbox: {} (checked: {})", label.name, is_checked);
-                        // 使用 gpui_component::checkbox::Checkbox 组件
                         div()
                             .flex()
                             .items_center()

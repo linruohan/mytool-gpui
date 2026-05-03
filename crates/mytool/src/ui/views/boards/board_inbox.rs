@@ -469,91 +469,53 @@ impl Render for InboxBoard {
                             .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
-                                Button::new("finish-label")
+                                Button::new("item-actions")
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(IconName::CheckmarkSmallSymbolic)
-                                    .on_click({
+                                    .tooltip("Item Operation")
+                                    .icon(IconName::CheckSquare)
+                                    .dropdown_menu({
                                         let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_finish_item_dialog(window, cx);
-                                                cx.notify();
-                                            })
+                                        move |this, window, _cx| {
+                                            let view = view.clone();
+                                            this.item(
+                                                PopupMenuItem::new("Add Item").icon(IconName::PlusLargeSymbolic).on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_dialog(window, cx, false, None);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("Edit Item").icon(IconName::EditSymbolic).on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_dialog(window, cx, true, None);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("Delete Item").icon(IconName::UserTrashSymbolic).on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
                                         }
                                     }),
                             )
                             .child(
-                                Button::new("pin-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PinSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_pin_item_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("add-label")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, false, None);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("edit-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, true, None);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete-item")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_delete_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("section-actions")
+                                Button::new("add-action")
                                     .small()
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .label("Add Section")
+                                    .label("Section")
+                                    .tooltip("Section Operation")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {

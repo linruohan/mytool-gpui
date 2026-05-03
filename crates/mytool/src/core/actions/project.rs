@@ -4,9 +4,9 @@ use gpui::App;
 use todos::entity::ProjectModel;
 use tracing::{error, info};
 
-use crate::{
+use crate::core::{
     error_handler::{AppError, ErrorHandler, validation},
-    core::state::{get_store, TodoStore},
+    state::{TodoStore, get_store},
 };
 
 // 添加 project（使用增量更新和全局 Store）
@@ -28,7 +28,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
                 let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.add_project(arc_project);
                 });
-            }
+            },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
@@ -36,7 +36,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
                     &project.id,
                 );
                 error!("{}", context.format_user_message());
-            }
+            },
         }
     })
     .detach();
@@ -61,7 +61,7 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
                 let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.update_project(arc_project);
                 });
-            }
+            },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
@@ -69,7 +69,7 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
                     &project.id,
                 );
                 error!("{}", context.format_user_message());
-            }
+            },
         }
     })
     .detach();
@@ -88,7 +88,7 @@ pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
                 let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.remove_project(&project_id);
                 });
-            }
+            },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(e),
@@ -96,7 +96,7 @@ pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
                     &project_id,
                 );
                 error!("{}", context.format_user_message());
-            }
+            },
         }
     })
     .detach();
