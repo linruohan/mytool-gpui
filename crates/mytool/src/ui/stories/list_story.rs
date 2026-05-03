@@ -33,7 +33,7 @@ pub struct ListStory {
 
 impl super::Mytool for ListStory {
     fn title() -> &'static str {
-        "labels"
+        "labels 列表示例"
     }
 
     fn description() -> &'static str {

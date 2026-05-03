@@ -26,6 +26,7 @@ impl ComponentManager {
             StoryContainer::panel::<crate::CalendarStory>(window, cx),
             StoryContainer::panel::<crate::TodoStory>(window, cx),
             StoryContainer::panel::<crate::ListStory>(window, cx),
+            StoryContainer::panel::<crate::EditorStory>(window, cx),
         ])];
 
         let mut this = Self {

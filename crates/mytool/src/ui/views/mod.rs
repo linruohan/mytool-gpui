@@ -1,7 +1,6 @@
 mod boards;
 mod item;
 mod label;
-mod main;
 mod project;
 
 pub use boards::{
@@ -15,5 +14,4 @@ pub use boards::{
 };
 pub use item::*;
 pub use label::*;
-pub use main::*;
 pub use project::*;

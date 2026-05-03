@@ -7,7 +7,7 @@ use gpui_component::{
     v_flex,
 };
 
-use crate::{CalendarStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
+use crate::{CalendarStory, EditorStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
 
 pub struct Gallery {
     stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
@@ -28,12 +28,16 @@ impl Gallery {
                 cx.notify()
             }
         })];
-        let stories = vec![("Components", vec![
-            StoryContainer::panel::<WelcomeStory>(window, cx),
-            StoryContainer::panel::<CalendarStory>(window, cx),
-            StoryContainer::panel::<TodoStory>(window, cx),
-            StoryContainer::panel::<ListStory>(window, cx),
-        ])];
+        let stories = vec![
+            // ("Getting Started", vec![StoryContainer::panel::<WelcomeStory>(window, cx)]),
+            ("Components", vec![
+                StoryContainer::panel::<WelcomeStory>(window, cx),
+                StoryContainer::panel::<CalendarStory>(window, cx),
+                StoryContainer::panel::<TodoStory>(window, cx),
+                StoryContainer::panel::<ListStory>(window, cx),
+                StoryContainer::panel::<EditorStory>(window, cx),
+            ]),
+        ];
 
         let mut this = Self {
             search_input,
@@ -51,7 +55,7 @@ impl Gallery {
         this
     }
 
-    fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+    fn set_active_story(&mut self, name: &str, window: &mut Window, cx: &mut App) {
         let name = name.to_string();
         self.search_input.update(cx, |this, cx| {
             this.set_value(&name, window, cx);
@@ -64,7 +68,7 @@ impl Gallery {
 }
 
 impl Render for Gallery {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let query = self.search_input.read(cx).value().trim().to_lowercase();
 
         let stories: Vec<_> = self
@@ -82,12 +86,10 @@ impl Render for Gallery {
             .collect();
 
         let active_group = self.active_group_index.and_then(|index| stories.get(index));
-        let active_story =
-            if let (Some(active_group), Some(active_idx)) = (active_group, self.active_index) {
-                active_group.1.get(active_idx)
-            } else {
-                None
-            };
+        let active_story = self
+            .active_index
+            .and(active_group)
+            .and_then(|group| group.1.get(self.active_index.unwrap()));
         let (_story_name, _description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())

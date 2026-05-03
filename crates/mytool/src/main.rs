@@ -2,7 +2,7 @@
 use std::process;
 
 use gpui_component_assets::Assets;
-use mytool::{MainView, init_plugins, todo_state::get_todo_conn};
+use mytool::{Gallery, init_plugins, todo_state::get_todo_conn};
 
 #[tokio::main]
 async fn main() {
@@ -27,7 +27,7 @@ async fn main() {
         cx.activate(true);
         mytool::create_new_window(
             "MyTool-GPUI",
-            move |window, cx| MainView::view(name.as_deref(), window, cx),
+            move |window, cx| Gallery::view(name.as_deref(), window, cx),
             cx,
         );
     });

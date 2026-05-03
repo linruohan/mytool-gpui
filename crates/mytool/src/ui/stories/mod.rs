@@ -2,12 +2,14 @@ use gpui::{AnyView, App, AppContext as _, Entity, Hsla, Pixels, Render, Window, 
 use gpui_component::dock::PanelControl;
 
 mod calendar_story;
+mod editor_story;
 mod list_story;
 
 mod todo_story;
 mod welcome_story;
 
 pub use calendar_story::CalendarStory;
+pub use editor_story::EditorStory;
 pub use list_story::ListStory;
 pub use todo_story::TodoStory;
 pub use welcome_story::WelcomeStory;

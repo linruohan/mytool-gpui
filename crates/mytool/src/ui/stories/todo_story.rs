@@ -35,7 +35,7 @@ pub struct TodoStory {
 
 impl super::Mytool for TodoStory {
     fn title() -> &'static str {
-        "Todoist"
+        "Todoist 任务管理"
     }
 
     fn description() -> &'static str {

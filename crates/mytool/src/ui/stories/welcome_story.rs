@@ -21,7 +21,7 @@ impl WelcomeStory {
 
 impl Mytool for WelcomeStory {
     fn title() -> &'static str {
-        "Introduction"
+        "Introduction 简介"
     }
 
     fn description() -> &'static str {

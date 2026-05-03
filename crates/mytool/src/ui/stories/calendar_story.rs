@@ -17,7 +17,7 @@ pub struct CalendarStory {
 
 impl super::Mytool for CalendarStory {
     fn title() -> &'static str {
-        "Calendar"
+        "Calendar 日历"
     }
 
     fn description() -> &'static str {

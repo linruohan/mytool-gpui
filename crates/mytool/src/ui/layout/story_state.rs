@@ -2,7 +2,7 @@ use gpui::{AnyView, App, SharedString, Window};
 use gpui_component::dock::PanelControl;
 use serde::{Deserialize, Serialize};
 
-use crate::{CalendarStory, ListStory, TodoStory, ui::stories::Mytool};
+use crate::{CalendarStory, EditorStory, ListStory, TodoStory, ui::stories::Mytool};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StoryState {
@@ -49,6 +49,7 @@ impl StoryState {
             "CalendarStory" => story!(CalendarStory),
             "ListStory" => story!(ListStory),
             "TodoStory" => story!(TodoStory),
+            "EditorStory" => story!(EditorStory),
             _ => {
                 tracing::error!(
                     "Invalid story klass: {}. Falling back to ListStory",
