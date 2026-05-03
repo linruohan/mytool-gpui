@@ -220,8 +220,15 @@ impl AppConfig {
 }
 
 // 全局配置实例（支持重载）
-static CONFIG: LazyLock<RwLock<AppConfig>> =
-    LazyLock::new(|| RwLock::new(AppConfig::load().expect("初始化配置失败")));
+static CONFIG: LazyLock<RwLock<AppConfig>> = LazyLock::new(|| match AppConfig::load() {
+    Ok(config) => RwLock::new(config),
+    Err(e) => {
+        eprintln!("❌ 配置初始化失败: {:?}", e);
+        eprintln!("当前工作目录: {:?}", std::env::current_dir());
+        eprintln!("可执行文件路径: {:?}", std::env::current_exe());
+        panic!("初始化配置失败: {:?}", e);
+    },
+});
 // 初始化错误缓存（使用 String 存储）
 static INIT_ERROR: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 

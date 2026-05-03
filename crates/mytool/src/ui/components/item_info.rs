@@ -1386,7 +1386,7 @@ impl Render for ItemInfoState {
                     .border_color(cx.theme().border.opacity(0.5))
                     .child(
                         h_flex().gap_1().child(
-                            v_flex()
+                            h_flex()
                                 .gap_1()
                                 .overflow_x_hidden()
                                 .flex_nowrap()
