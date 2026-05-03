@@ -690,27 +690,46 @@ impl Render for TodayBoard {
                             .justify_end()
                             .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(create_header_button(
-                                "add-label".to_string(),
-                                IconName::PlusLargeSymbolic,
-                                None,
-                                view.clone(),
-                                |this, window, cx| this.show_item_dialog(window, cx, false, None),
-                            ))
-                            .child(create_header_button(
-                                "edit-item".to_string(),
-                                IconName::EditSymbolic,
-                                None,
-                                view.clone(),
-                                |this, window, cx| this.show_item_dialog(window, cx, true, None),
-                            ))
-                            .child(create_header_button(
-                                "delete-item".to_string(),
-                                IconName::UserTrashSymbolic,
-                                None,
-                                view.clone(),
-                                |this, window, cx| this.show_item_delete_dialog(window, cx),
-                            ))
+                           .child(
+                                Button::new("item-actions")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .tooltip("Item Operation")
+                                    .icon(IconName::CheckSquare)
+                                    .dropdown_menu({
+                                        let view = view.clone();
+                                        move |this, window, _cx| {
+                                            let view = view.clone();
+                                            this.item(
+                                                PopupMenuItem::new("Add Item").icon(IconName::PlusLargeSymbolic).on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_dialog(window, cx, false, None);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("Edit Item").icon(IconName::EditSymbolic).on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_dialog(window, cx, true, None);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("Delete Item").icon(IconName::UserTrashSymbolic).on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_item_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                        }
+                                    }),
+                            )
                             .child(create_header_button(
                                 "section-actions".to_string(),
                                 IconName::PlusLargeSymbolic,
