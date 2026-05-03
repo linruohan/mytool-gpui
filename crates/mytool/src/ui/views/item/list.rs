@@ -72,8 +72,8 @@ impl RenderOnce for ItemListItem {
             .unwrap_or_default();
 
         self.base
-            .px_2()
-            .py_1()
+            .px_1()
+            .py_0p5()
             .overflow_x_hidden()
             .border_1()
             .rounded(cx.theme().radius)
@@ -83,7 +83,7 @@ impl RenderOnce for ItemListItem {
                 h_flex()
                     .items_center()
                     .justify_start()
-                    .gap_2()
+                    .gap_1()
                     .text_color(text_color)
                     .child(Checkbox::new("item-finished").checked(self.item.checked))
                     .child(

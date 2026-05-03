@@ -1209,7 +1209,7 @@ impl Render for ItemInfoState {
             .bg(cx.theme().background)
             .border_1()
             .border_color(cx.theme().border)
-            .rounded(px(8.0))
+            .rounded(px(6.0))
             .overflow_hidden()  // 确保圆角生效
             .shadow_sm()  // 添加轻微阴影
             // 阻止点击事件冒泡，防止意外收起
@@ -1218,8 +1218,8 @@ impl Render for ItemInfoState {
             })
             .child(
                 h_flex()
-                    .gap_2()
-                    .p(px(8.0))
+                    .gap_1()
+                    .p(px(6.0))
                     .bg(cx.theme().background)
                     .border_b_1()
                     .border_color(cx.theme().border.opacity(0.5))
@@ -1251,14 +1251,14 @@ impl Render for ItemInfoState {
             .child(
                 Input::new(&self.desc_input)
                     .bordered(false)
-                    .px(px(8.0))
-                    .py(px(6.0))
+                    .px(px(6.0))
+                    .py(px(4.0))
                     .bg(cx.theme().background.opacity(0.5))
             )
             .child(
                 h_flex()
-                    .gap_3()
-                    .p(px(8.0))
+                    .gap_2()
+                    .p(px(6.0))
                     .flex_wrap()
                     .children(labels.iter().map(|label| {
                         let label_clone = label.clone();
@@ -1290,13 +1290,13 @@ impl Render for ItemInfoState {
                 h_flex()
                     .items_center()
                     .justify_between()
-                    .gap_2()
-                    .p(px(8.0))
+                    .gap_1()
+                    .p(px(6.0))
                     .bg(cx.theme().background.opacity(0.3))
                     .border_t_1()
                     .border_color(cx.theme().border.opacity(0.5))
                     .child(
-                        h_flex().gap_2().child(
+                        h_flex().gap_1().child(
                             v_flex()
                                 .gap_1()
                                 .overflow_x_hidden()
@@ -1306,7 +1306,7 @@ impl Render for ItemInfoState {
                     )
                     .child(
                         h_flex()
-                            .gap_2()
+                            .gap_1()
                             .items_center()
                             .justify_end()
                             .child(AttachmentButton::new(&self.attachment_state))
@@ -1332,10 +1332,10 @@ impl Render for ItemInfoState {
                             ),
                     ),
             )
-            .child(Divider::horizontal().p_2())
+            .child(Divider::horizontal().p_1())
             .child(
-                h_flex().items_center().justify_between().gap_2().child(
-                    h_flex().gap_2().child(
+                h_flex().items_center().justify_between().gap_1().child(
+                    h_flex().gap_1().child(
                         h_flex()
                             .gap_1()
                             .overflow_x_hidden()

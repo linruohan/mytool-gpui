@@ -297,7 +297,7 @@ impl Render for LabelsPopoverList {
                     )
                     .child(
                         v_flex()
-                            .gap_2()
+                            .gap_1()
                             .p_2()
                             .child(
                                 // 标签列表
@@ -305,12 +305,12 @@ impl Render for LabelsPopoverList {
                             )
                             .child(
                                 // 分隔线
-                                gpui_component::divider::Divider::horizontal().mt_2().mb_2(),
+                                gpui_component::divider::Divider::horizontal().mt_1().mb_1(),
                             )
                             .child(
                                 // 新建标签输入框和按钮
                                 h_flex()
-                                    .gap_2()
+                                    .gap_1()
                                     .child(Input::new(&self.new_label_input).small().flex_1())
                                     .child(
                                         Button::new("create-label-button")

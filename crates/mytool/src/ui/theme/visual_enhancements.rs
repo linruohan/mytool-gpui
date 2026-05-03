@@ -191,26 +191,26 @@ impl VisualHierarchy {
         // Large shadow: 0 10px 15px rgba(0,0,0,0.1)
     }
 
-    /// Border radius values for consistency
+    /// Border radius values for consistency (紧凑版)
     pub fn radius_sm() -> Pixels {
-        px(4.0)
+        px(3.0)
     }
 
     pub fn radius_md() -> Pixels {
-        px(6.0)
+        px(4.0)
     }
 
     pub fn radius_lg() -> Pixels {
-        px(8.0)
+        px(6.0)
     }
 
     pub fn radius_xl() -> Pixels {
-        px(12.0)
+        px(8.0)
     }
 
-    /// Spacing scale (4px base)
+    /// Spacing scale (3px base, 更紧凑)
     pub fn spacing(multiplier: f32) -> Pixels {
-        px(4.0 * multiplier)
+        px(3.0 * multiplier)
     }
 }
 
@@ -307,8 +307,8 @@ mod tests {
 
     #[test]
     fn test_spacing_scale() {
-        assert_eq!(VisualHierarchy::spacing(1.0), px(4.0));
-        assert_eq!(VisualHierarchy::spacing(2.0), px(8.0));
-        assert_eq!(VisualHierarchy::spacing(4.0), px(16.0));
+        assert_eq!(VisualHierarchy::spacing(1.0), px(3.0));
+        assert_eq!(VisualHierarchy::spacing(2.0), px(6.0));
+        assert_eq!(VisualHierarchy::spacing(4.0), px(12.0));
     }
 }

@@ -80,13 +80,13 @@ impl RenderOnce for StorySection {
                 h_flex()
                     .justify_between()
                     .w_full()
-                    .gap_4()
+                    .gap_2()
                     .child(title_element)
                     .children(remaining_sub_titles),
             )
             .content_style(
                 StyleRefinement::default()
-                    .rounded(cx.theme().radius_lg)
+                    .rounded(cx.theme().radius)
                     .overflow_x_hidden()
                     .items_center()
                     .justify_center(),

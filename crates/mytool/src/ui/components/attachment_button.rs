@@ -210,12 +210,12 @@ impl Render for AttachmentButtonState {
             .track_focus(&self.focus_handle)
             .child(
                 v_flex()
-                    .gap_3()
-                    .p_3()
+                    .gap_2()
+                    .p_2()
                     .w_96()
                     .child(
                         h_flex()
-                            .gap_2()
+                            .gap_1()
                             .items_center()
                             .child(Input::new(&search_input).flex_1())
                             .child(
@@ -233,7 +233,7 @@ impl Render for AttachmentButtonState {
                                     }),
                             ),
                     )
-                    .child(v_flex().gap_2().children(filtered_attachments.iter().enumerate().map(
+                    .child(v_flex().gap_1().children(filtered_attachments.iter().enumerate().map(
                         |(idx, attachment)| {
                             let attachment_id = attachment.id.clone();
                             let view = view.clone();

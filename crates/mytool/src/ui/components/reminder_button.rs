@@ -232,17 +232,17 @@ impl Render for ReminderButtonState {
             .track_focus(&self.focus_handle)
             .child(
                 v_flex()
-                    .gap_3()
-                    .p_3()
+                    .gap_2()
+                    .p_2()
                     .w_96()
                     .child(Input::new(&search_input).flex_1())
                     // Date and Time Selection Section
                     .child(
                         v_flex()
-                            .gap_2()
+                            .gap_1()
                             .child(
                                 h_flex()
-                                    .gap_2()
+                                    .gap_1()
                                     .items_center()
                                     .child(
                                         Button::new("date-picker-button")
@@ -338,7 +338,7 @@ impl Render for ReminderButtonState {
                             }),
                     )
                     // Reminders List
-                    .child(v_flex().gap_2().children(filtered_reminders.iter().enumerate().map(
+                    .child(v_flex().gap_1().children(filtered_reminders.iter().enumerate().map(
                         |(idx, reminder)| {
                             let reminder_id = reminder.id.clone();
                             let view = view.clone();

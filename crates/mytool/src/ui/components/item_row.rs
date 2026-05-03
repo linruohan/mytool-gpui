@@ -358,10 +358,10 @@ impl Render for ItemRowState {
             .id(item_id.clone())
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
-            // 应用视觉层次：圆角和间距
-            .rounded(px(8.0))
-            .p(px(12.0))
-            .my(px(4.0))  // 添加垂直间距
+            // 应用视觉层次：圆角和间距（紧凑版）
+            .rounded(px(6.0))
+            .p(px(6.0))
+            .my(px(2.0))
             // 优先级边框 - 左侧边框
             .border_l(left_border_width)
             .border_color(priority_color)
@@ -417,7 +417,7 @@ impl Render for ItemRowState {
                         h_flex()
                             .items_center()
                             .justify_start()
-                            .gap(px(8.0))
+                            .gap(px(6.0))
                             .text_color(text_color)
                             .child(ItemListItem::new(
                                 format!("{}-{}", item_id, version),
@@ -444,11 +444,11 @@ impl Render for ItemRowState {
                     )
                     .content(
                         v_flex()
-                            .gap(px(8.0))
-                            .p(px(8.0))
-                            .mt(px(8.0))
+                            .gap(px(6.0))
+                            .p(px(6.0))
+                            .mt(px(6.0))
                             .bg(cx.theme().background.opacity(0.5))  // 半透明背景
-                            .rounded(px(6.0))  // 稍小的圆角
+                            .rounded(px(4.0))  // 稍小的圆角
                             .border_1()
                             .border_color(cx.theme().border.opacity(0.5))
                             .child(ItemInfo::new(&item_info))
