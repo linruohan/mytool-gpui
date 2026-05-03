@@ -25,7 +25,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
                 info!("Successfully added project: {}", new_project.id);
                 // 增量更新：只添加新项目到 TodoStore
                 let arc_project = Arc::new(new_project);
-                let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.add_project(arc_project);
                 });
             },
@@ -58,7 +58,7 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
                 info!("Successfully updated project: {}", updated_project.id);
                 // 增量更新：只更新修改的项目
                 let arc_project = Arc::new(updated_project);
-                let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.update_project(arc_project);
                 });
             },
@@ -85,7 +85,7 @@ pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
             Ok(_) => {
                 info!("Successfully deleted project: {}", project_id);
                 // 增量更新：只删除指定的项目
-                let _ = cx.update_global::<TodoStore, _>(|todo_store, _| {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.remove_project(&project_id);
                 });
             },

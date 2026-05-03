@@ -402,13 +402,13 @@ impl ProjectItemsPanel {
         });
 
         let color = self.color.clone();
-        if let Some(project_color) = &self.project.color {
-            if let Ok(hsla_color) = gpui::Hsla::parse_hex(project_color) {
-                color.update(cx, |cs, cx| {
-                    cs.set_value(hsla_color, window, cx);
-                    cx.notify();
-                });
-            }
+        if let Some(project_color) = &self.project.color
+            && let Ok(hsla_color) = gpui::Hsla::parse_hex(project_color)
+        {
+            color.update(cx, |cs, cx| {
+                cs.set_value(hsla_color, window, cx);
+                cx.notify();
+            });
         }
 
         let now = chrono::Local::now().naive_local().date();
