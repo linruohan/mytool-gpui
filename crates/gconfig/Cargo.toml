@@ -13,6 +13,8 @@ pbkdf2.workspace = true
 aes-gcm.workspace = true
 password-hash.workspace = true
 thiserror.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+tracing.workspace = true
 
 [lib]
 doc = false

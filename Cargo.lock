@@ -2390,6 +2390,8 @@ dependencies = [
  "pbkdf2",
  "serde",
  "thiserror 2.0.18",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

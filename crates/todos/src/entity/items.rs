@@ -78,13 +78,6 @@ impl ActiveModelBehavior for ActiveModel {
 
 impl Model {
     /// 获取强类型的 DueDate
-    ///
-    /// # 示例
-    /// ```
-    /// if let Some(due) = item.due_date() {
-    ///     println!("截止日期: {:?}", due.datetime());
-    /// }
-    /// ```
     pub fn due_date(&self) -> Option<DueDate> {
         self.due.as_ref().and_then(|json| serde_json::from_value(json.clone()).ok())
     }
@@ -93,11 +86,6 @@ impl Model {
     ///
     /// # 参数
     /// * `due` - DueDate 对象，传入 None 表示清除截止日期
-    ///
-    /// # 示例
-    /// ```
-    /// item.set_due_date(Some(due_date));
-    /// ```
     pub fn set_due_date(&mut self, due: Option<DueDate>) {
         self.due = due.map(|d| serde_json::to_value(d).unwrap_or_default());
     }
