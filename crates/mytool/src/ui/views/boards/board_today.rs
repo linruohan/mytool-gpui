@@ -153,9 +153,7 @@ impl TodayBoard {
                 }
 
                 match event {
-                    ScheduleButtonEvent::DateSelected(_)
-                    | ScheduleButtonEvent::TimeSelected(_)
-                    | ScheduleButtonEvent::RecurrencySelected(_) => {
+                    ScheduleButtonEvent::DateSelected(_) | ScheduleButtonEvent::TimeSelected(_) => {
                         // 为每个任务设置新的日期
                         let mut updated_items = Vec::new();
                         for mut item in past_due_items {
