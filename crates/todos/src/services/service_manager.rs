@@ -12,8 +12,8 @@ use crate::{
     app::{DatabaseManager, PatchManager, TransactionManager},
     error::TodoError,
     services::{
-        DateValidationService, EventBus, EventRecorder, ItemService, LabelService,
-        MetricsCollector, ProjectService, ReminderService, SectionService,
+        AttachmentService, DateValidationService, EventBus, EventRecorder, ItemService,
+        LabelService, MetricsCollector, ProjectService, ReminderService, SectionService,
     },
 };
 
@@ -31,6 +31,7 @@ pub struct ServiceManager {
     section_service: Arc<SectionService>,
     label_service: Arc<LabelService>,
     reminder_service: Arc<ReminderService>,
+    attachment_service: Arc<AttachmentService>,
     date_validation_service: Arc<DateValidationService>,
     // 用于跟踪是否已经应用过补丁
     patches_applied: bool,
@@ -93,6 +94,9 @@ impl ServiceManager {
         let reminder_service =
             Arc::new(ReminderService::new(db.clone(), event_bus.clone(), metrics.clone()));
 
+        let attachment_service =
+            Arc::new(AttachmentService::new(db.clone(), event_bus.clone(), metrics.clone()));
+
         let date_validation_service = Arc::new(DateValidationService::new(db.clone()));
 
         Ok(Self {
@@ -107,6 +111,7 @@ impl ServiceManager {
             section_service,
             label_service,
             reminder_service,
+            attachment_service,
             date_validation_service,
             patches_applied: false,
         })
@@ -150,6 +155,11 @@ impl ServiceManager {
     /// Get the reminder service
     pub fn reminder_service(&self) -> &ReminderService {
         &self.reminder_service
+    }
+
+    /// Get the attachment service
+    pub fn attachment_service(&self) -> &AttachmentService {
+        &self.attachment_service
     }
 
     /// Get the date validation service

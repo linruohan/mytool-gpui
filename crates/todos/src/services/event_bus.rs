@@ -79,6 +79,10 @@ pub enum Event {
     ///
     /// The string parameter is the ID of the created attachment.
     AttachmentCreated(String),
+    /// Event fired when an attachment is updated
+    ///
+    /// The string parameter is the ID of the updated attachment.
+    AttachmentUpdated(String),
     /// Event fired when an attachment is deleted
     ///
     /// The string parameter is the ID of the deleted attachment.

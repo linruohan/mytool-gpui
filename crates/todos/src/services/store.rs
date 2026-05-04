@@ -17,8 +17,8 @@ use crate::{
     },
     error::TodoError,
     services::{
-        DateValidationService, ItemService, LabelService, ProjectService, QueryService,
-        ReminderService, SectionService, ServiceManager,
+        AttachmentService, DateValidationService, ItemService, LabelService, ProjectService,
+        QueryService, ReminderService, SectionService, ServiceManager,
     },
 };
 
@@ -31,6 +31,7 @@ pub struct Store {
     section_service: SectionService,
     label_service: LabelService,
     reminder_service: ReminderService,
+    attachment_service: AttachmentService,
     query_service: QueryService,
     date_validation_service: DateValidationService,
 }
@@ -48,6 +49,7 @@ impl Store {
             section_service: (*service_manager.section_service()).clone(),
             label_service: (*service_manager.label_service()).clone(),
             reminder_service: (*service_manager.reminder_service()).clone(),
+            attachment_service: (*service_manager.attachment_service()).clone(),
             date_validation_service: (*service_manager.date_validation_service()).clone(),
             service_manager,
             query_service,
@@ -510,6 +512,47 @@ impl Store {
         end_time: &chrono::NaiveDateTime,
     ) -> Result<Vec<ReminderModel>, TodoError> {
         self.reminder_service.get_reminders_in_range(start_time, end_time).await
+    }
+
+    // ==================== Attachment Operations ====================
+
+    /// Get all attachments
+    pub async fn get_all_attachments(&self) -> Result<Vec<AttachmentModel>, TodoError> {
+        self.attachment_service.get_all_attachments().await
+    }
+
+    /// Get an attachment by ID
+    pub async fn get_attachment(&self, id: &str) -> Option<AttachmentModel> {
+        self.attachment_service.get_attachment(id).await
+    }
+
+    /// Get attachments by item ID
+    pub async fn get_attachments_by_item(
+        &self,
+        item_id: &str,
+    ) -> Result<Vec<AttachmentModel>, TodoError> {
+        self.attachment_service.get_attachments_by_item(item_id).await
+    }
+
+    /// Insert a new attachment
+    pub async fn insert_attachment(
+        &self,
+        attachment: AttachmentModel,
+    ) -> Result<AttachmentModel, TodoError> {
+        self.attachment_service.insert_attachment(attachment).await
+    }
+
+    /// Update an attachment
+    pub async fn update_attachment(
+        &self,
+        attachment: AttachmentModel,
+    ) -> Result<AttachmentModel, TodoError> {
+        self.attachment_service.update_attachment(attachment).await
+    }
+
+    /// Delete an attachment
+    pub async fn delete_attachment(&self, attachment_id: &str) -> Result<u64, TodoError> {
+        self.attachment_service.delete_attachment(attachment_id).await
     }
 
     // ==================== Date Validation Operations ====================
