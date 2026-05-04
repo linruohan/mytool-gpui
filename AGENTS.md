@@ -1,181 +1,77 @@
-# AGENTS.md - Agent Guidelines for MyTool-GPUI
+# AGENTS.md - MyTool-GPUI
 
-This file provides guidance for AI coding agents working in this repository.
-
-## Project Overview
-
-MyTool-GPUI is a Rust-based desktop todo/task management application built with GPUI framework from Zed Industries. Uses Sea-ORM with SQLite for data persistence.
-
-**Toolchain:** `x86_64-pc-windows-msvc` (MSYS2 environment)
-**Workspace:** 3 crates - `mytool` (GUI), `todos` (core library), `gconfig` (config)
-
----
-
-## Build Commands
+## Build
 
 ```bash
 # Debug build
 cargo build
 
-# Release build
+# Release build  
 cargo build --release
 
-# Build specific crate
+# Single crate
 cargo build -p mytool
 ```
 
----
-
-## Lint & Format Commands
+## Lint & Format
 
 ```bash
-# Format code
+# Format
 cargo fmt --all
 
-# Run clippy with auto-fix
+# Auto-fix all clippy
 cargo clippy --fix --allow-dirty --allow-staged
 
-# Run clippy with specific priorities
+# By priority
 cargo clippy -- -D clippy::correctness    # Fix correctness first
-cargo clippy -- -W clippy::style           # Then style warnings
+cargo clippy -- -W clippy::style      # Then style
 
-# Fix specific crate
+# Per crate
 cargo clippy --fix --lib -p todos --allow-dirty
-cargo clippy --fix --lib -p mytool --allow-dirty
 ```
 
----
-
-## Test Commands
+## Test
 
 ```bash
-# Run all tests
+# All tests
 cargo test
 
-# Run single test by name
-cargo test test_name_here
+# Single test
+cargo test test_name
 
-# Run tests in specific crate
+# Specific crate
 cargo test -p todos
 
-# Run with output
+# With output
 cargo test -- --nocapture
 ```
 
----
+## Critical Constraints
 
-## Code Style Guidelines
-
-### Formatting (rustfmt.toml)
-
-- **Max line width:** 100 characters
-- **Tab size:** 4 spaces
-- **Import granularity:** Crate-level (`use crate::module::...`)
-- **Group imports:** StdExternalCrate
-- **Use field init shorthand:** Yes
-- **Use try shorthand:** Yes
-- **Format strings:** Yes
-
-### Clippy Configuration
-
-- **Allowed:** Private module inception
-- **Disallowed methods:** Use `smol::process::Command` instead of `std::process::Command`
-- **Disallowed:** `serde_json::from_reader` - use `from_slice` instead
-
-### Naming Conventions
-
-- **Snake_case:** Variables, functions, modules
-- **PascalCase:** Types, traits, enums
-- **SCREAMING_SNAKE_CASE:** Constants
-- **Prefix `_`:** Unused variables (e.g., `let _unused = ...`)
-
-### Error Handling
-
-- Use `anyhow` for application-level error handling
-- Use `thiserror` for library error types
-- Avoid `unwrap()` in production code
-- Use `?` operator for propagating errors
-
-### Imports
-
-```rust
-// Group order: std -> external -> crate
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::services::ItemService;
-```
-
-### Async & Concurrency
-
-- Use `tokio` for async runtime
-- Use `smol::process::Command` for spawning processes (not `std::process::Command`)
-- Follow async/await best practices
-
-### Sea-ORM Entity Generation
-
-```bash
-sea-orm-cli generate entity --with-serde both \
-  --model-extra-attributes 'serde(rename_all="camelCase")' \
-  --date-time-crate chrono -o ./src/entity \
-  --database-url "sqlite://db.sqlite?mode=rwc"
-```
-
----
+- **GCC 1.15**: Causes compilation failure. If encountered, downgrade to 13.2.0 or set `syntect = { default-features = false, features = ["default-fancy"] }`
+- **`std::process::Command`**: Disallowed - use `smol::process::Command` instead
+- **`serde_json::from_reader`**: Disallowed - use `from_slice` instead
 
 ## Architecture
 
 ```
-mytool (GUI Layer) -> Services -> Repositories -> Sea-ORM Entities -> SQLite
+mytool (GUI) → Services → Repositories → Sea-ORM → SQLite
 ```
 
-### Key Layers
+**Crates:**
+- `crates/mytool` - GPUI application
+- `crates/todos` - Core logic + entities
+- `crates/gconfig` - Config management
 
-- **Entity:** Sea-ORM models in `todos/entity/`
-- **Repository:** Data access in `todos/repositories/`
-- **Service:** Business logic in `todos/services/`
-- **GUI:** GPUI views/components in `mytool/src/`
+## Key Config Files
 
-### Global State (GPUI)
+| File | Purpose |
+|------|---------|
+| `.cargo/config.toml` | Build settings, sccache, linker |
+| `clippy.toml` | Disallowed methods/types |
+| `rustfmt.toml` | Import grouping, line width 100 |
 
-- `DBState` - Database connection
-- `ItemState`, `ProjectState`, `LabelState`, `SectionState` - Entity states
-- Filtered states: `InboxItemState`, `TodayItemState`, `ScheduledItemState`, etc.
+## External Dependencies (git)
 
----
-
-## Internationalization
-
-- Uses `rust-i18n` v3.1.5
-- Locale files: `crates/mytool/locales/ui.yml`
-- Supported: English, Chinese (Simplified/Traditional), Spanish, French, German
-
----
-
-## Themes
-
-- Located in `themes/` directory as JSON files
-- Default: `themes/default.json`
-- Over 20 themes available (catppuccin, tokyonight, gruvbox, etc.)
-
----
-
-## Known Issues
-
-### GCC 1.15 Compilation
-
-If encountering compilation errors:
-1. Downgrade GCC to 13.2.0 in MSYS2
-2. Or disable `syntect` default features and use `default-fancy` instead
-3. Lock GCC version in `/etc/pacman.conf`:
-   ```
-   IgnorePkg = mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-libs
-   ```
-
----
-
-## External Dependencies
-
-- **GPUI:** `git = "https://github.com/zed-industries/zed"`
-- **GPUI Component:** `git = "https://github.com/linruohan/gpui-component.git"`
-- **Sea-ORM:** v1.1.19 with SQLite, chrono, JSON
-- **rust-i18n:** v3.1.5
+- GPUI: `https://github.com/zed-industries/zed`
+- gpui-component: `https://github.com/linruohan/gpui-component.git`
