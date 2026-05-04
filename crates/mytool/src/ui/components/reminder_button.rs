@@ -122,16 +122,23 @@ impl ReminderForm {
     ) {
         let DatePickerEvent::Change(date) = event;
         self.current_date = date.format("%Y-%m-%d").unwrap_or_default().to_string();
-        // 选择日期后，将焦点重新设置到组件的 focus_handle，防止 popover 因焦点丢失而关闭
-        cx.focus_self(window);
         cx.notify();
+
+        let focus_handle = self.focus_handle.clone();
+        window.defer(cx, move |window, cx| {
+            println!("Setting focus to form after date selection");
+            focus_handle.focus(window, cx);
+        });
     }
 
     /// 选择时间
     fn select_time(&mut self, time: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.current_time = time.to_string();
-        // 选择时间后，保持焦点，防止 popover 关闭
-        cx.focus_self(window);
+        // 选择时间后，延迟设置焦点到表单，防止 popover 关闭
+        let focus_handle = self.focus_handle.clone();
+        window.defer(cx, move |window, cx| {
+            focus_handle.focus(window, cx);
+        });
         cx.notify();
     }
 
