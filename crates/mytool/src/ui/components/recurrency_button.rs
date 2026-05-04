@@ -1,21 +1,22 @@
 use gpui::{
-    Action, Anchor, AppContext, Context, Entity, FocusHandle, InteractiveElement, IntoElement,
-    ParentElement, Render, SharedString, Styled, Subscription, Window, div, prelude::FluentBuilder,
+    Action, App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
+    IntoElement, ParentElement, Render, SharedString, Styled, Window, div, prelude::FluentBuilder,
     px,
 };
 use gpui_component::{
-    IconName, Side, Sizable,
+    IconName,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
-    menu::DropdownMenu,
-    theme::ActiveTheme,
+    input::{Input, InputEvent, InputState},
+    popover::Popover,
+    radio::{Radio, RadioGroup},
     v_flex,
 };
 use serde::Deserialize;
 use todos::{DueDate, enums::RecurrencyType};
 
-use crate::{create_complex_button, impl_button_state_base};
+use crate::{create_button_wrapper, impl_button_state_base};
 
 /// 重复按钮动作
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -32,10 +33,8 @@ pub enum RecurrencyButtonEvent {
 }
 
 /// 重复单位（用于自定义重复）
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum RecurrencyUnit {
-    Minutes,
-    Hours,
     Days,
     Weeks,
     Months,
@@ -43,234 +42,248 @@ pub enum RecurrencyUnit {
 }
 
 impl RecurrencyUnit {
+    /// 将重复单位转换为 RecurrencyType
     pub fn to_recurrency_type(&self) -> RecurrencyType {
         match self {
-            RecurrencyUnit::Minutes => RecurrencyType::MINUTELY,
-            RecurrencyUnit::Hours => RecurrencyType::HOURLY,
-            RecurrencyUnit::Days => RecurrencyType::EveryDay,
-            RecurrencyUnit::Weeks => RecurrencyType::EveryWeek,
-            RecurrencyUnit::Months => RecurrencyType::EveryMonth,
-            RecurrencyUnit::Years => RecurrencyType::EveryYear,
+            Self::Days => RecurrencyType::EveryDay,
+            Self::Weeks => RecurrencyType::EveryWeek,
+            Self::Months => RecurrencyType::EveryMonth,
+            Self::Years => RecurrencyType::EveryYear,
         }
     }
 
+    /// 从 RecurrencyType 转换为重复单位
     pub fn from_recurrency_type(recurrency_type: &RecurrencyType) -> Self {
         match recurrency_type {
-            RecurrencyType::MINUTELY => RecurrencyUnit::Minutes,
-            RecurrencyType::HOURLY => RecurrencyUnit::Hours,
-            RecurrencyType::EveryDay => RecurrencyUnit::Days,
-            RecurrencyType::EveryWeek => RecurrencyUnit::Weeks,
-            RecurrencyType::EveryMonth => RecurrencyUnit::Months,
-            RecurrencyType::EveryYear => RecurrencyUnit::Years,
-            RecurrencyType::NONE => RecurrencyUnit::Days,
+            RecurrencyType::EveryDay => Self::Days,
+            RecurrencyType::EveryWeek => Self::Weeks,
+            RecurrencyType::EveryMonth => Self::Months,
+            RecurrencyType::EveryYear => Self::Years,
+            RecurrencyType::NONE => Self::Days,
+            _ => Self::Days,
         }
     }
 
+    /// 获取显示标签
     pub fn to_label(&self) -> &'static str {
         match self {
-            RecurrencyUnit::Minutes => "Minutes",
-            RecurrencyUnit::Hours => "Hours",
-            RecurrencyUnit::Days => "Day(s)",
-            RecurrencyUnit::Weeks => "Week(s)",
-            RecurrencyUnit::Months => "Month(s)",
-            RecurrencyUnit::Years => "Year(s)",
+            Self::Days => "Day(s)",
+            Self::Weeks => "Week(s)",
+            Self::Months => "Month(s)",
+            Self::Years => "Year(s)",
         }
-    }
-
-    pub fn all_options() -> Vec<Self> {
-        vec![
-            RecurrencyUnit::Minutes,
-            RecurrencyUnit::Hours,
-            RecurrencyUnit::Days,
-            RecurrencyUnit::Weeks,
-            RecurrencyUnit::Months,
-            RecurrencyUnit::Years,
-        ]
     }
 }
 
 /// 重复截止类型
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum RecurrencyEndOption {
     Never,
     OnDate,
     After,
 }
 
-/// 自定义重复设置
-#[derive(Clone)]
-pub struct CustomRecurrencySettings {
-    /// 重复间隔数值
-    pub interval: i64,
-    /// 重复单位
-    pub unit: RecurrencyUnit,
-    /// 截止类型
-    pub end_type: RecurrencyEndOption,
-    /// 截止日期（当 end_type 为 OnDate 时）
-    pub end_date: Option<String>,
-    /// 重复次数（当 end_type 为 After 时）
-    pub after_count: i64,
-}
-
-impl Default for CustomRecurrencySettings {
-    fn default() -> Self {
-        Self {
-            interval: 1,
-            unit: RecurrencyUnit::Days,
-            end_type: RecurrencyEndOption::Never,
-            end_date: None,
-            after_count: 1,
-        }
-    }
-}
-
-/// 重复按钮状态
-pub struct RecurrencyButtonState {
-    focus_handle: FocusHandle,
-    /// 当前选中的重复类型
-    selected_recurrency: RecurrencyOption,
-    /// 自定义重复设置
-    custom_settings: CustomRecurrencySettings,
-    /// 是否显示自定义设置面板
-    show_custom_panel: bool,
-    /// 日期选择器状态（用于 OnDate 截止）
-    end_date_picker: Entity<DatePickerState>,
-    /// 关联的 due_date
-    due_date: DueDate,
-    _subscriptions: Vec<Subscription>,
-}
-
-impl_button_state_base!(RecurrencyButtonState, RecurrencyButtonEvent);
-
-/// 重复类型选项
-#[derive(Clone, PartialEq)]
-pub enum RecurrencyOption {
+/// 重复类型选项（Radio 单选按钮项）
+#[derive(Clone, PartialEq, Debug, Copy)]
+pub enum RecurrencyPreset {
     Daily,
     Weekdays,
     Weekends,
     Weekly,
     Monthly,
     Yearly,
-    None,
     Custom,
 }
 
-impl RecurrencyOption {
+impl RecurrencyPreset {
+    /// 获取显示标签
     pub fn to_label(&self) -> &'static str {
         match self {
-            RecurrencyOption::Daily => "Daily",
-            RecurrencyOption::Weekdays => "Weekdays",
-            RecurrencyOption::Weekends => "Weekends",
-            RecurrencyOption::Weekly => "Weekly",
-            RecurrencyOption::Monthly => "Monthly",
-            RecurrencyOption::Yearly => "Yearly",
-            RecurrencyOption::None => "None",
-            RecurrencyOption::Custom => "Custom",
+            Self::Daily => "Daily",
+            Self::Weekdays => "Weekdays",
+            Self::Weekends => "Weekends",
+            Self::Weekly => "Weekly",
+            Self::Monthly => "Monthly",
+            Self::Yearly => "Yearly",
+            Self::Custom => "Custom",
         }
+    }
+
+    /// 转换为 RecurrencyType 和 weeks
+    pub fn to_recurrency(&self) -> (RecurrencyType, Option<&'static str>) {
+        match self {
+            Self::Daily => (RecurrencyType::EveryDay, None),
+            Self::Weekdays => (RecurrencyType::EveryWeek, Some("1,2,3,4,5")),
+            Self::Weekends => (RecurrencyType::EveryWeek, Some("0,6")),
+            Self::Weekly => (RecurrencyType::EveryWeek, None),
+            Self::Monthly => (RecurrencyType::EveryMonth, None),
+            Self::Yearly => (RecurrencyType::EveryYear, None),
+            Self::Custom => (RecurrencyType::NONE, None),
+        }
+    }
+
+    /// 从 RecurrencyType 创建
+    pub fn from_recurrency_type(recurrency_type: &RecurrencyType, weeks: Option<&str>) -> Self {
+        match recurrency_type {
+            RecurrencyType::EveryDay => Self::Daily,
+            RecurrencyType::EveryWeek => match weeks {
+                Some("1,2,3,4,5") => Self::Weekdays,
+                Some("0,6") => Self::Weekends,
+                _ => Self::Weekly,
+            },
+            RecurrencyType::EveryMonth => Self::Monthly,
+            RecurrencyType::EveryYear => Self::Yearly,
+            RecurrencyType::NONE => Self::Custom,
+            _ => Self::Daily,
+        }
+    }
+
+    /// 所有预设选项及其索引
+    pub fn all_presets() -> Vec<Self> {
+        vec![
+            Self::Daily,
+            Self::Weekdays,
+            Self::Weekends,
+            Self::Weekly,
+            Self::Monthly,
+            Self::Yearly,
+            Self::Custom,
+        ]
     }
 }
 
-impl RecurrencyButtonState {
-    /// 创建新的重复按钮状态
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+/// 重复设置表单
+pub struct RecurrencyForm {
+    /// 父组件引用
+    parent: Entity<RecurrencyButtonState>,
+    /// 选中的预设类型索引
+    selected_preset_index: usize,
+    /// 自定义重复间隔数值
+    interval_value: i64,
+    /// 自定义重复单位
+    custom_unit: RecurrencyUnit,
+    /// 截止类型
+    end_type: RecurrencyEndOption,
+    /// 截止日期选择器
+    end_date_picker: Entity<DatePickerState>,
+    /// 截止日期字符串
+    end_date: Option<String>,
+    /// 重复次数
+    after_count: i64,
+    /// 间隔输入框
+    interval_input: Entity<InputState>,
+    /// 次数输入框
+    count_input: Entity<InputState>,
+    /// 订阅列表
+    _subscriptions: Vec<gpui::Subscription>,
+}
+
+impl RecurrencyForm {
+    /// 创建新的表单
+    pub fn new(
+        parent: Entity<RecurrencyButtonState>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let interval_input = cx.new(|cx| InputState::new(window, cx).placeholder("1"));
+        let count_input = cx.new(|cx| InputState::new(window, cx).placeholder("1"));
         let end_date_picker = cx.new(|cx| DatePickerState::new(window, cx));
-        let _subscriptions =
-            vec![cx.subscribe_in(&end_date_picker, window, Self::on_end_date_picker_event)];
+
+        // 设置初始值
+        interval_input.update(cx, |input, cx| {
+            input.set_value("1", window, cx);
+        });
+        count_input.update(cx, |input, cx| {
+            input.set_value("1", window, cx);
+        });
+
+        let _subscriptions = vec![
+            cx.subscribe_in(&interval_input, window, Self::on_interval_input_event),
+            cx.subscribe_in(&count_input, window, Self::on_count_input_event),
+            cx.subscribe_in(&end_date_picker, window, Self::on_end_date_event),
+        ];
 
         Self {
-            focus_handle: cx.focus_handle(),
-            selected_recurrency: RecurrencyOption::None,
-            custom_settings: CustomRecurrencySettings::default(),
-            show_custom_panel: false,
+            parent,
+            selected_preset_index: 0, // 默认选中 Daily
+            interval_value: 1,
+            custom_unit: RecurrencyUnit::Days,
+            end_type: RecurrencyEndOption::Never,
             end_date_picker,
-            due_date: DueDate::default(),
+            end_date: None,
+            after_count: 1,
+            interval_input,
+            count_input,
             _subscriptions,
         }
     }
 
-    /// 获取当前重复设置的显示文本
-    pub fn get_display_text(&self) -> String {
-        match &self.selected_recurrency {
-            RecurrencyOption::None => "Repeat".to_string(),
-            RecurrencyOption::Daily => "Daily".to_string(),
-            RecurrencyOption::Weekdays => "Weekdays".to_string(),
-            RecurrencyOption::Weekends => "Weekends".to_string(),
-            RecurrencyOption::Weekly => "Weekly".to_string(),
-            RecurrencyOption::Monthly => "Monthly".to_string(),
-            RecurrencyOption::Yearly => "Yearly".to_string(),
-            RecurrencyOption::Custom => {
-                let unit_label = self.custom_settings.unit.to_label();
-                format!("Every {} {}", self.custom_settings.interval, unit_label)
-            },
-        }
+    /// 从父组件同步状态
+    pub fn sync_from_parent(
+        &mut self,
+        due_date: &DueDate,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let preset = if due_date.is_recurring {
+            RecurrencyPreset::from_recurrency_type(
+                &due_date.recurrency_type,
+                Some(&due_date.recurrency_weeks),
+            )
+        } else {
+            RecurrencyPreset::Daily
+        };
+
+        self.selected_preset_index = preset as usize;
+        self.interval_value =
+            if due_date.is_recurring { due_date.recurrency_interval.max(1) } else { 1 };
+        self.custom_unit = if due_date.is_recurring {
+            RecurrencyUnit::from_recurrency_type(&due_date.recurrency_type)
+        } else {
+            RecurrencyUnit::Days
+        };
+
+        self.interval_input.update(cx, |input, cx| {
+            input.set_value(&self.interval_value.to_string(), window, cx);
+        });
+
+        cx.notify();
     }
 
-    /// 处理重复类型选择动作
-    fn on_select_recurrency(
+    /// 获取当前选中的预设类型
+    fn get_selected_preset(&self) -> RecurrencyPreset {
+        let presets = RecurrencyPreset::all_presets();
+        presets.get(self.selected_preset_index).copied().unwrap_or(RecurrencyPreset::Daily)
+    }
+
+    /// 处理间隔输入事件
+    fn on_interval_input_event(
         &mut self,
-        action: &RecurrencyAction,
+        _state: &Entity<InputState>,
+        event: &InputEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match action.0.as_str() {
-            "daily" => self.apply_preset_recurrency(RecurrencyOption::Daily, cx),
-            "weekdays" => self.apply_preset_recurrency(RecurrencyOption::Weekdays, cx),
-            "weekends" => self.apply_preset_recurrency(RecurrencyOption::Weekends, cx),
-            "weekly" => self.apply_preset_recurrency(RecurrencyOption::Weekly, cx),
-            "monthly" => self.apply_preset_recurrency(RecurrencyOption::Monthly, cx),
-            "yearly" => self.apply_preset_recurrency(RecurrencyOption::Yearly, cx),
-            "none" => self.clear_recurrency(cx),
-            "custom" => {
-                self.show_custom_panel = true;
-                cx.notify();
-            },
-            // 自定义单位选择
-            s if s.starts_with("unit_") => {
-                let unit_idx = s.strip_prefix("unit_").unwrap_or("0").parse::<usize>().unwrap_or(0);
-                let units = RecurrencyUnit::all_options();
-                if unit_idx < units.len() {
-                    self.custom_settings.unit = units[unit_idx].clone();
-                    cx.notify();
-                }
-            },
-            // 间隔增减
-            "interval_minus" => {
-                if self.custom_settings.interval > 1 {
-                    self.custom_settings.interval -= 1;
-                    cx.notify();
-                }
-            },
-            "interval_plus" => {
-                self.custom_settings.interval += 1;
-                cx.notify();
-            },
-            // 重复次数增减
-            "after_minus" => {
-                if self.custom_settings.after_count > 1 {
-                    self.custom_settings.after_count -= 1;
-                    cx.notify();
-                }
-            },
-            "after_plus" => {
-                self.custom_settings.after_count += 1;
-                cx.notify();
-            },
-            // 截止类型选择
-            "end_never" => self.select_end_type(RecurrencyEndOption::Never, cx),
-            "end_on_date" => self.select_end_type(RecurrencyEndOption::OnDate, cx),
-            "end_after" => self.select_end_type(RecurrencyEndOption::After, cx),
-            // 应用自定义设置
-            "custom_apply" => self.apply_custom_recurrency(cx),
-            "custom_cancel" => {
-                self.show_custom_panel = false;
-                cx.notify();
-            },
-            _ => {},
+        if let InputEvent::Change = event {
+            self.sync_interval_from_input(cx);
         }
     }
 
-    /// 处理截止日期选择器事件
-    fn on_end_date_picker_event(
+    /// 处理次数输入事件
+    fn on_count_input_event(
+        &mut self,
+        _state: &Entity<InputState>,
+        event: &InputEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let InputEvent::Change = event {
+            self.sync_count_from_input(cx);
+        }
+    }
+
+    /// 处理结束日期选择事件
+    fn on_end_date_event(
         &mut self,
         _state: &Entity<DatePickerState>,
         event: &DatePickerEvent,
@@ -278,491 +291,464 @@ impl RecurrencyButtonState {
         cx: &mut Context<Self>,
     ) {
         let DatePickerEvent::Change(date) = event;
-        if let Some(date_str) = date.format("%Y-%m-%d").map(|s| s.to_string()) {
-            self.custom_settings.end_date = Some(date_str);
+        if let Some(formatted) = date.format("%Y-%m-%d") {
+            self.end_date = Some(formatted.to_string());
             cx.notify();
         }
     }
 
-    /// 应用预设重复类型
-    fn apply_preset_recurrency(&mut self, option: RecurrencyOption, cx: &mut Context<Self>) {
-        self.selected_recurrency = option.clone();
-        self.show_custom_panel = false;
+    /// 从输入框同步间隔值
+    fn sync_interval_from_input(&mut self, cx: &mut Context<Self>) {
+        self.interval_input.update(cx, |input, _| {
+            if let Ok(value) = input.value().parse::<i64>() {
+                self.interval_value = value.max(1);
+            }
+        });
+    }
 
-        match option {
-            RecurrencyOption::Daily => {
-                self.due_date.recurrency_type = RecurrencyType::EveryDay;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_weeks = "".to_string();
-            },
-            RecurrencyOption::Weekdays => {
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.recurrency_weeks = "1,2,3,4,5".to_string();
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-            },
-            RecurrencyOption::Weekends => {
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.recurrency_weeks = "0,6".to_string();
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-            },
-            RecurrencyOption::Weekly => {
-                self.due_date.recurrency_type = RecurrencyType::EveryWeek;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-                self.due_date.recurrency_weeks = "".to_string();
-            },
-            RecurrencyOption::Monthly => {
-                self.due_date.recurrency_type = RecurrencyType::EveryMonth;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-            },
-            RecurrencyOption::Yearly => {
-                self.due_date.recurrency_type = RecurrencyType::EveryYear;
-                self.due_date.recurrency_interval = 1;
-                self.due_date.is_recurring = true;
-                self.due_date.recurrency_supported = true;
-            },
-            _ => {},
+    /// 从输入框同步次数值
+    fn sync_count_from_input(&mut self, cx: &mut Context<Self>) {
+        self.count_input.update(cx, |input, _| {
+            if let Ok(value) = input.value().parse::<i64>() {
+                self.after_count = value.max(1);
+            }
+        });
+    }
+
+    /// 间隔减一
+    fn decrement_interval(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.interval_value > 1 {
+            self.interval_value -= 1;
+            self.interval_input.update(cx, |input, cx| {
+                input.set_value(&self.interval_value.to_string(), window, cx);
+            });
         }
+    }
 
-        // 预设类型默认不设置截止
-        self.due_date.recurrency_end = "".to_string();
-        self.due_date.recurrency_count = 0;
+    /// 间隔加一
+    fn increment_interval(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.interval_value += 1;
+        self.interval_input.update(cx, |input, cx| {
+            input.set_value(&self.interval_value.to_string(), window, cx);
+        });
+    }
 
-        cx.emit(RecurrencyButtonEvent::RecurrencyChanged(self.due_date.clone()));
-        cx.notify();
+    /// 次数减一
+    fn decrement_count(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.after_count > 1 {
+            self.after_count -= 1;
+            self.count_input.update(cx, |input, cx| {
+                input.set_value(&self.after_count.to_string(), window, cx);
+            });
+        }
+    }
+
+    /// 次数加一
+    fn increment_count(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.after_count += 1;
+        self.count_input.update(cx, |input, cx| {
+            input.set_value(&self.after_count.to_string(), window, cx);
+        });
     }
 
     /// 应用自定义重复设置
-    fn apply_custom_recurrency(&mut self, cx: &mut Context<Self>) {
-        let unit_type = self.custom_settings.unit.to_recurrency_type();
+    fn apply_custom(&mut self, cx: &mut Context<Self>) {
+        let recurrency_type = self.custom_unit.to_recurrency_type();
+        let interval = self.interval_value;
 
-        self.due_date.recurrency_type = unit_type.clone();
-        self.due_date.recurrency_interval = self.custom_settings.interval.max(1);
-        self.due_date.is_recurring = unit_type != RecurrencyType::NONE;
-        self.due_date.recurrency_supported = unit_type != RecurrencyType::NONE;
-        self.due_date.recurrency_weeks = "".to_string();
+        // 根据 end_type 设置截止日期相关字段
+        let mut due_date_clone = DueDate::default();
+        due_date_clone.is_recurring = true;
+        due_date_clone.recurrency_supported = true;
+        due_date_clone.recurrency_type = recurrency_type.clone();
+        due_date_clone.recurrency_interval = interval;
 
-        // 应用截止设置
-        match self.custom_settings.end_type {
-            RecurrencyEndOption::Never => {
-                self.due_date.recurrency_end = "".to_string();
-                self.due_date.recurrency_count = 0;
-            },
+        match self.end_type {
+            RecurrencyEndOption::Never => {},
             RecurrencyEndOption::OnDate => {
-                if let Some(end_date) = &self.custom_settings.end_date {
-                    self.due_date.recurrency_end = format!("{} 00:00:00", end_date);
-                    self.due_date.recurrency_count = 0;
+                if let Some(ref date_str) = self.end_date {
+                    due_date_clone.recurrency_end = date_str.clone();
                 }
             },
             RecurrencyEndOption::After => {
-                self.due_date.recurrency_count = self.custom_settings.after_count.max(1);
-                self.due_date.recurrency_end = "".to_string();
+                due_date_clone.recurrency_count = self.after_count;
             },
         }
 
-        self.show_custom_panel = false;
-        cx.emit(RecurrencyButtonEvent::RecurrencyChanged(self.due_date.clone()));
-        cx.notify();
+        self.parent.update(cx, |parent, cx| {
+            parent.due_date = due_date_clone.clone();
+            cx.emit(RecurrencyButtonEvent::RecurrencyChanged(due_date_clone));
+        });
+
+        cx.emit(DismissEvent);
+    }
+}
+
+impl Focusable for RecurrencyForm {
+    fn focus_handle(&self, cx: &App) -> FocusHandle {
+        self.interval_input.focus_handle(cx)
+    }
+}
+
+impl EventEmitter<DismissEvent> for RecurrencyForm {}
+
+impl Render for RecurrencyForm {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let is_custom = self.get_selected_preset() == RecurrencyPreset::Custom;
+        let selected_index = self.selected_preset_index;
+        let presets = RecurrencyPreset::all_presets();
+
+        // 构建 RadioGroup
+        let radio_group =
+            RadioGroup::vertical("recurrency-preset-group")
+                .selected_index(Some(selected_index))
+                .on_click(cx.listener(move |this, index, _, cx| {
+                    this.selected_preset_index = *index;
+                    cx.notify();
+                }))
+                .children(presets.iter().map(|preset| {
+                    Radio::new(format!("preset-{:?}", preset)).label(preset.to_label())
+                }));
+
+        // 构建 Done 按钮
+        let done_button = Button::new("done").w_full().primary().label("Done").on_click(
+            cx.listener(move |this, _, _window, cx| {
+                let preset = this.get_selected_preset();
+                if preset == RecurrencyPreset::Custom {
+                    this.apply_custom(cx);
+                } else {
+                    let (recurrency_type, weeks) = preset.to_recurrency();
+                    this.parent.update(cx, |parent, cx| {
+                        parent.apply_recurrency_change(Some((recurrency_type, 1, weeks)), cx);
+                    });
+                    cx.emit(DismissEvent);
+                }
+            }),
+        );
+
+        // 根据 is_custom 决定是否渲染自定义面板
+        if is_custom {
+            let custom_panel = self.render_custom_panel(cx);
+            v_flex()
+                .gap_3()
+                .p_3()
+                .w(px(280.))
+                .child(v_flex().gap_2().child(radio_group))
+                .child(custom_panel)
+                .child(done_button)
+        } else {
+            v_flex()
+                .gap_3()
+                .p_3()
+                .w(px(280.))
+                .child(v_flex().gap_2().child(radio_group))
+                .child(done_button)
+        }
+    }
+}
+
+impl RecurrencyForm {
+    /// 渲染自定义面板
+    fn render_custom_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let interval_input = self.interval_input.clone();
+        let count_input = self.count_input.clone();
+        let end_type = self.end_type;
+        let end_date_picker = self.end_date_picker.clone();
+
+        v_flex()
+            .gap_3()
+            .p_2()
+            .border_1()
+            .rounded_lg()
+            .border_color(gpui::rgb(0xe0e0e0))
+            .child(
+                // Repeat every
+                v_flex().gap_2().child("Repeat every").child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            h_flex()
+                                .gap_0()
+                                .border_1()
+                                .rounded_md()
+                                .border_color(gpui::rgb(0xd0d0d0))
+                                .overflow_hidden()
+                                .child(
+                                    Button::new("interval-dec")
+                                        .ghost()
+                                        .compact()
+                                        .label("−")
+                                        .px_2()
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.decrement_interval(window, cx);
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .w(px(40.))
+                                        .child(Input::new(&interval_input).appearance(false)),
+                                )
+                                .child(
+                                    Button::new("interval-inc")
+                                        .ghost()
+                                        .compact()
+                                        .label("+")
+                                        .px_2()
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.increment_interval(window, cx);
+                                        })),
+                                ),
+                        )
+                        .child(
+                            // 单位选择器
+                            h_flex()
+                                .gap_0()
+                                .border_1()
+                                .rounded_md()
+                                .border_color(gpui::rgb(0xd0d0d0))
+                                .overflow_hidden()
+                                .child(self.render_unit_button(RecurrencyUnit::Days, cx))
+                                .child(self.render_unit_button(RecurrencyUnit::Weeks, cx))
+                                .child(self.render_unit_button(RecurrencyUnit::Months, cx))
+                                .child(self.render_unit_button(RecurrencyUnit::Years, cx)),
+                        ),
+                ),
+            )
+            .child(
+                // End
+                v_flex()
+                    .gap_2()
+                    .child("End")
+                    .child(
+                        h_flex()
+                            .gap_0()
+                            .border_1()
+                            .rounded_md()
+                            .border_color(gpui::rgb(0xd0d0d0))
+                            .overflow_hidden()
+                            .child(self.render_end_button(RecurrencyEndOption::Never, cx))
+                            .child(self.render_end_button(RecurrencyEndOption::OnDate, cx))
+                            .child(self.render_end_button(RecurrencyEndOption::After, cx)),
+                    )
+                    // On Date 日期选择器
+                    .when(end_type == RecurrencyEndOption::OnDate, move |this| {
+                        this.child(
+                            DatePicker::new(&end_date_picker).cleanable(true).w(px(200.)),
+                        )
+                    })
+                    // After 次数输入
+                    .when(end_type == RecurrencyEndOption::After, move |this| {
+                        this.child(
+                            h_flex()
+                                .gap_2()
+                                .items_center()
+                                .child(
+                                    h_flex()
+                                        .gap_0()
+                                        .border_1()
+                                        .rounded_md()
+                                        .border_color(gpui::rgb(0xd0d0d0))
+                                        .overflow_hidden()
+                                        .child(
+                                            Button::new("count-dec")
+                                                .ghost()
+                                                .compact()
+                                                .label("−")
+                                                .px_2()
+                                                .on_click(
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        this.decrement_count(window, cx);
+                                                    }),
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .w(px(40.))
+                                                .child(Input::new(&count_input).appearance(false)),
+                                        )
+                                        .child(
+                                            Button::new("count-inc")
+                                                .ghost()
+                                                .compact()
+                                                .label("+")
+                                                .px_2()
+                                                .on_click(
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        this.increment_count(window, cx);
+                                                    }),
+                                                ),
+                                        ),
+                                )
+                                .child("times"),
+                        )
+                    }),
+            )
     }
 
-    /// 清除重复设置
-    fn clear_recurrency(&mut self, cx: &mut Context<Self>) {
-        self.selected_recurrency = RecurrencyOption::None;
-        self.due_date.recurrency_type = RecurrencyType::NONE;
-        self.due_date.recurrency_interval = 0;
-        self.due_date.is_recurring = false;
-        self.due_date.recurrency_supported = false;
-        self.due_date.recurrency_end = "".to_string();
-        self.due_date.recurrency_count = 0;
-        self.due_date.recurrency_weeks = "".to_string();
-        self.show_custom_panel = false;
+    /// 渲染单位按钮
+    fn render_unit_button(
+        &mut self,
+        unit: RecurrencyUnit,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let is_selected = unit == self.custom_unit;
+        let label = unit.to_label();
 
-        cx.emit(RecurrencyButtonEvent::Cleared);
-        cx.notify();
+        Button::new(format!("unit-{:?}", unit))
+            .ghost()
+            .compact()
+            .px_2()
+            .label(label)
+            .when(is_selected, |btn| btn.bg(gpui::rgb(0xe8e8e8)))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.custom_unit = unit;
+                cx.notify();
+            }))
     }
 
-    /// 设置 due_date（从外部加载已有重复设置）
-    pub fn set_due_date(&mut self, due_date: DueDate, cx: &mut Context<Self>) {
+    /// 渲染 End 类型按钮
+    fn render_end_button(
+        &mut self,
+        end_option: RecurrencyEndOption,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let is_selected = end_option == self.end_type;
+        let label = match end_option {
+            RecurrencyEndOption::Never => "Never",
+            RecurrencyEndOption::OnDate => "On Date",
+            RecurrencyEndOption::After => "After",
+        };
+
+        Button::new(format!("end-{:?}", end_option))
+            .flex_1()
+            .ghost()
+            .compact()
+            .label(label)
+            .when(is_selected, |btn| btn.bg(gpui::rgb(0xe8e8e8)))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.end_type = end_option;
+                cx.notify();
+            }))
+    }
+}
+
+/// 重复按钮状态
+pub struct RecurrencyButtonState {
+    focus_handle: FocusHandle,
+    /// 表单实体
+    form: Entity<RecurrencyForm>,
+    /// 是否显示弹出面板
+    popover_open: bool,
+    /// 当前关联的 due_date
+    pub due_date: DueDate,
+}
+
+impl_button_state_base!(RecurrencyButtonState, RecurrencyButtonEvent);
+
+impl RecurrencyButtonState {
+    /// 创建新的重复按钮状态
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let parent = cx.entity();
+        let form = cx.new(|cx| RecurrencyForm::new(parent, window, cx));
+
+        Self {
+            focus_handle: cx.focus_handle(),
+            form,
+            popover_open: false,
+            due_date: DueDate::default(),
+        }
+    }
+
+    /// 设置 due_date
+    pub fn set_due_date(&mut self, due_date: DueDate, window: &mut Window, cx: &mut Context<Self>) {
+        let old_due_date = self.due_date.clone();
+        let has_changed = old_due_date != due_date;
+
         self.due_date = due_date.clone();
 
-        // 根据 due_date 恢复选中的重复类型
-        if !due_date.is_recurring {
-            self.selected_recurrency = RecurrencyOption::None;
-        } else {
-            match due_date.recurrency_type {
-                RecurrencyType::EveryDay => {
-                    if due_date.recurrency_weeks == "1,2,3,4,5" {
-                        self.selected_recurrency = RecurrencyOption::Weekdays;
-                    } else if due_date.recurrency_weeks == "0,6" {
-                        self.selected_recurrency = RecurrencyOption::Weekends;
-                    } else {
-                        self.selected_recurrency = RecurrencyOption::Daily;
-                    }
-                },
-                RecurrencyType::EveryWeek => {
-                    self.selected_recurrency = RecurrencyOption::Weekly;
-                },
-                RecurrencyType::EveryMonth => {
-                    self.selected_recurrency = RecurrencyOption::Monthly;
-                },
-                RecurrencyType::EveryYear => {
-                    self.selected_recurrency = RecurrencyOption::Yearly;
-                },
-                _ => {
-                    self.selected_recurrency = RecurrencyOption::Custom;
-                    self.custom_settings.unit =
-                        RecurrencyUnit::from_recurrency_type(&due_date.recurrency_type);
-                },
-            }
+        // 同步表单状态
+        self.form.update(cx, |form, cx| {
+            form.sync_from_parent(&due_date, window, cx);
+        });
+
+        if has_changed {
+            cx.notify();
+        }
+    }
+
+    /// 应用重复设置变更
+    fn apply_recurrency_change(
+        &mut self,
+        recurrency: Option<(RecurrencyType, i64, Option<&str>)>,
+        cx: &mut Context<Self>,
+    ) {
+        match recurrency {
+            Some((recurrency_type, interval, weeks)) => {
+                self.due_date.is_recurring = recurrency_type != RecurrencyType::NONE;
+                self.due_date.recurrency_supported = recurrency_type != RecurrencyType::NONE;
+                self.due_date.recurrency_type = recurrency_type.clone();
+                self.due_date.recurrency_interval = interval;
+
+                if let Some(weeks_str) = weeks {
+                    self.due_date.recurrency_weeks = weeks_str.to_string();
+                } else {
+                    self.due_date.recurrency_weeks.clear();
+                }
+
+                cx.emit(RecurrencyButtonEvent::RecurrencyChanged(self.due_date.clone()));
+            },
+            None => {
+                self.due_date.is_recurring = false;
+                self.due_date.recurrency_type = RecurrencyType::NONE;
+                self.due_date.recurrency_interval = 0;
+                self.due_date.recurrency_weeks.clear();
+                cx.emit(RecurrencyButtonEvent::Cleared);
+            },
         }
 
-        // 恢复自定义设置
-        self.custom_settings.interval = due_date.recurrency_interval.max(1);
-        self.custom_settings.unit = RecurrencyUnit::from_recurrency_type(&due_date.recurrency_type);
-
-        if !due_date.recurrency_end.is_empty() {
-            self.custom_settings.end_type = RecurrencyEndOption::OnDate;
-            self.custom_settings.end_date =
-                due_date.recurrency_end.split_whitespace().next().map(|s| s.to_string());
-        } else if due_date.recurrency_count > 0 {
-            self.custom_settings.end_type = RecurrencyEndOption::After;
-            self.custom_settings.after_count = due_date.recurrency_count;
-        } else {
-            self.custom_settings.end_type = RecurrencyEndOption::Never;
-        }
-
+        self.popover_open = false;
         cx.notify();
     }
 
-    /// 获取 due_date
-    pub fn due_date(&self) -> DueDate {
-        self.due_date.clone()
-    }
-
-    /// 选择重复截止类型
-    fn select_end_type(&mut self, end_type: RecurrencyEndOption, cx: &mut Context<Self>) {
-        self.custom_settings.end_type = end_type.clone();
-
-        match end_type {
-            RecurrencyEndOption::Never => {
-                self.custom_settings.end_date = None;
-            },
-            RecurrencyEndOption::OnDate => {
-                // DatePicker 默认显示今天
-            },
-            RecurrencyEndOption::After => {},
+    /// 获取显示文本
+    fn get_display_text(&self) -> String {
+        if !self.due_date.is_recurring {
+            return "Repeat".to_string();
         }
 
-        cx.notify();
+        let preset = RecurrencyPreset::from_recurrency_type(
+            &self.due_date.recurrency_type,
+            Some(&self.due_date.recurrency_weeks),
+        );
+        preset.to_label().to_string()
     }
 }
 
 impl Render for RecurrencyButtonState {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let display_text = self.get_display_text();
-        let unit_options = RecurrencyUnit::all_options();
-        let view = cx.entity();
+        let form = self.form.clone();
 
-        v_flex()
-            .on_action(cx.listener(Self::on_select_recurrency))
-            .child(
-                Button::new(("item-recurrency", cx.entity_id()))
-                    .small()
-                    .ghost()
-                    .compact()
-                    .icon(IconName::Repeat)
-                    .label(SharedString::from(display_text))
-                    .tooltip("Set recurrency")
-                    .dropdown_menu_with_anchor(Anchor::TopLeft, move |this, _window, _cx| {
-                        this.check_side(Side::Left)
-                            .min_w(px(180.))
-                            .menu("Daily", Box::new(RecurrencyAction("daily".to_string())))
-                            .menu("Weekdays", Box::new(RecurrencyAction("weekdays".to_string())))
-                            .menu("Weekends", Box::new(RecurrencyAction("weekends".to_string())))
-                            .menu("Weekly", Box::new(RecurrencyAction("weekly".to_string())))
-                            .menu("Monthly", Box::new(RecurrencyAction("monthly".to_string())))
-                            .menu("Yearly", Box::new(RecurrencyAction("yearly".to_string())))
-                            .separator()
-                            .menu("None", Box::new(RecurrencyAction("none".to_string())))
-                            .menu("Custom", Box::new(RecurrencyAction("custom".to_string())))
-                    }),
-            )
-            // 自定义重复设置面板
-            .when(self.show_custom_panel, |this| {
-                this.child(
-                    v_flex()
-                        .gap_2()
-                        .p_2()
-                        .border_1()
-                        .border_color(cx.theme().border)
-                        .rounded(px(6.0))
-                        .bg(cx.theme().background)
-                        // 重复间隔设置：Repeat every [-] 1 [+] [Day(s)▼]
-                        .child(
-                            h_flex()
-                                .gap_1()
-                                .items_center()
-                                .child(div().text_sm().child("Repeat every"))
-                                .child(
-                                    Button::new("interval-minus")
-                                        .small()
-                                        .outline()
-                                        .compact()
-                                        .label("-")
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    if state.custom_settings.interval > 1 {
-                                                        state.custom_settings.interval -= 1;
-                                                        cx.notify();
-                                                    }
-                                                });
-                                            }
-                                        }),
-                                )
-                                .child(
-                                    div()
-                                        .text_sm()
-                                        .w(px(30.0))
-                                        .text_center()
-                                        .child(self.custom_settings.interval.to_string()),
-                                )
-                                .child(
-                                    Button::new("interval-plus")
-                                        .small()
-                                        .outline()
-                                        .compact()
-                                        .icon(IconName::Plus)
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    state.custom_settings.interval += 1;
-                                                    cx.notify();
-                                                });
-                                            }
-                                        }),
-                                )
-                                // 单位下拉选择
-                                .child(
-                                    Button::new("unit-dropdown")
-                                        .small()
-                                        .outline()
-                                        .label(SharedString::from(
-                                            self.custom_settings.unit.to_label().to_string(),
-                                        ))
-                                        .dropdown_menu_with_anchor(
-                                            Anchor::TopLeft,
-                                            move |this, _window, _cx| {
-                                                let mut menu =
-                                                    this.check_side(Side::Left).min_w(px(120.));
-                                                for (idx, unit) in unit_options.iter().enumerate() {
-                                                    menu = menu.menu(
-                                                        unit.to_label(),
-                                                        Box::new(RecurrencyAction(format!(
-                                                            "unit_{}",
-                                                            idx
-                                                        ))),
-                                                    );
-                                                }
-                                                menu
-                                            },
-                                        ),
-                                ),
-                        )
-                        // 截止设置标题
-                        .child(div().text_sm().child("End"))
-                        // 截止类型选择：Never | On Date | After
-                        .child(
-                            h_flex()
-                                .gap_1()
-                                .child(
-                                    Button::new("end-never")
-                                        .small()
-                                        .outline()
-                                        .label("Never")
-                                        .when(
-                                            self.custom_settings.end_type
-                                                == RecurrencyEndOption::Never,
-                                            |this| this.primary(),
-                                        )
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    state.select_end_type(
-                                                        RecurrencyEndOption::Never,
-                                                        cx,
-                                                    );
-                                                });
-                                            }
-                                        }),
-                                )
-                                .child(
-                                    Button::new("end-on-date")
-                                        .small()
-                                        .outline()
-                                        .label("On Date")
-                                        .when(
-                                            self.custom_settings.end_type
-                                                == RecurrencyEndOption::OnDate,
-                                            |this| this.primary(),
-                                        )
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    state.select_end_type(
-                                                        RecurrencyEndOption::OnDate,
-                                                        cx,
-                                                    );
-                                                });
-                                            }
-                                        }),
-                                )
-                                .child(
-                                    Button::new("end-after")
-                                        .small()
-                                        .outline()
-                                        .label("After")
-                                        .when(
-                                            self.custom_settings.end_type
-                                                == RecurrencyEndOption::After,
-                                            |this| this.primary(),
-                                        )
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    state.select_end_type(
-                                                        RecurrencyEndOption::After,
-                                                        cx,
-                                                    );
-                                                });
-                                            }
-                                        }),
-                                ),
-                        )
-                        // On Date 截止日期选择器
-                        .when(
-                            self.custom_settings.end_type == RecurrencyEndOption::OnDate,
-                            |this| {
-                                this.child(
-                                    DatePicker::new(&self.end_date_picker).cleanable(true),
-                                )
-                            },
-                        )
-                        // After 重复次数设置：After [-] 1 [+] times
-                        .when(
-                            self.custom_settings.end_type == RecurrencyEndOption::After,
-                            |this| {
-                                this.child(
-                                    h_flex()
-                                        .gap_1()
-                                        .items_center()
-                                        .child(div().text_sm().child("After"))
-                                        .child(
-                                            Button::new("after-minus")
-                                                .small()
-                                                .outline()
-                                                .compact()
-                                                .label("-")
-                                                .on_click({
-                                                    let view = view.clone();
-                                                    move |_event, _window, cx| {
-                                                        cx.update_entity(&view, |state, cx| {
-                                                            if state.custom_settings.after_count > 1
-                                                            {
-                                                                state.custom_settings.after_count -=
-                                                                    1;
-                                                                cx.notify();
-                                                            }
-                                                        });
-                                                    }
-                                                }),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_sm()
-                                                .w(px(30.0))
-                                                .text_center()
-                                                .child(
-                                                    self.custom_settings.after_count.to_string(),
-                                                ),
-                                        )
-                                        .child(
-                                            Button::new("after-plus")
-                                                .small()
-                                                .outline()
-                                                .compact()
-                                                .icon(IconName::Plus)
-                                                .on_click({
-                                                    let view = view.clone();
-                                                    move |_event, _window, cx| {
-                                                        cx.update_entity(&view, |state, cx| {
-                                                            state.custom_settings.after_count += 1;
-                                                            cx.notify();
-                                                        });
-                                                    }
-                                                }),
-                                        )
-                                        .child(div().text_sm().child("times")),
-                                )
-                            },
-                        )
-                        // 应用/取消按钮
-                        .child(
-                            h_flex()
-                                .gap_2()
-                                .justify_end()
-                                .child(
-                                    Button::new("recurrency-cancel")
-                                        .small()
-                                        .outline()
-                                        .label("Cancel")
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    state.show_custom_panel = false;
-                                                    cx.notify();
-                                                });
-                                            }
-                                        }),
-                                )
-                                .child(
-                                    Button::new("recurrency-apply")
-                                        .small()
-                                        .label("Apply")
-                                        .on_click({
-                                            let view = view.clone();
-                                            move |_event, _window, cx| {
-                                                cx.update_entity(&view, |state, cx| {
-                                                    state.apply_custom_recurrency(cx);
-                                                });
-                                            }
-                                        }),
-                                ),
-                        ),
+        v_flex().child(
+            Popover::new("recurrency-popover")
+                .p_0()
+                .text_sm()
+                .open(self.popover_open)
+                .on_open_change(cx.listener(|this, open, _, cx| {
+                    this.popover_open = *open;
+                    cx.notify();
+                }))
+                .trigger(
+                    Button::new(("recurrency-btn", cx.entity_id()))
+                        .outline()
+                        .icon(IconName::RefreshCw)
+                        .label(SharedString::from(display_text)),
                 )
-            })
+                .track_focus(&form.focus_handle(cx))
+                .child(form.clone()),
+        )
     }
 }
 
-/// 创建重复按钮组件
-create_complex_button!(
-    RecurrencyButton,
-    RecurrencyButtonState,
-    RecurrencyButtonEvent,
-    "item-recurrency"
-);
+create_button_wrapper!(RecurrencyButton, RecurrencyButtonState, "item-recurrency");

@@ -250,7 +250,7 @@ impl ItemInfoState {
             let mut state = RecurrencyButtonState::new(window, cx);
             // 如果有 due_date 且有重复设置，初始化 recurrency_button_state
             if let Some(due_date) = item.due_date() {
-                state.set_due_date(due_date, cx);
+                state.set_due_date(due_date, window, cx);
             }
             state
         });
@@ -1157,9 +1157,9 @@ impl ItemInfoState {
         // 更新 recurrency_button_state
         self.recurrency_button_state.update(cx, |this, cx| {
             if let Some(due_date) = item.due_date() {
-                this.set_due_date(due_date, cx);
+                this.set_due_date(due_date, window, cx);
             } else {
-                this.set_due_date(todos::DueDate::default(), cx);
+                this.set_due_date(todos::DueDate::default(), window, cx);
             }
         });
 
