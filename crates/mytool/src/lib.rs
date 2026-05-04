@@ -43,7 +43,6 @@ use ui::layout::{
     story_state::StoryState, title_bar::AppTitleBar,
 };
 pub use ui::{
-    component_manager::ComponentManager,
     components::*,
     gallery::Gallery,
     stories::*,
