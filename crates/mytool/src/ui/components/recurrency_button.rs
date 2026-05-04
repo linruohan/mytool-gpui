@@ -243,9 +243,48 @@ impl RecurrencyForm {
             RecurrencyUnit::Days
         };
 
+        // 同步截止类型
+        self.end_type = if !due_date.recurrency_end.is_empty() {
+            RecurrencyEndOption::OnDate
+        } else if due_date.recurrency_count > 0 {
+            RecurrencyEndOption::After
+        } else {
+            RecurrencyEndOption::Never
+        };
+
+        // 同步截止日期
+        self.end_date = if !due_date.recurrency_end.is_empty() {
+            Some(due_date.recurrency_end.clone())
+        } else {
+            None
+        };
+
+        // 同步重复次数
+        self.after_count =
+            if due_date.recurrency_count > 0 { due_date.recurrency_count } else { 1 };
+
+        // 更新间隔输入框
         self.interval_input.update(cx, |input, cx| {
             input.set_value(&self.interval_value.to_string(), window, cx);
         });
+
+        // 更新次数输入框
+        self.count_input.update(cx, |input, cx| {
+            input.set_value(&self.after_count.to_string(), window, cx);
+        });
+
+        // 更新日期选择器
+        if let Some(ref date_str) = self.end_date {
+            if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                self.end_date_picker.update(cx, |picker, cx| {
+                    picker.set_date(date, window, cx);
+                });
+            }
+        } else {
+            self.end_date_picker.update(cx, |picker, cx| {
+                picker.set_date(chrono::NaiveDate::default(), window, cx);
+            });
+        }
 
         cx.notify();
     }
@@ -502,7 +541,7 @@ impl RecurrencyForm {
                         )
                         .child(
                             // 单位选择器
-                            h_flex()
+                            v_flex()
                                 .gap_0()
                                 .border_1()
                                 .rounded_md()
