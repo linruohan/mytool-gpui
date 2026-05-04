@@ -2,11 +2,50 @@
 //!
 //! 这个模块提供了一个缓存层，用于缓存常用的查询结果，
 //! 避免每次都重新过滤和计算。
+//!
+//! ## 优化特性
+//! - **版本号机制**: 通过版本号判断缓存是否有效
+//! - **缓存统计**: 记录命中率和使用情况
+//! - **选择性失效**: 支持精确失效特定缓存
 
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use gpui::Global;
 use todos::entity::ItemModel;
+
+/// 缓存统计信息
+#[derive(Debug, Default, Clone)]
+pub struct CacheStats {
+    /// 缓存命中次数
+    pub hits: usize,
+    /// 缓存未命中次数
+    pub misses: usize,
+    /// 缓存失效次数
+    pub invalidations: usize,
+}
+
+impl CacheStats {
+    /// 计算缓存命中率
+    pub fn hit_rate(&self) -> f64 {
+        let total = self.hits + self.misses;
+        if total == 0 { 0.0 } else { self.hits as f64 / total as f64 }
+    }
+
+    /// 记录一次命中
+    pub fn record_hit(&mut self) {
+        self.hits += 1;
+    }
+
+    /// 记录一次未命中
+    pub fn record_miss(&mut self) {
+        self.misses += 1;
+    }
+
+    /// 记录一次失效
+    pub fn record_invalidation(&mut self) {
+        self.invalidations += 1;
+    }
+}
 
 /// 查询结果缓存
 ///
@@ -31,6 +70,9 @@ pub struct QueryCache {
 
     /// 缓存版本号（与 TodoStore 的版本号对应）
     cache_version: RefCell<usize>,
+
+    /// 缓存统计信息
+    stats: RefCell<CacheStats>,
 }
 
 impl Global for QueryCache {}
@@ -48,6 +90,7 @@ impl QueryCache {
             project_cache: RefCell::new(HashMap::new()),
             section_cache: RefCell::new(HashMap::new()),
             cache_version: RefCell::new(0),
+            stats: RefCell::new(CacheStats::default()),
         }
     }
 
@@ -71,6 +114,7 @@ impl QueryCache {
         *self.overdue_cache.borrow_mut() = None;
         self.project_cache.borrow_mut().clear();
         self.section_cache.borrow_mut().clear();
+        self.stats.borrow_mut().record_invalidation();
     }
 
     /// 清空特定项目的缓存
@@ -83,11 +127,34 @@ impl QueryCache {
         self.section_cache.borrow_mut().remove(section_id);
     }
 
+    // ==================== 统计信息 ====================
+
+    /// 获取缓存统计信息
+    pub fn stats(&self) -> CacheStats {
+        self.stats.borrow().clone()
+    }
+
+    /// 重置统计信息
+    pub fn reset_stats(&self) {
+        *self.stats.borrow_mut() = CacheStats::default();
+    }
+
+    /// 获取缓存命中率
+    pub fn hit_rate(&self) -> f64 {
+        self.stats.borrow().hit_rate()
+    }
+
     // ==================== 收件箱缓存 ====================
 
     /// 获取收件箱缓存
     pub fn get_inbox(&self) -> Option<Vec<Arc<ItemModel>>> {
-        self.inbox_cache.borrow().clone()
+        let result = self.inbox_cache.borrow().clone();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置收件箱缓存
@@ -99,7 +166,13 @@ impl QueryCache {
 
     /// 获取今日任务缓存
     pub fn get_today(&self) -> Option<Vec<Arc<ItemModel>>> {
-        self.today_cache.borrow().clone()
+        let result = self.today_cache.borrow().clone();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置今日任务缓存
@@ -111,7 +184,13 @@ impl QueryCache {
 
     /// 获取计划任务缓存
     pub fn get_scheduled(&self) -> Option<Vec<Arc<ItemModel>>> {
-        self.scheduled_cache.borrow().clone()
+        let result = self.scheduled_cache.borrow().clone();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置计划任务缓存
@@ -123,7 +202,13 @@ impl QueryCache {
 
     /// 获取已完成任务缓存
     pub fn get_completed(&self) -> Option<Vec<Arc<ItemModel>>> {
-        self.completed_cache.borrow().clone()
+        let result = self.completed_cache.borrow().clone();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置已完成任务缓存
@@ -135,7 +220,13 @@ impl QueryCache {
 
     /// 获取置顶任务缓存
     pub fn get_pinned(&self) -> Option<Vec<Arc<ItemModel>>> {
-        self.pinned_cache.borrow().clone()
+        let result = self.pinned_cache.borrow().clone();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置置顶任务缓存
@@ -147,7 +238,13 @@ impl QueryCache {
 
     /// 获取过期任务缓存
     pub fn get_overdue(&self) -> Option<Vec<Arc<ItemModel>>> {
-        self.overdue_cache.borrow().clone()
+        let result = self.overdue_cache.borrow().clone();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置过期任务缓存
@@ -159,7 +256,13 @@ impl QueryCache {
 
     /// 获取项目任务缓存
     pub fn get_project(&self, project_id: &str) -> Option<Vec<Arc<ItemModel>>> {
-        self.project_cache.borrow().get(project_id).cloned()
+        let result = self.project_cache.borrow().get(project_id).cloned();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置项目任务缓存
@@ -171,7 +274,13 @@ impl QueryCache {
 
     /// 获取分区任务缓存
     pub fn get_section(&self, section_id: &str) -> Option<Vec<Arc<ItemModel>>> {
-        self.section_cache.borrow().get(section_id).cloned()
+        let result = self.section_cache.borrow().get(section_id).cloned();
+        if result.is_some() {
+            self.stats.borrow_mut().record_hit();
+        } else {
+            self.stats.borrow_mut().record_miss();
+        }
+        result
     }
 
     /// 设置分区任务缓存

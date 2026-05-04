@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use gpui::{AppContext, Context, Entity, FocusHandle, Subscription, Window};
 
-use crate::{ItemInfoState, ItemRowState};
+use crate::{ItemInfoState, ItemRowState, todo_state::TodoStore};
 
 /// 所有 Board 类型的基础结构体
 pub struct BoardBase {
@@ -9,16 +11,16 @@ pub struct BoardBase {
     pub active_index: Option<usize>,
     pub item_rows: Vec<Entity<ItemRowState>>,
     pub item_info: Entity<ItemInfoState>,
-    pub no_section_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
+    pub no_section_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
     pub section_items_map:
-        std::collections::HashMap<String, Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>>,
-    pub pinned_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
-    pub overdue_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
+        std::collections::HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>>,
+    pub pinned_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
+    pub overdue_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
     /// 过期任务分组（超过今天但还未完成，仅 Today Board 使用）
-    pub past_due_items: Vec<(usize, std::sync::Arc<todos::entity::ItemModel>)>,
+    pub past_due_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
     pub is_today_board: bool,
     /// 分区列表（用于渲染 Section 分组）
-    pub sections: Vec<std::sync::Arc<todos::entity::SectionModel>>,
+    pub sections: Vec<Arc<todos::entity::SectionModel>>,
 }
 
 impl BoardBase {
@@ -55,10 +57,50 @@ impl BoardBase {
         self.active_index = index;
     }
 
+    /// 从 TodoStore 刷新项目列表（通用方法）
+    ///
+    /// # 参数
+    /// - `items`: 要显示的项目列表
+    /// - `window`: 窗口句柄
+    /// - `cx`: 上下文
+    /// - `filter`: 可选的过滤函数
+    ///
+    /// # 示例
+    /// ```ignore
+    /// let items = store.inbox_items_cached(cache);
+    /// base.refresh_items(items, window, cx, Some(|item| !item.checked));
+    /// ```
+    pub fn refresh_items(
+        &mut self,
+        items: Vec<Arc<todos::entity::ItemModel>>,
+        window: &mut Window,
+        cx: &mut Context<impl gpui::Render>,
+        filter: Option<fn(&Arc<todos::entity::ItemModel>) -> bool>,
+    ) {
+        let filtered_items: Vec<_> = match filter {
+            Some(f) => items.into_iter().filter(f).collect(),
+            None => items,
+        };
+
+        self.item_rows = filtered_items
+            .iter()
+            .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
+            .collect();
+
+        self.update_items_ordered(&filtered_items);
+    }
+
+    /// 检查版本号是否变化
+    ///
+    /// 用于优化观察者回调，避免不必要的更新
+    pub fn check_version(&self, _store: &TodoStore) -> bool {
+        true
+    }
+
     /// 更新项目列表和部分映射
     pub fn update_items<T>(&mut self, items: &[T])
     where
-        T: Into<std::sync::Arc<todos::entity::ItemModel>> + Clone,
+        T: Into<Arc<todos::entity::ItemModel>> + Clone,
     {
         self.update_items_ordered(items);
     }
@@ -66,9 +108,8 @@ impl BoardBase {
     /// 更新项目列表和部分映射，按照正确的顺序组织
     pub fn update_items_ordered<T>(&mut self, items: &[T])
     where
-        T: Into<std::sync::Arc<todos::entity::ItemModel>> + Clone,
+        T: Into<Arc<todos::entity::ItemModel>> + Clone,
     {
-        // 重新计算各项
         self.pinned_items.clear();
         self.past_due_items.clear();
         self.overdue_items.clear();
@@ -82,19 +123,15 @@ impl BoardBase {
         let mut non_pinned_non_overdue_sections = std::collections::HashMap::new();
 
         for (i, item) in items.iter().enumerate() {
-            let item_model: std::sync::Arc<todos::entity::ItemModel> = item.clone().into();
+            let item_model: Arc<todos::entity::ItemModel> = item.clone().into();
 
             if item_model.pinned {
-                // 置顶任务放在最上方（无论是否过期）
                 self.pinned_items.push((i, item_model));
             } else if self.is_today_board && self.is_past_due(&item_model) {
-                // 过去日期的任务（超过今天但还未完成）
                 past_due.push((i, item_model));
             } else if self.is_today_board && item_model.is_due_today() {
-                // 今天到期的任务
                 today_items.push((i, item_model));
             } else if self.is_today_board && item_model.due_date().is_none() {
-                // Today Board 上无截止日期的任务
                 match item_model.section_id.as_deref() {
                     None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
                     Some(sid) => {
@@ -105,7 +142,6 @@ impl BoardBase {
                     },
                 }
             } else if !self.is_today_board {
-                // 非 Today Board，按 section 分类
                 match item_model.section_id.as_deref() {
                     None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
                     Some(sid) => {
@@ -118,13 +154,11 @@ impl BoardBase {
             }
         }
 
-        // 组织数据结构
         self.past_due_items = past_due;
-        self.overdue_items = today_items; // 在 Today Board 中，overdue_items 实际上存储今天到期的任务
+        self.overdue_items = today_items;
         self.no_section_items = non_pinned_non_overdue_no_section;
         self.section_items_map = non_pinned_non_overdue_sections;
 
-        // 更新活动索引
         if let Some(ix) = self.active_index {
             if ix >= self.item_rows.len() {
                 self.active_index = if self.item_rows.is_empty() { None } else { Some(0) };
@@ -135,9 +169,7 @@ impl BoardBase {
     }
 
     /// 检查任务是否为过去日期（超过今天）
-    ///
-    /// 使用 ItemModel 的 is_past_due() 方法
-    fn is_past_due(&self, item: &std::sync::Arc<todos::entity::ItemModel>) -> bool {
+    fn is_past_due(&self, item: &Arc<todos::entity::ItemModel>) -> bool {
         item.is_past_due()
     }
 }

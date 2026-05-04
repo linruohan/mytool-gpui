@@ -92,7 +92,7 @@ pub struct TodoStore {
 
 /// 索引统计信息
 #[cfg(debug_assertions)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct IndexStats {
     /// 索引重建次数
     rebuild_count: usize,
@@ -102,6 +102,28 @@ struct IndexStats {
     last_rebuild_duration_ms: u128,
     /// 平均增量更新耗时（微秒）
     avg_incremental_update_us: u128,
+    /// 最大索引大小记录
+    max_project_index_size: usize,
+    max_section_index_size: usize,
+}
+
+#[cfg(debug_assertions)]
+impl IndexStats {
+    /// 计算总更新次数
+    fn total_updates(&self) -> usize {
+        self.rebuild_count + self.incremental_update_count
+    }
+
+    /// 计算增量更新占比
+    fn incremental_ratio(&self) -> f64 {
+        let total = self.total_updates();
+        if total == 0 { 0.0 } else { self.incremental_update_count as f64 / total as f64 }
+    }
+
+    /// 判断性能是否健康
+    fn is_healthy(&self) -> bool {
+        self.avg_incremental_update_us < 1000 && self.last_rebuild_duration_ms < 100
+    }
 }
 
 impl Global for TodoStore {}
