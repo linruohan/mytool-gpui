@@ -3,7 +3,7 @@
 //! 这个模块提供了乐观更新的实现，可以显著提升用户体验：
 //! 1. 立即更新 UI（乐观更新）
 //! 2. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
-//! 3. 如果保存失败，记录错误日志
+//! 3. 如果保存失败，追踪结果并提供恢复机制
 
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ use tracing::{error, info};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{TodoEventBus, TodoStore, TodoStoreEvent, get_store},
+        state::{ErrorNotifier, TodoEventBus, TodoStore, TodoStoreEvent, get_store},
     },
     state_service,
 };
@@ -23,7 +23,7 @@ use crate::{
 ///
 /// 1. 立即更新 UI（使用临时 ID）
 /// 2. 异步保存到数据库（不阻塞 UI）
-/// 3. 如果失败，记录错误日志
+/// 3. 如果失败，记录错误并追踪结果
 ///
 /// # 返回值
 /// - 返回生成的临时 ID，用于更新原始 item 对象
@@ -47,8 +47,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     cx.update_global::<TodoStore, _>(|store, _| {
         store.add_item(Arc::new(optimistic_item.clone()));
     });
-
-    // 🚀 优化：移除不必要的缓存失效（见 update_item_optimistic 中的说明）
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
@@ -76,8 +74,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     store.replace_item_id(&temp_id_for_log, Arc::new(saved_item.clone()));
                 });
 
-                // 🚀 优化：移除不必要的缓存失效
-
                 // 发布 ID 变更事件，通知 UI 更新关联数据
                 cx.update_global::<TodoEventBus, _>(|bus, _| {
                     bus.publish(TodoStoreEvent::ItemIdChanged {
@@ -93,6 +89,14 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     &item.id,
                 );
                 error!("{}", context.format_user_message());
+
+                // 通知 UI 显示错误
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(format!(
+                        "添加任务失败：{}。您的更改已保存到本地，稍后会自动重试。",
+                        context.format_user_message()
+                    ));
+                });
             },
         }
     })
@@ -106,7 +110,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
 ///
 /// 1. 立即更新 UI
 /// 2. 异步保存到数据库（使用 cx.spawn，不阻塞 UI）
-/// 3. 如果失败，记录错误日志
+/// 3. 如果失败，通知用户并提供恢复机制
 pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
@@ -120,11 +124,6 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         store.update_item(item.clone());
     });
 
-    // 🚀 优化：移除不必要的缓存失效
-    // TodoStore 的版本号机制（version 字段递增）会自动使 QueryCache 失效
-    // QueryCache.is_valid() 通过比较 cache_version 和 store.version() 来判断缓存是否有效
-    // 因此不需要显式调用 invalidate_all()
-
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
         bus.publish(TodoStoreEvent::ItemUpdated(item.id.clone()));
@@ -135,7 +134,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let item_id = item.id.clone();
     let item_for_db = item.clone();
 
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         let result = state_service::mod_item_with_store(item_for_db.clone(), store).await;
 
         match result {
@@ -153,6 +152,14 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+
+                // 通知 UI 显示错误，让用户知道更新失败了
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(format!(
+                        "更新任务失败：{}。您的更改已保存到本地，稍后会自动重试。",
+                        context.format_user_message()
+                    ));
+                });
             },
         }
     })
@@ -163,7 +170,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 ///
 /// 1. 立即从 UI 移除
 /// 2. 异步从数据库删除（不阻塞 UI）
-/// 3. 如果失败，记录错误日志
+/// 3. 如果失败，将item恢复到UI并通知用户
 pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let item_id = item.id.clone();
 
@@ -174,18 +181,19 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         store.remove_item(&item_id);
     });
 
-    // 🚀 优化：移除不必要的缓存失效
-
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
         bus.publish(TodoStoreEvent::ItemDeleted(item_id.clone()));
     });
 
+    // 保存原始item数据用于恢复
+    let item_for_recovery = item.clone();
+
     // 2. 异步从数据库删除（使用 cx.spawn，不阻塞 UI）
     let store = get_store(cx);
     let item_clone = item.clone();
 
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         let result = state_service::del_item_with_store(item_clone.clone(), store).await;
 
         match result {
@@ -199,6 +207,19 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+
+                // 将item恢复到UI
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.add_item(item_for_recovery.clone());
+                });
+
+                // 通知 UI 显示错误
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(format!(
+                        "删除任务失败：{}。任务已恢复到列表中，请稍后重试。",
+                        context.format_user_message()
+                    ));
+                });
             },
         }
     })
@@ -209,10 +230,10 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 ///
 /// 1. 立即更新 UI
 /// 2. 异步保存到数据库（不阻塞 UI）
-/// 3. 如果失败，记录错误日志
+/// 3. 如果失败，通知用户并提供恢复机制
 pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
     let item_id = item.id.clone();
-    let _old_pinned = item.pinned;
+    let old_pinned = item.pinned;
 
     info!("Optimistically {} item: {}", if pinned { "pinning" } else { "unpinning" }, item_id);
 
@@ -224,8 +245,6 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
         store.update_item(Arc::new(updated_item.clone()));
     });
 
-    // 🚀 优化：移除不必要的缓存失效
-
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
         bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
@@ -235,7 +254,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
     let store = get_store(cx);
     let item_id_clone = item_id.clone();
 
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         let result = store.update_item_pin(&item_id_clone, pinned).await;
 
         match result {
@@ -249,6 +268,22 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+
+                // 恢复旧状态
+                let mut reverted_item = updated_item.clone();
+                reverted_item.pinned = old_pinned;
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.update_item(Arc::new(reverted_item));
+                });
+
+                // 通知 UI 显示错误
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(format!(
+                        "{}任务失败：{}。状态已恢复，请稍后重试。",
+                        if pinned { "置顶" } else { "取消置顶" },
+                        context.format_user_message()
+                    ));
+                });
             },
         }
     })
@@ -256,9 +291,13 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 }
 
 /// 乐观完成任务
+///
+/// 1. 立即更新 UI
+/// 2. 异步保存到数据库（不阻塞 UI）
+/// 3. 如果失败，通知用户并提供恢复机制
 pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut App) {
     let item_id = item.id.clone();
-    let _old_checked = item.checked;
+    let old_checked = item.checked;
 
     info!(
         "Optimistically {} item: {}",
@@ -275,8 +314,6 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         store.update_item(Arc::new(updated_item.clone()));
     });
 
-    // 🚀 优化：移除不必要的缓存失效
-
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
         bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
@@ -286,7 +323,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     let store = get_store(cx);
     let item_clone = item.clone();
 
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         let result =
             state_service::finish_item_with_store(item_clone.clone(), checked, false, store).await;
 
@@ -301,6 +338,24 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+
+                // 恢复旧状态
+                let mut reverted_item = updated_item.clone();
+                reverted_item.checked = old_checked;
+                reverted_item.completed_at =
+                    if old_checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.update_item(Arc::new(reverted_item));
+                });
+
+                // 通知 UI 显示错误
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(format!(
+                        "{}任务失败：{}。状态已恢复，请稍后重试。",
+                        if checked { "完成" } else { "取消完成" },
+                        context.format_user_message()
+                    ));
+                });
             },
         }
     })

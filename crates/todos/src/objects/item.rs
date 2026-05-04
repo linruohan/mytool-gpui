@@ -168,7 +168,13 @@ impl Item {
     }
 
     pub async fn store(&self) -> &Store {
-        self.store.get_or_init(|| async { Store::new(self.db.clone()).await.unwrap() }).await
+        self.store
+            .get_or_init(|| async {
+                Store::new(self.db.clone())
+                    .await
+                    .expect("Failed to initialize Store: database connection failed")
+            })
+            .await
     }
 
     pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {

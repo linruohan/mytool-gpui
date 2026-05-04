@@ -73,6 +73,9 @@ pub mod batch;
 mod executor;
 mod item;
 mod label;
+pub mod operation_merger;
+pub mod operation_queue;
+pub mod operation_result_tracker;
 mod optimistic;
 mod project;
 mod project_item;
@@ -89,6 +92,15 @@ pub use executor::*;
 // 增量更新操作（推荐，性能最优）
 pub use item::*;
 pub use label::*;
+// 操作合并器（防抖和合并快速连续操作）
+#[allow(unused_imports)]
+pub use operation_merger::*;
+// 操作队列（序列化操作执行，管理并发）
+#[allow(unused_imports)]
+pub use operation_queue::*;
+// 操作结果追踪器（错误恢复机制）
+#[allow(unused_imports)]
+pub use operation_result_tracker::*;
 // 乐观更新操作（最佳用户体验）
 pub use optimistic::*;
 pub use project::*;
