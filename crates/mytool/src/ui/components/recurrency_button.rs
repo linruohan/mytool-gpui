@@ -225,13 +225,24 @@ impl RecurrencyForm {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let preset = if due_date.is_recurring {
+        // 判断是否为自定义模式：
+        // 1. interval > 1（间隔大于1）
+        // 2. 或者有 end_date（设置了截止日期）
+        // 3. 或者有 end_count > 0（设置了重复次数）
+        let is_custom = due_date.is_recurring
+            && (due_date.recurrency_interval > 1
+                || !due_date.recurrency_end.is_empty()
+                || due_date.recurrency_count > 0);
+
+        let preset = if !due_date.is_recurring {
+            RecurrencyPreset::Daily
+        } else if is_custom {
+            RecurrencyPreset::Custom
+        } else {
             RecurrencyPreset::from_recurrency_type(
                 &due_date.recurrency_type,
                 Some(&due_date.recurrency_weeks),
             )
-        } else {
-            RecurrencyPreset::Daily
         };
 
         self.selected_preset_index = preset as usize;
