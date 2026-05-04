@@ -63,15 +63,34 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     let item_clone = item.clone();
     let temp_id_for_log = temp_id_clone.clone();
 
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         let result = state_service::add_item_with_store(item_clone.clone(), store).await;
 
         match result {
             Ok(saved_item) => {
+                let real_id = saved_item.id.clone();
                 info!(
                     "Successfully saved item, replacing temp ID {} with real ID {}",
-                    temp_id_for_log, saved_item.id
+                    temp_id_for_log, real_id
                 );
+
+                // 原子地更新 TodoStore 中的临时 ID 为真实 ID
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.replace_item_id(&temp_id_for_log, Arc::new(saved_item.clone()));
+                });
+
+                // 清空缓存
+                cx.update_global::<QueryCache, _>(|cache, _| {
+                    cache.invalidate_all();
+                });
+
+                // 发布 ID 变更事件，通知 UI 更新关联数据
+                cx.update_global::<TodoEventBus, _>(|bus, _| {
+                    bus.publish(TodoStoreEvent::ItemIdChanged {
+                        old_id: temp_id_for_log.clone(),
+                        new_id: real_id.clone(),
+                    });
+                });
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(

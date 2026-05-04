@@ -23,8 +23,8 @@ use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow,
     ItemRowState, VisualHierarchy, section,
     todo_actions::{
-        add_project_item, add_section, delete_project, delete_project_item, delete_section,
-        load_project_items, update_project, update_project_item, update_section,
+        add_section, delete_project, delete_project_item, delete_section, load_project_items,
+        update_project, update_project_item, update_section,
     },
     todo_state::TodoStore,
 };
@@ -176,8 +176,13 @@ impl ProjectItemsPanel {
 
     pub fn handle_project_item_event(&mut self, event: &ProjectItemEvent, cx: &mut Context<Self>) {
         match event {
-            ProjectItemEvent::Added(item) => {
-                add_project_item(self.project.clone(), item.clone(), cx);
+            // 注意：Added 事件不再调用 add_project_item，因为 save_all_changes 已经处理了保存
+            // add_item_optimistic 会在保存时自动添加到 TodoStore
+            ProjectItemEvent::Added(_item) => {
+                // 已经在 save_all_changes 中通过 add_item_optimistic 处理
+                tracing::debug!(
+                    "ProjectItemEvent::Added - item already saved via save_all_changes"
+                );
             },
             ProjectItemEvent::Modified(item) => {
                 update_project_item(self.project.clone(), item.clone(), cx)

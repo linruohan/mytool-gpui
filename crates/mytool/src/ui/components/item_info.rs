@@ -70,6 +70,8 @@ pub enum ItemInfoMessage {
 pub struct ItemStateManager {
     /// 任务模型
     pub item: Arc<ItemModel>,
+    /// 原始任务模型（用于取消时恢复）
+    original_item: Arc<ItemModel>,
     /// 避免重复更新的标志
     pub skip_next_update: bool,
     /// 上次更新时间
@@ -78,18 +80,46 @@ pub struct ItemStateManager {
     update_interval: Duration,
     /// 标记是否有未保存的修改
     has_unsaved_changes: bool,
+    /// 是否是新建任务
+    is_new_item: bool,
 }
 
 impl ItemStateManager {
     /// 创建新的 ItemStateManager
     pub fn new(item: Arc<ItemModel>) -> Self {
+        let is_new = item.id.is_empty() || item.id.starts_with("temp_");
         Self {
+            original_item: item.clone(),
             item,
             skip_next_update: false,
             last_update_time: None,
             update_interval: Duration::from_millis(500), // 500ms 更新间隔
             has_unsaved_changes: false,
+            is_new_item: is_new,
         }
+    }
+
+    /// 检查是否是新建任务
+    pub fn is_new_item(&self) -> bool {
+        self.is_new_item
+    }
+
+    /// 设置是否是新建任务
+    pub fn set_is_new_item(&mut self, is_new: bool) {
+        self.is_new_item = is_new;
+    }
+
+    /// 恢复到原始数据（取消编辑）
+    pub fn revert_to_original(&mut self) {
+        self.item = self.original_item.clone();
+        self.has_unsaved_changes = false;
+    }
+
+    /// 更新原始数据（保存成功后调用）
+    pub fn update_original(&mut self) {
+        self.original_item = self.item.clone();
+        self.has_unsaved_changes = false;
+        self.is_new_item = false;
     }
 
     /// 标记有未保存的修改
@@ -114,7 +144,7 @@ impl ItemStateManager {
     /// 考虑批量更新以减少克隆次数
     pub fn update_item<F>(&mut self, f: F)
     where
-        F: Fn(&mut ItemModel),
+        F: FnOnce(&mut ItemModel),
     {
         let mut item_data = (*self.item).clone();
         f(&mut item_data);
@@ -134,14 +164,14 @@ impl ItemStateManager {
     /// 设置项目 ID
     pub fn set_project_id(&mut self, project_id: Option<String>) {
         self.update_item(|item| {
-            item.project_id = project_id.clone();
+            item.project_id = project_id;
         });
     }
 
     /// 设置分区 ID
     pub fn set_section_id(&mut self, section_id: Option<String>) {
         self.update_item(|item| {
-            item.section_id = section_id.clone();
+            item.section_id = section_id;
         });
     }
 
@@ -155,21 +185,21 @@ impl ItemStateManager {
     /// 设置截止日期
     pub fn set_due_date(&mut self, due_date: Option<todos::DueDate>) {
         self.update_item(|item| {
-            item.due = due_date.clone().map(|d| serde_json::to_value(d).unwrap_or_default());
+            item.due = due_date.map(|d| serde_json::to_value(d).unwrap_or_default());
         });
     }
 
     /// 设置内容
     pub fn set_content(&mut self, content: String) {
         self.update_item(|item| {
-            item.content = content.clone();
+            item.content = content;
         });
     }
 
     /// 设置描述
     pub fn set_description(&mut self, description: Option<String>) {
         self.update_item(|item| {
-            item.description = description.clone();
+            item.description = description;
         });
     }
 
@@ -213,6 +243,7 @@ pub enum ItemInfoEvent {
     Finished(),   // 状态改为完成
     UnFinished(), // 状态改为未完成
     Deleted(),    // 删除任务
+    Cancelled(),  // 取消编辑（不保存）
 }
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
@@ -284,14 +315,44 @@ impl ItemInfoState {
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
                 let store = cx.global::<TodoStore>();
-                // 查找当前 item 是否在 store 中
-                if let Some(updated_item) = store.get_item(&this.state_manager.item.id) {
+                let current_id = &this.state_manager.item.id;
+
+                // 先尝试用当前 ID 查找
+                if let Some(updated_item) = store.get_item(current_id) {
                     // 只有当 item 确实发生变化时才更新，避免不必要的渲染
                     if this.state_manager.item != updated_item {
                         // 如果找到且发生变化，更新状态
                         this.state_manager.item = updated_item;
                         // 触发重新渲染
                         cx.notify();
+                    }
+                } else if current_id.starts_with("temp_") {
+                    // 如果当前是临时 ID 且找不到，检查 ID 映射
+                    if let Some(real_id) = store.get_real_id(current_id) {
+                        if let Some(real_item) = store.get_item(real_id) {
+                            tracing::info!(
+                                "ItemInfoState: detected ID change from {} to {} via mapping",
+                                current_id,
+                                real_id
+                            );
+
+                            // 更新 state_manager 中的 item
+                            this.state_manager.item = real_item.clone();
+
+                            // 更新 AttachmentButtonState 的 item_id
+                            let new_item_id = real_item.id.clone();
+                            this.attachment_state.update(cx, |state, cx| {
+                                state.update_item_id(new_item_id.clone(), cx);
+                            });
+
+                            // 更新 ReminderButtonState 的 item_id
+                            this.reminder_state.update(cx, |state, cx| {
+                                state.update_item_id(new_item_id, cx);
+                            });
+
+                            // 触发重新渲染
+                            cx.notify();
+                        }
                     }
                 }
             }),
@@ -346,11 +407,10 @@ impl ItemInfoState {
     }
 
     /// 当失去焦点时调用，用于通知父组件
+    /// 注意：不再自动保存，用户需要点击保存按钮
     pub fn on_focus_lost(&mut self, cx: &mut Context<Self>) {
-        // 保存所有修改
-        self.save_all_changes(cx);
-        // 可以发送一个自定义事件通知父组件
-        cx.emit(ItemInfoEvent::Updated());
+        // 不再自动保存，只通知 UI 更新
+        cx.notify();
     }
 
     fn on_input_event(
@@ -373,16 +433,13 @@ impl ItemInfoState {
                 // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
-            InputEvent::PressEnter { secondary }
-                if !*secondary
-                    // Enter 键时保存（仅在变更时）
-                    && self.sync_inputs(cx) =>
-            {
-                cx.emit(ItemInfoEvent::Updated());
+            InputEvent::PressEnter { secondary } if !*secondary => {
+                // Enter 键不再自动保存，只同步输入
+                self.sync_inputs(cx);
             },
             InputEvent::Blur => {
-                // 失焦时自动保存
-                self.save_all_changes(cx);
+                // 失焦时不再自动保存，只同步输入
+                self.sync_inputs(cx);
             },
             _ => {},
         };
@@ -651,11 +708,13 @@ impl ItemInfoState {
 
                 self.set_priority(new_priority);
 
-                // 🚀 立即进行乐观更新（更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
-
-                // 不设置 skip_next_update，让正常的更新流程也执行
-                // 这样可以确保数据被正确保存
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if self.state_manager.is_new_item() {
+                    info!("New item, skipping update_item_optimistic");
+                } else {
+                    // 🚀 立即进行乐观更新（更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -713,10 +772,13 @@ impl ItemInfoState {
                         section_state.set_section(None, window, cx);
                     });
 
-                    // 🚀 使用乐观更新（立即更新 UI）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                    // 设置标志以避免在 handle_item_info_event 中重复更新
-                    self.state_manager.skip_next_update = true;
+                    // 如果是新建任务，只更新 state_manager，不保存到数据库
+                    if !self.state_manager.is_new_item() {
+                        // 🚀 使用乐观更新（立即更新 UI）
+                        update_item_optimistic(self.state_manager.item.clone(), cx);
+                        // 设置标志以避免在 handle_item_info_event 中重复更新
+                        self.state_manager.skip_next_update = true;
+                    }
                 }
             },
         }
@@ -740,10 +802,14 @@ impl ItemInfoState {
                 // 只有当section_id实际变化时才更新
                 if current_item.section_id != new_section_id {
                     self.state_manager.set_section_id(new_section_id);
-                    // 🚀 使用乐观更新（立即更新 UI）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                    // 设置标志以避免在 handle_item_info_event 中重复更新
-                    self.state_manager.skip_next_update = true;
+
+                    // 如果是新建任务，只更新 state_manager，不保存到数据库
+                    if !self.state_manager.is_new_item() {
+                        // 🚀 使用乐观更新（立即更新 UI）
+                        update_item_optimistic(self.state_manager.item.clone(), cx);
+                        // 设置标志以避免在 handle_item_info_event 中重复更新
+                        self.state_manager.skip_next_update = true;
+                    }
                     // 立即通知UI更新
                     cx.notify();
                 }
@@ -765,8 +831,12 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
+
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if !self.state_manager.is_new_item() {
+                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
                 // 只发射事件通知父组件，不再在 handle_item_info_event 中重复保存
                 cx.emit(ItemInfoEvent::Updated());
             },
@@ -774,8 +844,12 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
+
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if !self.state_manager.is_new_item() {
+                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
                 // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
@@ -783,8 +857,12 @@ impl ItemInfoState {
                 let schedule_state = _state.read(cx);
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-                // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
+
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if !self.state_manager.is_new_item() {
+                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
                 // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
@@ -795,8 +873,12 @@ impl ItemInfoState {
                 self.schedule_button_state.update(cx, |state, cx| {
                     state.set_due_date(todos::DueDate::default(), window, cx);
                 });
-                // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
+
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if !self.state_manager.is_new_item() {
+                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
                 // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
@@ -817,8 +899,12 @@ impl ItemInfoState {
             RecurrencyButtonEvent::RecurrencyChanged(due_date) => {
                 // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(due_date.clone()));
-                // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
+
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if !self.state_manager.is_new_item() {
+                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
                 // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
@@ -835,8 +921,12 @@ impl ItemInfoState {
                     due_date.recurrency_weeks = "".to_string();
                     self.state_manager.set_due_date(Some(due_date));
                 }
-                // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                update_item_optimistic(self.state_manager.item.clone(), cx);
+
+                // 如果是新建任务，只更新 state_manager，不保存到数据库
+                if !self.state_manager.is_new_item() {
+                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
+                    update_item_optimistic(self.state_manager.item.clone(), cx);
+                }
                 // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
@@ -878,8 +968,10 @@ impl ItemInfoState {
                 complete_item_optimistic(self.state_manager.item.clone(), true, cx);
             },
             ItemInfoEvent::Added() => {
-                // 🚀 使用乐观更新（立即添加任务）
-                add_item_optimistic(self.state_manager.item.clone(), cx);
+                // 注意：add_item_optimistic 已经在 save_all_changes 中调用
+                // 这里只需要更新状态
+                info!("Handling Added event for item: {}", self.state_manager.item.id);
+                self.state_manager.update_original();
             },
             ItemInfoEvent::Updated() => {
                 // 🚀 Updated 事件的发射者应该已经调用了 update_item_optimistic 来保存数据
@@ -887,6 +979,7 @@ impl ItemInfoState {
                 info!("Handling Updated event for item: {}", self.state_manager.item.id);
                 // 重置标志
                 self.state_manager.skip_next_update = false;
+                self.state_manager.update_original();
             },
             ItemInfoEvent::Deleted() => {
                 // 🚀 使用乐观更新（立即删除任务）
@@ -896,7 +989,27 @@ impl ItemInfoState {
                 // 🚀 使用乐观更新（立即取消完成）
                 complete_item_optimistic(self.state_manager.item.clone(), false, cx);
             },
+            ItemInfoEvent::Cancelled() => {
+                // 取消编辑，恢复原始数据
+                info!("Handling Cancelled event for item: {}", self.state_manager.item.id);
+                self.cancel_edit(cx);
+            },
         }
+        cx.notify();
+    }
+
+    /// 取消编辑，恢复原始数据
+    pub fn cancel_edit(&mut self, cx: &mut Context<Self>) {
+        let was_new = self.state_manager.is_new_item();
+
+        // 恢复到原始数据
+        self.state_manager.revert_to_original();
+
+        // 如果是新建任务，通知父组件删除这个临时项
+        if was_new {
+            cx.emit(ItemInfoEvent::Deleted());
+        }
+
         cx.notify();
     }
 
@@ -1476,7 +1589,7 @@ impl Render for ItemInfoState {
                                     .tooltip("more actions")
                                     .on_click(move |_event, _window, _cx| {}),
                             ),
-                    ),
+                ),
             )
             .child(Divider::horizontal().p_1())
             .child(

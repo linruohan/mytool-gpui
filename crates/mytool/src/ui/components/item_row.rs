@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
+    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, IconName, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible,
@@ -109,6 +109,34 @@ impl ItemRowState {
                 }
             }),
             cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
+                // 处理特殊事件
+                match event {
+                    ItemInfoEvent::Cancelled() => {
+                        // 取消编辑，如果是新建任务则从 store 中移除
+                        let is_new = this.item.id.is_empty() || this.item.id.starts_with("temp_");
+                        if is_new {
+                            // 从 TodoStore 中移除临时项
+                            cx.update_global::<TodoStore, _>(|store, _| {
+                                store.remove_item(&this.item.id);
+                            });
+                        }
+                        // 收起面板
+                        this.is_open = false;
+                        cx.notify();
+                        return;
+                    },
+                    ItemInfoEvent::Deleted() => {
+                        // 删除任务，从 store 中移除
+                        cx.update_global::<TodoStore, _>(|store, _| {
+                            store.remove_item(&this.item.id);
+                        });
+                        this.is_open = false;
+                        cx.notify();
+                        return;
+                    },
+                    _ => {},
+                }
+
                 this.item_info.update(cx, |state, cx| {
                     state.handle_item_info_event(event, cx);
                 });
@@ -173,10 +201,7 @@ impl ItemRowState {
 
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 如果当前是展开状态，收缩时保存所有修改
-        if self.is_open {
-            self.save_all_changes(cx);
-        }
+        // 收起时不再自动保存，用户需要点击保存按钮
         self.is_open = !self.is_open;
 
         // 如果展开，尝试让第一个输入框获得焦点
@@ -263,10 +288,13 @@ impl ItemRowState {
         true
     }
 
-    /// 处理收起并保存快捷键 (Escape)
+    /// 处理收起并取消快捷键 (Escape)
     fn handle_escape_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
         if self.is_open {
-            self.save_all_changes(cx);
+            // Escape 键取消编辑，不保存
+            self.item_info.update(cx, |_state, cx| {
+                cx.emit(ItemInfoEvent::Cancelled());
+            });
             self.is_open = false;
             cx.notify();
         }

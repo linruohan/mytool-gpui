@@ -223,7 +223,8 @@ impl SelectiveUpdateHelper {
         match event {
             TodoStoreEvent::ItemAdded(_)
             | TodoStoreEvent::ItemUpdated(_)
-            | TodoStoreEvent::ItemDeleted(_) => true,
+            | TodoStoreEvent::ItemDeleted(_)
+            | TodoStoreEvent::ItemIdChanged { .. } => true,
             TodoStoreEvent::ProjectChanged(_) => true, // 项目变化可能影响收件箱
             TodoStoreEvent::BulkUpdate => true,
             TodoStoreEvent::ActiveProjectChanged => false,
@@ -239,6 +240,7 @@ impl SelectiveUpdateHelper {
             TodoStoreEvent::ItemAdded(_)
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::ItemIdChanged { .. }
                 | TodoStoreEvent::BulkUpdate
         ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
@@ -250,6 +252,7 @@ impl SelectiveUpdateHelper {
             TodoStoreEvent::ItemAdded(_)
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::ItemIdChanged { .. }
                 | TodoStoreEvent::BulkUpdate
         ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
@@ -261,6 +264,7 @@ impl SelectiveUpdateHelper {
             TodoStoreEvent::ItemAdded(_)
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::ItemIdChanged { .. }
                 | TodoStoreEvent::BulkUpdate
         ) && !matches!(event, TodoStoreEvent::OperationError(_))
     }
@@ -272,6 +276,7 @@ impl SelectiveUpdateHelper {
             TodoStoreEvent::ItemAdded(_)
                 | TodoStoreEvent::ItemUpdated(_)
                 | TodoStoreEvent::ItemDeleted(_)
+                | TodoStoreEvent::ItemIdChanged { .. }
                 | TodoStoreEvent::ProjectChanged(_)
                 | TodoStoreEvent::BulkUpdate
         ) && !matches!(event, TodoStoreEvent::OperationError(_))

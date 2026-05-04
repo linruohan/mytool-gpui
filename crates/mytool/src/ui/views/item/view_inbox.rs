@@ -12,7 +12,7 @@ use todos::entity::ItemModel;
 
 use crate::{
     ItemEvent, ItemInfoEvent, ItemInfoState, ItemListDelegate,
-    todo_actions::{add_item, delete_item, update_item},
+    todo_actions::{delete_item, update_item},
     todo_state::TodoStore,
 };
 
@@ -96,7 +96,12 @@ impl ItemsPanel {
 
     pub fn handle_item_event(&mut self, event: &ItemEvent, cx: &mut Context<Self>) {
         match event {
-            ItemEvent::Added(item) => add_item(item.clone(), cx),
+            // 注意：Added 事件不再调用 add_item，因为 save_all_changes 已经处理了保存
+            // add_item_optimistic 会在保存时自动添加到 TodoStore
+            ItemEvent::Added(_item) => {
+                // 已经在 save_all_changes 中通过 add_item_optimistic 处理
+                tracing::debug!("ItemEvent::Added - item already saved via save_all_changes");
+            },
             ItemEvent::Modified(item) => update_item(item.clone(), cx),
             ItemEvent::Deleted(item) => delete_item(item.clone(), cx),
             ItemEvent::Finished(item) => self.finish_item(cx, item.clone()),

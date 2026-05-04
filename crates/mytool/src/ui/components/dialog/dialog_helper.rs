@@ -80,21 +80,23 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
             .child((content_fn)())
             .footer(
                 DialogFooter::new()
-                    .child(
-                        DialogClose::new().child(Button::new("cancel").label("Cancel").outline()),
-                    )
-                    .child(DialogAction::new().child(Button::new("ok").label("Save").primary())),
+                    .child(DialogClose::new().child(
+                        Button::new("cancel").label("Cancel").outline().on_click(
+                            move |_, window, cx| {
+                                window.push_notification("Cancelled.", cx);
+                                window.close_sheet(cx);
+                            },
+                        ),
+                    ))
+                    .child(DialogAction::new().child(
+                        Button::new("ok").label("Save").primary().on_click(move |_, window, cx| {
+                            // Call save function
+                            (save_fn)(cx);
+                            window.push_notification("Item saved.", cx);
+                            window.close_sheet(cx);
+                        }),
+                    )),
             )
-            .on_ok(move |_, window, cx| {
-                (save_fn)(cx);
-                window.push_notification("You have added.", cx);
-                window.close_sheet(cx);
-                true
-            })
-            .on_cancel(|_, window, cx| {
-                window.push_notification("You have canceld.", cx);
-                true
-            })
     });
 }
 

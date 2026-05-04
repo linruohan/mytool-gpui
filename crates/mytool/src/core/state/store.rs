@@ -81,6 +81,9 @@ pub struct TodoStore {
     /// 置顶状态索引：已置顶的任务 ID
     pinned_set: HashSet<String>,
 
+    /// 临时 ID 到真实 ID 的映射（用于 ID 变化检测）
+    id_mappings: HashMap<String, String>,
+
     /// 版本号：每次数据变化时递增，用于优化观察者更新
     /// 视图可以通过比较版本号来判断是否需要重新渲染
     version: usize,
@@ -141,6 +144,7 @@ impl TodoStore {
             section_index: HashMap::new(),
             checked_set: HashSet::new(),
             pinned_set: HashSet::new(),
+            id_mappings: HashMap::new(),
             version: 0,
             #[cfg(debug_assertions)]
             index_stats: IndexStats::default(),
@@ -152,6 +156,11 @@ impl TodoStore {
     /// 视图可以缓存此版本号，在观察者回调中比较版本号来判断是否需要更新
     pub fn version(&self) -> usize {
         self.version
+    }
+
+    /// 获取临时 ID 对应的真实 ID
+    pub fn get_real_id(&self, temp_id: &str) -> Option<&String> {
+        self.id_mappings.get(temp_id)
     }
 
     /// 🚀 获取索引统计信息（仅在 debug 模式下可用）
@@ -428,6 +437,33 @@ impl TodoStore {
         self.all_items.retain(|i| i.id != id);
         // 增加版本号
         self.version += 1;
+    }
+
+    /// 原子地替换任务的 ID（用于临时 ID 变为真实 ID）
+    ///
+    /// 这个方法会在一个操作中完成 ID 替换，避免触发两次通知
+    pub fn replace_item_id(&mut self, old_id: &str, new_item: Arc<ItemModel>) {
+        let new_id = new_item.id.clone();
+
+        // 先从索引中移除旧 ID 的 item
+        if let Some(old_item) = self.all_items.iter().find(|i| i.id == old_id).cloned() {
+            self.remove_item_from_index(&old_item);
+        }
+
+        // 从列表中移除旧 ID 的 item
+        self.all_items.retain(|i| i.id != old_id);
+
+        // 添加新 ID 的 item
+        self.all_items.push(new_item.clone());
+        self.add_item_to_index(&new_item);
+
+        // 记录 ID 映射（临时 ID -> 真实 ID）
+        self.id_mappings.insert(old_id.to_string(), new_id);
+
+        // 只增加一次版本号
+        self.version += 1;
+
+        tracing::info!("TodoStore: replaced temp ID {} with real ID {}", old_id, new_item.id);
     }
 
     /// 添加单个任务

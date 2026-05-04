@@ -17,6 +17,8 @@ pub enum TodoStoreEvent {
     ItemUpdated(String),
     /// 任务被删除
     ItemDeleted(String),
+    /// 任务ID从临时ID变为真实ID（用于更新关联数据）
+    ItemIdChanged { old_id: String, new_id: String },
     /// 项目变化
     ProjectChanged(String),
     /// 批量更新（需要全量刷新）

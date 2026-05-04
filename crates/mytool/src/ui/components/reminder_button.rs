@@ -162,6 +162,7 @@ impl ReminderForm {
 
         // 从父组件获取 item_id
         let item_id = self.parent.read(cx).item_id.clone();
+        let is_temp_id = item_id.starts_with("temp_");
 
         let due_str = format!("{} {}:00", self.current_date, self.current_time);
 
@@ -175,8 +176,24 @@ impl ReminderForm {
 
         // 通知父组件添加提醒
         self.parent.update(cx, |parent, cx| {
+            // 先更新本地状态
             parent.add_reminder_internal(Arc::new(reminder.clone()), cx);
-            add_reminder(reminder, cx);
+
+            if is_temp_id {
+                // 如果是临时 ID，将提醒添加到待保存列表
+                tracing::info!(
+                    "Item ID is temporary ({}), deferring reminder save",
+                    reminder.item_id.as_ref().unwrap_or(&String::new())
+                );
+                parent.pending_reminders.push(reminder);
+            } else {
+                // 如果是真实 ID，立即保存到数据库
+                tracing::info!(
+                    "Item ID is real ({}), saving reminder immediately",
+                    reminder.item_id.as_ref().unwrap_or(&String::new())
+                );
+                add_reminder(reminder, cx);
+            }
         });
 
         Ok(())
@@ -281,6 +298,8 @@ pub struct ReminderButtonState {
     show_add_form: bool,
     /// 是否打开 popover
     popover_open: bool,
+    /// 待保存的提醒列表（当 item_id 从临时 ID 变为真实 ID 后保存）
+    pending_reminders: Vec<ReminderModel>,
 }
 
 impl_button_state_base!(ReminderButtonState, ReminderButtonEvent);
@@ -308,6 +327,7 @@ impl ReminderButtonState {
             current_time: "09:00".to_string(),
             show_add_form: false,
             popover_open: false,
+            pending_reminders: Vec::new(),
         }
     }
 
@@ -320,6 +340,39 @@ impl ReminderButtonState {
         self.items.set_items(reminders);
 
         if has_changed {
+            cx.notify();
+        }
+    }
+
+    /// 更新 item_id（用于临时ID变为真实ID时）
+    pub fn update_item_id(&mut self, new_item_id: String, cx: &mut Context<Self>) {
+        if self.item_id != new_item_id {
+            let old_id = self.item_id.clone();
+            tracing::info!(
+                "ReminderButtonState: updating item_id from {} to {}",
+                old_id,
+                new_item_id
+            );
+            self.item_id = new_item_id.clone();
+
+            // 如果有待保存的提醒，现在保存它们
+            if !self.pending_reminders.is_empty() {
+                tracing::info!(
+                    "Saving {} pending reminders with new item_id: {}",
+                    self.pending_reminders.len(),
+                    new_item_id
+                );
+
+                // 取出待保存的提醒
+                let pending = std::mem::take(&mut self.pending_reminders);
+
+                // 更新每个提醒的 item_id 并保存
+                for mut reminder in pending {
+                    reminder.item_id = Some(new_item_id.clone());
+                    add_reminder(reminder, cx);
+                }
+            }
+
             cx.notify();
         }
     }

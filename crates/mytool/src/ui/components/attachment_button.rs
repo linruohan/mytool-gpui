@@ -57,6 +57,8 @@ pub struct AttachmentButtonState {
     pub item_id: String,
     search: PopoverSearchMixin,
     items: PopoverListMixin<Arc<AttachmentModel>>,
+    /// 待保存的附件列表（当 item_id 从临时 ID 变为真实 ID 后保存）
+    pending_attachments: Vec<AttachmentModel>,
 }
 
 impl EventEmitter<AttachmentButtonEvent> for AttachmentButtonState {}
@@ -84,6 +86,7 @@ impl AttachmentButtonState {
             item_id,
             search: PopoverSearchMixin::new(search_input),
             items: PopoverListMixin::new(filter_fn),
+            pending_attachments: Vec::new(),
         }
     }
 
@@ -94,6 +97,39 @@ impl AttachmentButtonState {
     ) {
         self.items.set_items(attachments);
         cx.notify();
+    }
+
+    /// 更新 item_id（用于临时ID变为真实ID时）
+    pub fn update_item_id(&mut self, new_item_id: String, cx: &mut Context<Self>) {
+        if self.item_id != new_item_id {
+            let old_id = self.item_id.clone();
+            tracing::info!(
+                "AttachmentButtonState: updating item_id from {} to {}",
+                old_id,
+                new_item_id
+            );
+            self.item_id = new_item_id.clone();
+
+            // 如果有待保存的附件，现在保存它们
+            if !self.pending_attachments.is_empty() {
+                tracing::info!(
+                    "Saving {} pending attachments with new item_id: {}",
+                    self.pending_attachments.len(),
+                    new_item_id
+                );
+
+                // 取出待保存的附件
+                let pending = std::mem::take(&mut self.pending_attachments);
+
+                // 更新每个附件的 item_id 并保存
+                for mut attachment in pending {
+                    attachment.item_id = new_item_id.clone();
+                    crate::todo_actions::add_attachment(attachment, cx);
+                }
+            }
+
+            cx.notify();
+        }
     }
 
     pub fn add_attachment(&mut self, attachment: Arc<AttachmentModel>, cx: &mut Context<Self>) {
@@ -134,6 +170,7 @@ impl AttachmentButtonState {
 
     fn try_add_attachment(&mut self, cx: &mut Context<Self>) {
         let item_id = self.item_id.clone();
+        let is_temp_id = item_id.starts_with("temp_");
         let view = cx.entity();
 
         cx.spawn(async move |_this, cx| {
@@ -170,8 +207,24 @@ impl AttachmentButtonState {
             };
 
             cx.update_entity(&view, |this: &mut AttachmentButtonState, cx| {
+                // 先更新本地状态
                 this.add_attachment(Arc::new(attachment.clone()), cx);
-                crate::todo_actions::add_attachment(attachment, cx);
+
+                if is_temp_id {
+                    // 如果是临时 ID，将附件添加到待保存列表
+                    tracing::info!(
+                        "Item ID is temporary ({}), deferring attachment save",
+                        attachment.item_id
+                    );
+                    this.pending_attachments.push(attachment);
+                } else {
+                    // 如果是真实 ID，立即保存到数据库
+                    tracing::info!(
+                        "Item ID is real ({}), saving attachment immediately",
+                        attachment.item_id
+                    );
+                    crate::todo_actions::add_attachment(attachment, cx);
+                }
             });
         })
         .detach();
