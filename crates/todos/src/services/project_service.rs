@@ -151,7 +151,7 @@ impl ProjectService {
         let project = self
             .get_project(project_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("project not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Project").with_entity("Project", project_id))?;
 
         let archived = !project.is_archived;
 
@@ -200,7 +200,7 @@ impl ProjectService {
         let project = self
             .get_project(project_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("project not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Project").with_entity("Project", project_id))?;
 
         // 显式设置所有字段，避免使用 ..project.into()
         ProjectEntity::update(ProjectActiveModel {
@@ -302,7 +302,7 @@ impl ProjectService {
         let project = self
             .get_project(project_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("project not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Project").with_entity("Project", project_id))?;
 
         let mut new_project = project.clone();
         new_project.id = uuid::Uuid::new_v4().to_string();

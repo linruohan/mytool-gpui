@@ -17,7 +17,7 @@ mod tests {
     #[test]
     fn test_id_not_found_error() {
         let err = TodoError::IDNotFound;
-        assert_eq!(err.to_string(), "id not found");
+        assert_eq!(err.to_string(), "ID not found");
     }
 
     #[test]

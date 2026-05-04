@@ -13,7 +13,7 @@ use tokio::time;
 
 use crate::{
     entity::{ItemActiveModel, ItemModel, items, prelude::*},
-    error::TodoError,
+    error::{ErrorContext, TodoError},
     repositories::{
         ItemLabelRepository, ItemLabelRepositoryImpl, ItemRepository, ItemRepositoryImpl,
     },
@@ -87,10 +87,7 @@ impl ItemService {
                     return Ok(result);
                 },
                 Err(e) => {
-                    // 检查是否是可以重试的错误类型
-                    if matches!(e, TodoError::DbError(_))
-                        || matches!(e, TodoError::DatabaseError(_))
-                    {
+                    if e.is_retryable() {
                         if attempt < MAX_RETRIES - 1 {
                             tracing::warn!(
                                 "⚠️  Retrying operation for item {} (attempt {} of {}) after \
@@ -102,7 +99,6 @@ impl ItemService {
                             );
                             time::sleep(RETRY_DELAY).await;
                         } else {
-                            // 最后一次尝试失败，记录错误
                             tracing::error!(
                                 "❌ All attempts failed for item {} after {} tries, error: {:?}",
                                 item_id,
@@ -112,7 +108,6 @@ impl ItemService {
                         }
                         last_error = Some(e);
                     } else {
-                        // 非重试错误，直接返回
                         return Err(e);
                     }
                 },
@@ -142,7 +137,6 @@ impl ItemService {
             item_due
         );
 
-        // 使用重试机制执行数据库操作
         let now = chrono::Utc::now().naive_utc();
 
         let update_result = self
@@ -156,7 +150,6 @@ impl ItemService {
                     Box::pin(async move {
                         tracing::info!("🔍 Executing update_many for item: {}", item_id_clone);
 
-                        // 先检查数据库中是否存在这个 item
                         let existing_item = items::Entity::find()
                             .filter(items::Column::Id.eq(item_id_clone.clone()))
                             .one(&*db)
@@ -167,10 +160,9 @@ impl ItemService {
                                 "❌ Item {} not found in database! Cannot update.",
                                 item_id_clone
                             );
-                            return Err(TodoError::NotFound(format!(
-                                "Item {} not found in database",
-                                item_id_clone
-                            )));
+                            return Err(
+                                TodoError::not_found("Item").with_entity("Item", &item_id_clone)
+                            );
                         }
 
                         tracing::info!(
@@ -247,7 +239,6 @@ impl ItemService {
             )
             .await?;
 
-        // 从数据库重新获取更新后的记录
         let updated_item = self
             .with_retry(
                 || {
@@ -257,10 +248,7 @@ impl ItemService {
                     Box::pin(async move {
                         tracing::info!("🔍 Fetching updated item from database: {}", item_id_clone);
                         service.get_item(&item_id_clone).await.ok_or_else(|| {
-                            TodoError::NotFound(format!(
-                                "Failed to fetch updated item: {}",
-                                item_id_clone
-                            ))
+                            TodoError::not_found("Updated item").with_entity("Item", &item_id_clone)
                         })
                     })
                 },
@@ -309,7 +297,7 @@ impl ItemService {
         let item = self
             .get_item(item_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
 
         ItemEntity::update(ItemActiveModel { pinned: Set(pinned), ..item.into() })
             .exec(&*self.db)
@@ -330,7 +318,7 @@ impl ItemService {
         let item = self
             .get_item(item_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
 
         ItemEntity::update(ItemActiveModel {
             id: Set(item_id.to_string()),
@@ -341,7 +329,6 @@ impl ItemService {
         .exec(&*self.db)
         .await?;
 
-        // 更新子项
         ItemEntity::update_many()
             .col_expr(items::Column::ProjectId, Expr::value(project_id.to_string()))
             .col_expr(items::Column::SectionId, Expr::value(section_id.to_string()))
@@ -362,8 +349,6 @@ impl ItemService {
         checked: bool,
         complete_subitems: bool,
     ) -> Result<(), TodoError> {
-        // 避免递归调用导致的无限大小 future 问题
-        // 改为非递归实现，使用迭代方式处理子项目
         let item_id_clone = item_id.to_string();
 
         let active_model = ItemActiveModel {
@@ -373,7 +358,7 @@ impl ItemService {
             ..ItemEntity::find_by_id(item_id)
                 .one(&*self.db)
                 .await?
-                .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?
+                .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?
                 .into()
         };
         let item_model = active_model.update(&*self.db).await?;
@@ -395,8 +380,6 @@ impl ItemService {
                     .await?;
             }
         }
-
-        // 不处理父项目的状态更新，避免递归
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id_clone));
 
@@ -508,7 +491,6 @@ impl ItemService {
 
         tracing::info!("get_all_items: loaded {} items from database", items.len());
 
-        // 关键修复：为每个 item 加载 labels
         for item in &mut items {
             tracing::debug!("get_all_items: item {} has due: {:?}", item.id, item.due);
 
@@ -537,7 +519,6 @@ impl ItemService {
             .filter(items::Column::Checked.eq(false))
             .all(&*self.db)
             .await?;
-        // Sort by due date - 使用类型安全的 due_date() 方法
         items.sort_by(|a, b| {
             let a_date = a.due_date().and_then(|d| d.datetime());
             let b_date = b.due_date().and_then(|d| d.datetime());
@@ -564,9 +545,8 @@ impl ItemService {
         let item = self
             .get_item(item_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
 
-        // 注意：items 表可能没有 is_archived 和 archived_at 字段，这里暂时不更新这些字段
         ItemEntity::update(ItemActiveModel { id: Set(item_id.to_string()), ..item.into() })
             .exec(&*self.db)
             .await?;
@@ -580,7 +560,7 @@ impl ItemService {
         let item = self
             .get_item(item_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
 
         let mut new_item = item.clone();
         new_item.id = uuid::Uuid::new_v4().to_string();
@@ -602,7 +582,6 @@ impl ItemService {
     ) -> Result<(), TodoError> {
         let label = self.label_service.get_or_create_label(label_name, item_id).await?;
 
-        // 使用关联表添加关系
         self.item_label_repo.add_label_to_item(item_id, &label.id).await?;
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
@@ -617,7 +596,6 @@ impl ItemService {
         item_id: &str,
         label_id: &str,
     ) -> Result<(), TodoError> {
-        // 从关联表中删除关系
         self.item_label_repo.remove_label_from_item(item_id, label_id).await?;
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
@@ -630,7 +608,6 @@ impl ItemService {
     pub async fn get_items_by_label(&self, label_id: &str) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_items_by_label");
 
-        // 从关联表获取 Item IDs
         let item_ids = self.item_label_repo.get_items_by_label(label_id).await?;
 
         if item_ids.is_empty() {
@@ -638,7 +615,6 @@ impl ItemService {
             return Ok(vec![]);
         }
 
-        // 查询 Item 详情
         let items =
             ItemEntity::find().filter(items::Column::Id.is_in(item_ids)).all(&*self.db).await?;
 
@@ -691,9 +667,8 @@ impl ItemService {
         let item = self
             .get_item(item_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("item not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
 
-        // 将 NaiveDateTime 转换为 JsonValue
         let due_json = due_date.map(|d| serde_json::Value::String(d.to_string()));
 
         ItemEntity::update(ItemActiveModel {
@@ -715,15 +690,14 @@ impl ItemService {
         let today = chrono::Utc::now().naive_utc().date();
         let items: Vec<ItemModel> = ItemEntity::find()
             .filter(items::Column::Due.is_not_null())
-            .filter(items::Column::Checked.eq(false)) // 只返回未完成的任务
+            .filter(items::Column::Checked.eq(false))
             .all(&*self.db)
             .await?
             .into_iter()
             .filter(|item| {
-                // 使用类型安全的 due_date() 方法获取日期
                 item.due_date()
                     .and_then(|d| d.datetime())
-                    .map(|d| d.date() <= today) // 获取due日期小于等于今天的任务（包括过期的和今天到期的）
+                    .map(|d| d.date() <= today)
                     .unwrap_or(false)
             })
             .collect();
@@ -743,7 +717,6 @@ impl ItemService {
             .await?
             .into_iter()
             .filter(|item| {
-                // 使用类型安全的 due_date() 方法获取日期
                 item.due_date().and_then(|d| d.datetime()).map(|d| d < now).unwrap_or(false)
             })
             .collect();

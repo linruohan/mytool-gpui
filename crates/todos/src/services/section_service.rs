@@ -111,7 +111,7 @@ impl SectionService {
         let section = self
             .get_section(section_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("section not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Section").with_entity("Section", section_id))?;
 
         // 显式设置所有字段，避免使用 ..section.into()
         SectionEntity::update(SectionActiveModel {
@@ -144,7 +144,7 @@ impl SectionService {
         let section = self
             .get_section(section_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("section not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Section").with_entity("Section", section_id))?;
 
         let archived_new = if section.is_archived == archived { !archived } else { archived };
         // 显式设置所有字段，避免使用 ..section.into()
@@ -239,7 +239,7 @@ impl SectionService {
         let section = self
             .get_section(section_id)
             .await
-            .ok_or_else(|| TodoError::NotFound("section not found".to_string()))?;
+            .ok_or_else(|| TodoError::not_found("Section").with_entity("Section", section_id))?;
 
         let mut new_section = section.clone();
         new_section.id = uuid::Uuid::new_v4().to_string();
