@@ -7,6 +7,7 @@
 //! - **增量索引更新**: 只更新变化的索引，避免全量重建
 //! - **版本号机制**: 视图可以通过版本号判断是否需要更新
 //! - **缓存集成**: 支持查询结果缓存，避免重复计算
+//! - **索引操作抽象**: 通过 IndexOperation trait 统一索引操作逻辑
 
 use std::{
     collections::{HashMap, HashSet},
@@ -15,6 +16,45 @@ use std::{
 
 use gpui::Global;
 use todos::entity::{ItemModel, LabelModel, ProjectModel, SectionModel};
+
+// ==================== 索引操作 Trait ====================
+
+/// 索引操作统一接口
+///
+/// 提供统一的索引更新方法，消除重复代码
+trait IndexOperation {
+    /// 更新项目索引
+    ///
+    /// # 参数
+    /// - `item`: 要操作的任务
+    /// - `add`: true 表示添加，false 表示移除
+    fn update_project_index(&mut self, item: &Arc<ItemModel>, add: bool);
+
+    /// 更新分区索引
+    fn update_section_index(&mut self, item: &Arc<ItemModel>, add: bool);
+
+    /// 更新完成状态索引
+    fn update_checked_set(&mut self, item: &Arc<ItemModel>, add: bool);
+
+    /// 更新置顶状态索引
+    fn update_pinned_set(&mut self, item: &Arc<ItemModel>, add: bool);
+
+    /// 添加任务到所有索引
+    fn add_to_all_indexes(&mut self, item: &Arc<ItemModel>) {
+        self.update_project_index(item, true);
+        self.update_section_index(item, true);
+        self.update_checked_set(item, true);
+        self.update_pinned_set(item, true);
+    }
+
+    /// 从所有索引移除任务
+    fn remove_from_all_indexes(&mut self, item: &Arc<ItemModel>) {
+        self.update_project_index(item, false);
+        self.update_section_index(item, false);
+        self.update_checked_set(item, false);
+        self.update_pinned_set(item, false);
+    }
+}
 
 /// 统一的任务存储
 ///
@@ -157,56 +197,46 @@ impl TodoStore {
         }
     }
 
-    /// 实际的索引重建实现
+    /// 实际的索引重建实现（使用统一的 trait 方法）
     #[inline]
     fn rebuild_indexes_impl(&mut self) {
-        // 清空索引
         self.project_index.clear();
         self.section_index.clear();
         self.checked_set.clear();
         self.pinned_set.clear();
 
-        // 重建索引
-        for item in &self.all_items {
-            // 项目索引
-            if let Some(project_id) = &item.project_id
-                && !project_id.is_empty()
-            {
-                self.project_index.entry(project_id.clone()).or_default().push(item.clone());
-            }
-
-            // 分区索引
-            if let Some(section_id) = &item.section_id
-                && !section_id.is_empty()
-            {
-                self.section_index.entry(section_id.clone()).or_default().push(item.clone());
-            }
-
-            // 检查状态索引
-            if item.checked {
-                self.checked_set.insert(item.id.clone());
-            }
-
-            // 置顶状态索引
-            if item.pinned {
-                self.pinned_set.insert(item.id.clone());
-            }
+        let items = self.all_items.clone();
+        for item in &items {
+            self.add_to_all_indexes(item);
         }
+    }
+
+    // ==================== 通用查询方法 ====================
+
+    /// 通用查询方法
+    ///
+    /// 提供统一的查询接口，减少重复代码
+    ///
+    /// # 参数
+    /// - `predicate`: 过滤条件的闭包
+    ///
+    /// # 示例
+    /// ```ignore
+    /// let items = store.query_items(|item| !item.checked && item.pinned);
+    /// ```
+    fn query_items(&self, predicate: impl Fn(&ItemModel) -> bool) -> Vec<Arc<ItemModel>> {
+        self.all_items.iter().filter(|item| predicate(item)).cloned().collect()
     }
 
     /// 获取收件箱任务（未完成且无项目ID的任务）
     ///
-    /// 使用索引优化查询性能
+    /// 使用通用查询方法
     pub fn inbox_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| {
-                !item.checked
-                    && (item.project_id.is_none() || item.project_id.as_deref() == Some(""))
-                    && !item.is_due_today()
-            })
-            .cloned()
-            .collect()
+        self.query_items(|item| {
+            !item.checked
+                && (item.project_id.is_none() || item.project_id.as_deref() == Some(""))
+                && !item.is_due_today()
+        })
     }
 
     /// 获取收件箱任务（带缓存）
@@ -232,19 +262,9 @@ impl TodoStore {
 
     /// 获取今日到期的任务
     ///
-    /// 使用 ItemModel 的 is_due_today() 方法
+    /// 使用通用查询方法
     pub fn today_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| {
-                if item.checked {
-                    return false;
-                }
-                // 使用 ItemModel 的 is_due_today() 方法
-                item.is_due_today()
-            })
-            .cloned()
-            .collect()
+        self.query_items(|item| !item.checked && item.is_due_today())
     }
 
     /// 获取今日到期的任务（带缓存）
@@ -266,78 +286,46 @@ impl TodoStore {
 
     /// 获取计划任务（有截止日期但未完成）
     pub fn scheduled_items(&self) -> Vec<Arc<ItemModel>> {
-        // 使用 ItemModel 的 due_date() 方法检查是否有截止日期
-        self.all_items
-            .iter()
-            .filter(|item| !item.checked && item.due_date().is_some())
-            .cloned()
-            .collect()
+        self.query_items(|item| !item.checked && item.due_date().is_some())
     }
 
     /// 获取已完成的任务
     pub fn completed_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items.iter().filter(|item| item.checked).cloned().collect()
+        self.query_items(|item| item.checked)
     }
 
     /// 获取置顶任务（未完成且已置顶）
     pub fn pinned_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items.iter().filter(|item| !item.checked && item.pinned).cloned().collect()
+        self.query_items(|item| !item.checked && item.pinned)
     }
 
     /// 获取过期任务
     pub fn overdue_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| {
-                if item.checked {
-                    return false;
-                }
-                // 使用 ItemModel 的 is_overdue() 方法
-                item.is_overdue()
-            })
-            .cloned()
-            .collect()
+        self.query_items(|item| !item.checked && item.is_overdue())
     }
 
     /// 获取指定项目的任务
     pub fn items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| item.project_id.as_deref() == Some(project_id))
-            .cloned()
-            .collect()
+        self.query_items(|item| item.project_id.as_deref() == Some(project_id))
     }
 
     /// 获取指定项目的置顶任务（未完成且已置顶）
     pub fn pinned_items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| {
-                item.project_id.as_deref() == Some(project_id) && !item.checked && item.pinned
-            })
-            .cloned()
-            .collect()
+        self.query_items(|item| {
+            item.project_id.as_deref() == Some(project_id) && !item.checked && item.pinned
+        })
     }
 
     /// 获取指定分区的任务
     pub fn items_by_section(&self, section_id: &str) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| item.section_id.as_deref() == Some(section_id))
-            .cloned()
-            .collect()
+        self.query_items(|item| item.section_id.as_deref() == Some(section_id))
     }
 
     /// 获取无分区的任务
     pub fn no_section_items(&self) -> Vec<Arc<ItemModel>> {
-        self.all_items
-            .iter()
-            .filter(|item| {
-                !item.checked
-                    && (item.section_id.is_none() || item.section_id.as_deref() == Some(""))
-            })
-            .cloned()
-            .collect()
+        self.query_items(|item| {
+            !item.checked && (item.section_id.is_none() || item.section_id.as_deref() == Some(""))
+        })
     }
 
     /// 更新所有任务
@@ -595,64 +583,14 @@ impl TodoStore {
 
     // ==================== 索引管理辅助方法 ====================
 
-    /// 将任务添加到索引
+    /// 将任务添加到索引（使用统一的 trait 方法）
     fn add_item_to_index(&mut self, item: &Arc<ItemModel>) {
-        // 项目索引
-        if let Some(project_id) = &item.project_id
-            && !project_id.is_empty()
-        {
-            self.project_index.entry(project_id.clone()).or_default().push(item.clone());
-        }
-
-        // 分区索引
-        if let Some(section_id) = &item.section_id
-            && !section_id.is_empty()
-        {
-            self.section_index.entry(section_id.clone()).or_default().push(item.clone());
-        }
-
-        // 检查状态索引
-        if item.checked {
-            self.checked_set.insert(item.id.clone());
-        }
-
-        // 置顶状态索引
-        if item.pinned {
-            self.pinned_set.insert(item.id.clone());
-        }
+        self.add_to_all_indexes(item);
     }
 
-    /// 从索引中移除任务
+    /// 从索引中移除任务（使用统一的 trait 方法）
     fn remove_item_from_index(&mut self, item: &Arc<ItemModel>) {
-        // 项目索引
-        if let Some(project_id) = &item.project_id
-            && !project_id.is_empty()
-            && let Some(items) = self.project_index.get_mut(project_id)
-        {
-            items.retain(|i| i.id != item.id);
-            // 如果该项目没有任务了，移除该条目
-            if items.is_empty() {
-                self.project_index.remove(project_id);
-            }
-        }
-
-        // 分区索引
-        if let Some(section_id) = &item.section_id
-            && !section_id.is_empty()
-            && let Some(items) = self.section_index.get_mut(section_id)
-        {
-            items.retain(|i| i.id != item.id);
-            // 如果该分区没有任务了，移除该条目
-            if items.is_empty() {
-                self.section_index.remove(section_id);
-            }
-        }
-
-        // 检查状态索引
-        self.checked_set.remove(&item.id);
-
-        // 置顶状态索引
-        self.pinned_set.remove(&item.id);
+        self.remove_from_all_indexes(item);
     }
 
     /// 更新任务索引（处理状态变化）
@@ -664,30 +602,11 @@ impl TodoStore {
 
         // 🚀 优化 1: 检查项目 ID 是否变化
         if old_item.project_id != new_item.project_id {
-            // 从旧项目索引移除
-            if let Some(old_project_id) = &old_item.project_id
-                && !old_project_id.is_empty()
-                && let Some(items) = self.project_index.get_mut(old_project_id)
-            {
-                items.retain(|i| i.id != old_item.id);
-                if items.is_empty() {
-                    self.project_index.remove(old_project_id);
-                }
-            }
-
-            // 添加到新项目索引
-            if let Some(new_project_id) = &new_item.project_id
-                && !new_project_id.is_empty()
-            {
-                self.project_index
-                    .entry(new_project_id.clone())
-                    .or_default()
-                    .push(new_item.clone());
-            }
+            self.update_project_index(old_item, false);
+            self.update_project_index(new_item, true);
         } else if let Some(project_id) = &new_item.project_id
             && !project_id.is_empty()
         {
-            // 项目 ID 未变化，但需要更新引用
             if let Some(items) = self.project_index.get_mut(project_id)
                 && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
             {
@@ -697,30 +616,11 @@ impl TodoStore {
 
         // 🚀 优化 2: 检查分区 ID 是否变化
         if old_item.section_id != new_item.section_id {
-            // 从旧分区索引移除
-            if let Some(old_section_id) = &old_item.section_id
-                && !old_section_id.is_empty()
-                && let Some(items) = self.section_index.get_mut(old_section_id)
-            {
-                items.retain(|i| i.id != old_item.id);
-                if items.is_empty() {
-                    self.section_index.remove(old_section_id);
-                }
-            }
-
-            // 添加到新分区索引
-            if let Some(new_section_id) = &new_item.section_id
-                && !new_section_id.is_empty()
-            {
-                self.section_index
-                    .entry(new_section_id.clone())
-                    .or_default()
-                    .push(new_item.clone());
-            }
+            self.update_section_index(old_item, false);
+            self.update_section_index(new_item, true);
         } else if let Some(section_id) = &new_item.section_id
             && !section_id.is_empty()
         {
-            // 分区 ID 未变化，但需要更新引用
             if let Some(items) = self.section_index.get_mut(section_id)
                 && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
             {
@@ -730,20 +630,12 @@ impl TodoStore {
 
         // 🚀 优化 3: 检查完成状态是否变化
         if old_item.checked != new_item.checked {
-            if new_item.checked {
-                self.checked_set.insert(new_item.id.clone());
-            } else {
-                self.checked_set.remove(&new_item.id);
-            }
+            self.update_checked_set(new_item, true);
         }
 
         // 🚀 优化 4: 检查置顶状态是否变化
         if old_item.pinned != new_item.pinned {
-            if new_item.pinned {
-                self.pinned_set.insert(new_item.id.clone());
-            } else {
-                self.pinned_set.remove(&new_item.id);
-            }
+            self.update_pinned_set(new_item, true);
         }
 
         #[cfg(debug_assertions)]
@@ -751,7 +643,6 @@ impl TodoStore {
             let duration = start.elapsed();
             self.index_stats.incremental_update_count += 1;
 
-            // 计算移动平均
             let count = self.index_stats.incremental_update_count as u128;
             let old_avg = self.index_stats.avg_incremental_update_us;
             let new_duration_us = duration.as_micros();
@@ -765,6 +656,60 @@ impl TodoStore {
                     self.index_stats.incremental_update_count
                 );
             }
+        }
+    }
+}
+
+// ==================== IndexOperation Trait 实现 ====================
+
+impl IndexOperation for TodoStore {
+    /// 更新项目索引
+    fn update_project_index(&mut self, item: &Arc<ItemModel>, add: bool) {
+        if let Some(project_id) = &item.project_id
+            && !project_id.is_empty()
+        {
+            if add {
+                self.project_index.entry(project_id.clone()).or_default().push(item.clone());
+            } else if let Some(items) = self.project_index.get_mut(project_id) {
+                items.retain(|i| i.id != item.id);
+                if items.is_empty() {
+                    self.project_index.remove(project_id);
+                }
+            }
+        }
+    }
+
+    /// 更新分区索引
+    fn update_section_index(&mut self, item: &Arc<ItemModel>, add: bool) {
+        if let Some(section_id) = &item.section_id
+            && !section_id.is_empty()
+        {
+            if add {
+                self.section_index.entry(section_id.clone()).or_default().push(item.clone());
+            } else if let Some(items) = self.section_index.get_mut(section_id) {
+                items.retain(|i| i.id != item.id);
+                if items.is_empty() {
+                    self.section_index.remove(section_id);
+                }
+            }
+        }
+    }
+
+    /// 更新完成状态索引
+    fn update_checked_set(&mut self, item: &Arc<ItemModel>, add: bool) {
+        if add && item.checked {
+            self.checked_set.insert(item.id.clone());
+        } else {
+            self.checked_set.remove(&item.id);
+        }
+    }
+
+    /// 更新置顶状态索引
+    fn update_pinned_set(&mut self, item: &Arc<ItemModel>, add: bool) {
+        if add && item.pinned {
+            self.pinned_set.insert(item.id.clone());
+        } else {
+            self.pinned_set.remove(&item.id);
         }
     }
 }

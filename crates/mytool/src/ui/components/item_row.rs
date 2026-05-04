@@ -222,95 +222,98 @@ impl ItemRowState {
         event.position.x > px(300.0) // 简化的判断逻辑
     }
 
-    /// 处理键盘事件
+    // ==================== 快捷键处理方法 ====================
+
+    /// 处理删除任务快捷键 (Cmd/Ctrl + D)
+    fn handle_delete_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+        self.item_info.update(cx, |_state, cx| {
+            cx.emit(ItemInfoEvent::Deleted());
+        });
+        true
+    }
+
+    /// 处理切换置顶快捷键 (Cmd/Ctrl + P)
+    fn handle_toggle_pin_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+        let new_pinned = !self.item.pinned;
+        self.item_info.update(cx, |state, cx| {
+            state.state_manager.set_pinned(new_pinned);
+            cx.emit(ItemInfoEvent::Updated());
+        });
+        true
+    }
+
+    /// 处理切换完成状态快捷键 (Space)
+    fn handle_toggle_complete_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+        let new_checked = !self.item.checked;
+        self.item_info.update(cx, |state, cx| {
+            state.state_manager.set_completed(new_checked);
+            if new_checked {
+                cx.emit(ItemInfoEvent::Finished());
+            } else {
+                cx.emit(ItemInfoEvent::UnFinished());
+            }
+        });
+        true
+    }
+
+    /// 处理展开编辑快捷键 (Cmd/Ctrl + E)
+    fn handle_edit_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+        self.is_open = true;
+        cx.notify();
+        true
+    }
+
+    /// 处理收起并保存快捷键 (Escape)
+    fn handle_escape_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+        if self.is_open {
+            self.save_all_changes(cx);
+            self.is_open = false;
+            cx.notify();
+        }
+        true
+    }
+
+    /// 处理键盘事件（优化后的版本）
     fn handle_key_event(
         &mut self,
         event: &gpui::KeyDownEvent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        // 如果是展开状态，让输入框优先处理键盘事件
+        let is_cmd = event.keystroke.modifiers == gpui::Modifiers::command();
+        let is_plain = event.keystroke.modifiers == gpui::Modifiers::default();
+        let key = event.keystroke.key.as_str();
+
+        // 通用快捷键（两种状态都有效）
+        match (key, is_cmd) {
+            ("d", true) => return self.handle_delete_shortcut(cx),
+            ("p", true) => return self.handle_toggle_pin_shortcut(cx),
+            _ => {},
+        }
+
+        // 根据展开状态处理不同的快捷键
         if self.is_open {
-            // 只处理特定的快捷键，其他键盘事件让输入框处理
-            match event.keystroke.key.as_str() {
-                "enter" if event.keystroke.modifiers == gpui::Modifiers::default() => {
-                    // Enter 键：切换展开/收起（仅在没有修饰键时）
+            match (key, is_plain) {
+                ("enter", true) => {
                     self.toggle_expand(window, cx);
-                    true
+                    return true;
                 },
-                "escape" => {
-                    // Escape 键：收起
-                    if self.is_open {
-                        self.save_all_changes(cx);
-                        self.is_open = false;
-                        cx.notify();
-                    }
-                    true
-                },
-                "d" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                    // Cmd/Ctrl + D：删除任务
-                    self.item_info.update(cx, |_state, cx| {
-                        cx.emit(ItemInfoEvent::Deleted());
-                    });
-                    true
-                },
-                "p" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                    // Cmd/Ctrl + P：切换置顶
-                    let new_pinned = !self.item.pinned;
-                    self.item_info.update(cx, |state, cx| {
-                        state.state_manager.set_pinned(new_pinned);
-                        cx.emit(ItemInfoEvent::Updated());
-                    });
-                    true
-                },
-                _ => false, // 其他键盘事件让输入框处理
+                ("escape", _) => return self.handle_escape_shortcut(cx),
+                _ => {},
             }
         } else {
-            // 收起状态下的键盘事件处理
-            match event.keystroke.key.as_str() {
-                "enter" => {
-                    // Enter 键：切换展开/收起
+            match (key, is_plain, is_cmd) {
+                ("enter", true, _) => {
                     self.toggle_expand(window, cx);
-                    true
+                    return true;
                 },
-                "space" => {
-                    // 空格键：切换完成状态
-                    let new_checked = !self.item.checked;
-                    self.item_info.update(cx, |state, cx| {
-                        state.state_manager.set_completed(new_checked);
-                        if new_checked {
-                            cx.emit(ItemInfoEvent::Finished());
-                        } else {
-                            cx.emit(ItemInfoEvent::UnFinished());
-                        }
-                    });
-                    true
-                },
-                "e" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                    // Cmd/Ctrl + E：编辑任务（展开）
-                    self.is_open = true;
-                    cx.notify();
-                    true
-                },
-                "d" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                    // Cmd/Ctrl + D：删除任务
-                    self.item_info.update(cx, |_state, cx| {
-                        cx.emit(ItemInfoEvent::Deleted());
-                    });
-                    true
-                },
-                "p" if event.keystroke.modifiers == gpui::Modifiers::command() => {
-                    // Cmd/Ctrl + P：切换置顶
-                    let new_pinned = !self.item.pinned;
-                    self.item_info.update(cx, |state, cx| {
-                        state.state_manager.set_pinned(new_pinned);
-                        cx.emit(ItemInfoEvent::Updated());
-                    });
-                    true
-                },
-                _ => false,
+                ("space", true, _) => return self.handle_toggle_complete_shortcut(cx),
+                ("e", _, true) => return self.handle_edit_shortcut(cx),
+                _ => {},
             }
         }
+
+        false
     }
 }
 
