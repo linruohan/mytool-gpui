@@ -15,7 +15,7 @@ pub enum FilterType {
 impl FilterType {
     pub fn get_name(&self) -> String {
         let s = self.to_string();
-        format!("{}{}", &s[0..1].to_uppercase(), &s[1..])
+        format!("{}{}", s[0..1].to_uppercase(), &s[1..])
     }
 
     pub fn get_icon(&self) -> &str {

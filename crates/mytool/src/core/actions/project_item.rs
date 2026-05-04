@@ -68,12 +68,6 @@ async fn refresh_project_items_impl(project_id: &str, cx: &mut AsyncApp) {
     });
 }
 
-// 刷新 items（公开版本，保留用于兼容）
-#[allow(dead_code)]
-async fn refresh_project_items(project_id: &str, cx: &mut AsyncApp, _store: Arc<todos::Store>) {
-    refresh_project_items_impl(project_id, cx).await;
-}
-
 // 添加 item
 pub fn add_project_item(project: Arc<ProjectModel>, item: Arc<ItemModel>, cx: &mut App) {
     let project_id = project.id.clone();
