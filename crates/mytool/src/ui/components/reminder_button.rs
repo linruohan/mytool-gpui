@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, ParentElement, Render, SharedString, Styled,
-    Window, prelude::FluentBuilder, px,
+    App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
+    IntoElement, ParentElement, Render, SharedString, Styled, Window, div, prelude::FluentBuilder,
+    px,
 };
 use gpui_component::{
     IconName, Sizable,
@@ -47,24 +48,241 @@ pub enum ReminderButtonEvent {
     Error(Box<dyn std::error::Error + Send + Sync>),
 }
 
+/// 提醒设置表单
+/// 负责管理提醒添加表单的 UI 和交互逻辑
+pub struct ReminderForm {
+    /// 父组件引用
+    parent: Entity<ReminderButtonState>,
+    /// 焦点句柄
+    focus_handle: FocusHandle,
+    /// 日期选择器
+    date_picker: Entity<DatePickerState>,
+    /// 当前选中的日期字符串
+    current_date: String,
+    /// 当前选中的时间
+    current_time: String,
+    /// 订阅列表
+    _subscriptions: Vec<gpui::Subscription>,
+}
+
+impl ReminderForm {
+    /// 创建新的提醒表单
+    pub fn new(
+        parent: Entity<ReminderButtonState>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let date_picker = cx.new(|cx| DatePickerState::new(window, cx));
+
+        // 设置默认时间为 09:00
+        let current_time = "09:00".to_string();
+
+        let _subscriptions =
+            vec![cx.subscribe_in(&date_picker, window, Self::on_date_picker_event)];
+
+        Self {
+            parent,
+            focus_handle: cx.focus_handle(),
+            date_picker,
+            current_date: String::new(),
+            current_time,
+            _subscriptions,
+        }
+    }
+
+    /// 从父组件同步状态
+    pub fn sync_from_parent(
+        &mut self,
+        parent: &ReminderButtonState,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.current_date = parent.current_date.clone();
+        self.current_time = parent.current_time.clone();
+
+        // 如果有日期，同步到日期选择器
+        if !self.current_date.is_empty() {
+            if let Ok(date) = chrono::NaiveDate::parse_from_str(&self.current_date, "%Y-%m-%d") {
+                self.date_picker.update(cx, |picker, cx| {
+                    picker.set_date(date, window, cx);
+                });
+            }
+        }
+
+        cx.notify();
+    }
+
+    /// 处理日期选择器事件
+    fn on_date_picker_event(
+        &mut self,
+        _state: &Entity<DatePickerState>,
+        event: &DatePickerEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let DatePickerEvent::Change(date) = event;
+        self.current_date = date.format("%Y-%m-%d").unwrap_or_default().to_string();
+        // 选择日期后，将焦点重新设置到组件的 focus_handle，防止 popover 因焦点丢失而关闭
+        cx.focus_self(window);
+        cx.notify();
+    }
+
+    /// 选择时间
+    fn select_time(&mut self, time: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.current_time = time.to_string();
+        // 选择时间后，保持焦点，防止 popover 关闭
+        cx.focus_self(window);
+        cx.notify();
+    }
+
+    /// 获取时间选项列表
+    fn get_time_options() -> Vec<&'static str> {
+        vec!["09:00", "12:00", "17:30", "20:00"]
+    }
+
+    /// 处理添加提醒
+    fn on_add_reminder(&mut self, cx: &mut Context<Self>) {
+        if let Err(e) = self.try_add_reminder(cx) {
+            cx.emit(ReminderButtonEvent::Error(Box::new(e)));
+        }
+    }
+
+    /// 尝试添加提醒
+    fn try_add_reminder(&mut self, cx: &mut Context<Self>) -> ReminderResult<()> {
+        if self.current_date.is_empty() {
+            return Err(ReminderError::InvalidDate("Date is required".to_string()));
+        }
+
+        // 从父组件获取 item_id
+        let item_id = self.parent.read(cx).item_id.clone();
+
+        let due_str = format!("{} {}:00", self.current_date, self.current_time);
+
+        let reminder = ReminderModel {
+            id: Uuid::new_v4().to_string(),
+            item_id: Some(item_id),
+            due: Some(due_str),
+            reminder_type: Some("time".to_string()),
+            ..Default::default()
+        };
+
+        // 通知父组件添加提醒
+        self.parent.update(cx, |parent, cx| {
+            parent.add_reminder_internal(Arc::new(reminder.clone()), cx);
+            add_reminder(reminder, cx);
+        });
+
+        Ok(())
+    }
+
+    /// 设置默认日期为今天
+    pub fn set_default_date(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let today = chrono::Utc::now().naive_utc().date();
+        self.date_picker.update(cx, |picker, cx| {
+            picker.set_date(today, window, cx);
+        });
+        self.current_date = today.format("%Y-%m-%d").to_string();
+        cx.notify();
+    }
+}
+
+impl Focusable for ReminderForm {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
+}
+
+impl EventEmitter<DismissEvent> for ReminderForm {}
+
+impl EventEmitter<ReminderButtonEvent> for ReminderForm {}
+
+impl Render for ReminderForm {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let date_picker = self.date_picker.clone();
+        let current_time = self.current_time.clone();
+
+        div()
+            .flex()
+            .flex_row()
+            .gap_1()
+            .items_center()
+            // 日期选择框
+            .child(
+                DatePicker::new(&date_picker)
+                    .cleanable(true)
+                    .w(px(140.)),
+            )
+            // 时间选择下拉框
+            .child(
+                Button::new("time-dropdown")
+                    .small()
+                    .outline()
+                    .label(&current_time)
+                    .dropdown_menu({
+                        let view = cx.entity();
+                        move |this, window, _cx| {
+                            let view_for_fold = view.clone();
+                            Self::get_time_options()
+                                .into_iter()
+                                .fold(this, move |this, time| {
+                                    let time = time.to_string();
+                                    this.item(
+                                        PopupMenuItem::new(SharedString::from(time.clone()))
+                                            .on_click(window.listener_for(
+                                                &view_for_fold,
+                                                move |this, _event, window, cx| {
+                                                    this.select_time(&time, window, cx);
+                                                },
+                                            )),
+                                    )
+                                })
+                        }
+                    }),
+            )
+            // 添加按钮
+            .child(
+                Button::new("add-reminder")
+                    .small()
+                    .primary()
+                    .icon(IconName::Plus)
+                    .on_click({
+                        let view = cx.entity();
+                        move |_event, _window, cx| {
+                            cx.update_entity(&view, |this, cx| {
+                                this.on_add_reminder(cx);
+                            });
+                        }
+                    }),
+            )
+    }
+}
+
+/// ReminderButtonState 状态管理
+/// 负责管理提醒按钮的 popover 状态、提醒列表展示、添加/删除提醒等操作
 pub struct ReminderButtonState {
     focus_handle: FocusHandle,
     pub item_id: String,
+    /// 提醒列表项
     items: PopoverListMixin<Arc<ReminderModel>>,
-    date_picker_state: Entity<DatePickerState>,
-    current_date: String,
-    current_time: String,
+    /// 表单实体
+    form: Entity<ReminderForm>,
+    /// 当前日期字符串
+    pub current_date: String,
+    /// 当前时间字符串
+    pub current_time: String,
+    /// 是否显示添加表单
     show_add_form: bool,
+    /// 是否打开 popover
     popover_open: bool,
 }
 
 impl_button_state_base!(ReminderButtonState, ReminderButtonEvent);
 
 impl ReminderButtonState {
+    /// 创建新的提醒按钮状态
     pub fn new(item_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let date_picker_state = cx.new(|cx| DatePickerState::new(window, cx));
-
-        let _ = cx.subscribe_in(&date_picker_state, window, Self::on_date_picker_event);
+        let parent = cx.entity();
+        let form = cx.new(|cx| ReminderForm::new(parent, window, cx));
 
         let filter_fn = |reminder: &Arc<ReminderModel>, _query: &str| {
             reminder
@@ -78,7 +296,7 @@ impl ReminderButtonState {
             focus_handle: cx.focus_handle(),
             item_id,
             items: PopoverListMixin::new(filter_fn),
-            date_picker_state,
+            form,
             current_date: String::new(),
             current_time: "09:00".to_string(),
             show_add_form: false,
@@ -86,6 +304,7 @@ impl ReminderButtonState {
         }
     }
 
+    /// 设置提醒列表
     pub fn set_reminders(&mut self, reminders: Vec<Arc<ReminderModel>>, cx: &mut Context<Self>) {
         let old_reminders = self.items.items.clone();
         let has_changed = old_reminders.len() != reminders.len()
@@ -98,85 +317,47 @@ impl ReminderButtonState {
         }
     }
 
+    /// 添加提醒（公开方法，供外部调用）
     pub fn add_reminder(&mut self, reminder: Arc<ReminderModel>, cx: &mut Context<Self>) {
+        self.add_reminder_internal(reminder, cx);
+    }
+
+    /// 添加提醒（内部方法）
+    pub(crate) fn add_reminder_internal(
+        &mut self,
+        reminder: Arc<ReminderModel>,
+        cx: &mut Context<Self>,
+    ) {
         self.items.add_item(reminder.clone());
         cx.emit(ReminderButtonEvent::Added(reminder));
         cx.notify();
     }
 
+    /// 删除提醒
     pub fn remove_reminder(&mut self, reminder_id: &str, cx: &mut Context<Self>) {
         self.items.remove_item(|r| r.id == reminder_id);
         cx.emit(ReminderButtonEvent::Removed(reminder_id.to_string()));
-        cx.notify();
-    }
-
-    fn on_date_picker_event(
-        &mut self,
-        _state: &Entity<DatePickerState>,
-        event: &DatePickerEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let DatePickerEvent::Change(date) = event;
-        self.current_date = date.format("%Y-%m-%d").unwrap_or_default().to_string();
-        cx.notify();
-    }
-
-    fn on_time_select(&mut self, time: &str, cx: &mut Context<Self>) {
-        self.current_time = time.to_string();
-        cx.notify();
-    }
-
-    fn get_time_options() -> Vec<&'static str> {
-        vec!["09:00", "12:00", "17:30", "20:00"]
-    }
-
-    fn on_add_reminder(&mut self, cx: &mut Context<Self>) {
-        if let Err(e) = self.try_add_reminder(cx) {
-            cx.emit(ReminderButtonEvent::Error(Box::new(e)));
-        }
-    }
-
-    fn try_add_reminder(&mut self, cx: &mut Context<Self>) -> ReminderResult<()> {
-        if self.current_date.is_empty() {
-            return Err(ReminderError::InvalidDate("Date is required".to_string()));
-        }
-
-        let due_str = format!("{} {}:00", self.current_date, self.current_time);
-
-        let reminder = ReminderModel {
-            id: Uuid::new_v4().to_string(),
-            item_id: Some(self.item_id.clone()),
-            due: Some(due_str),
-            reminder_type: Some("time".to_string()),
-            ..Default::default()
-        };
-
-        self.add_reminder(Arc::new(reminder.clone()), cx);
-        add_reminder(reminder, cx);
-
-        self.current_date.clear();
-        self.current_time = "09:00".to_string();
-        Ok(())
-    }
-
-    fn on_remove_reminder(&mut self, reminder_id: &str, cx: &mut Context<Self>) {
-        self.remove_reminder(reminder_id, cx);
         delete_reminder(reminder_id.to_string(), cx);
+        cx.notify();
     }
 
+    /// 获取过滤后的提醒列表
     fn get_filtered_reminders(&self) -> Vec<Arc<ReminderModel>> {
         self.items.get_filtered("")
     }
 }
 
 impl Render for ReminderButtonState {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
         let show_add_form = self.show_add_form;
-        let current_time = self.current_time.clone();
-        let date_picker_state = self.date_picker_state.clone();
+        let form = self.form.clone();
         let filtered_reminders = self.get_filtered_reminders();
+
+        // 同步表单状态
+        self.form.update(cx, |form, cx| {
+            form.sync_from_parent(self, window, cx);
+        });
 
         gpui_component::popover::Popover::new("reminder-popover")
             .p_0()
@@ -192,7 +373,7 @@ impl Render for ReminderButtonState {
             .trigger(
                 Button::new("open-reminder-dialog").small().outline().icon(IconName::AlarmSymbolic),
             )
-            .track_focus(&self.focus_handle)
+            .track_focus(&form.focus_handle(cx))
             .child(
                 v_flex()
                     .gap_2()
@@ -211,12 +392,9 @@ impl Render for ReminderButtonState {
                                     cx.update_entity(&view, |this, cx| {
                                         this.show_add_form = !this.show_add_form;
                                         if this.show_add_form && this.current_date.is_empty() {
-                                            let today = chrono::Utc::now().naive_utc().date();
-                                            this.date_picker_state.update(cx, |picker, cx| {
-                                                picker.set_date(today, window, cx);
+                                            this.form.update(cx, |form, cx| {
+                                                form.set_default_date(window, cx);
                                             });
-                                            this.current_date =
-                                                today.format("%Y-%m-%d").to_string();
                                         }
                                         cx.notify();
                                     });
@@ -224,87 +402,16 @@ impl Render for ReminderButtonState {
                             }),
                     )
                     // 添加表单（点击后显示）
-                    .when(show_add_form, {
-                        let date_picker = date_picker_state.clone();
-                        let view = view.clone();
-                        move |this| {
-                            this.child(
-                                gpui::div()
-                                    .flex()
-                                    .flex_row()
-                                    .gap_1()
-                                    .items_center()
-                                    // 日期选择框
-                                    .child(
-                                        DatePicker::new(&date_picker)
-                                            .cleanable(true)
-                                            .w(px(140.))
-                                    )
-                                    // 时间选择下拉框
-                                    .child(
-                                        Button::new("time-dropdown")
-                                            .small()
-                                            .outline()
-                                            .label(&current_time)
-                                            .dropdown_menu({
-                                                let view_for_fold = view.clone();
-                                                move |this, window, _cx| {
-                                                    let value = view_for_fold.clone();
-                                                    Self::get_time_options()
-                                                        .into_iter()
-                                                        .fold(this, move |this, time| {
-                                                            let view_for_item = value.clone();
-                                                            let view_for_click = value.clone();
-                                                            let time = time.to_string();
-                                                            this.item(
-                                                                PopupMenuItem::new(
-                                                                    SharedString::from(time.clone()),
-                                                                )
-                                                                .on_click(window.listener_for(
-                                                                    &view_for_item,
-                                                                    move |_this, _event, _window, cx| {
-                                                                        let v = view_for_click.clone();
-                                                                        cx.update_entity(
-                                                                            &v,
-                                                                            |this, cx| {
-                                                                                this.on_time_select(
-                                                                                    &time,
-                                                                                    cx,
-                                                                                );
-                                                                            },
-                                                                        );
-                                                                    },
-                                                                )),
-                                                            )
-                                                        })
-                                                }
-                                            }),
-                                    )
-                                    // 添加按钮
-                                    .child(
-                                        Button::new("add-reminder")
-                                            .small()
-                                            .primary()
-                                            .icon(IconName::Plus)
-                                            .on_click({
-                                                let view = view.clone();
-                                                move |_event, _window, cx| {
-                                                    cx.update_entity(&view, |this, cx| {
-                                                        this.on_add_reminder(cx);
-                                                    });
-                                                }
-                                            }),
-                                    )
-                            )
-                        }
-                    })
+                    .when(show_add_form, |this| this.child(form.clone()))
                     // 已添加的 reminder 列表
-                    .child(v_flex().gap_1().children(filtered_reminders.iter().enumerate().map(
-                        |(idx, reminder)| {
+                    .child(v_flex().gap_1().children(
+                        filtered_reminders.iter().enumerate().map(|(idx, reminder)| {
                             let reminder_id = reminder.id.clone();
                             let view = view.clone();
-                            let display_text =
-                                reminder.due.clone().unwrap_or_else(|| "No date".to_string());
+                            let display_text = reminder
+                                .due
+                                .clone()
+                                .unwrap_or_else(|| "No date".to_string());
 
                             create_list_item_element(
                                 idx,
@@ -315,12 +422,12 @@ impl Render for ReminderButtonState {
                                       view: Entity<ReminderButtonState>,
                                       cx: &mut App| {
                                     cx.update_entity(&view, |this: &mut ReminderButtonState, cx| {
-                                        this.on_remove_reminder(&item_id, cx);
+                                        this.remove_reminder(&item_id, cx);
                                     });
                                 },
                             )
-                        },
-                    ))),
+                        }),
+                    )),
             )
     }
 }
