@@ -70,6 +70,7 @@
 
 mod attachment;
 pub mod batch;
+mod executor;
 mod item;
 mod label;
 mod optimistic;
@@ -83,6 +84,8 @@ pub use attachment::*;
 // 批量操作（高性能）
 #[allow(unused_imports)]
 pub use batch::*;
+// 动作执行器（统一错误处理）
+pub use executor::*;
 // 增量更新操作（推荐，性能最优）
 pub use item::*;
 pub use label::*;

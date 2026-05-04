@@ -41,15 +41,29 @@ use crate::{
     },
     state_service,
     todo_actions::{
-        // 🚀 使用乐观更新（性能优化）
-        add_item_optimistic,
-        complete_item_optimistic,
-        delete_item_optimistic,
-        set_item_pinned_optimistic,
-        update_item_optimistic,
+        add_item_optimistic, complete_item_optimistic, delete_item_optimistic,
+        set_item_pinned_optimistic, update_item_optimistic,
     },
     ui::theme::visual_enhancements::SemanticColors,
 };
+
+// ==================== 消息传递模式 ====================
+
+/// 组件间通信消息定义
+///
+/// 使用消息传递模式替代直接访问内部状态，提高封装性
+pub enum ItemInfoMessage {
+    /// 更新任务数据
+    UpdateItem(Arc<ItemModel>),
+    /// 刷新标签选择
+    RefreshLabels,
+    /// 保存所有修改
+    SaveAllChanges,
+    /// 设置完成状态
+    SetCompleted(bool),
+    /// 设置置顶状态
+    SetPinned(bool),
+}
 
 /// 集中的状态管理结构
 /// 用于统一管理 item 的状态更新，减少手动同步
@@ -1017,6 +1031,48 @@ impl ItemInfoState {
 
         // 通知 ItemInfoState 更新
         cx.notify();
+    }
+
+    // ==================== 消息传递模式 ====================
+
+    /// 公开的消息处理接口
+    ///
+    /// 使用消息传递模式，避免直接访问内部状态
+    pub fn handle_message(
+        &mut self,
+        msg: ItemInfoMessage,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match msg {
+            ItemInfoMessage::UpdateItem(item) => {
+                self.receive_item_update(item, window, cx);
+            },
+            ItemInfoMessage::RefreshLabels => {
+                self.refresh_labels_selection_from_item(cx);
+            },
+            ItemInfoMessage::SaveAllChanges => {
+                self.save_all_changes(cx);
+            },
+            ItemInfoMessage::SetCompleted(checked) => {
+                self.state_manager.set_completed(checked);
+                cx.notify();
+            },
+            ItemInfoMessage::SetPinned(pinned) => {
+                self.state_manager.set_pinned(pinned);
+                cx.notify();
+            },
+        }
+    }
+
+    /// 内部实现: 接收任务更新
+    fn receive_item_update(
+        &mut self,
+        item: Arc<ItemModel>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_item_internal(item, window, cx, true);
     }
 
     /// 内部方法：设置 item，可选择是否重新加载标签
