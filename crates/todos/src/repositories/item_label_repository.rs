@@ -49,6 +49,13 @@ pub trait ItemLabelRepository {
 
     /// 检查 Item 是否有某个 Label
     async fn has_label(&self, item_id: &str, label_id: &str) -> Result<bool, TodoError>;
+
+    /// 🚀 批量获取所有 Item-Label 关联（用于解决 N+1 查询问题）
+    ///
+    /// 返回一个 HashMap，key 是 item_id，value 是该 item 关联的所有 label_id
+    async fn get_all_item_labels(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Vec<String>>, TodoError>;
 }
 
 /// Implementation of ItemLabelRepository
@@ -296,5 +303,33 @@ impl ItemLabelRepository for ItemLabelRepositoryImpl {
             .map_err(|e| TodoError::DatabaseError(format!("Failed to check label: {}", e)))?;
 
         Ok(count > 0)
+    }
+
+    /// 🚀 批量获取所有 Item-Label 关联（用于解决 N+1 查询问题）
+    ///
+    /// 通过一次查询获取所有关联，然后按 item_id 分组
+    async fn get_all_item_labels(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Vec<String>>, TodoError> {
+        use crate::entity::item_labels::Column as ItemLabelColumn;
+
+        let all_associations: Vec<(String, String)> = ItemLabelEntity::find()
+            .select_only()
+            .column(ItemLabelColumn::ItemId)
+            .column(ItemLabelColumn::LabelId)
+            .into_tuple::<(String, String)>()
+            .all(&*self.db)
+            .await
+            .map_err(|e| {
+                TodoError::DatabaseError(format!("Failed to get all item-labels: {}", e))
+            })?;
+
+        let mut result = std::collections::HashMap::new();
+        for (item_id, label_id) in all_associations {
+            result.entry(item_id).or_insert_with(Vec::new).push(label_id);
+        }
+
+        tracing::info!("get_all_item_labels: loaded {} item-label associations", result.len());
+        Ok(result)
     }
 }

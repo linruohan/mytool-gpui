@@ -63,7 +63,7 @@ pub struct PagedResult<T> {
 impl<T> PagedResult<T> {
     /// 创建新的分页结果
     pub fn new(items: Vec<T>, total: u64, page: u64, per_page: u64) -> Self {
-        let total_pages = if per_page > 0 { (total + per_page - 1) / per_page } else { 0 };
+        let total_pages = if per_page > 0 { total.div_ceil(per_page) } else { 0 };
         Self { items, total, page, per_page, total_pages }
     }
 

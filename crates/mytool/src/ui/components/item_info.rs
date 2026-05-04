@@ -36,7 +36,7 @@ use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     core::{
         notification::{NotificationExt, NotificationSystem},
-        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
+        state::{TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
         tokio_runtime,
     },
     state_service,
@@ -589,9 +589,7 @@ impl ItemInfoState {
                 cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(item_for_store.clone());
                 });
-                cx.update_global::<QueryCache, _>(|cache, _| {
-                    cache.invalidate_all();
-                });
+                // 🚀 优化：移除不必要的缓存失效（TodoStore 版本号机制会自动使缓存失效）
                 cx.update_global::<TodoEventBus, _>(|bus, _| {
                     bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_store.clone()));
                 });

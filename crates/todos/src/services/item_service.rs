@@ -408,31 +408,33 @@ impl ItemService {
 
     /// Get all items (including completed and incomplete)
     ///
-    /// 关键修复：同时加载每个 item 的 labels 并填充到 ItemModel.labels 字段
-    /// 这样 UI 可以直接从 item.labels 获取标签列表，而不需要额外查询
+    /// 🚀 关键修复：使用批量加载 labels，避免 N+1 查询问题
+    /// 原来：每个 item 都会触发一次 get_labels_by_item 查询
+    /// 现在：只触发一次 get_all_item_labels 查询，然后将结果填充到 items
     pub async fn get_all_items(&self) -> Result<Vec<ItemModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_all_items");
-        let mut items = ItemEntity::find().all(&*self.db).await?;
+        let items = ItemEntity::find().all(&*self.db).await?;
 
         tracing::info!("get_all_items: loaded {} items from database", items.len());
 
-        for item in &mut items {
+        // 🚀 优化：批量加载所有 item-labels 关联，避免 N+1 查询
+        let all_item_labels = self.item_label_repo.get_all_item_labels().await?;
+
+        let mut result = Vec::with_capacity(items.len());
+        for mut item in items {
             tracing::debug!("get_all_items: item {} has due: {:?}", item.id, item.due);
 
-            match self.get_labels_by_item(&item.id).await {
-                Ok(labels) => {
-                    let label_ids: Vec<String> = labels.iter().map(|l| l.id.clone()).collect();
-                    item.labels = Some(label_ids.join(";"));
-                },
-                Err(e) => {
-                    tracing::warn!("Failed to load labels for item {}: {:?}", item.id, e);
-                    item.labels = None;
-                },
+            // 从批量加载的结果中获取该 item 的 labels
+            if let Some(label_ids) = all_item_labels.get(&item.id) {
+                item.labels = Some(label_ids.join(";"));
+            } else {
+                item.labels = None;
             }
+            result.push(item);
         }
 
-        self.metrics.record_operation("get_all_items", items.len());
-        Ok(items)
+        self.metrics.record_operation("get_all_items", result.len());
+        Ok(result)
     }
 
     /// Get all scheduled items (items with due date that are not completed)

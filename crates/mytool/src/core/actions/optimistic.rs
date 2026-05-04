@@ -14,7 +14,7 @@ use tracing::{error, info};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{QueryCache, TodoEventBus, TodoStore, TodoStoreEvent, get_store},
+        state::{TodoEventBus, TodoStore, TodoStoreEvent, get_store},
     },
     state_service,
 };
@@ -48,10 +48,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
         store.add_item(Arc::new(optimistic_item.clone()));
     });
 
-    // 清空缓存
-    cx.update_global::<QueryCache, _>(|cache, _| {
-        cache.invalidate_all();
-    });
+    // 🚀 优化：移除不必要的缓存失效（见 update_item_optimistic 中的说明）
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
@@ -79,10 +76,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     store.replace_item_id(&temp_id_for_log, Arc::new(saved_item.clone()));
                 });
 
-                // 清空缓存
-                cx.update_global::<QueryCache, _>(|cache, _| {
-                    cache.invalidate_all();
-                });
+                // 🚀 优化：移除不必要的缓存失效
 
                 // 发布 ID 变更事件，通知 UI 更新关联数据
                 cx.update_global::<TodoEventBus, _>(|bus, _| {
@@ -126,10 +120,10 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         store.update_item(item.clone());
     });
 
-    // 清空缓存
-    cx.update_global::<QueryCache, _>(|cache, _| {
-        cache.invalidate_all();
-    });
+    // 🚀 优化：移除不必要的缓存失效
+    // TodoStore 的版本号机制（version 字段递增）会自动使 QueryCache 失效
+    // QueryCache.is_valid() 通过比较 cache_version 和 store.version() 来判断缓存是否有效
+    // 因此不需要显式调用 invalidate_all()
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
@@ -180,10 +174,7 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         store.remove_item(&item_id);
     });
 
-    // 清空缓存
-    cx.update_global::<QueryCache, _>(|cache, _| {
-        cache.invalidate_all();
-    });
+    // 🚀 优化：移除不必要的缓存失效
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
@@ -233,10 +224,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
         store.update_item(Arc::new(updated_item.clone()));
     });
 
-    // 清空缓存
-    cx.update_global::<QueryCache, _>(|cache, _| {
-        cache.invalidate_all();
-    });
+    // 🚀 优化：移除不必要的缓存失效
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
@@ -287,10 +275,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         store.update_item(Arc::new(updated_item.clone()));
     });
 
-    // 清空缓存
-    cx.update_global::<QueryCache, _>(|cache, _| {
-        cache.invalidate_all();
-    });
+    // 🚀 优化：移除不必要的缓存失效
 
     // 发布事件
     cx.update_global::<TodoEventBus, _>(|bus, _| {
