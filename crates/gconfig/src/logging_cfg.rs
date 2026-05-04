@@ -5,21 +5,16 @@
 use serde::Deserialize;
 
 /// 日志格式类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
     /// 纯文本格式（默认）
+    #[default]
     Text,
     /// JSON 结构化格式
     Json,
     /// 紧凑格式
     Compact,
-}
-
-impl Default for LogFormat {
-    fn default() -> Self {
-        Self::Text
-    }
 }
 
 /// 日志输出目标
@@ -203,17 +198,20 @@ impl LoggingConfig {
 }
 
 /// 生成追踪 ID
+#[allow(dead_code)]
 pub fn generate_trace_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
 /// 性能计时器
+#[allow(dead_code)]
 pub struct PerformanceTimer {
     name: String,
     start: std::time::Instant,
     threshold_ms: u64,
 }
 
+#[allow(dead_code)]
 impl PerformanceTimer {
     /// 创建新的性能计时器
     pub fn new(name: impl Into<String>, threshold_ms: u64) -> Self {
@@ -256,6 +254,7 @@ macro_rules! log_fields {
 }
 
 /// 记录操作日志的辅助函数
+#[allow(dead_code)]
 pub fn log_operation(
     operation: &str,
     entity_type: &str,

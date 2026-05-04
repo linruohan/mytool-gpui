@@ -253,7 +253,7 @@ impl ProjectQueryRepository for ProjectRepositoryImpl {
 }
 
 /// 旧版兼容接口（已废弃，请使用 BaseRepository）
-#[deprecated(since = "2.0", note = "请使用 BaseRepository<ProjectModel> trait")]
+#[deprecated(since = "0.2.0", note = "请使用 BaseRepository<ProjectModel> trait")]
 #[async_trait::async_trait]
 pub trait ProjectRepository {
     async fn find_by_id(&self, id: &str) -> Result<ProjectModel, TodoError>;

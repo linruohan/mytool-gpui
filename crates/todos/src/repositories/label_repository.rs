@@ -222,7 +222,7 @@ impl LabelQueryRepository for LabelRepositoryImpl {
 }
 
 /// 旧版兼容接口（已废弃，请使用 BaseRepository）
-#[deprecated(since = "2.0", note = "请使用 BaseRepository<LabelModel> trait")]
+#[deprecated(since = "0.2.0", note = "请使用 BaseRepository<LabelModel> trait")]
 #[async_trait::async_trait]
 pub trait LabelRepository {
     async fn find_by_id(&self, id: &str) -> Result<LabelModel, TodoError>;

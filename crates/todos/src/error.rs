@@ -76,20 +76,15 @@ impl fmt::Display for ErrorCode {
 }
 
 /// 错误严重程度
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ErrorSeverity {
     /// 警告 - 可恢复的小问题
     Warning,
     /// 错误 - 需要处理的错误
+    #[default]
     Error,
     /// 严重 - 系统级错误
     Critical,
-}
-
-impl Default for ErrorSeverity {
-    fn default() -> Self {
-        Self::Error
-    }
 }
 
 /// 错误上下文信息
