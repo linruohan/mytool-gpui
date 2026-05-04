@@ -152,4 +152,107 @@ impl Model {
             None => false,
         }
     }
+
+    // ==================== 字段分组辅助方法 ====================
+
+    /// 获取基础信息字段组
+    ///
+    /// 包含：id, content, description
+    pub fn base_info(&self) -> ItemBaseInfo {
+        ItemBaseInfo {
+            id: self.id.clone(),
+            content: self.content.clone(),
+            description: self.description.clone(),
+        }
+    }
+
+    /// 获取时间字段组
+    ///
+    /// 包含：added_at, completed_at, updated_at, due
+    pub fn time_info(&self) -> ItemTimeInfo {
+        ItemTimeInfo {
+            added_at: self.added_at,
+            completed_at: self.completed_at,
+            updated_at: self.updated_at,
+            due_date: self.due_date(),
+        }
+    }
+
+    /// 获取层级关系字段组
+    ///
+    /// 包含：section_id, project_id, parent_id
+    pub fn hierarchy_info(&self) -> ItemHierarchyInfo {
+        ItemHierarchyInfo {
+            section_id: self.section_id.clone(),
+            project_id: self.project_id.clone(),
+            parent_id: self.parent_id.clone(),
+        }
+    }
+
+    /// 获取状态字段组
+    ///
+    /// 包含：checked, is_deleted, collapsed, pinned
+    pub fn status_info(&self) -> ItemStatusInfo {
+        ItemStatusInfo {
+            checked: self.checked,
+            is_deleted: self.is_deleted,
+            collapsed: self.collapsed,
+            pinned: self.pinned,
+        }
+    }
+
+    /// 获取排序字段组
+    ///
+    /// 包含：priority, child_order, day_order
+    pub fn order_info(&self) -> ItemOrderInfo {
+        ItemOrderInfo {
+            priority: self.priority,
+            child_order: self.child_order,
+            day_order: self.day_order,
+        }
+    }
+}
+
+// ==================== 字段分组结构体 ====================
+
+/// 基础信息字段组
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemBaseInfo {
+    pub id: String,
+    pub content: String,
+    pub description: Option<String>,
+}
+
+/// 时间字段组
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemTimeInfo {
+    pub added_at: NaiveDateTime,
+    pub completed_at: Option<NaiveDateTime>,
+    pub updated_at: NaiveDateTime,
+    pub due_date: Option<DueDate>,
+}
+
+/// 层级关系字段组
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ItemHierarchyInfo {
+    pub section_id: Option<String>,
+    pub project_id: Option<String>,
+    pub parent_id: Option<String>,
+}
+
+/// 状态字段组
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ItemStatusInfo {
+    pub checked: bool,
+    pub is_deleted: bool,
+    pub collapsed: bool,
+    pub pinned: bool,
+}
+
+/// 排序字段组
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ItemOrderInfo {
+    pub priority: Option<i32>,
+    pub child_order: Option<i32>,
+    pub day_order: Option<i32>,
 }

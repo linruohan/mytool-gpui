@@ -3,12 +3,96 @@
 //! This module provides an event bus system that allows components to publish and subscribe to
 //! events. It includes support for automatic subscription cancellation when subscriptions are
 //! dropped.
+//!
+//! ## 优化特性
+//! - **泛型事件支持**: 支持任意类型的事件负载
+//! - **类型安全**: 编译时检查事件类型
+//! - **向后兼容**: 保留原有 Event 枚举
 
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    any::TypeId,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::{Mutex, RwLock, broadcast};
 use uuid::Uuid;
+
+// ==================== 泛型事件系统 ====================
+
+/// 泛型事件 trait
+///
+/// 实现此 trait 的类型可以作为事件发布到 EventBus
+pub trait EventTrait: Clone + Send + Sync + 'static {}
+
+/// 泛型事件包装器
+#[derive(Clone, Debug)]
+struct EventWrapper {
+    type_id: TypeId,
+    payload: Arc<dyn std::any::Any + Send + Sync>,
+}
+
+/// 泛型订阅
+pub struct TypedSubscription<T: EventTrait> {
+    rx: broadcast::Receiver<T>,
+    _event_bus: GenericEventBus,
+}
+
+impl<T: EventTrait> TypedSubscription<T> {
+    /// 接收下一个事件
+    pub async fn recv(&mut self) -> Result<T, broadcast::error::RecvError> {
+        self.rx.recv().await
+    }
+}
+
+/// 泛型事件总线
+///
+/// 支持发布和订阅不同类型的事件
+#[derive(Clone, Debug)]
+pub struct GenericEventBus {
+    channels: Arc<RwLock<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>>>,
+}
+
+impl GenericEventBus {
+    /// 创建新的泛型事件总线
+    pub fn new() -> Self {
+        Self { channels: Arc::new(RwLock::new(HashMap::new())) }
+    }
+
+    /// 订阅特定类型的事件
+    pub async fn subscribe<T: EventTrait>(&self) -> TypedSubscription<T> {
+        let type_id = TypeId::of::<T>();
+        let mut channels = self.channels.write().await;
+
+        let sender =
+            channels.entry(type_id).or_insert_with(|| Box::new(broadcast::channel::<T>(100).0));
+
+        let tx = sender.downcast_ref::<broadcast::Sender<T>>().expect("Type mismatch in event bus");
+
+        TypedSubscription { rx: tx.subscribe(), _event_bus: self.clone() }
+    }
+
+    /// 发布事件
+    pub async fn publish<T: EventTrait>(&self, event: T) {
+        let type_id = TypeId::of::<T>();
+        let channels = self.channels.read().await;
+
+        if let Some(sender) = channels.get(&type_id) {
+            if let Some(tx) = sender.downcast_ref::<broadcast::Sender<T>>() {
+                let _ = tx.send(event);
+            }
+        }
+    }
+}
+
+impl Default for GenericEventBus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ==================== 原有事件系统（向后兼容） ====================
 
 /// Event types for the event bus
 ///
@@ -90,8 +174,44 @@ pub enum Event {
     /// Event fired when items position is updated
     ///
     /// The string parameters are the project ID and section ID respectively.
-    ItemsPositionUpdated(String, String), // project_id, section_id
+    ItemsPositionUpdated(String, String),
 }
+
+impl EventTrait for Event {}
+
+// ==================== 便捷事件类型 ====================
+
+/// 任务事件（泛型事件示例）
+#[derive(Clone, Debug)]
+pub struct ItemEvent {
+    pub item_id: String,
+    pub event_type: ItemEventType,
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum ItemEventType {
+    Created,
+    Updated,
+    Deleted,
+}
+
+impl EventTrait for ItemEvent {}
+
+/// 项目事件（泛型事件示例）
+#[derive(Clone, Debug)]
+pub struct ProjectEvent {
+    pub project_id: String,
+    pub event_type: ProjectEventType,
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum ProjectEventType {
+    Created,
+    Updated,
+    Deleted,
+}
+
+impl EventTrait for ProjectEvent {}
 
 /// Subscription to the event bus
 ///
