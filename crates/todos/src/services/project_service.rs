@@ -186,8 +186,8 @@ impl ProjectService {
 
         let items_count = self.item_service.get_items_by_project(project_id).await?.len();
         tracing::info!(
-            "Project {} archived with {} items, but Items table has no is_archived field, \
-             so items are not actually archived.",
+            "Project {} archived with {} items, but Items table has no is_archived field, so \
+             items are not actually archived.",
             project_id,
             items_count
         );

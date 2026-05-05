@@ -476,8 +476,8 @@ impl ItemService {
     /// 归档功能对 Items 的语义由 is_deleted 字段处理
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
         tracing::warn!(
-            "archive_item called for item {} with archived={}, but Items table has no is_archived field. \
-             This is a no-op for now. Use is_deleted to soft-delete items instead.",
+            "archive_item called for item {} with archived={}, but Items table has no is_archived \
+             field. This is a no-op for now. Use is_deleted to soft-delete items instead.",
             item_id,
             archived
         );

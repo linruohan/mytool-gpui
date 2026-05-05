@@ -68,17 +68,29 @@ async fn refresh_project_items_impl(project_id: &str, cx: &mut AsyncApp) {
     });
 }
 
-// 添加 item
+/// 添加 item 到项目（同步执行，避免数据不一致）
+///
+/// 使用同步进程确保添加操作的顺序性和数据一致性
 pub fn add_project_item(project: Arc<ProjectModel>, item: Arc<ItemModel>, cx: &mut App) {
     let project_id = project.id.clone();
-    cx.spawn(async move |cx| {
-        let store =
-            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
-        if crate::state_service::add_item_with_store(item.clone(), store).await.is_ok() {
-            refresh_project_items_impl(&project_id, cx).await;
-        }
-    })
-    .detach();
+    let item_clone = item.clone();
+    let store = cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
+
+    // 同步执行数据库插入，确保操作完成后再刷新 UI
+    match crate::core::tokio_runtime::run_db_operation(async move {
+        crate::state_service::add_item_with_store(item_clone, store).await
+    }) {
+        Ok(_) => {
+            // 数据库操作完成后，刷新项目 items
+            cx.spawn(async move |cx| {
+                refresh_project_items_impl(&project_id, cx).await;
+            })
+            .detach();
+        },
+        Err(e) => {
+            tracing::error!("add_project_item failed: {:?}", e);
+        },
+    }
 }
 
 // 修改 item
@@ -94,15 +106,27 @@ pub fn update_project_item(project: Arc<ProjectModel>, item: Arc<ItemModel>, cx:
     .detach();
 }
 
-// 删除 item
+/// 删除项目中的 item（同步执行，避免数据不一致）
+///
+/// 使用同步进程确保删除操作的顺序性和数据一致性
 pub fn delete_project_item(project: Arc<ProjectModel>, item: Arc<ItemModel>, cx: &mut App) {
     let project_id = project.id.clone();
-    cx.spawn(async move |cx| {
-        let store =
-            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
-        if crate::state_service::del_item_with_store(item.clone(), store).await.is_ok() {
-            refresh_project_items_impl(&project_id, cx).await;
-        }
-    })
-    .detach();
+    let item_clone = item.clone();
+    let store = cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
+
+    // 同步执行数据库删除，确保操作完成后再刷新 UI
+    match crate::core::tokio_runtime::run_db_operation(async move {
+        crate::state_service::del_item_with_store(item_clone, store).await
+    }) {
+        Ok(_) => {
+            // 数据库删除完成后，刷新项目 items
+            cx.spawn(async move |cx| {
+                refresh_project_items_impl(&project_id, cx).await;
+            })
+            .detach();
+        },
+        Err(e) => {
+            tracing::error!("delete_project_item failed: {:?}", e);
+        },
+    }
 }

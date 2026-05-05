@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{App, AsyncApp};
+use gpui::{App, AsyncApp, BorrowAppContext};
 use todos::entity::ItemModel;
 use tracing::{error, info};
 
@@ -14,7 +14,9 @@ async fn refresh_project_items(_project_id: &str, _cx: &mut AsyncApp) {
     // TodoStore 会通过观察者模式自动更新所有视图
 }
 
-// 添加 item（使用增量更新和全局 Store）
+/// 添加 item（同步执行，避免数据不一致）
+///
+/// 使用同步进程确保添加操作的顺序性和数据一致性
 pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
     // 验证输入
     if let Err(e) = validation::validate_task_content(&item.content) {
@@ -24,27 +26,28 @@ pub fn add_item(item: Arc<ItemModel>, cx: &mut App) {
     }
 
     let store = get_store(cx);
+    let item_clone = item.clone();
 
-    cx.spawn(async move |cx| {
-        match crate::state_service::add_item_with_store(item.clone(), store).await {
-            Ok(new_item) => {
-                info!("Successfully added item: {}", new_item.id);
-                // 增量更新：只添加新任务到 TodoStore
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.add_item(Arc::new(new_item));
-                });
-            },
-            Err(e) => {
-                let context =
-                    ErrorHandler::handle_with_resource(AppError::Database(e), "add_item", &item.id);
-                error!("{}", context.format_user_message());
-                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(context.format_user_message());
-                });
-            },
-        }
-    })
-    .detach();
+    // 同步执行数据库插入，确保操作完成后再更新 UI
+    match crate::core::tokio_runtime::run_db_operation(async move {
+        crate::state_service::add_item_with_store(item_clone, store).await
+    }) {
+        Ok(new_item) => {
+            info!("Successfully added item: {}", new_item.id);
+            // 数据库操作完成后，立即更新 UI 状态
+            cx.update_global::<TodoStore, _>(|todo_store, _| {
+                todo_store.add_item(Arc::new(new_item));
+            });
+        },
+        Err(e) => {
+            let context =
+                ErrorHandler::handle_with_resource(AppError::Database(e), "add_item", &item.id);
+            error!("{}", context.format_user_message());
+            cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                notifier.set_error(context.format_user_message());
+            });
+        },
+    }
 }
 
 // 修改 item（使用增量更新和全局 Store）
@@ -85,31 +88,31 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
     .detach();
 }
 
-// 删除 item（使用增量更新和全局 Store）
+/// 删除 item（同步执行，避免数据不一致）
+///
+/// 使用同步进程确保删除操作的顺序性和数据一致性
 pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
     let store = get_store(cx);
     let item_id = item.id.clone();
+    let item_clone = item.clone();
 
-    cx.spawn(async move |cx| {
-        match crate::state_service::del_item_with_store(item.clone(), store).await {
-            Ok(_) => {
-                info!("Successfully deleted item: {}", item_id);
-                // 增量更新：只删除指定的任务
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.remove_item(&item_id);
-                });
-            },
-            Err(e) => {
-                let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
-                    "delete_item",
-                    &item_id,
-                );
-                error!("{}", context.format_user_message());
-            },
-        }
-    })
-    .detach();
+    // 同步执行数据库删除，确保操作完成后再更新 UI
+    match crate::core::tokio_runtime::run_db_operation(async move {
+        crate::state_service::del_item_with_store(item_clone, store).await
+    }) {
+        Ok(_) => {
+            info!("Successfully deleted item: {}", item_id);
+            // 数据库删除完成后，立即更新 UI 状态
+            cx.update_global::<TodoStore, _>(|todo_store, _| {
+                todo_store.remove_item(&item_id);
+            });
+        },
+        Err(e) => {
+            let context =
+                ErrorHandler::handle_with_resource(AppError::Database(e), "delete_item", &item_id);
+            error!("{}", context.format_user_message());
+        },
+    }
 }
 
 // 完成任务（使用增量更新和全局 Store）

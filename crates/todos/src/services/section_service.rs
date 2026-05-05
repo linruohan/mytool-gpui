@@ -166,8 +166,8 @@ impl SectionService {
 
         let items_count = self.get_items_by_section(section_id).await?.len();
         tracing::info!(
-            "Section {} archived with {} items, but Items table has no is_archived field, \
-             so items are not actually archived.",
+            "Section {} archived with {} items, but Items table has no is_archived field, so \
+             items are not actually archived.",
             section_id,
             items_count
         );
