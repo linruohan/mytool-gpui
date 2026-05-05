@@ -14,7 +14,7 @@ use todos::{
     entity::{ItemModel, ProjectModel, SectionModel},
     error::TodoError,
 };
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::{
     core::{
@@ -51,17 +51,42 @@ pub async fn refresh_store(cx: &mut AsyncApp, _db: sea_orm::DatabaseConnection) 
     // 获取全局 Store
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
 
-    // 一次性加载所有数据
-    let items = crate::state_service::load_items_with_store(store.clone()).await;
-    let projects = crate::state_service::load_projects_with_store(store.clone()).await;
-    let sections = crate::state_service::load_sections_with_store(store.clone()).await;
+    let items_r = crate::state_service::load_items_with_store(store.clone()).await;
+    let projects_r = crate::state_service::load_projects_with_store(store.clone()).await;
+    let sections_r = crate::state_service::load_sections_with_store(store.clone()).await;
 
-    // 更新 TodoStore（唯一数据源）
+    let mut load_failures: Vec<String> = Vec::new();
+    if let Err(ref e) = items_r {
+        error!(error = %e, "refresh_store: load_items_with_store failed");
+        load_failures.push(format!("任务: {e}"));
+    }
+    if let Err(ref e) = projects_r {
+        error!(error = %e, "refresh_store: load_projects_with_store failed");
+        load_failures.push(format!("项目: {e}"));
+    }
+    if let Err(ref e) = sections_r {
+        error!(error = %e, "refresh_store: load_sections_with_store failed");
+        load_failures.push(format!("分区: {e}"));
+    }
+
     cx.update_global::<TodoStore, _>(|todo_store, _| {
-        todo_store.set_items(items);
-        todo_store.set_projects(projects);
-        todo_store.set_sections(sections);
+        if let Ok(items) = items_r {
+            todo_store.set_items(items);
+        }
+        if let Ok(projects) = projects_r {
+            todo_store.set_projects(projects);
+        }
+        if let Ok(sections) = sections_r {
+            todo_store.set_sections(sections);
+        }
     });
+
+    if !load_failures.is_empty() {
+        let msg = load_failures.join(" ");
+        cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+            notifier.set_error(msg);
+        });
+    }
 }
 
 // ==================== 任务 (Item) 操作 - 增量更新 ====================
@@ -148,23 +173,29 @@ pub async fn complete_item_in_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let item_id = item.id.clone();
 
-    match crate::state_service::finish_item_with_store(item.clone(), checked, false, store).await {
-        Ok(_) => {
-            // 增量更新：更新本地状态
-            let mut updated_item = (*item).clone();
-            updated_item.checked = checked;
-            if checked {
-                updated_item.completed_at = Some(chrono::Utc::now().naive_utc());
+    match crate::state_service::finish_item_with_store(item.clone(), checked, false, store.clone())
+        .await
+    {
+        Ok(()) => {
+            if let Some(fresh) = store.get_item(&item_id).await {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(fresh));
+                });
             } else {
-                updated_item.completed_at = None;
+                warn!("complete_item_in_store: DB ok but get_item returned None for {}", item_id);
+                let mut updated_item = (*item).clone();
+                updated_item.checked = checked;
+                updated_item.completed_at =
+                    if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(updated_item));
+                });
             }
-            cx.update_global::<TodoStore, _>(|todo_store, _| {
-                todo_store.update_item(Arc::new(updated_item));
-            });
         },
         Err(e) => {
-            notify_store_operation_error(cx, "complete_item_in_store", &item.id, e);
+            notify_store_operation_error(cx, "complete_item_in_store", &item_id, e);
         },
     }
 }
@@ -179,18 +210,25 @@ pub async fn pin_item_in_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let item_id = item.id.clone();
 
-    match crate::state_service::pin_item_with_store(item.clone(), pinned, store).await {
-        Ok(_) => {
-            // 增量更新：更新本地状态
-            let mut updated_item = (*item).clone();
-            updated_item.pinned = pinned;
-            cx.update_global::<TodoStore, _>(|todo_store, _| {
-                todo_store.update_item(Arc::new(updated_item));
-            });
+    match crate::state_service::pin_item_with_store(item.clone(), pinned, store.clone()).await {
+        Ok(()) => {
+            if let Some(fresh) = store.get_item(&item_id).await {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(fresh));
+                });
+            } else {
+                warn!("pin_item_in_store: DB ok but get_item returned None for {}", item_id);
+                let mut updated_item = (*item).clone();
+                updated_item.pinned = pinned;
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_item(Arc::new(updated_item));
+                });
+            }
         },
         Err(e) => {
-            notify_store_operation_error(cx, "pin_item_in_store", &item.id, e);
+            notify_store_operation_error(cx, "pin_item_in_store", &item_id, e);
         },
     }
 }

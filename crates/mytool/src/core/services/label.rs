@@ -15,8 +15,8 @@ pub async fn load_labels(db: DatabaseConnection) -> Vec<LabelModel> {
 }
 
 /// 使用全局 Store 加载 labels（推荐）
-pub async fn load_labels_with_store(store: Arc<Store>) -> Vec<LabelModel> {
-    store.get_all_labels().await.unwrap_or_default()
+pub async fn load_labels_with_store(store: Arc<Store>) -> Result<Vec<LabelModel>, TodoError> {
+    store.get_all_labels().await
 }
 
 // ==================== 添加标签 ====================

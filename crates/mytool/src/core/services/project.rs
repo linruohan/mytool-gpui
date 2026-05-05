@@ -15,8 +15,8 @@ pub async fn load_projects(db: DatabaseConnection) -> Vec<ProjectModel> {
 }
 
 /// 使用全局 Store 加载 projects（推荐）
-pub async fn load_projects_with_store(store: Arc<Store>) -> Vec<ProjectModel> {
-    store.get_all_projects().await.unwrap_or_default()
+pub async fn load_projects_with_store(store: Arc<Store>) -> Result<Vec<ProjectModel>, TodoError> {
+    store.get_all_projects().await
 }
 
 // ==================== 添加项目 ====================

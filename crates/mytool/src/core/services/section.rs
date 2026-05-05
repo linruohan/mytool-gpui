@@ -15,8 +15,8 @@ pub async fn load_sections(db: DatabaseConnection) -> Vec<SectionModel> {
 }
 
 /// 使用全局 Store 加载 sections（推荐）
-pub async fn load_sections_with_store(store: Arc<Store>) -> Vec<SectionModel> {
-    store.get_all_sections().await.unwrap_or_default()
+pub async fn load_sections_with_store(store: Arc<Store>) -> Result<Vec<SectionModel>, TodoError> {
+    store.get_all_sections().await
 }
 
 // ==================== 添加分区 ====================

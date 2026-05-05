@@ -8,7 +8,7 @@ use std::{
 
 use gpui::Global;
 use sea_orm::DatabaseConnection;
-use todos::Store;
+use todos::{Store, error::TodoError};
 
 /// 数据库连接状态
 ///
@@ -32,6 +32,11 @@ pub struct DBState {
 impl DBState {
     /// 创建新的数据库状态（同步版本，会阻塞创建 Store）
     pub fn new(conn: DatabaseConnection) -> Self {
+        Self::try_new(conn).unwrap_or_else(|e| panic!("Failed to create Store: {e}"))
+    }
+
+    /// 与 [`Self::new`] 相同，但返回 `Result`，便于调用方记录错误而非裸 `expect`。
+    pub fn try_new(conn: DatabaseConnection) -> Result<Self, TodoError> {
         let conn_arc = Arc::new(conn);
         // 🚀 关键修复：同步创建 Store，避免 OnceCell 的死锁问题
         // 虽然这会阻塞应用启动，但只发生一次
@@ -39,12 +44,11 @@ impl DBState {
         // 🔧 修复：使用 tokio::task::block_in_place 来在 async 上下文中运行阻塞代码
         // 这会在当前线程上安全地执行阻塞操作
         let store = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                Store::new((*conn_arc).clone()).await.expect("Failed to create Store")
-            })
-        });
+            tokio::runtime::Handle::current()
+                .block_on(async { Store::new((*conn_arc).clone()).await })
+        })?;
 
-        Self { conn: conn_arc, store: Arc::new(store), stats: Arc::new(ConnectionStats::new()) }
+        Ok(Self { conn: conn_arc, store: Arc::new(store), stats: Arc::new(ConnectionStats::new()) })
     }
 
     /// 获取数据库连接（轻量级克隆）

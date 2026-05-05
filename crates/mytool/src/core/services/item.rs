@@ -16,8 +16,8 @@ pub async fn load_items(db: DatabaseConnection) -> Vec<ItemModel> {
 }
 
 /// 使用全局 Store 加载 items（推荐）
-pub async fn load_items_with_store(store: Arc<Store>) -> Vec<ItemModel> {
-    store.get_all_items().await.unwrap_or_default()
+pub async fn load_items_with_store(store: Arc<Store>) -> Result<Vec<ItemModel>, TodoError> {
+    store.get_all_items().await
 }
 
 // ==================== 添加任务 ====================
@@ -135,8 +135,8 @@ pub async fn get_items_by_project_id(project_id: &str, db: DatabaseConnection) -
 pub async fn get_items_by_project_id_with_store(
     project_id: &str,
     store: Arc<Store>,
-) -> Vec<ItemModel> {
-    store.get_items_by_project(project_id).await.unwrap_or_default()
+) -> Result<Vec<ItemModel>, TodoError> {
+    store.get_items_by_project(project_id).await
 }
 
 // ==================== 批量操作 ====================

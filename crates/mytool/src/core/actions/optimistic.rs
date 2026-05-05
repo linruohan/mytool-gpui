@@ -324,12 +324,22 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     let item_clone = item.clone();
 
     cx.spawn(async move |cx| {
-        let result =
-            state_service::finish_item_with_store(item_clone.clone(), checked, false, store).await;
+        let result = state_service::finish_item_with_store(
+            item_clone.clone(),
+            checked,
+            false,
+            store.clone(),
+        )
+        .await;
 
         match result {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Successfully saved completion status: {}", item_id);
+                if let Some(fresh) = store.get_item(&item_id).await {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(fresh));
+                    });
+                }
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(

@@ -127,16 +127,27 @@ pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::finish_item_with_store(item.clone(), true, false, store).await {
-            Ok(_) => {
+        match crate::state_service::finish_item_with_store(item.clone(), true, false, store.clone())
+            .await
+        {
+            Ok(()) => {
                 info!("Successfully completed item: {}", item_id);
-                // 增量更新：更新本地状态
-                let mut updated_item = (*item).clone();
-                updated_item.checked = true;
-                updated_item.completed_at = Some(chrono::Utc::now().naive_utc());
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.update_item(Arc::new(updated_item));
-                });
+                if let Some(fresh) = store.get_item(&item_id).await {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(fresh));
+                    });
+                } else {
+                    tracing::warn!(
+                        "completed_item: DB ok but get_item returned None for {}",
+                        item_id
+                    );
+                    let mut updated_item = (*item).clone();
+                    updated_item.checked = true;
+                    updated_item.completed_at = Some(chrono::Utc::now().naive_utc());
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(updated_item));
+                    });
+                }
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
@@ -160,17 +171,32 @@ pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::finish_item_with_store(item.clone(), false, false, store).await
+        match crate::state_service::finish_item_with_store(
+            item.clone(),
+            false,
+            false,
+            store.clone(),
+        )
+        .await
         {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Successfully uncompleted item: {}", item_id);
-                // 增量更新：更新本地状态
-                let mut updated_item = (*item).clone();
-                updated_item.checked = false;
-                updated_item.completed_at = None;
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.update_item(Arc::new(updated_item));
-                });
+                if let Some(fresh) = store.get_item(&item_id).await {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(fresh));
+                    });
+                } else {
+                    tracing::warn!(
+                        "uncompleted_item: DB ok but get_item returned None for {}",
+                        item_id
+                    );
+                    let mut updated_item = (*item).clone();
+                    updated_item.checked = false;
+                    updated_item.completed_at = None;
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(updated_item));
+                    });
+                }
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
@@ -194,19 +220,28 @@ pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
     let item_id = item.id.clone();
 
     cx.spawn(async move |cx| {
-        match crate::state_service::pin_item_with_store(item.clone(), pinned, store).await {
-            Ok(_) => {
+        match crate::state_service::pin_item_with_store(item.clone(), pinned, store.clone()).await {
+            Ok(()) => {
                 info!(
                     "Successfully {} item: {}",
                     if pinned { "pinned" } else { "unpinned" },
                     item_id
                 );
-                // 增量更新：更新本地状态
-                let mut updated_item = (*item).clone();
-                updated_item.pinned = pinned;
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.update_item(Arc::new(updated_item));
-                });
+                if let Some(fresh) = store.get_item(&item_id).await {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(fresh));
+                    });
+                } else {
+                    tracing::warn!(
+                        "set_item_pinned: DB ok but get_item returned None for {}",
+                        item_id
+                    );
+                    let mut updated_item = (*item).clone();
+                    updated_item.pinned = pinned;
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_item(Arc::new(updated_item));
+                    });
+                }
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(

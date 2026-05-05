@@ -2,8 +2,12 @@ use std::sync::Arc;
 
 use gpui::{App, AsyncApp, BorrowAppContext};
 use todos::entity::{ItemModel, ProjectModel};
+use tracing::error;
 
-use crate::core::state::TodoStore;
+use crate::core::{
+    error_handler::{AppError, ErrorHandler},
+    state::{ErrorNotifier, TodoStore},
+};
 
 pub fn load_project_items(project: Arc<ProjectModel>, cx: &mut App) {
     tracing::debug!(
@@ -44,28 +48,39 @@ async fn refresh_project_items_impl(project_id: &str, cx: &mut AsyncApp) {
     // 在异步任务内部获取 store
     let store = cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
 
-    // 获取项目 items
-    let items = crate::state_service::get_items_by_project_id_with_store(project_id, store).await;
-    let arc_items: Vec<Arc<ItemModel>> = items.iter().map(|item| Arc::new(item.clone())).collect();
-    tracing::debug!("成功加载项目 items: {} 个", arc_items.len());
+    match crate::state_service::get_items_by_project_id_with_store(project_id, store).await {
+        Ok(items) => {
+            let arc_items: Vec<Arc<ItemModel>> =
+                items.iter().map(|item| Arc::new(item.clone())).collect();
+            tracing::debug!("成功加载项目 items: {} 个", arc_items.len());
 
-    // 只在当前激活项目仍然是该 project_id 时更新，避免快速切换导致旧请求覆盖新项目的 items
-    cx.update_global::<TodoStore, _>(|state, _| {
-        if let Some(active) = &state.active_project
-            && active.id == project_id
-        {
-            // 使用增量更新：先移除旧 items，再添加新 items
-            // 注意：这里使用批量更新方式，因为 TodoStore 的 items 是全局的
-            // 我们需要先移除属于该项目的所有 items，再添加新的 items
-            state.all_items.retain(|item| item.project_id.as_deref() != Some(project_id));
-            for item in arc_items.iter() {
-                state.add_item(item.clone());
-            }
-            tracing::debug!("已更新 TodoStore.items, 数量：{}", arc_items.len());
-        } else {
-            tracing::debug!("激活项目已变更，跳过更新");
-        }
-    });
+            // 只在当前激活项目仍然是该 project_id 时更新，避免快速切换导致旧请求覆盖新项目的 items
+            cx.update_global::<TodoStore, _>(|state, _| {
+                if let Some(active) = &state.active_project
+                    && active.id == project_id
+                {
+                    state.all_items.retain(|item| item.project_id.as_deref() != Some(project_id));
+                    for item in arc_items.iter() {
+                        state.add_item(item.clone());
+                    }
+                    tracing::debug!("已更新 TodoStore.items, 数量：{}", arc_items.len());
+                } else {
+                    tracing::debug!("激活项目已变更，跳过更新");
+                }
+            });
+        },
+        Err(e) => {
+            let context = ErrorHandler::handle_with_resource(
+                AppError::Database(e),
+                "get_items_by_project_id_with_store",
+                project_id,
+            );
+            error!("{}", context.format_user_message());
+            cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                notifier.set_error(context.format_user_message());
+            });
+        },
+    }
 }
 
 /// 添加 item 到项目（同步执行，避免数据不一致）

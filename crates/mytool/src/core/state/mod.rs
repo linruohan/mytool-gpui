@@ -16,6 +16,7 @@ pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
 use todos::entity;
+use tracing::error;
 
 /// 获取数据库连接的便捷函数
 ///
@@ -102,40 +103,77 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let store = cx.update_global::<DBState, _>(|state, _| state.get_store());
 
         // 加载数据到 TodoStore（唯一数据源）
-        let items = crate::state_service::load_items_with_store(store.clone()).await;
-        tracing::info!("Loaded {} items", items.len());
-
-        let inbox_items: Vec<&entity::ItemModel> = items
-            .iter()
-            .filter(|item| item.project_id.is_none() || item.project_id.as_deref() == Some(""))
-            .collect();
-        tracing::info!("Found {} inbox items (no project ID)", inbox_items.len());
-
-        let projects = crate::state_service::load_projects_with_store(store.clone()).await;
-        tracing::info!("Loaded {} projects", projects.len());
-
-        let sections = crate::state_service::load_sections_with_store(store.clone()).await;
-        tracing::info!("Loaded {} sections", sections.len());
-
-        let labels = crate::state_service::load_labels_with_store(store.clone()).await;
-        tracing::info!("Loaded {} labels", labels.len());
-
-        // 将加载的数据更新到 TodoStore
-        cx.update_global::<TodoStore, _>(|store, _| {
+        let items_r = crate::state_service::load_items_with_store(store.clone()).await;
+        if let Ok(ref items) = items_r {
+            let inbox_items: Vec<&entity::ItemModel> = items
+                .iter()
+                .filter(|item| item.project_id.is_none() || item.project_id.as_deref() == Some(""))
+                .collect();
             tracing::info!(
-                "Updating TodoStore with {} items, {} projects, {} sections, {} labels",
+                "Loaded {} items ({} inbox without project)",
                 items.len(),
-                projects.len(),
-                sections.len(),
-                labels.len()
+                inbox_items.len()
             );
-            store.set_items(items);
-            store.set_projects(projects);
-            store.set_sections(sections);
-            store.set_labels(labels);
+        }
+
+        let projects_r = crate::state_service::load_projects_with_store(store.clone()).await;
+        if let Ok(ref projects) = projects_r {
+            tracing::info!("Loaded {} projects", projects.len());
+        }
+
+        let sections_r = crate::state_service::load_sections_with_store(store.clone()).await;
+        if let Ok(ref sections) = sections_r {
+            tracing::info!("Loaded {} sections", sections.len());
+        }
+
+        let labels_r = crate::state_service::load_labels_with_store(store.clone()).await;
+        if let Ok(ref labels) = labels_r {
+            tracing::info!("Loaded {} labels", labels.len());
+        }
+
+        let mut load_failures: Vec<String> = Vec::new();
+        if let Err(ref e) = items_r {
+            error!(error = %e, "load_items_with_store failed during startup");
+            load_failures.push(format!("任务加载失败: {e}"));
+        }
+        if let Err(ref e) = projects_r {
+            error!(error = %e, "load_projects_with_store failed during startup");
+            load_failures.push(format!("项目加载失败: {e}"));
+        }
+        if let Err(ref e) = sections_r {
+            error!(error = %e, "load_sections_with_store failed during startup");
+            load_failures.push(format!("分区加载失败: {e}"));
+        }
+        if let Err(ref e) = labels_r {
+            error!(error = %e, "load_labels_with_store failed during startup");
+            load_failures.push(format!("标签加载失败: {e}"));
+        }
+
+        // 仅应用成功的查询，避免把失败误呈现为「空列表」
+        cx.update_global::<TodoStore, _>(|todo_store, _| {
+            if let Ok(items) = items_r {
+                todo_store.set_items(items);
+            }
+            if let Ok(projects) = projects_r {
+                todo_store.set_projects(projects);
+            }
+            if let Ok(sections) = sections_r {
+                todo_store.set_sections(sections);
+            }
+            if let Ok(labels) = labels_r {
+                todo_store.set_labels(labels);
+            }
+            tracing::info!("TodoStore cold-load apply finished (partial if any query failed)");
         });
 
-        tracing::info!("TodoStore updated successfully, UI will be notified");
+        if !load_failures.is_empty() {
+            let msg = load_failures.join(" ");
+            cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                notifier.set_error(msg.clone());
+            });
+        }
+
+        tracing::info!("Initial data load task finished, UI will be notified");
     })
     .detach();
 }
