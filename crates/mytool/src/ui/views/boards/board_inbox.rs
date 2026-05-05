@@ -37,9 +37,6 @@ impl EventEmitter<ItemClickEvent> for InboxBoard {}
 
 pub struct InboxBoard {
     base: BoardBase,
-    /// 缓存的 TodoStore 版本号，用于优化性能
-    /// 只在版本号变化时才重新渲染，避免不必要的计算
-    cached_version: usize,
     /// 🚀 观察者 ID（用于细粒度更新）
     #[allow(dead_code)]
     observer_id: Option<u64>,
@@ -65,13 +62,10 @@ impl InboxBoard {
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let store = cx.global::<TodoStore>();
 
-                // 🚀 性能优化 1: 检查版本号，只在数据变化时更新
-                if this.cached_version == store.version() {
-                    return; // 版本号未变化，跳过更新
+                // 🚀 性能优化 1: 检查版本号，只在数据变化时更新（缓存位于 BoardBase）
+                if !this.base.todo_store_version_changed(store) {
+                    return;
                 }
-
-                // 更新缓存的版本号
-                this.cached_version = store.version();
 
                 // 🚀 使用缓存查询（性能优化 2）
                 let cache = cx.global::<crate::core::state::QueryCache>();
@@ -126,11 +120,7 @@ impl InboxBoard {
             }),
         ];
 
-        Self {
-            base,
-            cached_version: 0, // 初始版本号为 0
-            observer_id,
-        }
+        Self { base, observer_id }
     }
 
     pub(crate) fn get_selected_item(

@@ -10,9 +10,33 @@
 use std::sync::Arc;
 
 use gpui::AsyncApp;
-use todos::entity::{ItemModel, ProjectModel, SectionModel};
+use todos::{
+    entity::{ItemModel, ProjectModel, SectionModel},
+    error::TodoError,
+};
+use tracing::error;
 
-use crate::todo_state::TodoStore;
+use crate::{
+    core::{
+        error_handler::{AppError, ErrorHandler},
+        state::ErrorNotifier,
+    },
+    todo_state::TodoStore,
+};
+
+fn notify_store_operation_error(
+    cx: &mut AsyncApp,
+    operation: &'static str,
+    resource_id: &str,
+    err: TodoError,
+) {
+    let context =
+        ErrorHandler::handle_with_resource(AppError::Database(err), operation, resource_id);
+    error!("{}", context.format_user_message());
+    cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+        notifier.set_error(context.format_user_message());
+    });
+}
 
 /// 刷新 TodoStore（全量刷新）
 ///
@@ -51,6 +75,7 @@ pub async fn add_item_to_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let item_id = item.id.clone();
 
     match crate::state_service::add_item_with_store(item, store).await {
         Ok(new_item) => {
@@ -60,7 +85,7 @@ pub async fn add_item_to_store(
             });
         },
         Err(e) => {
-            tracing::error!("add_item_to_store failed: {:?}", e);
+            notify_store_operation_error(cx, "add_item_to_store", &item_id, e);
         },
     }
 }
@@ -74,6 +99,7 @@ pub async fn update_item_in_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let item_id = item.id.clone();
 
     match crate::state_service::mod_item_with_store(item, store).await {
         Ok(updated_item) => {
@@ -83,7 +109,7 @@ pub async fn update_item_in_store(
             });
         },
         Err(e) => {
-            tracing::error!("update_item_in_store failed: {:?}", e);
+            notify_store_operation_error(cx, "update_item_in_store", &item_id, e);
         },
     }
 }
@@ -107,7 +133,7 @@ pub async fn delete_item_from_store(
             });
         },
         Err(e) => {
-            tracing::error!("delete_item_from_store failed: {:?}", e);
+            notify_store_operation_error(cx, "delete_item_from_store", &item_id, e);
         },
     }
 }
@@ -138,7 +164,7 @@ pub async fn complete_item_in_store(
             });
         },
         Err(e) => {
-            tracing::error!("complete_item_in_store failed: {:?}", e);
+            notify_store_operation_error(cx, "complete_item_in_store", &item.id, e);
         },
     }
 }
@@ -164,7 +190,7 @@ pub async fn pin_item_in_store(
             });
         },
         Err(e) => {
-            tracing::error!("pin_item_in_store failed: {:?}", e);
+            notify_store_operation_error(cx, "pin_item_in_store", &item.id, e);
         },
     }
 }
@@ -178,6 +204,7 @@ pub async fn add_project_to_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let project_id = project.id.clone();
 
     match crate::state_service::add_project_with_store(project, store).await {
         Ok(new_project) => {
@@ -186,7 +213,7 @@ pub async fn add_project_to_store(
             });
         },
         Err(e) => {
-            tracing::error!("add_project_to_store failed: {:?}", e);
+            notify_store_operation_error(cx, "add_project_to_store", &project_id, e);
         },
     }
 }
@@ -198,6 +225,7 @@ pub async fn update_project_in_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let project_id = project.id.clone();
 
     match crate::state_service::mod_project_with_store(project, store).await {
         Ok(updated_project) => {
@@ -206,7 +234,7 @@ pub async fn update_project_in_store(
             });
         },
         Err(e) => {
-            tracing::error!("update_project_in_store failed: {:?}", e);
+            notify_store_operation_error(cx, "update_project_in_store", &project_id, e);
         },
     }
 }
@@ -227,7 +255,7 @@ pub async fn delete_project_from_store(
             });
         },
         Err(e) => {
-            tracing::error!("delete_project_from_store failed: {:?}", e);
+            notify_store_operation_error(cx, "delete_project_from_store", &project_id, e);
         },
     }
 }
@@ -241,6 +269,7 @@ pub async fn add_section_to_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let section_id = section.id.clone();
 
     match crate::state_service::add_section_with_store(section, store).await {
         Ok(new_section) => {
@@ -249,7 +278,7 @@ pub async fn add_section_to_store(
             });
         },
         Err(e) => {
-            tracing::error!("add_section_to_store failed: {:?}", e);
+            notify_store_operation_error(cx, "add_section_to_store", &section_id, e);
         },
     }
 }
@@ -261,6 +290,7 @@ pub async fn update_section_in_store(
     _db: sea_orm::DatabaseConnection,
 ) {
     let store = cx.update_global::<crate::todo_state::DBState, _>(|state, _| state.get_store());
+    let section_id = section.id.clone();
 
     match crate::state_service::mod_section_with_store(section, store).await {
         Ok(updated_section) => {
@@ -269,7 +299,7 @@ pub async fn update_section_in_store(
             });
         },
         Err(e) => {
-            tracing::error!("update_section_in_store failed: {:?}", e);
+            notify_store_operation_error(cx, "update_section_in_store", &section_id, e);
         },
     }
 }
@@ -290,7 +320,7 @@ pub async fn delete_section_from_store(
             });
         },
         Err(e) => {
-            tracing::error!("delete_section_from_store failed: {:?}", e);
+            notify_store_operation_error(cx, "delete_section_from_store", &section_id, e);
         },
     }
 }

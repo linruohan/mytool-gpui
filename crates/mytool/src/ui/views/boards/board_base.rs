@@ -21,6 +21,8 @@ pub struct BoardBase {
     pub is_today_board: bool,
     /// 分区列表（用于渲染 Section 分组）
     pub sections: Vec<Arc<todos::entity::SectionModel>>,
+    /// 上次已处理的 `TodoStore::version()`，用于观察者回调中快速跳过无结构变更
+    cached_todo_store_version: usize,
 }
 
 impl BoardBase {
@@ -49,6 +51,7 @@ impl BoardBase {
             past_due_items,
             is_today_board: false,
             sections,
+            cached_todo_store_version: 0,
         }
     }
 
@@ -90,10 +93,14 @@ impl BoardBase {
         self.update_items_ordered(&filtered_items);
     }
 
-    /// 检查版本号是否变化
-    ///
-    /// 用于优化观察者回调，避免不必要的更新
-    pub fn check_version(&self, _store: &TodoStore) -> bool {
+    /// 若当前 `TodoStore` 版本与上次处理不同，则更新基类内缓存并返回 `true`；
+    /// 若版本未变返回 `false`，调用方应跳过后续列表重建。
+    pub fn todo_store_version_changed(&mut self, store: &TodoStore) -> bool {
+        let v = store.version();
+        if self.cached_todo_store_version == v {
+            return false;
+        }
+        self.cached_todo_store_version = v;
         true
     }
 

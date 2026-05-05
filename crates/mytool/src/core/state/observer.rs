@@ -95,11 +95,26 @@ impl ChangeType {
                     false
                 }
             },
-            ViewType::Label(_label_hash) => {
-                // 标签视图：包含指定标签
-                // 注意：ItemModel 的 labels 字段类型需要确认
-                // 这里假设是 Vec<String> 或类似类型
-                false // 暂时返回 false，需要根据实际的 labels 字段类型实现
+            ViewType::Label(label_hash) => {
+                // 标签视图：任务 `labels` 为分号分隔的标签 id（与 `ItemService` 写入一致）
+                let Some(raw) = item.labels.as_deref() else {
+                    return false;
+                };
+                if raw.is_empty() {
+                    return false;
+                }
+                for label_id in raw.split(';') {
+                    let label_id = label_id.trim();
+                    if label_id.is_empty() {
+                        continue;
+                    }
+                    let mut hasher = DefaultHasher::new();
+                    label_id.hash(&mut hasher);
+                    if hasher.finish() == label_hash {
+                        return true;
+                    }
+                }
+                false
             },
         }
     }
@@ -340,5 +355,52 @@ mod tests {
 
         flags.clear(ViewType::Inbox);
         assert!(!flags.is_dirty(ViewType::Inbox));
+    }
+
+    #[test]
+    fn test_change_affects_label_view_when_item_has_label() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
+
+        let label_id = "label-uuid-1";
+        let mut hasher = DefaultHasher::new();
+        label_id.hash(&mut hasher);
+        let label_hash = hasher.finish();
+
+        let item = Arc::new(ItemModel {
+            id: "1".to_string(),
+            content: "Test".to_string(),
+            checked: false,
+            labels: Some(format!("other;{label_id}")),
+            ..Default::default()
+        });
+
+        let change = ChangeType::ItemAdded(item);
+        assert!(change.affects_view(ViewType::Label(label_hash)));
+    }
+
+    #[test]
+    fn test_change_not_affects_label_view_when_label_missing() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
+
+        let mut hasher = DefaultHasher::new();
+        "wanted-label".hash(&mut hasher);
+        let label_hash = hasher.finish();
+
+        let item = Arc::new(ItemModel {
+            id: "1".to_string(),
+            content: "Test".to_string(),
+            checked: false,
+            labels: Some("a;b".to_string()),
+            ..Default::default()
+        });
+
+        let change = ChangeType::ItemAdded(item);
+        assert!(!change.affects_view(ViewType::Label(label_hash)));
     }
 }

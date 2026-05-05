@@ -113,8 +113,6 @@ impl EventEmitter<ItemClickEvent> for TodayBoard {}
 
 pub struct TodayBoard {
     base: BoardBase,
-    /// 缓存的 TodoStore 版本号，用于优化性能
-    cached_version: usize,
     /// Past Due 分组的 ScheduleButton 状态
     past_due_schedule_button: Entity<ScheduleButtonState>,
     /// ScheduleButton 事件订阅
@@ -185,11 +183,9 @@ impl TodayBoard {
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let store = cx.global::<TodoStore>();
 
-                // 性能优化：检查版本号，只在数据变化时更新
-                if this.cached_version == store.version() {
+                if !this.base.todo_store_version_changed(store) {
                     return;
                 }
-                this.cached_version = store.version();
 
                 // 🚀 Today Board 显示：今天任务 + 过期任务 + 无截止日期的任务
                 // 使用 all_items 然后在 board_base 中过滤分类
@@ -212,12 +208,7 @@ impl TodayBoard {
             }),
         ];
 
-        Self {
-            base,
-            cached_version: 0,
-            past_due_schedule_button,
-            _schedule_subscription: schedule_subscription,
-        }
+        Self { base, past_due_schedule_button, _schedule_subscription: schedule_subscription }
     }
 
     pub(crate) fn get_selected_item(

@@ -82,6 +82,9 @@ pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
                     &item.id,
                 );
                 error!("{}", context.format_user_message());
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })
@@ -111,6 +114,9 @@ pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
             let context =
                 ErrorHandler::handle_with_resource(AppError::Database(e), "delete_item", &item_id);
             error!("{}", context.format_user_message());
+            cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                notifier.set_error(context.format_user_message());
+            });
         },
     }
 }
@@ -139,6 +145,9 @@ pub fn completed_item(item: Arc<ItemModel>, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })
@@ -170,6 +179,9 @@ pub fn uncompleted_item(item: Arc<ItemModel>, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })
@@ -203,6 +215,9 @@ pub fn set_item_pinned(item: Arc<ItemModel>, pinned: bool, cx: &mut App) {
                     &item_id,
                 );
                 error!("{}", context.format_user_message());
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(context.format_user_message());
+                });
             },
         }
     })
