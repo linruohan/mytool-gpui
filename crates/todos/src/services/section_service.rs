@@ -164,11 +164,13 @@ impl SectionService {
         };
         SectionEntity::update(active_model).exec(&*self.db).await?;
 
-        // 归档所有items
-        let items = self.get_items_by_section(section_id).await?;
-        for item in items {
-            self.item_service.archive_item(&item.id, archived).await?;
-        }
+        let items_count = self.get_items_by_section(section_id).await?.len();
+        tracing::info!(
+            "Section {} archived with {} items, but Items table has no is_archived field, \
+             so items are not actually archived.",
+            section_id,
+            items_count
+        );
 
         (*self.metrics).record_operation("archive_section", 1).await;
         Ok(())

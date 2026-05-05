@@ -184,11 +184,13 @@ impl ProjectService {
         .exec(&*self.db)
         .await?;
 
-        // 归档所有items
-        let items = self.item_service.get_items_by_project(project_id).await?;
-        for item in items {
-            self.item_service.archive_item(&item.id, archived).await?;
-        }
+        let items_count = self.item_service.get_items_by_project(project_id).await?.len();
+        tracing::info!(
+            "Project {} archived with {} items, but Items table has no is_archived field, \
+             so items are not actually archived.",
+            project_id,
+            items_count
+        );
 
         self.metrics.record_operation("archive_project", 1).await;
         Ok(())

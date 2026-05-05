@@ -257,6 +257,7 @@ impl ItemService {
         ItemEntity::update_many()
             .col_expr(items::Column::ProjectId, Expr::value(project_id.to_string()))
             .col_expr(items::Column::SectionId, Expr::value(section_id.to_string()))
+            .col_expr(items::Column::UpdatedAt, Expr::value(chrono::Utc::now().naive_utc()))
             .filter(items::Column::ParentId.eq(item_id.to_string()))
             .exec(&*self.db)
             .await?;
@@ -296,10 +297,12 @@ impl ItemService {
                     if checked_value { Some(chrono::Utc::now().naive_utc()) } else { None };
 
                 let sub_ids: Vec<String> = subitems.into_iter().map(|i| i.id).collect();
+                let now = chrono::Utc::now().naive_utc();
 
                 crate::entity::items::Entity::update_many()
                     .col_expr(items::Column::Checked, Expr::value(checked_value))
                     .col_expr(items::Column::CompletedAt, Expr::value(completed_at_value))
+                    .col_expr(items::Column::UpdatedAt, Expr::value(now))
                     .filter(items::Column::Id.is_in(sub_ids))
                     .exec(&*self.db)
                     .await?;
@@ -468,15 +471,16 @@ impl ItemService {
     }
 
     /// Archive an item
+    ///
+    /// 注意：Items 表目前没有 is_archived 字段，此方法暂时是空操作
+    /// 归档功能对 Items 的语义由 is_deleted 字段处理
     pub async fn archive_item(&self, item_id: &str, archived: bool) -> Result<(), TodoError> {
-        let item = self
-            .get_item(item_id)
-            .await
-            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
-
-        ItemEntity::update(ItemActiveModel { id: Set(item_id.to_string()), ..item.into() })
-            .exec(&*self.db)
-            .await?;
+        tracing::warn!(
+            "archive_item called for item {} with archived={}, but Items table has no is_archived field. \
+             This is a no-op for now. Use is_deleted to soft-delete items instead.",
+            item_id,
+            archived
+        );
 
         self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
