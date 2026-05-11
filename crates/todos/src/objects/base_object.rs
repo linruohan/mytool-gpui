@@ -124,14 +124,14 @@ pub trait BaseTrait {
             _ => "",
         }
     }
-    fn get_update_json(&self, uuid: String, temp_id: String) -> &str {
+    fn get_update_json(&self, _uuid: String, _temp_id: String) -> &str {
         ""
     }
 
-    fn get_add_json(&self, temp_id: String, uuid: String) -> &str {
+    fn get_add_json(&self, _temp_id: String, _uuid: String) -> &str {
         ""
     }
-    fn get_move_json(&self, new_project_id: String, uuid: String) -> &str {
+    fn get_move_json(&self, _new_project_id: String, _uuid: String) -> &str {
         ""
     }
     fn to_json(&self) -> &str {
@@ -146,10 +146,10 @@ pub trait BaseTrait {
 
     // signal
     fn deleted(&self) {}
-    fn updated(&self, update_id: String) {}
+    fn updated(&self, _update_id: String) {}
     fn archived(&self) {}
     fn unarchived(&self) {}
-    fn filter_added(&mut self, filter: FilterItem) {}
-    fn filter_removed(&mut self, filter: FilterItem) {}
-    fn filter_updated(&mut self, filter: FilterItem) {}
+    fn filter_added(&mut self, _filter: FilterItem) {}
+    fn filter_removed(&mut self, _filter: FilterItem) {}
+    fn filter_updated(&mut self, _filter: FilterItem) {}
 }

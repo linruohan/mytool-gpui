@@ -1,6 +1,6 @@
 use std::{
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
     time::Instant,
@@ -18,37 +18,65 @@ use todos::{Store, error::TodoError};
 /// 所以克隆操作是轻量级的（只增加引用计数）。
 ///
 /// ## 优化说明
+/// - 🚀 6.1优化：Store 异步创建，不再阻塞首帧
 /// - 使用 Arc 包装，明确表达共享语义
 /// - 添加连接统计，便于监控和诊断
 /// - 支持连接健康检查
-/// - 🚀 新增：预初始化全局 Store 实例，避免重复创建和死锁
 #[derive(Clone)]
 pub struct DBState {
     pub conn: Arc<DatabaseConnection>,
-    pub store: Arc<Store>, // 🚀 预初始化的 Store
+    store: Arc<Mutex<Option<Arc<Store>>>>, // 🚀 6.1: 异步初始化
     stats: Arc<ConnectionStats>,
 }
 
 impl DBState {
-    /// 创建新的数据库状态（同步版本，会阻塞创建 Store）
+    /// 创建新的数据库状态（不阻塞创建 Store）
+    ///
+    /// 🚀 6.1优化：Store 将在 state_init 的异步任务中创建，
+    /// 避免阻塞应用首帧。
     pub fn new(conn: DatabaseConnection) -> Self {
-        Self::try_new(conn).unwrap_or_else(|e| panic!("Failed to create Store: {e}"))
+        Self {
+            conn: Arc::new(conn),
+            store: Arc::new(Mutex::new(None)),
+            stats: Arc::new(ConnectionStats::new()),
+        }
     }
 
-    /// 与 [`Self::new`] 相同，但返回 `Result`，便于调用方记录错误而非裸 `expect`。
-    pub fn try_new(conn: DatabaseConnection) -> Result<Self, TodoError> {
-        let conn_arc = Arc::new(conn);
-        // 🚀 关键修复：同步创建 Store，避免 OnceCell 的死锁问题
-        // 虽然这会阻塞应用启动，但只发生一次
+    /// 异步创建并设置 Store 实例
+    ///
+    /// 此方法应在 state_init 的 spawn 任务中调用，
+    /// 不阻塞主线程首帧渲染。
+    pub async fn init_store(&self) -> Result<Arc<Store>, TodoError> {
+        let conn = (*self.conn).clone();
+        let store = Store::new(conn).await?;
+        let store_arc = Arc::new(store);
 
-        // 🔧 修复：使用 tokio::task::block_in_place 来在 async 上下文中运行阻塞代码
-        // 这会在当前线程上安全地执行阻塞操作
-        let store = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current()
-                .block_on(async { Store::new((*conn_arc).clone()).await })
-        })?;
+        let mut guard = self.store.lock().unwrap();
+        *guard = Some(store_arc.clone());
 
-        Ok(Self { conn: conn_arc, store: Arc::new(store), stats: Arc::new(ConnectionStats::new()) })
+        Ok(store_arc)
+    }
+
+    /// 检查 Store 是否已初始化
+    #[inline]
+    pub fn is_store_ready(&self) -> bool {
+        self.store.lock().unwrap().is_some()
+    }
+
+    /// 获取全局 Store 实例
+    ///
+    /// 🚀 6.1优化：Store 通过异步创建，此方法在 Store 未就绪时会 panic
+    /// （这表明存在编程错误：Store 初始化前的操作）
+    ///
+    /// # Panics
+    /// 如果 Store 尚未初始化（这表示应用逻辑有错误）
+    #[inline]
+    pub fn get_store(&self) -> Arc<Store> {
+        self.store
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("Store not initialized - did you call state_init()?")
     }
 
     /// 获取数据库连接（轻量级克隆）
@@ -56,12 +84,6 @@ impl DBState {
     pub fn get_connection(&self) -> Arc<DatabaseConnection> {
         self.stats.record_access();
         self.conn.clone()
-    }
-
-    /// 🚀 获取全局 Store 实例（轻量级克隆）
-    #[inline]
-    pub fn get_store(&self) -> Arc<Store> {
-        self.store.clone()
     }
 
     /// 获取连接统计信息

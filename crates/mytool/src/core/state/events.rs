@@ -61,6 +61,10 @@ impl TodoEventBus {
     }
 
     /// 发布事件
+    ///
+    /// 🚀 6.6说明：当前实现仅记录事件历史用于调试。
+    /// 实际的 UI 更新已通过 `ChangeMask`（6.4优化）和 `observe_global_in` 实现。
+    /// 若未来需要跨模块事件通知，可在此扩展发布订阅机制。
     pub fn publish(&mut self, event: TodoStoreEvent) {
         // 记录事件历史
         self.event_history.push(event.clone());
@@ -70,8 +74,11 @@ impl TodoEventBus {
             self.event_history.remove(0);
         }
 
-        // 在实际应用中，这里会通知所有订阅者
-        // 由于 GPUI 的观察者模式，我们通过 cx.notify() 来触发更新
+        // 注意：当前 UI 更新主要通过以下机制实现：
+        // 1. `observe_global_in::<TodoStore>` - 全局观察者
+        // 2. `ChangeMask`（6.4优化）- 按域筛选变更
+        // 3. `cx.notify()` - 局部重绘
+        // 若未来需要更细粒度的事件驱动，可在此实现发布订阅。
     }
 
     /// 获取最近的事件

@@ -181,14 +181,23 @@ impl TodayBoard {
         // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let store = cx.global::<TodoStore>();
+                // 🚀 6.4优化：检查版本号并获取变更掩码
+                let mask = {
+                    let store = cx.global_mut::<TodoStore>();
+                    match this.base.todo_store_version_and_mask(store) {
+                        Some(m) => m,
+                        None => return, // 版本未变，直接跳过
+                    }
+                };
 
-                if !this.base.todo_store_version_changed(store) {
-                    return;
+                // 🚀 6.4优化：检查掩码是否影响今日视图
+                if !mask.affects_today() {
+                    return; // 本次变更不影响今日视图，跳过重建
                 }
 
                 // 🚀 Today Board 显示：今天任务 + 过期任务 + 无截止日期的任务
                 // 使用 all_items 然后在 board_base 中过滤分类
+                let store = cx.global::<TodoStore>();
                 let state_items = store.all_items
                     .iter()
                     .filter(|item| !item.checked) // 只显示未完成的任务

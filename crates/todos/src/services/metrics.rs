@@ -101,7 +101,7 @@ impl MetricsCollector {
     }
 
     /// Record an operation with count
-    pub async fn record_operation(&self, operation: &str, count: usize) {
+    pub async fn record_operation(&self, operation: &str, _count: usize) {
         // This is a simplified version, just record a zero duration
         self.record(operation, Duration::ZERO, false).await;
     }

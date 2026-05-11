@@ -50,7 +50,7 @@ impl ProjectService {
     /// Insert a new project
     pub async fn insert_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
         let _timer = self.metrics.start_timer("insert_project");
-        let mut active_project: ProjectActiveModel = project.into();
+        let active_project: ProjectActiveModel = project.into();
         let project_model = active_project.insert(&*self.db).await?;
 
         let project_id = project_model.id.clone();

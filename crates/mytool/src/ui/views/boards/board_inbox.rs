@@ -60,16 +60,23 @@ impl InboxBoard {
         base._subscriptions = vec![
             // 监听 TodoStore 变化
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let store = cx.global::<TodoStore>();
+                // 🚀 6.4优化：检查版本号并获取变更掩码
+                let mask = {
+                    let store = cx.global_mut::<TodoStore>();
+                    match this.base.todo_store_version_and_mask(store) {
+                        Some(m) => m,
+                        None => return, // 版本未变，直接跳过
+                    }
+                };
 
-                // 🚀 性能优化 1: 检查版本号，只在数据变化时更新（缓存位于 BoardBase）
-                if !this.base.todo_store_version_changed(store) {
-                    return;
+                // 🚀 6.4优化：检查掩码是否影响收件箱视图
+                if !mask.affects_inbox() {
+                    return; // 本次变更不影响收件箱，跳过重建
                 }
 
                 // 🚀 使用缓存查询（性能优化 2）
                 let cache = cx.global::<crate::core::state::QueryCache>();
-                let state_items = store.inbox_items_cached(cache);
+                let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
 
                 // 更新 item_rows
                 this.base.item_rows = state_items

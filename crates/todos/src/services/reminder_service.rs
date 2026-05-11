@@ -71,7 +71,7 @@ impl ReminderService {
         reminder: ReminderModel,
     ) -> Result<ReminderModel, TodoError> {
         let _timer = self.metrics.start_timer("insert_reminder");
-        let mut active_reminder: ReminderActiveModel = reminder.into();
+        let active_reminder: ReminderActiveModel = reminder.into();
         let reminder_model = active_reminder.insert(&*self.db).await?;
 
         let reminder_id = reminder_model.id.clone();

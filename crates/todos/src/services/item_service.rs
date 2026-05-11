@@ -51,8 +51,12 @@ impl ItemService {
     }
 
     /// Insert a new item
-    pub async fn insert_item(&self, item: ItemModel, insert: bool) -> Result<ItemModel, TodoError> {
-        let mut active_model: ItemActiveModel = item.into();
+    pub async fn insert_item(
+        &self,
+        item: ItemModel,
+        _insert: bool,
+    ) -> Result<ItemModel, TodoError> {
+        let active_model: ItemActiveModel = item.into();
         let item_model = active_model.insert(&*self.db).await?;
 
         let item_id = item_model.id.clone();
@@ -68,7 +72,7 @@ impl ItemService {
     pub async fn update_item(
         &self,
         item: ItemModel,
-        update_id: &str,
+        _update_id: &str,
     ) -> Result<ItemModel, TodoError> {
         let item_id = item.id.clone();
         tracing::info!(

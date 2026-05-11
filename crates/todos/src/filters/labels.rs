@@ -20,7 +20,7 @@ impl Default for Labels {
 }
 
 impl Labels {
-    pub async fn count(&self, store: &Store) -> usize {
+    pub async fn count(&self, _store: &Store) -> usize {
         // 暂时返回 0，因为不存在 get_items_has_labels 方法
         0
     }

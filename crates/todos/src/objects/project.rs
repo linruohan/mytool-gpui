@@ -185,8 +185,8 @@ impl Project {
 
     pub async fn update(
         &self,
-        use_timeout: bool,
-        show_loading: bool,
+        _use_timeout: bool,
+        _show_loading: bool,
     ) -> Result<ProjectModel, TodoError> {
         self.store().await.update_project(self.model.clone()).await
     }

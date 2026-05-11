@@ -17,7 +17,7 @@ impl Default for Pinboard {
 }
 
 impl Pinboard {
-    pub async fn count(&self, store: &Store) -> usize {
+    pub async fn count(&self, _store: &Store) -> usize {
         // 暂时返回 0，因为不存在 get_items_pinned 方法
         0
     }

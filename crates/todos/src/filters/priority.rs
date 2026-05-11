@@ -13,7 +13,7 @@ impl Priority {
         Self { base: BaseObject::new(name, keywords, "".to_string(), view_id), count: 0, priority }
     }
 
-    pub async fn count(&self, store: &Store) -> usize {
+    pub async fn count(&self, _store: &Store) -> usize {
         // 暂时返回 0，因为不存在 get_items_by_priority 方法
         0
     }

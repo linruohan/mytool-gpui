@@ -355,7 +355,7 @@ impl Item {
 
     pub async fn exists_project(&self, project: ProjectModel) -> bool {
         Box::pin(async move {
-            if let Some(p) = self.parent().await.as_ref()
+            if let Some(_p) = self.parent().await.as_ref()
                 && let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await
             {
                 return item.exists_project(project).await;
@@ -384,7 +384,7 @@ impl Item {
     pub fn get_caldav_categories(&self) {}
 
     pub async fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
-        for (key, label) in &new_labels {
+        for (_key, label) in &new_labels {
             if self.get_label(&label.id).await.is_none() {
                 self.add_label_if_not_exists(label);
             }
@@ -586,7 +586,7 @@ impl Item {
 
     pub async fn was_archived(&self) -> bool {
         Box::pin(async move {
-            if let Some(p) = self.parent().await.as_ref()
+            if let Some(_p) = self.parent().await.as_ref()
                 && let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await
             {
                 return item.was_archived().await;

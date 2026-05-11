@@ -53,7 +53,7 @@ impl LabelService {
     /// Insert a new label
     pub async fn insert_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
         let _timer = self.metrics.start_timer("insert_label");
-        let mut active_label: LabelActiveModel = label.into();
+        let active_label: LabelActiveModel = label.into();
         let label_model = active_label.insert(&*self.db).await?;
 
         let label_id = label_model.id.clone();

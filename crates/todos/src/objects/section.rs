@@ -134,7 +134,7 @@ impl Section {
     }
 
     pub async fn was_archived(&self) -> bool {
-        let Some(project_model) = self.project().await else {
+        let Some(_project_model) = self.project().await else {
             return self.model.is_archived;
         };
         false

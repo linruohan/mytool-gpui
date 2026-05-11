@@ -6,6 +6,7 @@
 //! ## 优化特性
 //! - **增量索引更新**: 只更新变化的索引，避免全量重建
 //! - **版本号机制**: 视图可以通过版本号判断是否需要更新
+//! - **变更掩码**: 🚀 6.4优化，视图可按域筛选，避免无关回调执行
 //! - **缓存集成**: 支持查询结果缓存，避免重复计算
 //! - **索引操作抽象**: 通过 IndexOperation trait 统一索引操作逻辑
 
@@ -16,6 +17,97 @@ use std::{
 
 use gpui::Global;
 use todos::entity::{ItemModel, LabelModel, ProjectModel, SectionModel};
+
+// ==================== 变更掩码 ====================
+
+/// 🚀 6.4优化：变更掩码，用于标记 TodoStore 中哪些数据发生了变化
+///
+/// 视图可以通过检查掩码来判断本次变更是否影响自己，
+/// 避免不必要的列表重建和渲染。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ChangeMask {
+    pub items_changed: bool,
+    pub projects_changed: bool,
+    pub sections_changed: bool,
+    pub labels_changed: bool,
+    pub active_project_changed: bool,
+}
+
+impl ChangeMask {
+    /// 创建空掩码（无任何变更）
+    pub const fn none() -> Self {
+        Self {
+            items_changed: false,
+            projects_changed: false,
+            sections_changed: false,
+            labels_changed: false,
+            active_project_changed: false,
+        }
+    }
+
+    /// 创建全掩码（所有数据都变更）
+    pub const fn all() -> Self {
+        Self {
+            items_changed: true,
+            projects_changed: true,
+            sections_changed: true,
+            labels_changed: true,
+            active_project_changed: true,
+        }
+    }
+
+    /// 检查是否影响收件箱视图
+    pub fn affects_inbox(&self) -> bool {
+        self.items_changed || self.active_project_changed
+    }
+
+    /// 检查是否影响今日视图
+    pub fn affects_today(&self) -> bool {
+        self.items_changed || self.active_project_changed
+    }
+
+    /// 检查是否影响计划视图
+    pub fn affects_scheduled(&self) -> bool {
+        self.items_changed || self.active_project_changed
+    }
+
+    /// 检查是否影响已完成视图
+    pub fn affects_completed(&self) -> bool {
+        self.items_changed
+    }
+
+    /// 检查是否影响置顶视图
+    pub fn affects_pinned(&self) -> bool {
+        self.items_changed
+    }
+
+    /// 检查是否影响项目视图
+    pub fn affects_project(&self) -> bool {
+        self.items_changed
+            || self.projects_changed
+            || self.sections_changed
+            || self.active_project_changed
+    }
+
+    /// 检查是否影响标签视图
+    pub fn affects_labels(&self) -> bool {
+        self.items_changed || self.labels_changed
+    }
+
+    /// 合并两个掩码
+    pub fn merge(&mut self, other: &Self) {
+        self.items_changed |= other.items_changed;
+        self.projects_changed |= other.projects_changed;
+        self.sections_changed |= other.sections_changed;
+        self.labels_changed |= other.labels_changed;
+        self.active_project_changed |= other.active_project_changed;
+    }
+
+    /// 清空所有掩码位
+    pub fn clear(&mut self) {
+        *self = Self::none();
+    }
+}
 
 // ==================== 索引操作 Trait ====================
 
@@ -39,12 +131,16 @@ trait IndexOperation {
     /// 更新置顶状态索引
     fn update_pinned_set(&mut self, item: &Arc<ItemModel>, add: bool);
 
+    /// 🚀 6.8优化：更新标签索引
+    fn update_label_index(&mut self, item: &Arc<ItemModel>, add: bool);
+
     /// 添加任务到所有索引
     fn add_to_all_indexes(&mut self, item: &Arc<ItemModel>) {
         self.update_project_index(item, true);
         self.update_section_index(item, true);
         self.update_checked_set(item, true);
         self.update_pinned_set(item, true);
+        self.update_label_index(item, true);
     }
 
     /// 从所有索引移除任务
@@ -53,6 +149,7 @@ trait IndexOperation {
         self.update_section_index(item, false);
         self.update_checked_set(item, false);
         self.update_pinned_set(item, false);
+        self.update_label_index(item, false);
     }
 }
 
@@ -80,6 +177,9 @@ pub struct TodoStore {
     checked_set: HashSet<String>,
     /// 置顶状态索引：已置顶的任务 ID
     pinned_set: HashSet<String>,
+    /// 🚀 6.8优化：标签索引 - label_id -> item_ids 反查索引
+    /// 避免每次查询时解析 JSON/字符串
+    label_index: HashMap<String, Vec<String>>,
 
     /// 临时 ID 到真实 ID 的映射（用于 ID 变化检测）
     id_mappings: HashMap<String, String>,
@@ -87,6 +187,10 @@ pub struct TodoStore {
     /// 版本号：每次数据变化时递增，用于优化观察者更新
     /// 视图可以通过比较版本号来判断是否需要重新渲染
     version: usize,
+
+    /// 🚀 6.4优化：变更掩码，标记本次变更影响了哪些数据域
+    /// 视图可通过检查掩码判断是否需要更新，避免惊群效应
+    change_mask: ChangeMask,
 
     /// 🚀 索引统计（用于性能监控）
     #[cfg(debug_assertions)]
@@ -144,8 +248,10 @@ impl TodoStore {
             section_index: HashMap::new(),
             checked_set: HashSet::new(),
             pinned_set: HashSet::new(),
+            label_index: HashMap::new(),
             id_mappings: HashMap::new(),
             version: 0,
+            change_mask: ChangeMask::none(),
             #[cfg(debug_assertions)]
             index_stats: IndexStats::default(),
         }
@@ -156,6 +262,19 @@ impl TodoStore {
     /// 视图可以缓存此版本号，在观察者回调中比较版本号来判断是否需要更新
     pub fn version(&self) -> usize {
         self.version
+    }
+
+    /// 🚀 6.4优化：获取并清空变更掩码
+    ///
+    /// 视图在观察者回调中调用此方法，获取本次变更的掩码并清空，
+    /// 用于判断本次变更是否影响当前视图。
+    pub fn take_change_mask(&mut self) -> ChangeMask {
+        std::mem::take(&mut self.change_mask)
+    }
+
+    /// 🚀 6.4优化：查看当前变更掩码（不清空）
+    pub fn peek_change_mask(&self) -> &ChangeMask {
+        &self.change_mask
     }
 
     /// 获取临时 ID 对应的真实 ID
@@ -359,41 +478,67 @@ impl TodoStore {
         })
     }
 
+    /// 🚀 6.8优化：获取指定标签的任务（使用标签索引）
+    ///
+    /// 优先使用 label_index 反查索引，避免遍历所有任务并解析字符串。
+    pub fn items_by_label(&self, label_id: &str) -> Vec<Arc<ItemModel>> {
+        // 使用标签索引快速查找
+        if let Some(item_ids) = self.label_index.get(label_id) {
+            item_ids
+                .iter()
+                .filter_map(|id| self.all_items.iter().find(|item| &item.id == id).cloned())
+                .collect()
+        } else {
+            // 索引未命中（理论上不应发生），降级为全量扫描
+            self.query_items(|item| {
+                item.labels
+                    .as_deref()
+                    .map(|raw| raw.split(';').any(|id| id.trim() == label_id))
+                    .unwrap_or(false)
+            })
+        }
+    }
+
     /// 更新所有任务
     pub fn set_items(&mut self, items: Vec<ItemModel>) {
         self.all_items = items.into_iter().map(Arc::new).collect();
         // 重建索引
         self.rebuild_indexes();
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.items_changed = true;
     }
 
     /// 更新所有项目
     pub fn set_projects(&mut self, projects: Vec<ProjectModel>) {
         self.projects = projects.into_iter().map(Arc::new).collect();
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.projects_changed = true;
     }
 
     /// 更新所有标签
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) {
         self.labels = labels.into_iter().map(Arc::new).collect();
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.labels_changed = true;
     }
 
     /// 更新所有分区
     pub fn set_sections(&mut self, sections: Vec<SectionModel>) {
         self.sections = sections.into_iter().map(Arc::new).collect();
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.sections_changed = true;
     }
 
     /// 设置活跃项目
     pub fn set_active_project(&mut self, project: Option<Arc<ProjectModel>>) {
         self.active_project = project;
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.active_project_changed = true;
     }
 
     // ==================== 增量更新方法 ====================
@@ -419,8 +564,9 @@ impl TodoStore {
             // 添加到索引
             self.add_item_to_index(&item);
         }
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.items_changed = true;
     }
 
     /// 删除单个任务
@@ -435,8 +581,9 @@ impl TodoStore {
 
         // 从列表中移除
         self.all_items.retain(|i| i.id != id);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.items_changed = true;
     }
 
     /// 原子地替换任务的 ID（用于临时 ID 变为真实 ID）
@@ -460,8 +607,9 @@ impl TodoStore {
         // 记录 ID 映射（临时 ID -> 真实 ID）
         self.id_mappings.insert(old_id.to_string(), new_id);
 
-        // 只增加一次版本号
+        // 只增加一次版本号并设置掩码
         self.version += 1;
+        self.change_mask.items_changed = true;
 
         tracing::info!("TodoStore: replaced temp ID {} with real ID {}", old_id, new_item.id);
     }
@@ -471,8 +619,9 @@ impl TodoStore {
         self.all_items.push(item.clone());
         // 添加到索引
         self.add_item_to_index(&item);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.items_changed = true;
     }
 
     /// 根据ID获取单个任务
@@ -487,8 +636,9 @@ impl TodoStore {
         } else {
             self.projects.push(project);
         }
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.projects_changed = true;
     }
 
     /// 删除单个项目，并返回下一个应该激活的项目
@@ -534,8 +684,9 @@ impl TodoStore {
             self.active_project = next_project.clone();
         }
 
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.projects_changed = true;
 
         next_project
     }
@@ -543,8 +694,9 @@ impl TodoStore {
     /// 添加单个项目
     pub fn add_project(&mut self, project: Arc<ProjectModel>) {
         self.projects.push(project);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.projects_changed = true;
     }
 
     /// 根据ID获取单个项目
@@ -559,22 +711,25 @@ impl TodoStore {
         } else {
             self.sections.push(section);
         }
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.sections_changed = true;
     }
 
     /// 删除单个分区
     pub fn remove_section(&mut self, id: &str) {
         self.sections.retain(|s| s.id != id);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.sections_changed = true;
     }
 
     /// 添加单个分区
     pub fn add_section(&mut self, section: Arc<SectionModel>) {
         self.sections.push(section);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.sections_changed = true;
     }
 
     /// 根据ID获取单个分区
@@ -591,22 +746,25 @@ impl TodoStore {
         } else {
             self.labels.push(label);
         }
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.labels_changed = true;
     }
 
     /// 删除单个标签
     pub fn remove_label(&mut self, id: &str) {
         self.labels.retain(|l| l.id != id);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.labels_changed = true;
     }
 
     /// 添加单个标签
     pub fn add_label(&mut self, label: Arc<LabelModel>) {
         self.labels.push(label);
-        // 增加版本号
+        // 增加版本号并设置掩码
         self.version += 1;
+        self.change_mask.labels_changed = true;
     }
 
     /// 根据ID获取单个标签
@@ -696,6 +854,12 @@ impl TodoStore {
             self.update_pinned_set(new_item, true);
         }
 
+        // 🚀 6.8优化 5: 检查标签是否变化
+        if old_item.labels != new_item.labels {
+            self.update_label_index(old_item, false);
+            self.update_label_index(new_item, true);
+        }
+
         #[cfg(debug_assertions)]
         {
             let duration = start.elapsed();
@@ -768,6 +932,44 @@ impl IndexOperation for TodoStore {
             self.pinned_set.insert(item.id.clone());
         } else {
             self.pinned_set.remove(&item.id);
+        }
+    }
+
+    /// 🚀 6.8优化：更新标签索引
+    ///
+    /// 解析 item.labels（分号分隔的标签 ID 列表），
+    /// 维护 label_id -> item_ids 的反查索引。
+    fn update_label_index(&mut self, item: &Arc<ItemModel>, add: bool) {
+        let Some(raw) = item.labels.as_deref() else {
+            return;
+        };
+        if raw.is_empty() {
+            return;
+        }
+
+        if add {
+            // 添加：将 item.id 加入各标签对应的列表
+            for label_id in raw.split(';') {
+                let label_id = label_id.trim();
+                if label_id.is_empty() {
+                    continue;
+                }
+                self.label_index.entry(label_id.to_string()).or_default().push(item.id.clone());
+            }
+        } else {
+            // 移除：从各标签对应的列表中移除 item.id
+            for label_id in raw.split(';') {
+                let label_id = label_id.trim();
+                if label_id.is_empty() {
+                    continue;
+                }
+                if let Some(items) = self.label_index.get_mut(label_id) {
+                    items.retain(|id| id != &item.id);
+                    if items.is_empty() {
+                        self.label_index.remove(label_id);
+                    }
+                }
+            }
         }
     }
 }

@@ -68,7 +68,7 @@ impl AttachmentService {
         attachment: AttachmentModel,
     ) -> Result<AttachmentModel, TodoError> {
         let _timer = self.metrics.start_timer("insert_attachment");
-        let mut active_attachment: AttachmentActiveModel = attachment.into();
+        let active_attachment: AttachmentActiveModel = attachment.into();
         let attachment_model = active_attachment.insert(&*self.db).await?;
 
         let attachment_id = attachment_model.id.clone();

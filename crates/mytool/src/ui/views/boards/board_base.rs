@@ -104,6 +104,22 @@ impl BoardBase {
         true
     }
 
+    /// 🚀 6.4优化：检查版本号并获取变更掩码
+    ///
+    /// 若版本未变返回 `None`，调用方应直接跳过；
+    /// 若版本变化返回 `Some(ChangeMask)`，调用方可根据掩码判断是否需要更新。
+    pub fn todo_store_version_and_mask(
+        &mut self,
+        store: &mut TodoStore,
+    ) -> Option<crate::core::state::ChangeMask> {
+        let v = store.version();
+        if self.cached_todo_store_version == v {
+            return None;
+        }
+        self.cached_todo_store_version = v;
+        Some(store.take_change_mask())
+    }
+
     /// 更新项目列表和部分映射
     pub fn update_items<T>(&mut self, items: &[T])
     where
@@ -178,6 +194,70 @@ impl BoardBase {
     /// 检查任务是否为过去日期（超过今天）
     fn is_past_due(&self, item: &Arc<todos::entity::ItemModel>) -> bool {
         item.is_past_due()
+    }
+
+    /// 🚀 6.5优化：Diff 更新 item_rows，避免全量重建 Entity
+    ///
+    /// 以 item.id 为 key，保留未变行的 Entity，仅插入/删除/移动变更项。
+    /// 大幅减少大列表下的分配与订阅成本。
+    ///
+    /// 注意：此方法需要与 item_rows 同步维护的 item_id 列表配合使用。
+    /// 调用方需要确保 `item_row_ids` 与 `item_rows` 一一对应。
+    ///
+    /// # 参数
+    /// - `new_items`: 新的任务列表（已按显示顺序排列）
+    /// - `item_row_ids`: 当前 item_rows 对应的 item id 列表（与 item_rows 一一对应）
+    /// - `window`: 窗口句柄
+    /// - `cx`: 上下文
+    pub fn diff_update_item_rows(
+        &mut self,
+        new_items: &[Arc<todos::entity::ItemModel>],
+        item_row_ids: &mut Vec<String>,
+        window: &mut Window,
+        cx: &mut Context<impl gpui::Render>,
+    ) {
+        use std::collections::HashMap;
+
+        // 快速路径：如果当前为空，直接全量创建
+        if self.item_rows.is_empty() {
+            self.item_rows = new_items
+                .iter()
+                .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
+                .collect();
+            *item_row_ids = new_items.iter().map(|item| item.id.clone()).collect();
+            return;
+        }
+
+        // 快速路径：如果新列表为空，直接清空
+        if new_items.is_empty() {
+            self.item_rows.clear();
+            item_row_ids.clear();
+            return;
+        }
+
+        // 1. 建立旧 item_rows 的 id -> Entity 映射
+        let mut old_rows_map: HashMap<String, Entity<ItemRowState>> = HashMap::new();
+        for (id, row) in item_row_ids.drain(..).zip(self.item_rows.drain(..)) {
+            old_rows_map.insert(id, row);
+        }
+
+        // 2. 按新列表顺序重建 item_rows，复用已存在的 Entity
+        let mut new_rows = Vec::with_capacity(new_items.len());
+        let mut new_ids = Vec::with_capacity(new_items.len());
+        for item in new_items.iter() {
+            if let Some(old_entity) = old_rows_map.remove(&item.id) {
+                // 复用旧 Entity（保留订阅和状态）
+                new_rows.push(old_entity);
+            } else {
+                // 创建新 Entity
+                new_rows.push(cx.new(|cx| ItemRowState::new(item.clone(), window, cx)));
+            }
+            new_ids.push(item.id.clone());
+        }
+
+        // 3. 剩余的 old_rows_map 中的 Entity 将被丢弃（自动释放）
+        self.item_rows = new_rows;
+        *item_row_ids = new_ids;
     }
 }
 

@@ -8,7 +8,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```ignore
 //! use crate::visual_enhancements::{Animations, SemanticColors, VisualHierarchy};
 //!
 //! // Get semantic colors

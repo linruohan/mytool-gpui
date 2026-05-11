@@ -186,23 +186,23 @@ impl DateTime {
                 recurrency_weeks.push_str("2,");
             }
 
-            if (self.check_by_day("4", &day_array)) {
+            if self.check_by_day("4", &day_array) {
                 recurrency_weeks.push_str("3,");
             }
 
-            if (self.check_by_day("5", &day_array)) {
+            if self.check_by_day("5", &day_array) {
                 recurrency_weeks.push_str("4,");
             }
 
-            if (self.check_by_day("6", &day_array)) {
+            if self.check_by_day("6", &day_array) {
                 recurrency_weeks.push_str("5,");
             }
 
-            if (self.check_by_day("7", &day_array)) {
+            if self.check_by_day("7", &day_array) {
                 recurrency_weeks.push_str("6,");
             }
             let week_array: Vec<&str> = recurrency_weeks.split(",").collect();
-            if (!week_array.is_empty()) {
+            if !week_array.is_empty() {
                 let new_idx = recurrency_weeks.len().saturating_sub(1);
                 recurrency_weeks = recurrency_weeks[0..new_idx].to_string();
             }
@@ -259,7 +259,7 @@ impl DateTime {
     pub fn add_months(&self, datetime: NaiveDateTime, months: u32) -> NaiveDateTime {
         let mut year = datetime.year();
         let mut month = datetime.month();
-        let mut day = datetime.day();
+        let day = datetime.day();
         month += months;
         // 计算新的年和月
         while month > 12 {
@@ -345,13 +345,13 @@ impl DateTime {
         }
         next_day = weeks[index].parse::<i64>().unwrap();
 
-        if (day_of_week < next_day) {
+        if day_of_week < next_day {
             days = next_day - day_of_week;
         } else {
             days = 7 - (day_of_week - next_day);
         }
 
-        if (user && index == 0) {
+        if user && index == 0 {
             recurrency_interval = (duedate.recurrency_interval - 1) * 7;
         }
 
@@ -423,7 +423,7 @@ impl DateTime {
     }
 
     pub fn get_todoist_datetime_format(&self, date: &NaiveDateTime) -> String {
-        if (self.has_time(date)) {
+        if self.has_time(date) {
             return format!("{}T{}", date.format("%F"), date.format("%T"));
         } else {
             return date.format("%F").to_string();
@@ -437,17 +437,17 @@ impl DateTime {
     }
 
     pub fn get_days_of_month(index: i32, year_nav: i32) -> i32 {
-        if ((index == 1)
+        if (index == 1)
             || (index == 3)
             || (index == 5)
             || (index == 7)
             || (index == 8)
             || (index == 10)
-            || (index == 12))
+            || (index == 12)
         {
             31
-        } else if (index == 2) {
-            if (year_nav % 4 == 0) { 29 } else { 28 }
+        } else if index == 2 {
+            if year_nav % 4 == 0 { 29 } else { 28 }
         } else {
             30
         }
@@ -455,7 +455,7 @@ impl DateTime {
 
     pub fn get_start_of_month(&self, date: NaiveDateTime) -> NaiveDateTime {
         if date == EMPTY_DATETIME {
-            let date = Local::now().naive_local();
+            let _date = Local::now().naive_local();
         }
         let date1 = NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap();
         let time1 = NaiveTime::from_hms_opt(0, 0, 0).unwrap();

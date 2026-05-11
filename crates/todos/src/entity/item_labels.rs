@@ -67,7 +67,7 @@ impl Related<super::labels::Entity> for Entity {
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {
     /// 保存前自动设置创建时间
-    async fn before_save<C>(self, db: &C, insert: bool) -> Result<Self, DbErr>
+    async fn before_save<C>(self, _db: &C, insert: bool) -> Result<Self, DbErr>
     where
         C: ConnectionTrait,
     {

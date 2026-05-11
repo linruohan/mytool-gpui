@@ -48,7 +48,7 @@ impl SectionService {
     /// Insert a new section
     pub async fn insert_section(&self, section: SectionModel) -> Result<SectionModel, TodoError> {
         let _timer = self.metrics.start_timer("insert_section");
-        let mut active_section: SectionActiveModel = section.into();
+        let active_section: SectionActiveModel = section.into();
         let section_model = active_section.insert(&*self.db).await?;
 
         let section_id = section_model.id.clone();

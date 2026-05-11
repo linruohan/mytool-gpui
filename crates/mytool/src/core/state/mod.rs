@@ -32,7 +32,7 @@ pub async fn get_todo_conn() -> Result<DatabaseConnection, sea_orm::DbErr> {
 /// 返回的 Arc<DatabaseConnection> 是轻量级的，可以安全地克隆。
 ///
 /// # 示例
-/// ```rust
+/// ```ignore
 /// let db = get_db_connection(cx);
 /// cx.spawn(async move |cx| {
 ///     // 使用 db 进行数据库操作
@@ -49,8 +49,13 @@ pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
 /// 这是一个辅助函数，用于简化从全局状态获取 Store 实例的操作。
 /// 返回的 Arc<Store> 是轻量级的，可以安全地克隆。
 ///
+/// 🚀 6.1优化：Store 通过异步创建，此方法在 Store 未就绪时会 panic
+///
+/// # Panics
+/// 如果 Store 尚未初始化（这表示应用逻辑有错误）
+///
 /// # 示例
-/// ```rust
+/// ```ignore
 /// let store = get_store(cx);
 /// cx.spawn(async move |_cx| {
 ///     // 使用 store 进行数据库操作
@@ -94,13 +99,19 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
 
-    // 异步加载数据并预初始化 Store
+    // 异步创建 Store 并加载数据
     cx.spawn(async move |cx| {
-        // 使用全局 Store 加载数据
-        tracing::info!("Loading data using global Store...");
+        tracing::info!("Initializing Store asynchronously...");
 
-        // 获取全局 Store 实例
-        let store = cx.update_global::<DBState, _>(|state, _| state.get_store());
+        // 🚀 6.1优化：异步创建 Store，不阻塞首帧
+        // 通过 update_global 获取 DBState 克隆，然后在 async 块中初始化
+        let db_state = cx.update_global::<DBState, _>(|db_state, _| db_state.clone());
+        let store = db_state
+            .init_store()
+            .await
+            .unwrap_or_else(|e| panic!("Failed to initialize Store: {e}"));
+
+        tracing::info!("Store initialized, loading data...");
 
         // 加载数据到 TodoStore（唯一数据源）
         let items_r = crate::state_service::load_items_with_store(store.clone()).await;

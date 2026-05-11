@@ -47,14 +47,22 @@ impl CompletedBoard {
         // 使用 TodoStore 作为数据源（新架构）
         base._subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let store = cx.global::<TodoStore>();
+                // 🚀 6.4优化：检查版本号并获取变更掩码
+                let mask = {
+                    let store = cx.global_mut::<TodoStore>();
+                    match this.base.todo_store_version_and_mask(store) {
+                        Some(m) => m,
+                        None => return, // 版本未变，直接跳过
+                    }
+                };
 
-                if !this.base.todo_store_version_changed(store) {
-                    return;
+                // 🚀 6.4优化：检查掩码是否影响已完成视图
+                if !mask.affects_completed() {
+                    return; // 本次变更不影响已完成视图，跳过重建
                 }
 
                 // 从 TodoStore 获取已完成任务（内存过滤，无需数据库查询）
-                let state_items = store.completed_items();
+                let state_items = cx.global::<TodoStore>().completed_items();
 
                 this.base.item_rows = state_items
                     .iter()

@@ -1,5 +1,8 @@
 #![recursion_limit = "1024"]
-#![allow(unused)]
+// 🚀 6.10优化：收紧 allow(unused)，改为模块级控制
+// 之前使用 #![allow(unused)] 会掩盖未使用 API 与死代码
+// 现在只在特定模块允许 unused，便于发现死代码
+#![allow(unused_imports)] // 允许未使用导入（避免重构时频繁修改）
 #[macro_use]
 extern crate paste;
 mod app;
