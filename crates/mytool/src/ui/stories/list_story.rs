@@ -5,8 +5,8 @@ use gpui::{
     ParentElement, Render, Styled, Subscription, Window, actions,
 };
 use gpui_component::{
-    divider::Divider,
     list::{ListEvent, ListState},
+    separator::Separator,
     v_flex,
 };
 use todos::entity::ItemModel;
@@ -172,7 +172,7 @@ impl Render for ListStory {
             .gap_4()
             .child(section("popover_list").child(self.popover_list.clone()))
             .child(section("label popover list").child(self.label_popover_list.clone()))
-            .child(Divider::horizontal())
+            .child(Separator::horizontal())
             .child(v_flex().children(
                 self.item_rows.clone().into_values().map(|item| ItemRow::new(&item.clone())),
             ))

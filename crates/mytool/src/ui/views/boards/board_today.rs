@@ -3,7 +3,7 @@
 //! 显示今天需要完成的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, MouseButton,
@@ -35,7 +35,6 @@ fn show_schedule_popover(
     section_id: String,
     _view: Entity<TodayBoard>,
 ) {
-    // 获取该 section 下的所有任务
     let store = cx.global::<TodoStore>();
     let section_items: Vec<Arc<todos::entity::ItemModel>> = store
         .all_items
@@ -49,10 +48,8 @@ fn show_schedule_popover(
         return;
     }
 
-    // 创建日期选择器状态
     let schedule_state = cx.new(|cx| ScheduleButtonState::new(window, cx));
 
-    // 打开日期选择器对话框
     window.open_dialog(cx, move |dialog, _, _| {
         dialog
             .title("Schedule Section Tasks")
@@ -78,10 +75,8 @@ fn show_schedule_popover(
                 let section_items = section_items.clone();
                 let section_id = section_id.clone();
                 move |_, window, cx| {
-                    // 获取选中的日期
                     let due_date = schedule_state.read(cx).due_date.clone();
 
-                    // 为每个任务设置新的日期
                     let mut updated_items = Vec::new();
                     for item in &section_items {
                         let mut item_clone = (**item).clone();
@@ -91,7 +86,6 @@ fn show_schedule_popover(
 
                     let count = updated_items.len();
 
-                    // 批量更新
                     crate::core::actions::batch::batch_update_items(updated_items, cx);
 
                     window.push_notification(
@@ -113,10 +107,17 @@ impl EventEmitter<ItemClickEvent> for TodayBoard {}
 
 pub struct TodayBoard {
     base: BoardBase,
+    /// 跟踪当前 item_rows 对应的 item id 列表，用于增量更新
+    item_row_ids: Vec<String>,
     /// Past Due 分组的 ScheduleButton 状态
     past_due_schedule_button: Entity<ScheduleButtonState>,
     /// ScheduleButton 事件订阅
     _schedule_subscription: Subscription,
+    /// 脏标记：当 TodoStore 数据变化时设为 true，
+    /// 在 render() 中执行实际的增量更新操作（需要 window 参数）
+    pending_refresh: Cell<bool>,
+    /// 延迟注册标记：避免在 new() 时立即注册全局观察者
+    observer_registered: Cell<bool>,
 }
 
 impl TodayBoard {
@@ -128,16 +129,12 @@ impl TodayBoard {
         let mut base = BoardBase::new(window, cx);
         base.is_today_board = true;
 
-        // 初始化 Past Due 分组的 ScheduleButton
         let past_due_schedule_button = cx.new(|cx| ScheduleButtonState::new(window, cx));
 
-        // 订阅 ScheduleButton 事件，处理批量重新分配
         let schedule_subscription =
             cx.subscribe_in(&past_due_schedule_button, window, |this, _, event, window, cx| {
-                // 获取选中的日期
                 let due_date = this.past_due_schedule_button.read(cx).due_date.clone();
 
-                // 获取所有 Past Due 任务
                 let store = cx.global::<TodoStore>();
                 let past_due_items: Vec<Arc<todos::entity::ItemModel>> = store
                     .all_items
@@ -152,7 +149,6 @@ impl TodayBoard {
 
                 match event {
                     ScheduleButtonEvent::DateSelected(_) | ScheduleButtonEvent::TimeSelected(_) => {
-                        // 为每个任务设置新的日期
                         let mut updated_items = Vec::new();
                         for mut item in past_due_items {
                             let item_mut = Arc::make_mut(&mut item);
@@ -165,7 +161,6 @@ impl TodayBoard {
                         window.push_notification(format!("Rescheduled {} items", count), cx);
                     },
                     ScheduleButtonEvent::Cleared => {
-                        // 清除日期，清空所有 Past Due 任务的日期
                         let mut updated_items = Vec::new();
                         for mut item in past_due_items {
                             let item_mut = Arc::make_mut(&mut item);
@@ -178,46 +173,55 @@ impl TodayBoard {
                 }
             });
 
-        // 使用 TodoStore 作为数据源（新架构）
-        base._subscriptions = vec![
-            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                // 🚀 6.4优化：检查版本号并获取变更掩码
-                let mask = {
-                    let store = cx.global_mut::<TodoStore>();
-                    match this.base.todo_store_version_and_mask(store) {
-                        Some(m) => m,
-                        None => return, // 版本未变，直接跳过
-                    }
-                };
+        // 延迟注册：在首次 render 时通过 lazy_init_observer 注册
+        base._subscriptions = vec![];
 
-                // 🚀 6.4优化：检查掩码是否影响今日视图
-                if !mask.affects_today() {
-                    return; // 本次变更不影响今日视图，跳过重建
-                }
+        Self {
+            base,
+            item_row_ids: Vec::new(),
+            past_due_schedule_button,
+            _schedule_subscription: schedule_subscription,
+            pending_refresh: Cell::new(false),
+            observer_registered: Cell::new(false),
+        }
+    }
 
-                // 🚀 Today Board 显示：今天任务 + 过期任务 + 无截止日期的任务
-                // 使用 all_items 然后在 board_base 中过滤分类
-                let store = cx.global::<TodoStore>();
-                let state_items = store.all_items
-                    .iter()
-                    .filter(|item| !item.checked) // 只显示未完成的任务
-                    .cloned()
-                    .collect::<Vec<_>>();
+    /// 延迟初始化全局观察者
+    ///
+    /// 只在首次 render 时注册，避免 new() 阶段访问 global_mut 导致的问题
+    fn lazy_init_observer(&self, cx: &mut Context<Self>) {
+        if self.observer_registered.get() {
+            return;
+        }
+        self.observer_registered.set(true);
 
-                this.base.item_rows = state_items
-                    .iter()
-                    .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-                    .collect();
+        let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
+            this.pending_refresh.set(true);
+            cx.notify();
+        });
+    }
 
-                this.base.update_items(&state_items);
-                cx.notify();
-            }),
-            cx.observe_global_in::<TodoStore>(window, move |_, _, cx| {
-                cx.notify();
-            }),
-        ];
+    /// 在 render() 中执行实际的增量更新
+    ///
+    /// 只在 pending_refresh=true 时执行，避免每帧重复操作
+    fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.lazy_init_observer(cx);
 
-        Self { base, past_due_schedule_button, _schedule_subscription: schedule_subscription }
+        if !self.pending_refresh.get() {
+            return;
+        }
+        self.pending_refresh.set(false);
+
+        let state_items = cx
+            .global::<TodoStore>()
+            .all_items
+            .iter()
+            .filter(|item| !item.checked)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
+        self.base.update_items(&state_items);
     }
 
     pub(crate) fn get_selected_item(
@@ -225,7 +229,6 @@ impl TodayBoard {
         ix: IndexPath,
         cx: &App,
     ) -> Option<Arc<todos::entity::ItemModel>> {
-        // 使用 TodoStore 获取数据
         let item_list = cx.global::<TodoStore>().today_items();
         item_list.get(ix.row).cloned()
     }
@@ -265,9 +268,7 @@ impl TodayBoard {
             is_edit,
         );
 
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {
-            // 🚀 保存已由 save_all_changes 处理，这里不需要再调用 add_item/update_item
-        });
+        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -422,7 +423,6 @@ impl Board for TodayBoard {
     }
 
     fn count(cx: &mut gpui::App) -> usize {
-        // 使用 TodoStore 获取计数
         cx.global::<TodoStore>().today_items().len()
     }
 
@@ -631,9 +631,12 @@ impl Focusable for TodayBoard {
 impl Render for TodayBoard {
     fn render(
         &mut self,
-        _window: &mut gpui::Window,
+        window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        // 在 render 开头处理待执行的刷新操作
+        self.apply_pending_refresh(window, cx);
+
         let view = cx.entity().clone();
         let sections = cx.global::<TodoStore>().sections.clone();
         let pinned_items = self.base.pinned_items.clone();
@@ -736,7 +739,6 @@ impl Render for TodayBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
-                        // 1. Pinned 分组
                         .when(!pinned_items.is_empty(), |this| {
                             this.child(render_section_group(
                                 "Pinned",
@@ -747,7 +749,6 @@ impl Render for TodayBoard {
                                 view.clone(),
                             ))
                         })
-                        // 2. Past Due 分组（超过今天但还未完成）
                         .when(!past_due_items.is_empty(), |this| {
                             this.child(render_section_group_with_schedule(
                                 "Past Due",
@@ -759,7 +760,6 @@ impl Render for TodayBoard {
                                 &past_due_schedule_button,
                             ))
                         })
-                        // 3. Today 分组（今天到期的任务）
                         .when(!overdue_items.is_empty(), |this| {
                             this.child(render_section_group(
                                 "Today",
@@ -770,7 +770,6 @@ impl Render for TodayBoard {
                                 view.clone(),
                             ))
                         })
-                        // 4. No Section 分组
                         .when(!no_section_items.is_empty(), |this| {
                             this.child(render_no_section_group(
                                 &no_section_items,
@@ -780,7 +779,6 @@ impl Render for TodayBoard {
                                 view.clone(),
                             ))
                         })
-                        // 5. Section 分组（带 schedule 按钮）
                         .children(sections.iter().filter_map(|sec| {
                             let items = section_items_map.get(&sec.id)?;
                             if items.is_empty() {
@@ -794,7 +792,6 @@ impl Render for TodayBoard {
                                 section(sec.name.clone())
                                     .sub_title(
                                         h_flex().gap_1()
-                                            // Schedule 按钮
                                             .child(
                                                 Button::new(format!(
                                                     "schedule-section-{}",
@@ -809,7 +806,6 @@ impl Render for TodayBoard {
                                                     let view = view_clone.clone();
                                                     let section_id = section_id.clone();
                                                     move |_, window, cx| {
-                                                        // 打开日期选择器，为该 section 的所有任务设置日期
                                                         show_schedule_popover(
                                                             window,
                                                             cx,
@@ -819,7 +815,6 @@ impl Render for TodayBoard {
                                                     }
                                                 }),
                                             )
-                                            // Add Task 按钮
                                             .child(
                                                 Button::new(format!(
                                                     "add-item-to-section-{}",
@@ -846,7 +841,6 @@ impl Render for TodayBoard {
                                                     }
                                                 }),
                                             )
-                                            // 更多按钮
                                             .child(
                                                 Button::new(format!("more-section-{}", section_id))
                                                     .small()

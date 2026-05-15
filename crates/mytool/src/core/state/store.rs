@@ -11,8 +11,10 @@
 //! - **索引操作抽象**: 通过 IndexOperation trait 统一索引操作逻辑
 
 use std::{
+    cell::Cell,
     collections::{HashMap, HashSet},
     sync::Arc,
+    time::Instant,
 };
 
 use gpui::Global;
@@ -192,6 +194,14 @@ pub struct TodoStore {
     /// 视图可通过检查掩码判断是否需要更新，避免惊群效应
     change_mask: ChangeMask,
 
+    /// 🚀 6.9修复：观察者分发深度计数器<br/>用于防止 observe_global 回调中的递归更新导致无限循环
+    /// 当 dispatch_depth > 0 时，表示正在分发观察者通知，此时新的 update 操作只更新数据但不递增
+    /// version
+    dispatch_depth: Cell<usize>,
+
+    /// 🚀 6.9修复：上次 version 递增的时间戳<br/>用于基于时间窗口的自动去重
+    last_bump_time: Cell<Instant>,
+
     /// 🚀 索引统计（用于性能监控）
     #[cfg(debug_assertions)]
     index_stats: IndexStats,
@@ -252,6 +262,8 @@ impl TodoStore {
             id_mappings: HashMap::new(),
             version: 0,
             change_mask: ChangeMask::none(),
+            dispatch_depth: Cell::new(0),
+            last_bump_time: Cell::new(Instant::now() - std::time::Duration::from_secs(1)),
             #[cfg(debug_assertions)]
             index_stats: IndexStats::default(),
         }
@@ -262,6 +274,49 @@ impl TodoStore {
     /// 视图可以缓存此版本号，在观察者回调中比较版本号来判断是否需要更新
     pub fn version(&self) -> usize {
         self.version
+    }
+
+    /// 🚀 6.9修复：开始分发观察者通知（增加深度）
+    ///
+    /// 调用后，后续的 bump_version 操作不会递增 version，
+    /// 从而防止观察者回调中的递归更新导致无限循环。
+    pub fn begin_dispatch(&self) {
+        let depth = self.dispatch_depth.get();
+        self.dispatch_depth.set(depth + 1);
+        if depth == 0 {
+            tracing::debug!("[ANTI-RECURSION] TodoStore dispatch BEGIN");
+        }
+    }
+
+    /// 🚀 6.9修复：结束分发观察者通知（减少深度）
+    pub fn end_dispatch(&self) {
+        let depth = self.dispatch_depth.get();
+        debug_assert!(depth > 0, "end_dispatch called without matching begin_dispatch");
+        self.dispatch_depth.set(depth - 1);
+        if depth <= 1 {
+            tracing::debug!("[ANTI-RECURSION] TodoStore dispatch END");
+        }
+    }
+
+    /// 🚀 6.9修复：检查是否正在分发观察者通知
+    pub fn is_dispatching(&self) -> bool {
+        self.dispatch_depth.get() > 0
+    }
+
+    /// 🚀 6.9修复：安全地递增版本号（基于时间窗口的防重入）
+    ///
+    /// 如果距上次 version++ 不足 2ms（说明在同一事件循环/观察者分发周期内），
+    /// 则跳过版本递增。这打破了 observe_global 的无限递归循环：
+    ///   - 正常的用户操作 → version++ → 观察者触发 → 嵌套 update → 被跳过 ✅
+    ///   - 下一次独立事件 → 距上次 >2ms → 正常 version++ ✅
+    #[inline]
+    fn bump_version(&mut self) {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_bump_time.get());
+        if elapsed.as_millis() >= 50 {
+            self.version += 1;
+            self.last_bump_time.set(now);
+        }
     }
 
     /// 🚀 6.4优化：获取并清空变更掩码
@@ -505,7 +560,7 @@ impl TodoStore {
         // 重建索引
         self.rebuild_indexes();
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.items_changed = true;
     }
 
@@ -513,7 +568,7 @@ impl TodoStore {
     pub fn set_projects(&mut self, projects: Vec<ProjectModel>) {
         self.projects = projects.into_iter().map(Arc::new).collect();
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.projects_changed = true;
     }
 
@@ -521,7 +576,7 @@ impl TodoStore {
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) {
         self.labels = labels.into_iter().map(Arc::new).collect();
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.labels_changed = true;
     }
 
@@ -529,7 +584,7 @@ impl TodoStore {
     pub fn set_sections(&mut self, sections: Vec<SectionModel>) {
         self.sections = sections.into_iter().map(Arc::new).collect();
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.sections_changed = true;
     }
 
@@ -537,7 +592,7 @@ impl TodoStore {
     pub fn set_active_project(&mut self, project: Option<Arc<ProjectModel>>) {
         self.active_project = project;
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.active_project_changed = true;
     }
 
@@ -565,7 +620,7 @@ impl TodoStore {
             self.add_item_to_index(&item);
         }
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.items_changed = true;
     }
 
@@ -582,7 +637,7 @@ impl TodoStore {
         // 从列表中移除
         self.all_items.retain(|i| i.id != id);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.items_changed = true;
     }
 
@@ -608,7 +663,7 @@ impl TodoStore {
         self.id_mappings.insert(old_id.to_string(), new_id);
 
         // 只增加一次版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.items_changed = true;
 
         tracing::info!("TodoStore: replaced temp ID {} with real ID {}", old_id, new_item.id);
@@ -620,7 +675,7 @@ impl TodoStore {
         // 添加到索引
         self.add_item_to_index(&item);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.items_changed = true;
     }
 
@@ -637,7 +692,7 @@ impl TodoStore {
             self.projects.push(project);
         }
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.projects_changed = true;
     }
 
@@ -685,7 +740,7 @@ impl TodoStore {
         }
 
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.projects_changed = true;
 
         next_project
@@ -695,7 +750,7 @@ impl TodoStore {
     pub fn add_project(&mut self, project: Arc<ProjectModel>) {
         self.projects.push(project);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.projects_changed = true;
     }
 
@@ -712,7 +767,7 @@ impl TodoStore {
             self.sections.push(section);
         }
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.sections_changed = true;
     }
 
@@ -720,7 +775,7 @@ impl TodoStore {
     pub fn remove_section(&mut self, id: &str) {
         self.sections.retain(|s| s.id != id);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.sections_changed = true;
     }
 
@@ -728,7 +783,7 @@ impl TodoStore {
     pub fn add_section(&mut self, section: Arc<SectionModel>) {
         self.sections.push(section);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.sections_changed = true;
     }
 
@@ -747,7 +802,7 @@ impl TodoStore {
             self.labels.push(label);
         }
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.labels_changed = true;
     }
 
@@ -755,7 +810,7 @@ impl TodoStore {
     pub fn remove_label(&mut self, id: &str) {
         self.labels.retain(|l| l.id != id);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.labels_changed = true;
     }
 
@@ -763,7 +818,7 @@ impl TodoStore {
     pub fn add_label(&mut self, label: Arc<LabelModel>) {
         self.labels.push(label);
         // 增加版本号并设置掩码
-        self.version += 1;
+        self.bump_version();
         self.change_mask.labels_changed = true;
     }
 

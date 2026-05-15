@@ -12,9 +12,9 @@ use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
-    divider::Divider,
     h_flex,
     input::{Input, InputEvent, InputState},
+    separator::Separator,
     theme::ActiveTheme,
     v_flex,
 };
@@ -37,7 +37,6 @@ use crate::{
     core::{
         notification::{NotificationExt, NotificationSystem},
         state::{TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
-        tokio_runtime,
     },
     state_service,
     todo_actions::{
@@ -527,77 +526,114 @@ impl ItemInfoState {
                 item_id, labels_changed, item_labels_str, new_labels_str
             );
 
-            // 如果标签发生变化，先保存标签
+            // 如果标签发生变化，使用异步保存标签（不阻塞UI）
             if labels_changed {
                 info!("save_all_changes: saving labels for item {}", item_id);
                 let label_ids_to_save = selected_label_ids.clone();
                 let item_id_for_labels = item_id.clone();
 
-                // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
-                let db_state = cx.global::<crate::todo_state::DBState>().clone();
-
-                // 同步执行标签保存，确保在 update_item 之前完成
-                tokio_runtime::run_db_operation(async move {
-                    let store = db_state.get_store();
-                    tracing::debug!("Executing label save for item: {}", item_id_for_labels);
-                    match store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await {
-                        Ok(_) => {
-                            info!(
-                                "save_all_changes: labels saved successfully for item {}",
-                                item_id_for_labels
-                            );
-                        },
-                        Err(e) => {
-                            error!(
-                                "save_all_changes: failed to save labels for item {}: {:?}",
-                                item_id_for_labels, e
-                            );
-                        },
-                    }
-                });
-
-                // 更新本地 item 的 labels 字段
+                // 🚀 关键优化：先更新本地状态（乐观更新），UI立即响应
                 self.state_manager.update_item(|item| {
                     item.labels = Some(new_labels_str.clone());
                 });
-                tracing::debug!("Label save completed for item: {}", item_id);
+
+                // 获取db_state用于异步任务
+                let db_state = cx.global::<crate::todo_state::DBState>().clone();
+
+                // ✅ 修复：使用 cx.spawn 异步保存标签，不阻塞UI线程
+                cx.spawn(async move |_this, cx| {
+                    let item_id_for_log = item_id_for_labels.clone(); // 用于日志
+                    tracing::debug!("Executing async label save for item: {}", item_id_for_labels);
+                    match crate::core::tokio_runtime::spawn_db_operation(async move {
+                        if !db_state.is_store_ready() {
+                            tracing::warn!("Store not ready, skipping label save");
+                            return Err(todos::error::TodoError::DatabaseError(
+                                "Store not ready".to_string(),
+                            ));
+                        }
+                        let store = db_state.get_store();
+                        store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await
+                    })
+                    .await
+                    {
+                        Ok(result) => match result {
+                            Ok(_) => {
+                                info!(
+                                    "save_all_changes: labels saved successfully for item {}",
+                                    item_id_for_log
+                                );
+                                // 标签保存成功后发布事件，触发UI更新
+                                cx.update_global::<TodoEventBus, _>(|bus, _| {
+                                    bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log));
+                                });
+                            },
+                            Err(e) => {
+                                error!(
+                                    "save_all_changes: failed to save labels for item {}: {:?}",
+                                    item_id_for_log, e
+                                );
+                            },
+                        },
+                        Err(e) => {
+                            error!("save_all_changes: label save task panicked: {:?}", e);
+                        },
+                    }
+                })
+                .detach();
+
+                tracing::debug!("Label save dispatched asynchronously for item: {}", item_id);
             }
 
-            tracing::debug!("Calling mod_item_with_store synchronously for item: {}", item_id);
+            tracing::debug!("Preparing async item save for item: {}", item_id);
             let db_state = cx.global::<crate::todo_state::DBState>().clone();
             let item_for_save = self.state_manager.item.clone();
             let item_id_for_save = item_id.clone();
 
-            tokio_runtime::run_db_operation(async move {
-                let store = db_state.get_store();
-                tracing::debug!("Executing database save for item: {}", item_id_for_save);
-                match state_service::mod_item_with_store(item_for_save, store).await {
-                    Ok(_updated_item) => {
-                        tracing::info!("Item saved successfully: {}", item_id_for_save);
+            // ✅ 修复：使用 cx.spawn 异步保存item内容，不阻塞UI线程
+            cx.spawn(async move |_this, cx| {
+                let item_id_for_log = item_id_for_save.clone(); // 用于日志和事件
+                let item_for_update = item_for_save.clone(); // 用于更新TodoStore
+                tracing::debug!("Executing async database save for item: {}", item_id_for_save);
+                match crate::core::tokio_runtime::spawn_db_operation(async move {
+                    if !db_state.is_store_ready() {
+                        tracing::warn!("Store not ready, skipping item save");
+                        return Err(todos::error::TodoError::DatabaseError(
+                            "Store not ready".to_string(),
+                        ));
+                    }
+                    let store = db_state.get_store();
+                    state_service::mod_item_with_store(item_for_save, store).await
+                })
+                .await
+                {
+                    Ok(result) => match result {
+                        Ok(_updated_item) => {
+                            tracing::info!("Item saved successfully: {}", item_id_for_log);
+                        },
+                        Err(e) => {
+                            tracing::error!("Failed to save item {}: {:?}", item_id_for_log, e);
+                        },
                     },
                     Err(e) => {
-                        tracing::error!("Failed to save item {}: {:?}", item_id_for_save, e);
+                        tracing::error!("Item save task panicked: {:?}", e);
                     },
                 }
-            });
-            tracing::debug!("Database operation completed for item: {}", item_id);
 
-            // 使用 cx.spawn() 更新 TodoStore 和发布事件
-            let item_for_store = self.state_manager.item.clone();
-            let item_id_for_store = item_id.clone();
-            cx.spawn(async move |_this, cx| {
+                // 保存完成后更新 TodoStore 和发布事件
                 cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(item_for_store.clone());
+                    store.update_item(item_for_update.clone());
                 });
-                // 🚀 优化：移除不必要的缓存失效（TodoStore 版本号机制会自动使缓存失效）
                 cx.update_global::<TodoEventBus, _>(|bus, _| {
-                    bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_store.clone()));
+                    bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log));
                 });
             })
             .detach();
 
+            tracing::debug!("Async database operation dispatched for item: {}", item_id);
+
+            // UI立即响应：标记已保存并发布事件
             cx.emit(ItemInfoEvent::Updated());
-            // 🚀 标记已保存
+            // 🚀 标记已保存（乐观标记，不等后台完成）
             self.state_manager.mark_clean();
         }
     }
@@ -1024,6 +1060,10 @@ impl ItemInfoState {
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         cx.spawn(async move |_this, _cx| {
+            if !db_state.is_store_ready() {
+                tracing::warn!("Store not ready, skipping add_label_to_item");
+                return;
+            }
             let store = db_state.get_store();
             match store.add_label_to_item(&item_id, &label_name).await {
                 Ok(_) => {
@@ -1061,6 +1101,10 @@ impl ItemInfoState {
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         cx.spawn(async move |_this, _cx| {
+            if !db_state.is_store_ready() {
+                tracing::warn!("Store not ready, skipping remove_label_from_item");
+                return;
+            }
             let store = db_state.get_store();
             match store.remove_label_from_item(&item_id, &label_id).await {
                 Ok(_) => {
@@ -1264,6 +1308,22 @@ impl ItemInfoState {
             let this_entity = cx.entity();
 
             cx.spawn(async move |_this, cx| {
+                // 🚀 6.9修复：防御性检查 Store 是否已初始化
+                //
+                // 【问题】BoardBase::new() 同步创建 ItemInfoState 时会调用 set_item_internal，
+                //   而此时 state_init 中的 Store 还是 None（Store 是异步初始化的）。
+                //   直接调用 get_store() 会触发 expect panic → 应用闪退。
+                //
+                // 【修复】先检查 is_store_ready()，未就绪时安全跳过标签加载。
+                //   后续 TodoStore 数据加载完成后，observe_global 回调会再次触发更新。
+                if !db_state.is_store_ready() {
+                    tracing::debug!(
+                        "Store not ready, skipping label load for item: {}",
+                        item_id_for_labels
+                    );
+                    return;
+                }
+
                 let store = db_state.get_store();
                 match store.get_labels_by_item(&item_id_for_labels).await {
                     Ok(item_labels) => {
@@ -1411,6 +1471,10 @@ impl ItemInfoState {
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         cx.spawn(async move |_this, _cx| {
+            if !db_state.is_store_ready() {
+                tracing::warn!("Store not ready, skipping set_item_labels");
+                return;
+            }
             let store = db_state.get_store();
             match store.set_item_labels(&item_id, &label_ids_vec).await {
                 Ok(_) => {
@@ -1576,7 +1640,7 @@ impl Render for ItemInfoState {
                             ),
                 ),
             )
-            .child(Divider::horizontal().p_1())
+            .child(Separator::horizontal().p_1())
             .child(
                 h_flex().items_center().justify_between().gap_1().child(
                     h_flex().gap_1().child(

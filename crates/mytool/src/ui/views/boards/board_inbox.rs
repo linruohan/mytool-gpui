@@ -3,7 +3,7 @@
 //! 显示所有未完成且无项目的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
@@ -22,7 +22,7 @@ use gpui_component::{
 use sea_orm::sqlx::types::uuid;
 
 use crate::{
-    BoardBase, ItemRowState, VisualHierarchy, section,
+    BoardBase, VisualHierarchy, section,
     todo_actions::{add_section, delete_item, delete_section, update_item, update_section},
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
@@ -37,9 +37,15 @@ impl EventEmitter<ItemClickEvent> for InboxBoard {}
 
 pub struct InboxBoard {
     base: BoardBase,
-    /// 🚀 观察者 ID（用于细粒度更新）
+    /// 观察者 ID（用于细粒度更新）
     #[allow(dead_code)]
     observer_id: Option<u64>,
+    /// 跟踪当前 item_rows 对应的 item id 列表（用于增量更新）
+    item_row_ids: Vec<String>,
+    /// 🚀 7.0修复：脏标记（当 TodoStore 数据变化时设为 true）
+    pending_refresh: Cell<bool>,
+    /// 🚀 7.0修复：标记观察者是否已注册（避免初始化阶段循环触发）
+    observer_registered: Cell<bool>,
 }
 
 impl InboxBoard {
@@ -50,84 +56,92 @@ impl InboxBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
-        // 🚀 注册观察者（细粒度更新）
+        // 注册观察者（细粒度更新）
         let observer_id = {
             let registry = cx.global_mut::<crate::core::state::ObserverRegistry>();
             Some(registry.register(crate::core::state::ViewType::Inbox))
         };
 
-        // 使用 TodoStore 作为数据源（新架构）
-        base._subscriptions = vec![
-            // 监听 TodoStore 变化
-            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                // 🚀 6.4优化：检查版本号并获取变更掩码
-                let mask = {
-                    let store = cx.global_mut::<TodoStore>();
-                    match this.base.todo_store_version_and_mask(store) {
-                        Some(m) => m,
-                        None => return, // 版本未变，直接跳过
-                    }
-                };
+        // 🚀 7.0修复：不在 new() 中注册 observe_global！
+        // 原因：在初始化阶段注册会导致与异步冷加载产生竞争条件 → 主线程冻结
+        // 修复：延迟到首次 render() 时通过 lazy_init_observer() 注册
+        base._subscriptions = vec![];
 
-                // 🚀 6.4优化：检查掩码是否影响收件箱视图
-                if !mask.affects_inbox() {
-                    return; // 本次变更不影响收件箱，跳过重建
+        Self {
+            base,
+            observer_id,
+            item_row_ids: Vec::new(),
+            pending_refresh: Cell::new(false),
+            observer_registered: Cell::new(false),
+        }
+    }
+
+    /// 🚀 7.0修复：延迟注册 TodoStore 观察者（在首次 render 时调用）
+    fn lazy_init_observer(&self, cx: &mut Context<Self>) {
+        if self.observer_registered.get() {
+            return;
+        }
+        self.observer_registered.set(true);
+
+        let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
+            // 只使用只读访问，避免修改全局状态导致循环触发
+            let _store = cx.global::<TodoStore>();
+
+            // 设置脏标记，让 render() 处理实际更新
+            this.pending_refresh.set(true);
+            cx.notify();
+        });
+    }
+
+    /// 🚀 7.0修复：在 render() 中执行实际的增量更新
+    fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.pending_refresh.get() {
+            return;
+        }
+        self.pending_refresh.set(false);
+
+        // 确保观察者已注册
+        self.lazy_init_observer(cx);
+
+        // 执行实际的刷新逻辑（从原始 observe_global 回调中复制）
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
+
+        let filtered_items: Vec<_> =
+            state_items.iter().filter(|item| !item.checked).cloned().collect();
+
+        self.base.diff_update_item_rows(&filtered_items, &mut self.item_row_ids, window, cx);
+
+        // 重新计算分类数据
+        self.base.no_section_items.clear();
+        self.base.section_items_map.clear();
+        self.base.pinned_items.clear();
+
+        for (i, item) in filtered_items.iter().enumerate() {
+            if item.pinned {
+                self.base.pinned_items.push((i, item.clone()));
+            } else {
+                match item.section_id.as_deref() {
+                    None | Some("") => self.base.no_section_items.push((i, item.clone())),
+                    Some(sid) => self
+                        .base
+                        .section_items_map
+                        .entry(sid.to_string())
+                        .or_default()
+                        .push((i, item.clone())),
                 }
+            }
+        }
 
-                // 🚀 使用缓存查询（性能优化 2）
-                let cache = cx.global::<crate::core::state::QueryCache>();
-                let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
-
-                // 更新 item_rows
-                this.base.item_rows = state_items
-                    .iter()
-                    .filter(|item| !item.checked)
-                    .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-                    .collect();
-
-                // 重新计算 no_section_items 和 section_items_map
-                this.base.no_section_items.clear();
-                this.base.section_items_map.clear();
-                this.base.pinned_items.clear();
-
-                for (i, item) in state_items.iter().enumerate() {
-                    if !item.checked {
-                        // 先处理置顶任务
-                        if item.pinned {
-                            this.base.pinned_items.push((i, item.clone()));
-                        } else {
-                            // 非置顶任务按 section 分类
-                            match item.section_id.as_deref() {
-                                None | Some("") => {
-                                    this.base.no_section_items.push((i, item.clone()))
-                                },
-                                Some(sid) => {
-                                    this.base
-                                        .section_items_map
-                                        .entry(sid.to_string())
-                                        .or_default()
-                                        .push((i, item.clone()));
-                                },
-                            }
-                        }
-                    }
-                }
-
-                // 更新活动索引
-                if let Some(ix) = this.base.active_index {
-                    if ix >= this.base.item_rows.len() {
-                        this.base.active_index =
-                            if this.base.item_rows.is_empty() { None } else { Some(0) };
-                    }
-                } else if !this.base.item_rows.is_empty() {
-                    this.base.active_index = Some(0);
-                }
-
-                cx.notify();
-            }),
-        ];
-
-        Self { base, observer_id }
+        // 更新活动索引
+        if let Some(ix) = self.base.active_index {
+            if ix >= self.base.item_rows.len() {
+                self.base.active_index =
+                    if self.base.item_rows.is_empty() { None } else { Some(0) };
+            }
+        } else if !self.base.item_rows.is_empty() {
+            self.base.active_index = Some(0);
+        }
     }
 
     pub(crate) fn get_selected_item(
@@ -411,9 +425,12 @@ impl Focusable for InboxBoard {
 impl Render for InboxBoard {
     fn render(
         &mut self,
-        _window: &mut gpui::Window,
+        window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        // 🚀 7.0修复：在 render 开头处理待执行的刷新操作
+        self.apply_pending_refresh(window, cx);
+
         let view = cx.entity().clone();
         let sections = cx.global::<TodoStore>().sections.clone();
         let pinned_items = self.base.pinned_items.clone();

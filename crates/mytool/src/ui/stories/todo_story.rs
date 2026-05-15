@@ -51,7 +51,6 @@ impl Focusable for TodoStory {
         self.focus_handle.clone()
     }
 }
-
 impl TodoStory {
     pub fn new(_init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let project_panel = ProjectsPanel::view(window, cx);
@@ -72,6 +71,7 @@ impl TodoStory {
                 },
             ),
             // 监听 TodoStore 的变化，当 active_project 变化时更新 UI
+            // 🚀 7.0修复：此观察者保持不变（问题在 InboxBoard 的 observe_global 中）
             cx.observe_global::<TodoStore>(|this, cx| {
                 let todo_store = cx.global::<TodoStore>();
 
@@ -202,7 +202,6 @@ impl TodoStory {
         });
     }
 }
-
 impl Render for TodoStory {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let board_panel = self.board_panel.read(cx);
@@ -236,39 +235,38 @@ impl Render for TodoStory {
                     .collapsed(self.collapsed)
                     .w(px(220.))
                     .gap_0()
-                            .board(self.board_panel.clone()) // .child(self.project_panel.clone()),
-                            .child(
-                                // 添加项目按钮：
-                                SidebarMenu::new().child(
-                                    SidebarMenuItem::new("On This Computer   ➕")
-                                        .on_click(cx.listener(Self::add_project)),
-                                ),
-                            )
-                            .child(SidebarMenu::new().children(
-                                project_list.iter().enumerate().map(|(ix, project)| {
-                                    SidebarMenuItem::new(project.name.clone())
-                                        .active(project_active_index == Some(ix))
-                                        .on_click({
-                                            let story = project.clone();
-                                            cx.listener(move |this, _: &ClickEvent, _, cx| {
-                                                this.active_project = Some(story.clone());
-                                                this.project_panel.update(cx, |panel, cx| {
-                                                    panel.update_active_index(Some(ix));
-                                                    cx.notify();
-                                                });
-                                                this.project_items_panel.update(cx, |panel, cx| {
-                                                    panel.set_project(story.clone(), cx);
-                                                    cx.notify();
-                                                });
-                                                this.board_panel.update(cx, |panel, cx| {
-                                                    panel.update_active_index(None);
-                                                    cx.notify();
-                                                });
-                                                cx.notify();
-                                            })
-                                        })
-                                }),
-                            )),
+                    .board(self.board_panel.clone())
+                    .child(
+                        SidebarMenu::new().child(
+                            SidebarMenuItem::new("On This Computer   ➕")
+                                .on_click(cx.listener(Self::add_project)),
+                        ),
+                    )
+                    .child(SidebarMenu::new().children(project_list.iter().enumerate().map(
+                        |(ix, project)| {
+                            SidebarMenuItem::new(project.name.clone())
+                                .active(project_active_index == Some(ix))
+                                .on_click({
+                                    let story = project.clone();
+                                    cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                        this.active_project = Some(story.clone());
+                                        this.project_panel.update(cx, |panel, cx| {
+                                            panel.update_active_index(Some(ix));
+                                            cx.notify();
+                                        });
+                                        this.project_items_panel.update(cx, |panel, cx| {
+                                            panel.set_project(story.clone(), cx);
+                                            cx.notify();
+                                        });
+                                        this.board_panel.update(cx, |panel, cx| {
+                                            panel.update_active_index(None);
+                                            cx.notify();
+                                        });
+                                        cx.notify();
+                                    })
+                                })
+                        },
+                    ))),
             )
             .child(v_flex().flex_1().h_full().overflow_x_hidden().child(content))
     }

@@ -22,14 +22,14 @@ pub struct BoardPanel {
     pub boards: Vec<Entity<BoardContainer>>,
     pub(crate) active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
+    /// 🚀 6.9修复：缓存上次各 board 的 count 值<br/>用于避免不必要的 notify，打破观察者循环
+    cached_counts: Vec<usize>,
 }
 impl EventEmitter<LabelEvent> for BoardPanel {}
 impl EventEmitter<ItemEvent> for BoardPanel {}
 
 impl BoardPanel {
     fn board_count_for_klass(klass: &str, cx: &mut App) -> Option<usize> {
-        // 用映射表替代重复 match，新增 board 时只需追加一行
-        // 注意：klass() 不是 const fn，映射表需要在运行时构建
         let map: [(&str, fn(&mut App) -> usize); 6] = [
             (InboxBoard::klass(), InboxBoard::count),
             (TodayBoard::klass(), TodayBoard::count),
@@ -41,20 +41,48 @@ impl BoardPanel {
         map.iter().find(|(k, _)| *k == klass).map(|(_, f)| f(cx))
     }
 
-    fn refresh_counts(&mut self, cx: &mut Context<Self>) {
-        for board in &self.boards {
-            board.update(cx, |board, cx| {
-                if let Some(klass) = board.board_klass.as_deref()
-                    && let Some(new_count) = Self::board_count_for_klass(klass, cx)
-                {
-                    board.count = new_count;
-                }
-            });
+    /// 🚀 6.9修复：安全地刷新 count 并检查是否有实际变化
+    ///
+    /// 只有在至少一个 board 的 count 发生变化时才返回 true，
+    /// 调用方据此决定是否需要 notify。
+    fn refresh_counts_if_changed(&mut self, cx: &mut Context<Self>) -> bool {
+        let mut new_counts = Vec::with_capacity(self.boards.len());
+        let mut changed = false;
+
+        for (ix, board) in self.boards.iter().enumerate() {
+            // 先读取 board_klass，避免与后续 cx 使用冲突
+            let board_klass = board.read(cx).board_klass.clone();
+            let new_count = board_klass
+                .as_deref()
+                .and_then(|klass| Self::board_count_for_klass(klass, cx))
+                .unwrap_or(0);
+
+            if ix >= self.cached_counts.len() || self.cached_counts[ix] != new_count {
+                changed = true;
+            }
+            new_counts.push(new_count);
         }
+
+        if new_counts.len() != self.cached_counts.len() {
+            changed = true;
+        }
+
+        if changed {
+            for (ix, board) in self.boards.iter().enumerate() {
+                let nc = new_counts[ix];
+                board.update(cx, |b, _| {
+                    b.count = nc;
+                });
+            }
+            self.cached_counts = new_counts;
+        }
+
+        changed
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
+        // 🚀 7.0修复后：恢复所有 6 个 Board（InboxBoard 已使用延迟注册）
         let boards = vec![
             BoardContainer::panel::<InboxBoard>(window, cx),
             BoardContainer::panel::<TodayBoard>(window, cx),
@@ -63,6 +91,10 @@ impl BoardPanel {
             BoardContainer::panel::<LabelsBoard>(window, cx),
             BoardContainer::panel::<CompletedBoard>(window, cx),
         ];
+
+        // 初始化缓存的 count 值（全为0，第一次回调时会更新）
+        let cached_counts = vec![0; boards.len()];
+
         let _subscriptions = vec![
             cx.subscribe(&search_input, |this, _, e, cx| {
                 if let InputEvent::Change = e {
@@ -70,14 +102,14 @@ impl BoardPanel {
                     cx.notify()
                 }
             }),
-            // 监听 TodoStore 变化，刷新看板计数
+            // 刷新各 Board 的 count 显示
             cx.observe_global::<TodoStore>(move |this, cx| {
-                this.refresh_counts(cx);
-                cx.notify();
+                if this.refresh_counts_if_changed(cx) {
+                    cx.notify();
+                }
             }),
         ];
-        // 默认选中第一个看板，避免初始状态没有任何内容渲染
-        Self { search_input, boards, active_index: Some(0), _subscriptions }
+        Self { search_input, boards, active_index: Some(0), _subscriptions, cached_counts }
     }
 
     pub fn view(window: &mut Window, cx: &mut App) -> Entity<Self> {
@@ -91,9 +123,6 @@ impl BoardPanel {
 
 impl Render for BoardPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // 每次渲染前刷新 count，保证看板数量实时更新
-        self.refresh_counts(cx);
-
         let query = self.search_input.read(cx).value().trim().to_lowercase();
         let boards: Vec<_> = self
             .boards
@@ -101,7 +130,6 @@ impl Render for BoardPanel {
             .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
             .cloned()
             .collect();
-        // 项目分类：
         v_flex()
             .w_full()
             .gap(VisualHierarchy::spacing(4.0))

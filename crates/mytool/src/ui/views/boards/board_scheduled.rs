@@ -3,7 +3,7 @@
 //! 显示计划中任务，在其他时间去执行的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::{collections::HashMap, sync::Arc};
+use std::{cell::Cell, collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
@@ -21,7 +21,7 @@ use gpui_component::{
 };
 
 use crate::{
-    BoardBase, ItemRowState, VisualHierarchy, section_with_title,
+    BoardBase, VisualHierarchy, section_with_title,
     todo_actions::{add_section, delete_item, delete_section, update_item, update_section},
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
@@ -36,6 +36,13 @@ impl EventEmitter<ItemClickEvent> for ScheduledBoard {}
 
 pub struct ScheduledBoard {
     base: BoardBase,
+    /// 跟踪当前 item_rows 对应的 item id 列表，用于增量更新
+    item_row_ids: Vec<String>,
+    /// 脏标记：当 TodoStore 数据变化时设为 true，
+    /// 在 render() 中执行实际的增量更新操作（需要 window 参数）
+    pending_refresh: Cell<bool>,
+    /// 延迟注册标记：避免在 new() 时立即注册全局观察者
+    observer_registered: Cell<bool>,
 }
 
 impl ScheduledBoard {
@@ -46,49 +53,51 @@ impl ScheduledBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
-        // 使用 TodoStore 作为数据源（新架构）
-        base._subscriptions = vec![
-            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                // 🚀 6.4优化：检查版本号并获取变更掩码
-                let mask = {
-                    let store = cx.global_mut::<TodoStore>();
-                    match this.base.todo_store_version_and_mask(store) {
-                        Some(m) => m,
-                        None => return, // 版本未变，直接跳过
-                    }
-                };
+        // 延迟注册：在首次 render 时通过 lazy_init_observer 注册
+        base._subscriptions = vec![];
 
-                // 🚀 6.4优化：检查掩码是否影响计划视图
-                if !mask.affects_scheduled() {
-                    return; // 本次变更不影响计划视图，跳过重建
-                }
+        Self { base, item_row_ids: Vec::new(), pending_refresh: Cell::new(false), observer_registered: Cell::new(false) }
+    }
 
-                // 从 TodoStore 获取计划任务（内存过滤，无需数据库查询）
-                let state_items = cx.global::<TodoStore>().scheduled_items();
+    /// 延迟初始化全局观察者
+    ///
+    /// 只在首次 render 时注册，避免 new() 阶段访问 global_mut 导致的问题
+    fn lazy_init_observer(&self, cx: &mut Context<Self>) {
+        if self.observer_registered.get() {
+            return;
+        }
+        self.observer_registered.set(true);
 
-                this.base.item_rows = state_items
-                    .iter()
-                    .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-                    .collect();
+        let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
+            this.pending_refresh.set(true);
+            cx.notify();
+        });
+    }
 
-                this.base.update_items(&state_items);
+    /// 在 render() 中执行实际的增量更新
+    ///
+    /// 只在 pending_refresh=true 时执行，避免每帧重复操作
+    fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.lazy_init_observer(cx);
 
-                if let Some(ix) = this.base.active_index {
-                    if ix >= this.base.item_rows.len() {
-                        this.base.active_index =
-                            if this.base.item_rows.is_empty() { None } else { Some(0) };
-                    }
-                } else if !this.base.item_rows.is_empty() {
-                    this.base.active_index = Some(0);
-                }
-                cx.notify();
-            }),
-            cx.observe_global_in::<TodoStore>(window, move |_, _, cx| {
-                cx.notify();
-            }),
-        ];
+        if !self.pending_refresh.get() {
+            return;
+        }
+        self.pending_refresh.set(false);
 
-        Self { base }
+        let state_items = cx.global::<TodoStore>().scheduled_items();
+
+        self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
+        self.base.update_items(&state_items);
+
+        if let Some(ix) = self.base.active_index {
+            if ix >= self.base.item_rows.len() {
+                self.base.active_index =
+                    if self.base.item_rows.is_empty() { None } else { Some(0) };
+            }
+        } else if !self.base.item_rows.is_empty() {
+            self.base.active_index = Some(0);
+        }
     }
 
     pub(crate) fn get_selected_item(
@@ -96,7 +105,6 @@ impl ScheduledBoard {
         ix: IndexPath,
         cx: &App,
     ) -> Option<Arc<todos::entity::ItemModel>> {
-        // 使用 TodoStore 获取数据
         let item_list = cx.global::<TodoStore>().scheduled_items();
         item_list.get(ix.row).cloned()
     }
@@ -121,7 +129,6 @@ impl ScheduledBoard {
         } else {
             let mut ori_item = todos::entity::ItemModel::default();
 
-            // If adding a new item with a section_id, set it
             if let Some(sid) = section_id {
                 ori_item.section_id = Some(sid);
             }
@@ -139,9 +146,7 @@ impl ScheduledBoard {
             is_edit,
         );
 
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {
-            // 🚀 保存已由 save_all_changes 处理，这里不需要再调用 add_item/update_item
-        });
+        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -333,7 +338,6 @@ impl Board for ScheduledBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        // 使用 TodoStore 获取计数
         cx.global::<TodoStore>().scheduled_items().len()
     }
 
@@ -363,18 +367,19 @@ impl Focusable for ScheduledBoard {
 impl Render for ScheduledBoard {
     fn render(
         &mut self,
-        _window: &mut gpui::Window,
+        window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        // 在 render 开头处理待执行的刷新操作
+        self.apply_pending_refresh(window, cx);
+
         let view = cx.entity().clone();
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
 
-        // 获取今天的日期（用于高亮显示）
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
 
-        // 按日期分组 items
         let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
             HashMap::new();
         let store = cx.global::<TodoStore>();
@@ -384,14 +389,10 @@ impl Render for ScheduledBoard {
             let date_key = item
                 .due_date()
                 .and_then(|d| {
-                    // 从 date 字符串提取日期部分（YYYY-MM-DD）
-                    // 支持格式：2025-02-22T17:30:00 或 2025-02-22 17:30:00
                     let date_str = &d.date;
-                    // 先检查是否包含 'T'（ISO 格式）
                     if date_str.contains('T') {
                         date_str.split('T').next().map(String::from)
                     } else {
-                        // 使用空格分割（带空格的格式）
                         date_str.split(' ').next().map(String::from)
                     }
                 })
@@ -399,11 +400,9 @@ impl Render for ScheduledBoard {
             items_by_date.entry(date_key).or_default().push((i, item.clone()));
         }
 
-        // 按日期排序
         let mut sorted_dates: Vec<_> = items_by_date.into_keys().collect();
         sorted_dates.sort();
 
-        // 橙色用于今天的高亮 (HSLA: Hue 38, Saturation 100%, Lightness 53%, Alpha 100%)
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
 
         v_flex()
@@ -478,11 +477,9 @@ impl Render for ScheduledBoard {
                                         .due_date()
                                         .and_then(|d| {
                                             let date_str = &d.date;
-                                            // 先检查是否包含 'T'（ISO 格式）
                                             if date_str.contains('T') {
                                                 date_str.split('T').next().map(String::from)
                                             } else {
-                                                // 使用空格分割（带空格的格式）
                                                 date_str.split(' ').next().map(String::from)
                                             }
                                         })
@@ -499,7 +496,6 @@ impl Render for ScheduledBoard {
                             let view_clone = view.clone();
                             let is_today = date == today;
 
-                            // 自定义渲染 section，支持当天日期橙色高亮
                             let title_color =
                                 if is_today { orange_color } else { cx.theme().foreground };
 

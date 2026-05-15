@@ -12,6 +12,7 @@ use gpui_component::{
     input::{Input, InputEvent, InputState},
     list::{List, ListState},
     popover::Popover,
+    separator::Separator,
     v_flex,
 };
 use todos::entity::LabelModel;
@@ -305,7 +306,7 @@ impl Render for LabelsPopoverList {
                             )
                             .child(
                                 // 分隔线
-                                gpui_component::divider::Divider::horizontal().mt_1().mb_1(),
+                                Separator::horizontal().mt_1().mb_1(),
                             )
                             .child(
                                 // 新建标签输入框和按钮

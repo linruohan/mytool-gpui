@@ -3,7 +3,7 @@
 //! 显示重点关注的置顶任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
@@ -21,7 +21,7 @@ use gpui_component::{
 };
 
 use crate::{
-    BoardBase, ItemRowState, VisualHierarchy, section,
+    BoardBase, VisualHierarchy, section,
     todo_actions::{add_section, delete_item, delete_section, update_item, update_section},
     todo_state::TodoStore,
     ui::views::boards::{BoardView, board_renderer, container_board::Board},
@@ -36,6 +36,13 @@ impl EventEmitter<ItemClickEvent> for PinBoard {}
 
 pub struct PinBoard {
     base: BoardBase,
+    /// 跟踪当前 item_rows 对应的 item id 列表，用于增量更新
+    item_row_ids: Vec<String>,
+    /// 脏标记：当 TodoStore 数据变化时设为 true，
+    /// 在 render() 中执行实际的增量更新操作（需要 window 参数）
+    pending_refresh: Cell<bool>,
+    /// 延迟注册标记：避免在 new() 时立即注册全局观察者
+    observer_registered: Cell<bool>,
 }
 
 impl PinBoard {
@@ -46,58 +53,60 @@ impl PinBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
-        // 使用 TodoStore 作为数据源（新架构）
-        base._subscriptions =
-            vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                // 🚀 6.4优化：检查版本号并获取变更掩码
-                let mask = {
-                    let store = cx.global_mut::<TodoStore>();
-                    match this.base.todo_store_version_and_mask(store) {
-                        Some(m) => m,
-                        None => return, // 版本未变，直接跳过
-                    }
-                };
+        // 延迟注册：在首次 render 时通过 lazy_init_observer 注册
+        base._subscriptions = vec![];
 
-                // 🚀 6.4优化：检查掩码是否影响置顶视图
-                if !mask.affects_pinned() {
-                    return; // 本次变更不影响置顶视图，跳过重建
-                }
+        Self { base, item_row_ids: Vec::new(), pending_refresh: Cell::new(false), observer_registered: Cell::new(false) }
+    }
 
-                // 从 TodoStore 获取置顶任务（内存过滤，无需数据库查询）
-                let state_items = cx.global::<TodoStore>().pinned_items();
+    /// 延迟初始化全局观察者
+    ///
+    /// 只在首次 render 时注册，避免 new() 阶段访问 global_mut 导致的问题
+    fn lazy_init_observer(&self, cx: &mut Context<Self>) {
+        if self.observer_registered.get() {
+            return;
+        }
+        self.observer_registered.set(true);
 
-                // 更新 item_rows
-                this.base.item_rows = state_items
-                    .iter()
-                    .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-                    .collect();
+        let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
+            this.pending_refresh.set(true);
+            cx.notify();
+        });
+    }
 
-                // 清空并重新计算 pinned_items
-                this.base.pinned_items.clear();
-                this.base.no_section_items.clear();
-                this.base.section_items_map.clear();
+    /// 在 render() 中执行实际的增量更新
+    ///
+    /// 只在 pending_refresh=true 时执行，避免每帧重复操作
+    fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.lazy_init_observer(cx);
 
-                // 重新组织任务
-                for (i, item) in state_items.iter().enumerate() {
-                    // 所有任务都是置顶的，直接添加到 pinned_items
-                    this.base.pinned_items.push((i, item.clone()));
-                }
+        if !self.pending_refresh.get() {
+            return;
+        }
+        self.pending_refresh.set(false);
 
-                // 更新活动索引
-                if let Some(ix) = this.base.active_index {
-                    if ix >= this.base.item_rows.len() {
-                        this.base.active_index =
-                            if this.base.item_rows.is_empty() { None } else { Some(0) };
-                    }
-                } else if !this.base.item_rows.is_empty() {
-                    this.base.active_index = Some(0);
-                }
+        let state_items = cx.global::<TodoStore>().pinned_items();
 
-                // 触发视图更新
-                cx.notify();
-            })];
+        self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
 
-        Self { base }
+        // 清空并重新计算分类数据
+        self.base.pinned_items.clear();
+        self.base.no_section_items.clear();
+        self.base.section_items_map.clear();
+
+        for (i, item) in state_items.iter().enumerate() {
+            self.base.pinned_items.push((i, item.clone()));
+        }
+
+        // 更新活动索引
+        if let Some(ix) = self.base.active_index {
+            if ix >= self.base.item_rows.len() {
+                self.base.active_index =
+                    if self.base.item_rows.is_empty() { None } else { Some(0) };
+            }
+        } else if !self.base.item_rows.is_empty() {
+            self.base.active_index = Some(0);
+        }
     }
 
     pub(crate) fn get_selected_item(
@@ -105,7 +114,6 @@ impl PinBoard {
         ix: IndexPath,
         cx: &App,
     ) -> Option<Arc<todos::entity::ItemModel>> {
-        // 使用 TodoStore 获取数据
         let item_list = cx.global::<TodoStore>().pinned_items();
         item_list.get(ix.row).cloned()
     }
@@ -130,7 +138,6 @@ impl PinBoard {
         } else {
             let mut ori_item = todos::entity::ItemModel::default();
 
-            // If adding a new item with a section_id, set it
             if let Some(sid) = section_id {
                 ori_item.section_id = Some(sid);
             }
@@ -148,9 +155,7 @@ impl PinBoard {
             is_edit,
         );
 
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {
-            // 🚀 保存已由 save_all_changes 处理，这里不需要再调用 add_item/update_item
-        });
+        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -370,7 +375,6 @@ impl Board for PinBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        // 使用 TodoStore 获取计数
         cx.global::<TodoStore>().pinned_items().len()
     }
 
@@ -400,9 +404,12 @@ impl Focusable for PinBoard {
 impl Render for PinBoard {
     fn render(
         &mut self,
-        _window: &mut gpui::Window,
+        window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        // 在 render 开头处理待执行的刷新操作
+        self.apply_pending_refresh(window, cx);
+
         let view = cx.entity().clone();
         let sections = cx.global::<TodoStore>().sections.clone();
         let pinned_items = self.base.pinned_items.clone();
@@ -463,7 +470,7 @@ impl Render for PinBoard {
                                             })
                                         }
                                     }),
-                            )
+                            ),
                     ),
             )
             .child(
