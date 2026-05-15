@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct Source {
     pub model: SourceModel,
     base: BaseObject,
@@ -18,6 +19,7 @@ pub struct Source {
     store: OnceCell<Store>,
 }
 
+#[allow(dead_code)]
 impl Source {
     pub fn new(db: DatabaseConnection, model: SourceModel) -> Self {
         let base = BaseObject::default();

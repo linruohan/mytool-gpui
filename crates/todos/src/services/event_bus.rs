@@ -28,6 +28,7 @@ pub trait EventTrait: Clone + Send + Sync + 'static {}
 
 /// 泛型事件包装器
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct EventWrapper {
     type_id: TypeId,
     payload: Arc<dyn std::any::Any + Send + Sync>,

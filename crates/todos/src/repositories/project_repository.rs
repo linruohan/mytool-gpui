@@ -262,6 +262,7 @@ pub trait ProjectRepository {
     async fn find_by_parent(&self, parent_id: &str) -> Result<Vec<ProjectModel>, TodoError>;
 }
 
+#[allow(deprecated)]
 #[async_trait::async_trait]
 impl ProjectRepository for ProjectRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<ProjectModel, TodoError> {

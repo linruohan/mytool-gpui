@@ -16,9 +16,9 @@ use tracing::{error, info, warn};
 /// 应用错误类型
 #[derive(Debug, Error)]
 pub enum AppError {
-    /// 数据库错误
+    /// 数据库错误（使用 Box 减小枚举大小）
     #[error("数据库错误: {0}")]
-    Database(#[from] todos::error::TodoError),
+    Database(#[from] Box<todos::error::TodoError>),
 
     /// 验证错误
     #[error("验证错误: {0}")]

@@ -150,6 +150,7 @@ impl Util {
     }
 
     /// 检查 URL 是否存在于列表中
+    #[allow(dead_code)]
     fn url_exists(&self, url: String, urls: Vec<RegexMarkdown>) -> bool {
         for m in urls {
             if url == m.extra {

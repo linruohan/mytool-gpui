@@ -6,7 +6,7 @@ use todos::{Store, entity::SectionModel, error::TodoError};
 // ==================== 加载分区 ====================
 
 /// 加载所有的 sections
-#[deprecated(since = "2.0", note = "请使用 load_sections_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 load_sections_with_store() 方法")]
 pub async fn load_sections(db: DatabaseConnection) -> Vec<SectionModel> {
     match Store::new(db).await {
         Ok(store) => store.get_all_sections().await.unwrap_or_default(),
@@ -22,7 +22,7 @@ pub async fn load_sections_with_store(store: Arc<Store>) -> Result<Vec<SectionMo
 // ==================== 添加分区 ====================
 
 /// 新增 section
-#[deprecated(since = "2.0", note = "请使用 add_section_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 add_section_with_store() 方法")]
 pub async fn add_section(
     section: Arc<SectionModel>,
     db: DatabaseConnection,
@@ -42,7 +42,7 @@ pub async fn add_section_with_store(
 // ==================== 修改分区 ====================
 
 /// 修改 section
-#[deprecated(since = "2.0", note = "请使用 mod_section_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 mod_section_with_store() 方法")]
 pub async fn mod_section(
     section: Arc<SectionModel>,
     db: DatabaseConnection,
@@ -62,7 +62,7 @@ pub async fn mod_section_with_store(
 // ==================== 删除分区 ====================
 
 /// 删除 section
-#[deprecated(since = "2.0", note = "请使用 del_section_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 del_section_with_store() 方法")]
 pub async fn del_section(
     section: Arc<SectionModel>,
     db: DatabaseConnection,

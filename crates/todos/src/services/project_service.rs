@@ -2,6 +2,7 @@
 //!
 //! This module provides business logic for Project operations,
 //! separating it from data access layer.
+#![allow(deprecated)] // 允许使用废弃的 Repository trait（兼容层，待迁移到 BaseRepository）
 
 use std::sync::Arc;
 

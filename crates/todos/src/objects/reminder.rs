@@ -14,6 +14,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct Reminder {
     pub model: ReminderModel,
+    #[allow(dead_code)]
     base: BaseObject,
     db: DatabaseConnection,
     store: OnceCell<Store>,
@@ -101,8 +102,6 @@ impl Reminder {
             ReminderType::RELATIVE => utils::Util::get_default()
                 .get_reminders_mm_offset_text(self.model.mm_offset.unwrap_or_default())
                 .to_string(),
-
-            _ => String::new(),
         }
     }
 

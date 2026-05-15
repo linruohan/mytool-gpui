@@ -90,7 +90,7 @@ impl<'a> ActionExecutor<'a> {
                 },
                 Err(e) => {
                     let context = ErrorHandler::handle_with_resource(
-                        AppError::Database(e),
+                        AppError::Database(Box::new(e)),
                         &op_name,
                         &entity_id,
                     );
@@ -130,7 +130,7 @@ impl<'a> ActionExecutor<'a> {
                 },
                 Err(e) => {
                     let context = ErrorHandler::handle_with_resource(
-                        AppError::Database(e),
+                        AppError::Database(Box::new(e)),
                         &op_name,
                         &entity_id,
                     );
@@ -166,7 +166,7 @@ impl<'a> ActionExecutor<'a> {
                 },
                 Err(e) => {
                     let context = ErrorHandler::handle_with_resource(
-                        AppError::Database(e),
+                        AppError::Database(Box::new(e)),
                         &op_name,
                         &entity_id,
                     );

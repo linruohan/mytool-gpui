@@ -24,22 +24,22 @@ impl DateTime {
     }
 
     pub fn get_relative_date_from_date(&self, datetime: &NaiveDateTime) -> String {
-        let mut returned = String::new();
         let format_str = self.get_default_date_format_from_date(datetime).clone();
-        if self.is_today(datetime) {
-            returned = "Today".to_string();
+        let returned = if self.is_today(datetime) {
+            "Today".to_string()
         } else if self.is_tomorrow(datetime) {
-            returned = "Tomorrow".to_string();
+            "Tomorrow".to_string()
         } else if self.is_yesterday(datetime) {
-            returned = "Yesterday".to_string();
+            "Yesterday".to_string()
         } else {
             // 使用 format 方法将日期格式化为字符串，而不是直接返回格式字符串
-            returned = datetime.format(&format_str).to_string();
-        }
+            datetime.format(&format_str).to_string()
+        };
         if self.has_time(datetime) {
-            return format!("{} {}", returned, datetime.format(self.get_default_time_format()));
+            format!("{} {}", returned, datetime.format(self.get_default_time_format()))
+        } else {
+            returned
         }
-        returned
     }
 
     pub fn get_relative_datetime(&self, datetime: NaiveDateTime) -> String {
@@ -332,8 +332,6 @@ impl DateTime {
     ) -> NaiveDateTime {
         let weeks: Vec<&str> = duedate.recurrency_weeks.split(",").collect(); // [1, 2, 3]
         let day_of_week: i64 = datetime.weekday().num_days_from_monday() as i64; // 2
-        let mut days: i64 = 0;
-        let mut next_day: i64 = 0;
         let mut index = 0;
         let mut recurrency_interval = 0;
 
@@ -343,13 +341,13 @@ impl DateTime {
                 break;
             }
         }
-        next_day = weeks[index].parse::<i64>().unwrap();
+        let next_day: i64 = weeks[index].parse::<i64>().unwrap();
 
-        if day_of_week < next_day {
-            days = next_day - day_of_week;
+        let days: i64 = if day_of_week < next_day {
+            next_day - day_of_week
         } else {
-            days = 7 - (day_of_week - next_day);
-        }
+            7 - (day_of_week - next_day)
+        };
 
         if user && index == 0 {
             recurrency_interval = (duedate.recurrency_interval - 1) * 7;
@@ -424,12 +422,10 @@ impl DateTime {
 
     pub fn get_todoist_datetime_format(&self, date: &NaiveDateTime) -> String {
         if self.has_time(date) {
-            return format!("{}T{}", date.format("%F"), date.format("%T"));
+            format!("{}T{}", date.format("%F"), date.format("%T"))
         } else {
-            return date.format("%F").to_string();
+            date.format("%F").to_string()
         }
-
-        "".to_string()
     }
 
     pub fn has_time_from_string(&self, date: &NaiveDateTime) -> bool {

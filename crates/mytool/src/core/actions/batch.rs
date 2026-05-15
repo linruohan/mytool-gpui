@@ -83,7 +83,7 @@ pub fn batch_add_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
             cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
         let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
 
-        match crate::state_service::batch_add_items(items_vec, (*store.db()).clone()).await {
+        match crate::state_service::batch_add_items_with_store(items_vec, store).await {
             Ok(new_items) => {
                 info!("Successfully added {} items in batch", new_items.len());
 
@@ -119,7 +119,7 @@ pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
             cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
         let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
 
-        match crate::state_service::batch_update_items(items_vec, (*store.db()).clone()).await {
+        match crate::state_service::batch_update_items_with_store(items_vec, store).await {
             Ok(updated_items) => {
                 info!("Successfully updated {} items in batch", updated_items.len());
 
@@ -155,7 +155,7 @@ pub fn batch_delete_items(item_ids: Vec<String>, cx: &mut App) {
         let store =
             cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
 
-        match crate::state_service::batch_delete_items(item_ids, (*store.db()).clone()).await {
+        match crate::state_service::batch_delete_items_with_store(item_ids, store).await {
             Ok(deleted_count) => {
                 info!("Successfully deleted {} items in batch", deleted_count);
 
@@ -191,11 +191,11 @@ pub fn batch_complete_items(item_ids: Vec<String>, checked: bool, cx: &mut App) 
         let store =
             cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
 
-        match crate::state_service::batch_complete_items(
+        match crate::state_service::batch_complete_items_with_store(
             ids_clone.clone(),
             checked,
             false,
-            (*store.db()).clone(),
+            store,
         )
         .await
         {
@@ -240,13 +240,12 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp) {
 
     // 获取全局 Store
     let store = cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
-    let db = store.db();
 
     // 批量添加
     if !queue.pending_adds.is_empty() {
         let items: Vec<ItemModel> =
             queue.pending_adds.iter().map(|item| (**item).clone()).collect();
-        match crate::state_service::batch_add_items(items, (*db).clone()).await {
+        match crate::state_service::batch_add_items_with_store(items, store.clone()).await {
             Ok(new_items) => {
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in new_items {
@@ -264,7 +263,7 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp) {
     if !queue.pending_updates.is_empty() {
         let items: Vec<ItemModel> =
             queue.pending_updates.iter().map(|item| (**item).clone()).collect();
-        match crate::state_service::batch_update_items(items, (*db).clone()).await {
+        match crate::state_service::batch_update_items_with_store(items, store.clone()).await {
             Ok(updated_items) => {
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in updated_items {
@@ -281,7 +280,8 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp) {
     // 批量删除
     if !queue.pending_deletes.is_empty() {
         let ids = queue.pending_deletes.clone();
-        match crate::state_service::batch_delete_items(ids.clone(), (*db).clone()).await {
+        match crate::state_service::batch_delete_items_with_store(ids.clone(), store.clone()).await
+        {
             Ok(_) => {
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item_id in ids {
@@ -311,11 +311,11 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp) {
 
         // 批量完成
         if !to_complete.is_empty() {
-            match crate::state_service::batch_complete_items(
+            match crate::state_service::batch_complete_items_with_store(
                 to_complete.clone(),
                 true,
                 false,
-                (*db).clone(),
+                store.clone(),
             )
             .await
             {
@@ -341,11 +341,11 @@ pub async fn flush_batch_queue(queue: &mut BatchQueue, cx: &mut AsyncApp) {
 
         // 批量取消完成
         if !to_uncomplete.is_empty() {
-            match crate::state_service::batch_complete_items(
+            match crate::state_service::batch_complete_items_with_store(
                 to_uncomplete.clone(),
                 false,
                 false,
-                (*db).clone(),
+                store.clone(),
             )
             .await
             {

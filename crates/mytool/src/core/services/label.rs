@@ -6,7 +6,7 @@ use todos::{Store, entity::LabelModel, error::TodoError};
 // ==================== 加载标签 ====================
 
 /// 加载所有标签
-#[deprecated(since = "2.0", note = "请使用 load_labels_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 load_labels_with_store() 方法")]
 pub async fn load_labels(db: DatabaseConnection) -> Vec<LabelModel> {
     match Store::new(db).await {
         Ok(store) => store.get_all_labels().await.unwrap_or_default(),
@@ -22,7 +22,7 @@ pub async fn load_labels_with_store(store: Arc<Store>) -> Result<Vec<LabelModel>
 // ==================== 添加标签 ====================
 
 /// 添加标签
-#[deprecated(since = "2.0", note = "请使用 add_label_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 add_label_with_store() 方法")]
 pub async fn add_label(
     label: Arc<LabelModel>,
     db: DatabaseConnection,
@@ -42,7 +42,7 @@ pub async fn add_label_with_store(
 // ==================== 修改标签 ====================
 
 /// 修改标签
-#[deprecated(since = "2.0", note = "请使用 mod_label_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 mod_label_with_store() 方法")]
 pub async fn mod_label(
     label: Arc<LabelModel>,
     db: DatabaseConnection,
@@ -62,7 +62,7 @@ pub async fn mod_label_with_store(
 // ==================== 删除标签 ====================
 
 /// 删除标签
-#[deprecated(since = "2.0", note = "请使用 del_label_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 del_label_with_store() 方法")]
 pub async fn del_label(label: Arc<LabelModel>, db: DatabaseConnection) -> Result<u64, TodoError> {
     let store = Arc::new(Store::new(db).await?);
     del_label_with_store(label, store).await

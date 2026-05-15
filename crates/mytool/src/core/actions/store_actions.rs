@@ -30,8 +30,11 @@ fn notify_store_operation_error(
     resource_id: &str,
     err: TodoError,
 ) {
-    let context =
-        ErrorHandler::handle_with_resource(AppError::Database(err), operation, resource_id);
+    let context = ErrorHandler::handle_with_resource(
+        AppError::Database(Box::new(err)),
+        operation,
+        resource_id,
+    );
     error!("{}", context.format_user_message());
     cx.update_global::<ErrorNotifier, _>(|notifier, _| {
         notifier.set_error(context.format_user_message());

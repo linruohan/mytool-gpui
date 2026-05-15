@@ -34,6 +34,7 @@ pub struct ServiceManager {
     attachment_service: Arc<AttachmentService>,
     date_validation_service: Arc<DateValidationService>,
     // 用于跟踪是否已经应用过补丁
+    #[allow(dead_code)]
     patches_applied: bool,
 }
 

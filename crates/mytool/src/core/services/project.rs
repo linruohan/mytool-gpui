@@ -6,7 +6,7 @@ use todos::{Store, entity::ProjectModel, error::TodoError};
 // ==================== 加载项目 ====================
 
 /// 获取所有的 projects
-#[deprecated(since = "2.0", note = "请使用 load_projects_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 load_projects_with_store() 方法")]
 pub async fn load_projects(db: DatabaseConnection) -> Vec<ProjectModel> {
     match Store::new(db).await {
         Ok(store) => store.get_all_projects().await.unwrap_or_default(),
@@ -22,7 +22,7 @@ pub async fn load_projects_with_store(store: Arc<Store>) -> Result<Vec<ProjectMo
 // ==================== 添加项目 ====================
 
 /// 新增 project
-#[deprecated(since = "2.0", note = "请使用 add_project_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 add_project_with_store() 方法")]
 pub async fn add_project(
     project: Arc<ProjectModel>,
     db: DatabaseConnection,
@@ -42,7 +42,7 @@ pub async fn add_project_with_store(
 // ==================== 修改项目 ====================
 
 /// 修改 project
-#[deprecated(since = "2.0", note = "请使用 mod_project_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 mod_project_with_store() 方法")]
 pub async fn mod_project(
     project: Arc<ProjectModel>,
     db: DatabaseConnection,
@@ -62,7 +62,7 @@ pub async fn mod_project_with_store(
 // ==================== 删除项目 ====================
 
 /// 删除 project
-#[deprecated(since = "2.0", note = "请使用 del_project_with_store() 方法")]
+#[deprecated(since = "2.0.0", note = "请使用 del_project_with_store() 方法")]
 pub async fn del_project(
     project: Arc<ProjectModel>,
     db: DatabaseConnection,

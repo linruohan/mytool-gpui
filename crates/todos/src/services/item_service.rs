@@ -2,6 +2,7 @@
 //!
 //! This module provides business logic for Item operations,
 //! separating it from data access layer.
+#![allow(deprecated)] // 允许使用废弃的 Repository trait（兼容层，待迁移到 BaseRepository）
 
 use std::sync::Arc;
 
@@ -347,7 +348,7 @@ impl ItemService {
             .filter(items::Column::ProjectId.eq(project_id))
             .all(&*self.db)
             .await?;
-        self.metrics.record_operation("get_items_by_project", items.len());
+        self.metrics.record_operation("get_items_by_project", items.len()).await;
         Ok(items)
     }
 
@@ -361,7 +362,7 @@ impl ItemService {
             .filter(items::Column::SectionId.eq(section_id))
             .all(&*self.db)
             .await?;
-        self.metrics.record_operation("get_items_by_section", items.len());
+        self.metrics.record_operation("get_items_by_section", items.len()).await;
         Ok(items)
     }
 
@@ -370,7 +371,7 @@ impl ItemService {
         let _timer = self.metrics.start_timer("get_subitems");
         let items =
             ItemEntity::find().filter(items::Column::ParentId.eq(item_id)).all(&*self.db).await?;
-        self.metrics.record_operation("get_subitems", items.len());
+        self.metrics.record_operation("get_subitems", items.len()).await;
         Ok(items)
     }
 
@@ -379,7 +380,7 @@ impl ItemService {
         let _timer = self.metrics.start_timer("get_pinned_items");
         let items =
             ItemEntity::find().filter(items::Column::Pinned.eq(true)).all(&*self.db).await?;
-        self.metrics.record_operation("get_pinned_items", items.len());
+        self.metrics.record_operation("get_pinned_items", items.len()).await;
         Ok(items)
     }
 
@@ -391,7 +392,7 @@ impl ItemService {
             .filter(items::Column::Checked.eq(false))
             .all(&*self.db)
             .await?;
-        self.metrics.record_operation("get_incomplete_pinned_items", items.len());
+        self.metrics.record_operation("get_incomplete_pinned_items", items.len()).await;
         Ok(items)
     }
 
@@ -400,7 +401,7 @@ impl ItemService {
         let _timer = self.metrics.start_timer("get_completed_items");
         let items =
             ItemEntity::find().filter(items::Column::Checked.eq(true)).all(&*self.db).await?;
-        self.metrics.record_operation("get_completed_items", items.len());
+        self.metrics.record_operation("get_completed_items", items.len()).await;
         Ok(items)
     }
 
@@ -409,7 +410,7 @@ impl ItemService {
         let _timer = self.metrics.start_timer("get_incomplete_items");
         let items =
             ItemEntity::find().filter(items::Column::Checked.eq(false)).all(&*self.db).await?;
-        self.metrics.record_operation("get_incomplete_items", items.len());
+        self.metrics.record_operation("get_incomplete_items", items.len()).await;
         Ok(items)
     }
 
@@ -440,7 +441,7 @@ impl ItemService {
             result.push(item);
         }
 
-        self.metrics.record_operation("get_all_items", result.len());
+        self.metrics.record_operation("get_all_items", result.len()).await;
         Ok(result)
     }
 
@@ -458,7 +459,7 @@ impl ItemService {
             let b_date = b.due_date().and_then(|d| d.datetime());
             a_date.cmp(&b_date)
         });
-        self.metrics.record_operation("get_scheduled_items", items.len());
+        self.metrics.record_operation("get_scheduled_items", items.len()).await;
         Ok(items)
     }
 
@@ -470,7 +471,7 @@ impl ItemService {
             .filter(items::Column::Content.contains(&search_lower))
             .all(&*self.db)
             .await?;
-        self.metrics.record_operation("search_items", items.len());
+        self.metrics.record_operation("search_items", items.len()).await;
         Ok(items)
     }
 
@@ -546,14 +547,14 @@ impl ItemService {
         let item_ids = self.item_label_repo.get_items_by_label(label_id).await?;
 
         if item_ids.is_empty() {
-            self.metrics.record_operation("get_items_by_label", 0);
+            self.metrics.record_operation("get_items_by_label", 0).await;
             return Ok(vec![]);
         }
 
         let items =
             ItemEntity::find().filter(items::Column::Id.is_in(item_ids)).all(&*self.db).await?;
 
-        self.metrics.record_operation("get_items_by_label", items.len());
+        self.metrics.record_operation("get_items_by_label", items.len()).await;
         Ok(items)
     }
 
@@ -568,7 +569,7 @@ impl ItemService {
 
         let labels = self.item_label_repo.get_labels_by_item(item_id).await?;
 
-        self.metrics.record_operation("get_labels_by_item", labels.len());
+        self.metrics.record_operation("get_labels_by_item", labels.len()).await;
         Ok(labels)
     }
 

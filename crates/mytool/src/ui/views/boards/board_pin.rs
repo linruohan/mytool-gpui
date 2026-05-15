@@ -56,7 +56,12 @@ impl PinBoard {
         // 延迟注册：在首次 render 时通过 lazy_init_observer 注册
         base._subscriptions = vec![];
 
-        Self { base, item_row_ids: Vec::new(), pending_refresh: Cell::new(false), observer_registered: Cell::new(false) }
+        Self {
+            base,
+            item_row_ids: Vec::new(),
+            pending_refresh: Cell::new(false),
+            observer_registered: Cell::new(false),
+        }
     }
 
     /// 延迟初始化全局观察者

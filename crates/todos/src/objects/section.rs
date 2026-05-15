@@ -12,11 +12,14 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct Section {
     pub model: SectionModel,
+    #[allow(dead_code)]
     base: BaseObject,
     db: DatabaseConnection,
     store: OnceCell<Store>,
+    #[allow(dead_code)]
     activate_name_editable: bool,
 }
+#[allow(dead_code)]
 impl Section {
     pub fn new(db: DatabaseConnection, model: SectionModel) -> Self {
         let base = BaseObject::default();
@@ -42,6 +45,7 @@ impl Section {
         Ok(Self::new(db, item))
     }
 
+    #[allow(dead_code)]
     pub fn short_name(&self) -> String {
         Util::default().get_short_name(&self.model.name, 0)
     }
@@ -93,22 +97,12 @@ impl Section {
 
     pub async fn get_subitem_size(&self, item_id: &str) -> usize {
         let mut count = 0;
-        Box::pin(async move {
-            if let Ok(subitems) = self.store().await.get_subitems(item_id).await {
-                count += subitems.len();
-                for subitem in subitems {
-                    count += self.get_subitem_size(&subitem.id).await;
-                }
+        if let Ok(subitems) = self.store().await.get_subitems(item_id).await {
+            count += subitems.len();
+            for subitem in &subitems {
+                count += Box::pin(self.get_subitem_size(&subitem.id)).await;
             }
-
-            if let Ok(subitems_uncomplete) = self.store().await.get_subitems(item_id).await {
-                count += subitems_uncomplete.len();
-                for subitem in subitems_uncomplete {
-                    count += self.get_subitem_size(&subitem.id).await;
-                }
-            }
-        })
-        .await;
+        }
         count
     }
 

@@ -31,7 +31,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "add_project",
                     &project.id,
                 );
@@ -64,7 +64,7 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "update_project",
                     &project.id,
                 );
@@ -91,7 +91,7 @@ pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "delete_project",
                     &project_id,
                 );

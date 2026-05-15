@@ -23,7 +23,8 @@ fn handle_db_error(
     entity_id: &str,
     e: todos::error::TodoError,
 ) {
-    let context = ErrorHandler::handle_with_resource(AppError::Database(e), operation, entity_id);
+    let context =
+        ErrorHandler::handle_with_resource(AppError::Database(Box::new(e)), operation, entity_id);
     error!("{}", context.format_user_message());
     cx.update_global::<ErrorNotifier, _>(|notifier, _| {
         notifier.set_error(context.format_user_message());

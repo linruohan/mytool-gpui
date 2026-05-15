@@ -21,6 +21,7 @@ pub struct Project {
     store: OnceCell<Store>,
     project_count: Option<usize>,
 }
+#[allow(dead_code)]
 impl Project {
     pub fn icon_style(&self) -> ProjectIconStyle {
         self.model.icon_style.as_deref().map_or(ProjectIconStyle::PROGRESS, ProjectIconStyle::parse)
@@ -50,6 +51,7 @@ impl Project {
     }
 }
 
+#[allow(dead_code)]
 impl Project {
     pub fn new(db: DatabaseConnection, model: ProjectModel) -> Self {
         let base = BaseObject::default();

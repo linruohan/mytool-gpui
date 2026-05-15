@@ -21,7 +21,6 @@ impl ProjectIconStyle {
         match self {
             ProjectIconStyle::PROGRESS => "process",
             ProjectIconStyle::EMOJI => "emoji",
-            _ => "process",
         }
     }
 }

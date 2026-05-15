@@ -145,7 +145,7 @@ impl Label {
             self.store().await.get_items_by_label(self.id()).await.unwrap_or_default();
         for item_model in items_model {
             let mut item = Item::from_db(self.db.clone(), &item_model.id).await?;
-            item.delete_item_label(&self.model.id).await;
+            let _ = item.delete_item_label(&self.model.id).await;
         }
         self.store().await.delete_label(self.id()).await
     }

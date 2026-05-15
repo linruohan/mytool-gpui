@@ -71,7 +71,7 @@ async fn refresh_project_items_impl(project_id: &str, cx: &mut AsyncApp) {
         },
         Err(e) => {
             let context = ErrorHandler::handle_with_resource(
-                AppError::Database(e),
+                AppError::Database(Box::new(e)),
                 "get_items_by_project_id_with_store",
                 project_id,
             );

@@ -236,6 +236,7 @@ pub trait LabelRepository {
     async fn delete(&self, id: &str) -> Result<u64, TodoError>;
 }
 
+#[allow(deprecated)]
 #[async_trait::async_trait]
 impl LabelRepository for LabelRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<LabelModel, TodoError> {

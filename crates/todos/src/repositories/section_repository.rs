@@ -215,6 +215,7 @@ pub trait SectionRepository {
     async fn delete(&self, id: &str) -> Result<(), TodoError>;
 }
 
+#[allow(deprecated)]
 #[async_trait::async_trait]
 impl SectionRepository for SectionRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<SectionModel, TodoError> {

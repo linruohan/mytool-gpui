@@ -31,7 +31,7 @@ pub fn add_label(label: Arc<LabelModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "add_label",
                     &label.id,
                 );
@@ -64,7 +64,7 @@ pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "update_label",
                     &label.id,
                 );
@@ -91,7 +91,7 @@ pub fn delete_label(label: Arc<LabelModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "delete_label",
                     &label_id,
                 );

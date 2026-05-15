@@ -84,7 +84,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "add_item_optimistic",
                     &item.id,
                 );
@@ -147,7 +147,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "update_item_optimistic",
                     &item_id,
                 );
@@ -202,7 +202,7 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "delete_item_optimistic",
                     &item_id,
                 );
@@ -263,7 +263,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "set_item_pinned_optimistic",
                     &item_id,
                 );
@@ -343,7 +343,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(e),
+                    AppError::Database(Box::new(e)),
                     "complete_item_optimistic",
                     &item_id,
                 );

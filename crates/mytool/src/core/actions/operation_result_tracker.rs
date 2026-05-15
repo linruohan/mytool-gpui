@@ -109,7 +109,7 @@ pub struct OperationResultTracker {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub(crate) struct OperationHistoryEntry {
+pub struct OperationHistoryEntry {
     item_id: String,
     operation_type: OperationType,
     status: OperationStatus,

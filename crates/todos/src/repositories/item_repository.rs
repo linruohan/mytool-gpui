@@ -325,6 +325,7 @@ pub trait ItemRepository {
     async fn delete(&self, id: &str) -> Result<(), TodoError>;
 }
 
+#[allow(deprecated)]
 #[async_trait::async_trait]
 impl ItemRepository for ItemRepositoryImpl {
     async fn find_by_id(&self, id: &str) -> Result<ItemModel, TodoError> {

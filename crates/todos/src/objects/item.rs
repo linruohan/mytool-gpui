@@ -386,12 +386,12 @@ impl Item {
     pub async fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
         for (_key, label) in &new_labels {
             if self.get_label(&label.id).await.is_none() {
-                self.add_label_if_not_exists(label);
+                let _ = self.add_label_if_not_exists(label).await;
             }
         }
         for label in self.labels().await {
             if !new_labels.contains_key(&label.id) {
-                self.delete_item_label(&label.id);
+                let _ = self.delete_item_label(&label.id).await;
             }
         }
     }
@@ -569,7 +569,7 @@ impl Item {
     }
 
     pub async fn update_local(&self) {
-        self.store().await.update_item(self.model.clone(), "").await;
+        let _ = self.store().await.update_item(self.model.clone(), "").await;
     }
 
     pub async fn update(&self, update_id: &str) -> Result<ItemModel, TodoError> {
@@ -633,7 +633,7 @@ impl Item {
     }
 
     pub async fn update_sync(&self, update_id: &str) {
-        self.store().await.update_item(self.model.clone(), update_id);
+        let _ = self.store().await.update_item(self.model.clone(), update_id).await;
     }
 
     pub async fn update_due(&mut self, due_date: DueDate) {
@@ -710,7 +710,7 @@ impl Item {
     }
 
     pub async fn complete_item(&self) {
-        self.store().await.complete_item(&self.model.id, true, true).await;
+        let _ = self.store().await.complete_item(&self.model.id, true, true).await;
     }
 }
 
