@@ -577,19 +577,13 @@ impl Render for ProjectItemsPanel {
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
                                     .label("Add Task")
-                                    .dropdown_menu({
+                                    .on_click({
                                         let view = view.clone();
-                                        move |this, window, _cx| {
-                                            // 添加 "No Section" 选项
-                                            this.item(
-                                                PopupMenuItem::new("No Section").on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_dialog(window, cx, false, None);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_item_dialog(window, cx, false, None);
+                                                cx.notify();
+                                            })
                                         }
                                     }),
                             )
