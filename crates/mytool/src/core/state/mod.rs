@@ -99,6 +99,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
 
+    // 初始化保存结果状态
+    cx.set_global(SaveResults::new());
+
     // 异步创建 Store 并加载数据
     cx.spawn(async move |cx| {
         tracing::info!("Initializing Store asynchronously...");

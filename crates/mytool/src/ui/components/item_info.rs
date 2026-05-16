@@ -4,9 +4,10 @@ use std::{
 };
 
 use gpui::{
-    Action, App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div, px,
+    Action, App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter,
+    FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement as _, Render,
+    RenderOnce, StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
+    px,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
@@ -23,7 +24,7 @@ use todos::{
     entity::{ItemModel, LabelModel},
     enums::item_priority::ItemPriority,
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use super::{
     AttachmentButton, AttachmentButtonState, PriorityButton, PriorityEvent, PriorityState,
@@ -81,6 +82,21 @@ pub struct ItemStateManager {
     has_unsaved_changes: bool,
     /// 是否是新建任务
     is_new_item: bool,
+    /// 🚀 7.0新增：保存状态（用于 UI 显示）
+    pub save_status: SaveItemStatus,
+}
+
+/// 🚀 7.0新增：保存状态枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaveItemStatus {
+    /// 空闲（无正在进行的保存操作）
+    Idle,
+    /// 正在保存
+    Saving,
+    /// 保存成功
+    Succeeded,
+    /// 保存失败
+    Failed,
 }
 
 impl ItemStateManager {
@@ -95,6 +111,7 @@ impl ItemStateManager {
             update_interval: Duration::from_millis(500), // 500ms 更新间隔
             has_unsaved_changes: false,
             is_new_item: is_new,
+            save_status: SaveItemStatus::Idle,
         }
     }
 
@@ -237,12 +254,14 @@ struct Info(i32);
 const CONTEXT: &str = "ItemInfo";
 #[derive(Clone)]
 pub enum ItemInfoEvent {
-    Updated(),    // 更新任务
-    Added(),      // 新增任务
-    Finished(),   // 状态改为完成
-    UnFinished(), // 状态改为未完成
-    Deleted(),    // 删除任务
-    Cancelled(),  // 取消编辑（不保存）
+    Updated(),       // 更新任务
+    Added(),         // 新增任务
+    Finished(),      // 状态改为完成
+    UnFinished(),    // 状态改为未完成
+    Deleted(),       // 删除任务
+    Cancelled(),     // 取消编辑（不保存）
+    SaveSucceeded(), // 🚀 7.0: 异步保存成功
+    SaveFailed(),    // 🚀 7.0: 异步保存失败
 }
 pub struct ItemInfoState {
     focus_handle: FocusHandle,
@@ -545,12 +564,10 @@ impl ItemInfoState {
                     let item_id_for_log = item_id_for_labels.clone(); // 用于日志
                     tracing::debug!("Executing async label save for item: {}", item_id_for_labels);
                     match crate::core::tokio_runtime::spawn_db_operation(async move {
-                        if !db_state.is_store_ready() {
-                            tracing::warn!("Store not ready, skipping label save");
-                            return Err(todos::error::TodoError::DatabaseError(
-                                "Store not ready".to_string(),
-                            ));
-                        }
+                        // 🚀 7.0修复：等待 Store 就绪，而非静默跳过
+                        db_state
+                            .wait_for_store_ready(Some(std::time::Duration::from_secs(5)))
+                            .await?;
                         let store = db_state.get_store();
                         store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await
                     })
@@ -562,7 +579,6 @@ impl ItemInfoState {
                                     "save_all_changes: labels saved successfully for item {}",
                                     item_id_for_log
                                 );
-                                // 标签保存成功后发布事件，触发UI更新
                                 cx.update_global::<TodoEventBus, _>(|bus, _| {
                                     bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log));
                                 });
@@ -571,6 +587,14 @@ impl ItemInfoState {
                                 error!(
                                     "save_all_changes: failed to save labels for item {}: {:?}",
                                     item_id_for_log, e
+                                );
+                                cx.update_global::<crate::core::state::ErrorNotifier, _>(
+                                    |notifier, _| {
+                                        notifier.set_error(format!(
+                                            "标签保存失败：{}，请检查网络连接后重试",
+                                            e
+                                        ));
+                                    },
                                 );
                             },
                         },
@@ -594,47 +618,73 @@ impl ItemInfoState {
                 let item_id_for_log = item_id_for_save.clone(); // 用于日志和事件
                 let item_for_update = item_for_save.clone(); // 用于更新TodoStore
                 tracing::debug!("Executing async database save for item: {}", item_id_for_save);
-                match crate::core::tokio_runtime::spawn_db_operation(async move {
-                    if !db_state.is_store_ready() {
-                        tracing::warn!("Store not ready, skipping item save");
-                        return Err(todos::error::TodoError::DatabaseError(
-                            "Store not ready".to_string(),
-                        ));
-                    }
+                let save_result = crate::core::tokio_runtime::spawn_db_operation(async move {
+                    // 🚀 7.0修复：等待 Store 就绪，而非静默跳过
+                    db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
                     let store = db_state.get_store();
-                    state_service::mod_item_with_store(item_for_save, store).await
+
+                    // 🚀 7.0新增：使用重试机制，自动处理临时性错误
+                    crate::core::utils::retry::retry_async_todo(
+                        move |_attempt| {
+                            let store = store.clone();
+                            let item = item_for_save.clone();
+                            async move { state_service::mod_item_with_store(item, store).await }
+                        },
+                        crate::core::utils::retry::RetryConfig::for_db_operation(),
+                    )
+                    .await
                 })
-                .await
-                {
+                .await;
+
+                match save_result {
                     Ok(result) => match result {
                         Ok(_updated_item) => {
                             tracing::info!("Item saved successfully: {}", item_id_for_log);
+                            // 仅在成功时更新 TodoStore 和发布事件
+                            cx.update_global::<TodoStore, _>(|store, _| {
+                                store.update_item(item_for_update.clone());
+                            });
+                            cx.update_global::<TodoEventBus, _>(|bus, _| {
+                                bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log.clone()));
+                            });
+                            // 🚀 7.0修复：记录保存成功结果，让主线程后续处理
+                            cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                                results.mark_succeeded(item_id_for_log.clone());
+                            });
                         },
                         Err(e) => {
                             tracing::error!("Failed to save item {}: {:?}", item_id_for_log, e);
+                            // 🚀 7.0修复：失败时通知用户并记录失败结果
+                            cx.update_global::<crate::core::state::ErrorNotifier, _>(
+                                |notifier, _| {
+                                    notifier
+                                        .set_error(format!("任务保存失败：{}，请检查后重试", e));
+                                },
+                            );
+                            // 🚀 7.0修复：记录保存失败结果
+                            cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                                results.mark_failed(item_id_for_log.clone());
+                            });
                         },
                     },
                     Err(e) => {
                         tracing::error!("Item save task panicked: {:?}", e);
                     },
                 }
-
-                // 保存完成后更新 TodoStore 和发布事件
-                cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(item_for_update.clone());
-                });
-                cx.update_global::<TodoEventBus, _>(|bus, _| {
-                    bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log));
-                });
             })
             .detach();
 
-            tracing::debug!("Async database operation dispatched for item: {}", item_id);
+            tracing::debug!("Async database save dispatched for item: {}", item_id);
 
-            // UI立即响应：标记已保存并发布事件
+            // UI立即响应：发布事件（但不立即 mark_clean）
+            self.state_manager.save_status = SaveItemStatus::Saving;
             cx.emit(ItemInfoEvent::Updated());
-            // 🚀 标记已保存（乐观标记，不等后台完成）
-            self.state_manager.mark_clean();
+            // 🚀 7.0修复：不再立即 mark_clean()
+            // 改为等待异步任务完成后，通过 SaveResults 机制处理
+            info!(
+                "save_all_changes: async save dispatched for item {}, waiting for result",
+                item_id
+            );
         }
     }
 
@@ -985,35 +1035,40 @@ impl ItemInfoState {
     pub fn handle_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
         match event {
             ItemInfoEvent::Finished() => {
-                // 🚀 使用乐观更新（立即完成任务）
                 complete_item_optimistic(self.state_manager.item.clone(), true, cx);
             },
             ItemInfoEvent::Added() => {
-                // 注意：add_item_optimistic 已经在 save_all_changes 中调用
-                // 这里只需要更新状态
                 info!("Handling Added event for item: {}", self.state_manager.item.id);
                 self.state_manager.update_original();
             },
             ItemInfoEvent::Updated() => {
-                // 🚀 Updated 事件的发射者应该已经调用了 update_item_optimistic 来保存数据
-                // 这里只需要通知 UI 更新即可，避免重复保存
                 info!("Handling Updated event for item: {}", self.state_manager.item.id);
-                // 重置标志
                 self.state_manager.skip_next_update = false;
                 self.state_manager.update_original();
             },
             ItemInfoEvent::Deleted() => {
-                // 🚀 使用乐观更新（立即删除任务）
                 delete_item_optimistic(self.state_manager.item.clone(), cx);
             },
             ItemInfoEvent::UnFinished() => {
-                // 🚀 使用乐观更新（立即取消完成）
                 complete_item_optimistic(self.state_manager.item.clone(), false, cx);
             },
             ItemInfoEvent::Cancelled() => {
-                // 取消编辑，恢复原始数据
                 info!("Handling Cancelled event for item: {}", self.state_manager.item.id);
                 self.cancel_edit(cx);
+            },
+            // 🚀 7.0修复：异步保存成功后才标记为已保存
+            ItemInfoEvent::SaveSucceeded() => {
+                info!(
+                    "Handling SaveSucceeded event, marking clean: {}",
+                    self.state_manager.item.id
+                );
+                self.state_manager.mark_clean();
+                self.state_manager.update_original();
+            },
+            // 🚀 7.0修复：异步保存失败时恢复脏标记，允许重新保存
+            ItemInfoEvent::SaveFailed() => {
+                warn!("Handling SaveFailed event, keeping dirty: {}", self.state_manager.item.id);
+                self.state_manager.mark_dirty();
             },
         }
         cx.notify();
@@ -1499,6 +1554,29 @@ impl ItemInfoState {
 
 impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        // 🚀 7.0修复：检查异步保存结果，实现延迟 mark_clean
+        let item_id = self.state_manager.item.id.clone();
+        if !item_id.is_empty() && !item_id.starts_with("temp_") {
+            let save_result =
+                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                    results.take_result(&item_id)
+                });
+
+            if let Some(save_success) = save_result {
+                if save_success {
+                    info!("render: received save success for {}, marking clean", item_id);
+                    self.state_manager.mark_clean();
+                    self.state_manager.update_original();
+                    self.state_manager.save_status = SaveItemStatus::Succeeded;
+                } else {
+                    warn!("render: received save failure for {}, keeping dirty", item_id);
+                    self.state_manager.mark_dirty();
+                    self.state_manager.save_status = SaveItemStatus::Failed;
+                }
+                cx.notify();
+            }
+        }
+
         let view = cx.entity();
         // 🚀 性能优化：克隆 labels 后立即释放借用，避免在闭包中持有不可变借用
         let labels = cx.global::<TodoStore>().labels.clone();
@@ -1553,6 +1631,40 @@ impl Render for ItemInfoState {
                                     set_item_pinned_optimistic(item.clone(), !item.pinned, cx);
                                 }
                             }),
+                    )
+                    // 🚀 7.0新增：保存状态指示器
+                    .when(
+                        self.state_manager.save_status != SaveItemStatus::Idle,
+                        |this| {
+                            let status = self.state_manager.save_status;
+                            let (icon, color, tooltip) = match status {
+                                SaveItemStatus::Saving => (
+                                    IconName::ClockSymbolic,
+                                    cx.theme().warning,
+                                    "Saving...",
+                                ),
+                                SaveItemStatus::Succeeded => (
+                                    IconName::CheckmarkSmallSymbolic,
+                                    gpui::green().opacity(0.8),
+                                    "Saved successfully",
+                                ),
+                                SaveItemStatus::Failed => (
+                                    IconName::Info,
+                                    gpui::red().opacity(0.8),
+                                    "Save failed - please retry",
+                                ),
+                                _ => (IconName::Info, cx.theme().muted_foreground, ""),
+                            };
+                            this.child(
+                                Button::new("save-status")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(icon)
+                                    .text_color(color)
+                                    .tooltip(tooltip),
+                            )
+                        },
                     ),
             )
             .child(

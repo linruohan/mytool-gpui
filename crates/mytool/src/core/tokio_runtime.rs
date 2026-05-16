@@ -9,23 +9,83 @@
 //! - 减少线程创建开销，复用 DB runtime 的工作线程
 //! - 仅在极少数必须同步的场景保留阻塞封装
 
-use std::sync::OnceLock;
+use std::sync::{
+    Arc, Mutex, OnceLock,
+    atomic::{AtomicBool, Ordering},
+};
 
 use tokio::runtime::{Handle, Runtime};
+use tracing::info;
 
 /// 全局独立的 Tokio Runtime（专门用于数据库操作）
-static DB_RUNTIME: OnceLock<Runtime> = OnceLock::new();
+/// 使用 Arc<Mutex<Option<>>> 包装以支持优雅关闭
+static DB_RUNTIME: OnceLock<Arc<Mutex<Option<Runtime>>>> = OnceLock::new();
+/// 标记 Runtime 是否已被 shutdown（防止重复 shutdown）
+static SHUTDOWN_FLAG: AtomicBool = AtomicBool::new(false);
 
 /// 获取或创建数据库专用的 Tokio Runtime
-fn get_db_runtime() -> &'static Runtime {
-    DB_RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .thread_name("db-worker")
-            .enable_all()
-            .build()
-            .expect("Failed to create database runtime")
-    })
+fn get_db_runtime() -> Arc<Mutex<Option<Runtime>>> {
+    DB_RUNTIME
+        .get_or_init(|| {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .thread_name("db-worker")
+                .enable_all()
+                .build()
+                .expect("Failed to create database runtime");
+            Arc::new(Mutex::new(Some(runtime)))
+        })
+        .clone()
+}
+
+/// 🚀 7.0新增：优雅关闭 DB Runtime
+///
+/// 在应用退出时调用，确保所有数据库操作完成后再关闭 worker 线程。
+///
+/// # 参数
+/// - `timeout`: 最大等待时间（默认 5 秒）
+///
+/// # 返回
+/// - `Ok(())` - Runtime 已成功关闭
+/// - `Err(())` - 超时或已关闭
+pub fn shutdown_db_runtime(timeout: Option<std::time::Duration>) -> Result<(), ()> {
+    // 防止重复 shutdown
+    if SHUTDOWN_FLAG.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        info!("DB Runtime already shut down or shutting down");
+        return Ok(());
+    }
+
+    let runtime_arc = match DB_RUNTIME.get() {
+        Some(r) => r.clone(),
+        None => return Ok(()),
+    };
+
+    let timeout = timeout.unwrap_or(std::time::Duration::from_secs(5));
+
+    // 从 Mutex 中取出 Runtime 并 shutdown
+    let mut guard = runtime_arc.lock().unwrap();
+    if let Some(runtime) = guard.take() {
+        info!(
+            "Shutting down DB Runtime (timeout: {:?}, active tasks: {:?})",
+            timeout,
+            runtime.metrics().num_alive_tasks()
+        );
+
+        // shutdown_timeout 会等待所有任务完成或超时
+        runtime.shutdown_timeout(timeout);
+
+        info!("DB Runtime shut down successfully");
+    } else {
+        info!("DB Runtime already taken (already shut down)");
+    }
+
+    Ok(())
+}
+
+/// 检查 DB Runtime 是否仍在运行
+pub fn is_db_runtime_active() -> bool {
+    !SHUTDOWN_FLAG.load(Ordering::SeqCst)
+        && DB_RUNTIME.get().map(|r| r.lock().unwrap().is_some()).unwrap_or(false)
 }
 
 /// 在独立的 tokio runtime 中执行异步操作（阻塞当前线程直到完成）
@@ -47,16 +107,17 @@ where
 {
     // 检查是否在现有 runtime 中
     if Handle::try_current().is_ok() {
-        // 🚀 6.2优化：在现有 runtime 中，使用 spawn + block_on 等待
-        // 避免 std::thread::spawn 的线程创建开销
-        let runtime = get_db_runtime();
+        let runtime_arc = get_db_runtime();
+        let guard = runtime_arc.lock().unwrap();
+        let runtime = guard.as_ref().expect("DB Runtime not initialized");
         let handle = runtime.spawn(future);
-        // 在当前 runtime 中 block_on 等待 DB runtime 的任务完成
+        drop(guard);
         tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(handle))
             .expect("DB operation task panicked")
     } else {
-        // 不在 runtime 中：直接使用独立 runtime
-        let runtime = get_db_runtime();
+        let runtime_arc = get_db_runtime();
+        let guard = runtime_arc.lock().unwrap();
+        let runtime = guard.as_ref().expect("DB Runtime not initialized");
         runtime.block_on(future)
     }
 }
@@ -82,6 +143,8 @@ where
     F: std::future::Future<Output = T> + Send + 'static,
     T: Send + 'static,
 {
-    let runtime = get_db_runtime();
+    let runtime_arc = get_db_runtime();
+    let guard = runtime_arc.lock().unwrap();
+    let runtime = guard.as_ref().expect("DB Runtime not initialized");
     runtime.spawn(future)
 }

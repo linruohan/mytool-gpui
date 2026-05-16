@@ -1,5 +1,8 @@
-#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
-use std::process;
+// 🚀 临时禁用 windows_subsystem 以显示控制台日志（调试用）
+// 正式发布时请取消下面这行的注释，并注释掉 console 那行
+#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "console")]
+// #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
+use std::{process, sync::mpsc::channel, thread};
 
 use gpui_component_assets::Assets;
 use mytool::{Gallery, init_plugins, todo_state::get_todo_conn};
@@ -18,6 +21,24 @@ async fn main() {
         },
     };
 
+    // 🚀 创建退出信号通道
+    let (tx, rx) = channel::<bool>();
+
+    // 初始化 lib.rs 中的 SHUTDOWN_SENDER
+    unsafe {
+        mytool::SHUTDOWN_SENDER = Some(tx);
+    }
+
+    // 🚀 启动后台退出监控线程
+    let exit_handle = thread::spawn(move || {
+        match rx.recv() {
+            Ok(_) | Err(_) => {},
+        }
+        eprintln!("✅ 收到退出信号，进程即将退出");
+        thread::sleep(std::time::Duration::from_millis(100));
+        process::exit(0);
+    });
+
     app.run(move |cx| {
         mytool::init(cx);
         mytool::todo_state::state_init(cx, db);
@@ -29,4 +50,9 @@ async fn main() {
             cx,
         );
     });
+
+    // app.run() 返回后（正常退出路径）
+    eprintln!("✅ app.run() 已返回");
+    mytool::request_shutdown();
+    let _ = exit_handle.join();
 }

@@ -7,3 +7,4 @@ pub mod services; // 服务层
 pub mod shortcuts; // 快捷键
 pub mod state; // 状态管理
 pub mod tokio_runtime; // Tokio runtime handle 存储
+pub mod utils; // 🚀 7.0新增：工具函数（重试机制等）

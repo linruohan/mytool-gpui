@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window,
+    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, Hsla, IntoElement,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
@@ -233,27 +233,40 @@ impl ProjectsPanel {
         }
         self.is_loading = true;
         cx.notify();
-        let store = cx.global::<DBState>().get_store();
-        let this = cx.weak_entity();
-        cx.spawn(async move |_this, cx| {
-            match crate::state_service::add_project_with_store(project.clone(), store).await {
-                Ok(new_project) => {
-                    tracing::info!("Successfully added project: {}", new_project.id);
-                    cx.update_global::<TodoStore, _>(|todo_store, _| {
-                        todo_store.add_project(Arc::new(new_project));
-                    });
-                },
-                Err(e) => {
-                    tracing::error!("Failed to add project: {:?}", e);
-                },
+
+        let project_for_save = project.clone();
+
+        let temp_id = format!("temp_project_{}", uuid::Uuid::new_v4());
+        let temp_project =
+            Arc::new(ProjectModel { id: temp_id.clone(), ..project.as_ref().clone() });
+        cx.update_global::<TodoStore, _>(|todo_store, _| {
+            todo_store.add_project(temp_project.clone());
+        });
+
+        // 使用独立 SQLite 连接绕过连接池竞争（避免 ConnectionAcquire(Timeout））
+        std::thread::spawn(move || {
+            let db_path = "db.sqlite";
+            let absolute_path = if std::path::Path::new(db_path).is_absolute() {
+                db_path.to_string()
+            } else {
+                std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|p| p.join(db_path)))
+                    .unwrap_or_else(|| std::path::PathBuf::from(db_path))
+                    .to_string_lossy()
+                    .to_string()
+            };
+
+            let save_result =
+                todos::services::project_service::ProjectService::insert_project_direct(
+                    &absolute_path,
+                    project_for_save.as_ref().clone(),
+                );
+
+            if save_result.is_err() {
+                tracing::error!("❌ [add_project] DB 保存失败: {:?}", save_result.err());
             }
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
+        });
     }
 
     pub fn mod_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
@@ -262,27 +275,34 @@ impl ProjectsPanel {
         }
         self.is_loading = true;
         cx.notify();
-        let store = cx.global::<DBState>().get_store();
-        let this = cx.weak_entity();
-        cx.spawn(async move |_this, cx| {
-            match crate::state_service::mod_project_with_store(project.clone(), store).await {
-                Ok(updated_project) => {
-                    tracing::info!("Successfully updated project: {}", updated_project.id);
-                    cx.update_global::<TodoStore, _>(|todo_store, _| {
-                        todo_store.update_project(Arc::new(updated_project));
-                    });
-                },
-                Err(e) => {
-                    tracing::error!("Failed to update project: {:?}", e);
-                },
+
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
+        let project_for_save = project.clone();
+
+        cx.update_global::<TodoStore, _>(|todo_store, _| {
+            todo_store.update_project(project.clone());
+        });
+
+        // 使用独立线程执行 DB 操作（避免 GPUI Future 被取消）
+        std::thread::spawn(move || {
+            let save_result = crate::core::tokio_runtime::run_db_operation(async move {
+                db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
+                let store = db_state.get_store();
+                crate::core::utils::retry::retry_async_todo(
+                    move |_attempt| {
+                        let store = store.clone();
+                        let proj = project_for_save.clone();
+                        async move { crate::state_service::mod_project_with_store(proj, store).await }
+                    },
+                    crate::core::utils::retry::RetryConfig::for_db_operation(),
+                )
+                .await
+            });
+
+            if let Err(e) = &save_result {
+                tracing::error!("❌ [mod_project] DB 更新失败: {:?}", e);
             }
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
+        });
     }
 
     pub fn del_project(&mut self, cx: &mut Context<Self>, project: Arc<ProjectModel>) {
@@ -291,28 +311,35 @@ impl ProjectsPanel {
         }
         self.is_loading = true;
         cx.notify();
-        let store = cx.global::<DBState>().get_store();
-        let this = cx.weak_entity();
+
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
+        let project_for_delete = project.clone();
         let project_id = project.id.clone();
-        cx.spawn(async move |_this, cx| {
-            match crate::state_service::del_project_with_store(project.clone(), store).await {
-                Ok(_) => {
-                    tracing::info!("Successfully deleted project: {}", project_id);
-                    cx.update_global::<TodoStore, _>(|todo_store, _| {
-                        todo_store.remove_project(&project_id);
-                    });
-                },
-                Err(e) => {
-                    tracing::error!("Failed to delete project: {:?}", e);
-                },
+
+        cx.update_global::<TodoStore, _>(|todo_store, _| {
+            todo_store.remove_project(&project_id);
+        });
+
+        // 使用独立线程执行 DB 操作（避免 GPUI Future 被取消）
+        std::thread::spawn(move || {
+            let save_result = crate::core::tokio_runtime::run_db_operation(async move {
+                db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
+                let store = db_state.get_store();
+                crate::core::utils::retry::retry_async_todo(
+                    move |_attempt| {
+                        let store = store.clone();
+                        let proj = project_for_delete.clone();
+                        async move { crate::state_service::del_project_with_store(proj, store).await }
+                    },
+                    crate::core::utils::retry::RetryConfig::for_db_operation(),
+                )
+                .await
+            });
+
+            if let Err(e) = &save_result {
+                tracing::error!("❌ [del_project] DB 删除失败: {:?}", e);
             }
-            this.update(cx, |this, cx| {
-                this.is_loading = false;
-                cx.notify();
-            })
-            .ok();
-        })
-        .detach();
+        });
     }
 }
 

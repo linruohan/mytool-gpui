@@ -169,7 +169,6 @@ impl Default for ErrorNotifier {
     }
 }
 impl Global for ErrorNotifier {}
-
 impl ErrorNotifier {
     pub fn new() -> Self {
         Self { last_error: None }
@@ -181,5 +180,55 @@ impl ErrorNotifier {
 
     pub fn take_error(&mut self) -> Option<String> {
         self.last_error.take()
+    }
+}
+
+/// 🚀 7.0新增：异步保存结果追踪器
+///
+/// 用于记录异步保存操作的结果，让主线程能够在适当时机检查并处理。
+/// 解决了异步任务无法直接调用 cx.emit() 的问题。
+#[derive(Debug, Default)]
+pub struct SaveResults {
+    /// 成功保存的 item ID 列表
+    pub succeeded: Vec<String>,
+    /// 保存失败的 item ID 列表
+    pub failed: Vec<String>,
+}
+
+impl Global for SaveResults {}
+impl SaveResults {
+    pub fn new() -> Self {
+        Self { succeeded: Vec::new(), failed: Vec::new() }
+    }
+
+    /// 记录保存成功
+    pub fn mark_succeeded(&mut self, item_id: String) {
+        self.succeeded.push(item_id);
+    }
+
+    /// 记录保存失败
+    pub fn mark_failed(&mut self, item_id: String) {
+        self.failed.push(item_id);
+    }
+
+    /// 检查并取出指定 item 的保存结果
+    ///
+    /// 返回 `Some(true)` 表示成功，`Some(false)` 表示失败，`None` 表示无结果
+    pub fn take_result(&mut self, item_id: &str) -> Option<bool> {
+        if let Some(pos) = self.succeeded.iter().position(|id| id == item_id) {
+            self.succeeded.remove(pos);
+            return Some(true);
+        }
+        if let Some(pos) = self.failed.iter().position(|id| id == item_id) {
+            self.failed.remove(pos);
+            return Some(false);
+        }
+        None
+    }
+
+    /// 清空所有结果
+    pub fn clear(&mut self) {
+        self.succeeded.clear();
+        self.failed.clear();
     }
 }

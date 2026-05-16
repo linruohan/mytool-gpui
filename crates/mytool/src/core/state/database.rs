@@ -3,12 +3,13 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use gpui::Global;
 use sea_orm::DatabaseConnection;
 use todos::{Store, error::TodoError};
+use tracing::{info, warn};
 
 /// 数据库连接状态
 ///
@@ -63,6 +64,45 @@ impl DBState {
         self.store.lock().unwrap().is_some()
     }
 
+    /// 等待 Store 就绪（带超时）
+    ///
+    /// 🚀 7.0修复：替代原来的"检查+跳过"逻辑，
+    /// 确保在 Store 未就绪时等待而非静默丢弃保存操作。
+    ///
+    /// # 参数
+    /// - `timeout`: 最大等待时间（默认 10 秒）
+    ///
+    /// # 返回
+    /// - `Ok(())` - Store 已就绪
+    /// - `Err(TodoError)` - 超时或等待失败
+    pub async fn wait_for_store_ready(&self, timeout: Option<Duration>) -> Result<(), TodoError> {
+        let timeout = timeout.unwrap_or(Duration::from_secs(10));
+        let start = Instant::now();
+        let mut wait_count = 0u32;
+
+        loop {
+            if self.is_store_ready() {
+                info!("Store ready after {}ms ({} polls)", start.elapsed().as_millis(), wait_count);
+                return Ok(());
+            }
+
+            if start.elapsed() >= timeout {
+                warn!(
+                    "Store not ready after {}ms ({} polls), timing out",
+                    start.elapsed().as_millis(),
+                    wait_count
+                );
+                return Err(TodoError::DatabaseError(format!(
+                    "Store initialization timeout after {:?}",
+                    timeout
+                )));
+            }
+
+            wait_count += 1;
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
     /// 获取全局 Store 实例
     ///
     /// 🚀 6.1优化：Store 通过异步创建，此方法在 Store 未就绪时会 panic
@@ -93,7 +133,29 @@ impl DBState {
 
     /// 重置统计信息
     pub fn reset_stats(&self) {
-        self.stats.reset();
+        self.stats.reset()
+    }
+
+    /// 🚀 7.0新增：优雅关闭数据库连接和 Store
+    ///
+    /// 在应用退出时调用，确保：
+    /// 1. Store 被正确释放（释放内部引用）
+    /// 2. 连接池会在所有 Arc 引用 drop 后自动关闭
+    pub fn shutdown(&self) {
+        info!("Shutting down DBState...");
+
+        // 关闭 Store（释放内部资源和对 conn 的引用）
+        let mut guard = self.store.lock().unwrap();
+        if guard.is_some() {
+            *guard = None;
+            info!("Store released");
+        }
+        drop(guard);
+
+        // 注意：DatabaseConnection (SQLx 连接池) 使用 Arc 管理
+        // 当 Store 被释放后，内部引用减少
+        // 最终连接池会在进程退出时自动清理（包括 reaper 线程）
+        info!("DBState shutdown complete (connection refs: {})", Arc::strong_count(&self.conn));
     }
 }
 

@@ -85,6 +85,24 @@ impl PinBoard {
     fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         self.lazy_init_observer(cx);
 
+        if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
+            let state_items = cx.global::<TodoStore>().pinned_items();
+
+            if !state_items.is_empty() {
+                tracing::info!(
+                    "📌 [PinBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
+                    state_items.len()
+                );
+                self.pending_refresh.set(true);
+            } else {
+                tracing::debug!(
+                    "📌 [PinBoard] 首次渲染兜底: TodoStore 也为空 \
+                     (all_items={})，等待数据加载...",
+                    cx.global::<TodoStore>().all_items.len()
+                );
+            }
+        }
+
         if !self.pending_refresh.get() {
             return;
         }

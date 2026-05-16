@@ -3,6 +3,13 @@ extern crate rust_i18n;
 
 i18n!("locales");
 
+use std::sync::mpsc::Sender;
+
+/// 🚀 7.0新增：应用退出信号发送器
+///
+/// 由 main.rs 初始化，用于从 GPUI 内部通知主线程执行退出操作。
+pub static mut SHUTDOWN_SENDER: Option<Sender<bool>> = None;
+
 use gpui::{
     Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, IntoElement, KeyBinding,
     Pixels, SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions,
@@ -151,7 +158,10 @@ pub fn create_new_window_with_size<F, E>(
                     focus_handle.focus(window, cx);
                 });
 
-                cx.new(|cx| Root::new(story_root, window, cx))
+                cx.new(|cx| {
+                    let root = Root::new(story_root, window, cx);
+                    root
+                })
             })
             .expect("failed to open window");
 
@@ -209,7 +219,17 @@ pub fn init(cx: &mut App) {
     ]);
 
     cx.on_action(|_: &Quit, cx: &mut App| {
+        // 先等待 DB Runtime 中的异步任务完成
+        let _ = crate::core::tokio_runtime::shutdown_db_runtime(Some(
+            std::time::Duration::from_secs(10),
+        ));
+
+        if let Some(db_state) = cx.try_global::<crate::todo_state::DBState>() {
+            db_state.shutdown();
+        }
+
         cx.quit();
+        request_shutdown();
     });
 
     cx.on_action(|_: &About, cx: &mut App| {
@@ -311,4 +331,27 @@ pub(crate) fn section_with_title(title: impl IntoElement) -> StorySection {
         base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_2(),
         children: vec![],
     }
+}
+
+/// 🚀 7.0新增：请求应用退出
+///
+/// 发送退出信号到 main.rs 中的后台监控线程，
+/// 触发 process::exit(0) 确保进程退出。
+/// 用于 Windows 上 X 按钮关闭窗口时的退出路径。
+/// ⚠️ 注意：此函数可能在异步上下文（GPUI Drop）中被调用。
+///
+/// 不主动 shutdown_db_runtime，避免与正在执行的 DB 操作产生竞态条件。
+/// 让 DB 写入线程自然完成，进程退出时 OS 自动清理所有资源。
+pub fn request_shutdown() {
+    let sender: Option<std::sync::mpsc::Sender<bool>> =
+        unsafe { std::ptr::read(&raw const SHUTDOWN_SENDER) };
+
+    // 不关闭 DB Runtime，只等待让进行中的 DB 操作完成
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(15));
+
+        if let Some(sender) = sender {
+            let _ = sender.send(true);
+        }
+    });
 }

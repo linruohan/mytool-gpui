@@ -8,6 +8,143 @@ use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbBackend, DbErr, Statement,
 };
 
+/// 智能分割 SQL 语句
+///
+/// 解决简单 split(';') 无法处理 CREATE TRIGGER BEGIN...END 块的问题
+///
+/// 支持的场景：
+/// - 普通 SQL 语句以 ; 结尾
+/// - CREATE TRIGGER 的 BEGIN...END 块作为整体（内部的 ; 忽略）
+/// - 跳过单行注释 (-- ) 和多行注释（/* */）
+/// - 处理字符串字面量中的 ;
+fn split_sql_statements(sql: &str) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut current = String::new();
+    let mut chars = sql.chars().peekable();
+    let mut in_trigger_block = false; // 是否在 BEGIN...END 块中
+    let mut begin_depth = 0; // BEGIN 嵌套深度
+
+    while let Some(ch) = chars.next() {
+        // 跳过单行注释
+        if ch == '-' && chars.peek() == Some(&'-') {
+            // 跳过直到行尾
+            while let Some(c) = chars.next() {
+                if c == '\n' {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        // 跳过多行注释
+        if ch == '/' && chars.peek() == Some(&'*') {
+            chars.next(); // 消耗 *
+            loop {
+                match chars.next() {
+                    Some('*') if chars.peek() == Some(&'/') => {
+                        chars.next(); // 消耗 /
+                        break;
+                    },
+                    None => break,
+                    _ => {},
+                }
+            }
+            continue;
+        }
+
+        // 跳过字符串中的内容（避免误判字符串内的 ;）
+        if ch == '\'' || ch == '"' {
+            let quote = ch;
+            current.push(ch);
+            while let Some(c) = chars.next() {
+                current.push(c);
+                if c == quote {
+                    break;
+                } // 字符串结束
+                if c == '\\' {
+                    // 转义字符
+                    if let Some(escaped) = chars.next() {
+                        current.push(escaped);
+                    }
+                }
+            }
+            continue;
+        }
+
+        // 追踪 BEGIN...END 块（用于 TRIGGER）
+        let upper_ch = ch.to_ascii_uppercase();
+
+        // 检测 BEGIN 关键字（单词边界检查）
+        if !in_trigger_block && upper_ch == 'B' {
+            let remaining: String = chars.clone().take(4).collect();
+            if remaining.to_ascii_uppercase().starts_with("EGIN")
+                && matches!(chars.peek(), Some(' ') | Some('\t') | Some('\n') | Some('\r'))
+            {
+                in_trigger_block = true;
+                begin_depth += 1;
+            }
+        }
+
+        // 检测 END 关键字（后跟 ;）
+        if in_trigger_block && upper_ch == 'E' {
+            let remaining: String = chars.clone().take(2).collect();
+            if remaining.to_ascii_uppercase().starts_with("ND") {
+                let after_end: Vec<char> = chars.clone().skip(2).take(5).collect();
+                let after_str: String = after_end.iter().collect();
+                let trimmed = after_str.trim_start();
+
+                if trimmed.starts_with(';') {
+                    // 找到 END; ，结束当前块
+                    begin_depth -= 1;
+                    if begin_depth == 0 {
+                        in_trigger_block = false;
+                        current.push(ch);
+                        current.extend(remaining.chars());
+                        // 添加到 END 后面的空格和分号
+                        while let Some(c) = chars.peek() {
+                            if *c == ' ' || *c == '\t' || *c == '\r' || *c == '\n' {
+                                current.push(chars.next().unwrap());
+                            } else {
+                                break;
+                            }
+                        }
+                        if let Some(';') = chars.peek() {
+                            current.push(chars.next().unwrap());
+                        }
+
+                        // 完整的 TRIGGER 语句完成
+                        let stmt = current.trim().to_string();
+                        if !stmt.is_empty() {
+                            statements.push(stmt);
+                        }
+                        current.clear();
+                        continue;
+                    }
+                }
+            }
+        }
+
+        current.push(ch);
+
+        // 只在非 TRIGGER 块内时，以 ; 作为语句分隔符
+        if ch == ';' && !in_trigger_block {
+            let stmt = current.trim().to_string();
+            if !stmt.is_empty() {
+                statements.push(stmt);
+            }
+            current.clear();
+        }
+    }
+
+    // 处理最后一个没有 ; 的语句
+    let last_stmt = current.trim().to_string();
+    if !last_stmt.is_empty() {
+        statements.push(last_stmt);
+    }
+
+    statements
+}
+
 pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
     use gconfig::get;
 
@@ -25,35 +162,33 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
 
 async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseConnection, DbErr> {
     let db_path = resolve_db_path(db_config.sqlite_path());
+    // 🐛 注意：busy_timeout 只能通过 PRAGMA 设置，不能放 URL（SQLx 不支持此参数）
     let base_url = format!("sqlite://{}?mode=rwc", db_path);
 
     let mut options = ConnectOptions::new(base_url);
 
-    // 🚀 关键修复：优化连接池配置
-    // SQLite 是单线程的，连接数不宜过多，避免竞争
+    // 🐛 修复：SQLite 写操作串行化，过多连接只会增加锁竞争
     options
-            .min_connections(1)  // 最小连接数为 1，避免不必要的连接
-            .max_connections(10)  // 🔧 加大最大连接数为 10
-            .connect_timeout(Duration::from_secs(30)) // 🔧 连接超时时间加大到 30 秒
-            .acquire_timeout(Duration::from_secs(60)) // 🔧 获取连接超时时间加大到 60 秒
-            .idle_timeout(Duration::from_secs(300)) // 空闲超时时间
-            .max_lifetime(Duration::from_secs(1800)) // 最大生命周期
-            .sqlx_logging(false); // 🔧 临时关闭 SQL 日志，避免事务提交问题
+            .min_connections(1)
+            .max_connections(5)  // 🐛 修复：从3增加到5，避免连接池耗尽导致 INSERT 卡住
+            .connect_timeout(Duration::from_secs(10))
+            .acquire_timeout(Duration::from_secs(5))  // 🐛 修复：从30降到5，快速超时让重试介入
+            .idle_timeout(Duration::from_secs(300))
+            .max_lifetime(Duration::from_secs(1800))
+            .sqlx_logging(false);
 
     let db = Database::connect(options).await?;
 
-    // 🚀 关键修复：在连接建立后执行 PRAGMA 设置以支持并发写入
-    // - journal_mode=WAL: 使用 WAL 模式，允许并发读写
-    // - busy_timeout: 等待锁释放的超时时间（毫秒）
-    // - synchronous=NORMAL: 平衡性能和数据安全
+    // 🚀 数据库级 PRAGMA（只需设置一次，所有连接共享）
+    tracing::info!("Executing initial PRAGMA settings...");
     let pragma_statements = [
         "PRAGMA journal_mode = WAL;",
-        "PRAGMA busy_timeout = 60000;",
+        "PRAGMA busy_timeout = 60000;", // 兜底确认初始连接也有此设置
         "PRAGMA synchronous = NORMAL;",
-        "PRAGMA cache_size = -20000;", // 20MB cache
+        "PRAGMA cache_size = -20000;",
     ];
 
-    for pragma in pragma_statements {
+    for pragma in &pragma_statements {
         db.execute(Statement::from_string(DbBackend::Sqlite, pragma.to_string())).await.map_err(
             |e| {
                 tracing::warn!("Failed to execute pragma '{}': {:?}", pragma, e);
@@ -66,19 +201,27 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     // 确保所有表（包括 item_labels）都已创建
     tracing::info!("Executing setup.sql to initialize database tables...");
     let setup_sql = include_str!("../../setup.sql");
+
+    // 🚀 使用智能 SQL 分割器（正确处理 CREATE TRIGGER BEGIN...END 块）
+    let statements = split_sql_statements(setup_sql);
+    tracing::info!("Parsed {} SQL statements from setup.sql", statements.len());
+
     let mut executed_count = 0;
     let mut skipped_count = 0;
-    for statement in setup_sql.split(';') {
-        let stmt = statement.trim();
+    for stmt in &statements {
+        // 跳过空语句和纯注释
         if !stmt.is_empty() && !stmt.starts_with("--") && !stmt.starts_with("/*") {
             tracing::info!("Executing SQL: {}...", &stmt[..std::cmp::min(50, stmt.len())]);
             if let Err(e) =
-                db.execute(Statement::from_string(DbBackend::Sqlite, stmt.to_string())).await
+                db.execute(Statement::from_string(DbBackend::Sqlite, stmt.clone())).await
             {
-                // 忽略 "table already exists" 错误，这是正常的
+                // 忽略 "table already exists" 和 "trigger already exists" 错误
                 let error_str = format!("{:?}", e);
                 if error_str.contains("already exists") {
-                    tracing::info!("Table already exists, skipping");
+                    tracing::info!("Object already exists, skipping");
+                    skipped_count += 1;
+                } else if error_str.contains("duplicate column name") {
+                    tracing::info!("Column already exists, skipping");
                     skipped_count += 1;
                 } else {
                     tracing::warn!("Failed to execute setup statement: {:?}", e);

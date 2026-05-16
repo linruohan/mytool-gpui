@@ -11,6 +11,14 @@ pub struct StoryRoot {
     pub(crate) view: AnyView,
 }
 
+impl Drop for StoryRoot {
+    fn drop(&mut self) {
+        // 🚀 7.0新增：窗口关闭时触发退出信号
+        tracing::info!("StoryRoot dropped, window closed, requesting shutdown");
+        crate::request_shutdown();
+    }
+}
+
 impl StoryRoot {
     pub fn new(
         title: impl Into<SharedString>,
