@@ -235,6 +235,7 @@ impl ProjectsPanel {
         cx.notify();
 
         let project_for_save = project.clone();
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         let temp_id = format!("temp_project_{}", uuid::Uuid::new_v4());
         let temp_project =
@@ -243,25 +244,22 @@ impl ProjectsPanel {
             todo_store.add_project(temp_project.clone());
         });
 
-        // 使用独立 SQLite 连接绕过连接池竞争（避免 ConnectionAcquire(Timeout））
+        // 🚀 修复 (2026-05-17)：使用共享连接池替代独立连接
+        // 避免创建多个独立的数据库连接池导致资源竞争和锁冲突
         std::thread::spawn(move || {
-            let db_path = "db.sqlite";
-            let absolute_path = if std::path::Path::new(db_path).is_absolute() {
-                db_path.to_string()
-            } else {
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|p| p.parent().map(|p| p.join(db_path)))
-                    .unwrap_or_else(|| std::path::PathBuf::from(db_path))
-                    .to_string_lossy()
-                    .to_string()
-            };
-
-            let save_result =
-                todos::services::project_service::ProjectService::insert_project_direct(
-                    &absolute_path,
-                    project_for_save.as_ref().clone(),
-                );
+            let save_result = crate::core::tokio_runtime::run_db_operation(async move {
+                db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
+                let store = db_state.get_store_async().await;
+                crate::core::utils::retry::retry_async_todo(
+                    move |_attempt| {
+                        let store = store.clone();
+                        let proj = project_for_save.clone();
+                        async move { store.insert_project(proj.as_ref().clone()).await }
+                    },
+                    crate::core::utils::retry::RetryConfig::for_db_operation(),
+                )
+                .await
+            });
 
             if save_result.is_err() {
                 tracing::error!("❌ [add_project] DB 保存失败: {:?}", save_result.err());

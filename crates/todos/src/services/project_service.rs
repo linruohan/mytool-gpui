@@ -66,57 +66,6 @@ impl ProjectService {
         }
     }
 
-    /// 🐛 使用独立 SQLite 连接插入项目（绕过 Sea-ORM 连接池）
-    ///
-    /// 当连接池被其他操作占满时（如 Item 批量保存），此方法可以
-    /// 创建一个完全独立的 SQLite 连接来执行 INSERT，避免 ConnectionAcquire(Timeout)。
-    ///
-    /// 注意：此方法不经过 before_save 钩子，需要手动生成 ID。
-    pub fn insert_project_direct(
-        db_path: &str,
-        project: ProjectModel,
-    ) -> Result<ProjectModel, TodoError> {
-        let new_id = Uuid::new_v4().to_string();
-
-        // 创建专用的 Runtime，彻底避免与主 DB Runtime 竞争工作线程
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| TodoError::DatabaseError(format!("创建专用Runtime失败: {}", e)))?;
-
-        rt.block_on(async move {
-            // 用 Sea-ORM 创建独立的 DatabaseConnection（独立的连接池，不受主池影响）
-            let db_url = format!("sqlite://{}?mode=rwc", db_path);
-            let mut opts = sea_orm::ConnectOptions::new(db_url);
-            opts.max_connections(1)
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .acquire_timeout(std::time::Duration::from_secs(10));
-            let db = sea_orm::Database::connect(opts)
-                .await
-                .map_err(|e| TodoError::DatabaseError(format!("独立DB连接失败: {}", e)))?;
-
-            // 设置 PRAGMA（通过 ConnectionTrait 访问 execute 方法）
-            use sea_orm::{ConnectionTrait, DbBackend, Statement};
-            for pragma in &[
-                "PRAGMA journal_mode = WAL",
-                "PRAGMA busy_timeout = 30000",
-                "PRAGMA synchronous = NORMAL",
-            ] {
-                db.execute(Statement::from_string(DbBackend::Sqlite, pragma.to_string()))
-                    .await
-                    .map_err(|e| TodoError::DatabaseError(format!("PRAGMA失败: {}", e)))?;
-            }
-
-            // 用 Sea-ORM ActiveModel 插入（享受完整的 ORM 功能）
-            let mut active: ProjectActiveModel = project.into();
-            active.id = Set(new_id.clone());
-            active
-                .insert(&db)
-                .await
-                .map_err(|e| TodoError::DatabaseError(format!("INSERT失败: {}", e)))
-        })
-    }
-
     /// Update an existing project
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
         let _timer = self.metrics.start_timer("update_project");

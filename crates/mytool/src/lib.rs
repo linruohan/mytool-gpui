@@ -340,18 +340,17 @@ pub(crate) fn section_with_title(title: impl IntoElement) -> StorySection {
 /// 用于 Windows 上 X 按钮关闭窗口时的退出路径。
 /// ⚠️ 注意：此函数可能在异步上下文（GPUI Drop）中被调用。
 ///
-/// 不主动 shutdown_db_runtime，避免与正在执行的 DB 操作产生竞态条件。
-/// 让 DB 写入线程自然完成，进程退出时 OS 自动清理所有资源。
+/// 🚀 优化 (2026-05-17)：移除15秒等待时间，立即发送退出信号
+/// 理由：
+/// - 连接池会在进程退出时自动清理，无需手动等待
+/// - 减少用户等待时间，提升体验
+/// - DB 操作会被取消，操作系统会自动关闭文件句柄
 pub fn request_shutdown() {
     let sender: Option<std::sync::mpsc::Sender<bool>> =
         unsafe { std::ptr::read(&raw const SHUTDOWN_SENDER) };
 
-    // 不关闭 DB Runtime，只等待让进行中的 DB 操作完成
-    std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_secs(15));
-
-        if let Some(sender) = sender {
-            let _ = sender.send(true);
-        }
-    });
+    // 直接发送退出信号，不等待15秒
+    if let Some(sender) = sender {
+        let _ = sender.send(true);
+    }
 }

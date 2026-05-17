@@ -90,53 +90,6 @@ impl ItemService {
         Ok(item_model)
     }
 
-    /// 使用独立 SQLite 连接插入任务（绕过共享连接池）
-    ///
-    /// 当共享连接池被占用或正在清理时（如窗口关闭时），
-    /// 此方法可以创建完全独立的连接来执行 INSERT，避免 ConnectionAcquire(Timeout)。
-    ///
-    /// 设计参照 ProjectService::insert_project_direct，用于关键路径的可靠落盘。
-    ///
-    /// # 参数
-    /// - `db_path`: SQLite 数据库文件路径
-    /// - `item`: 要插入的任务数据
-    ///
-    /// # 返回
-    /// 包含数据库生成 ID 的完整 ItemModel
-    pub fn insert_item_direct(db_path: &str, item: ItemModel) -> Result<ItemModel, TodoError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| TodoError::DatabaseError(format!("创建专用Runtime失败: {}", e)))?;
-
-        rt.block_on(async move {
-            let db_url = format!("sqlite://{}?mode=rwc", db_path);
-            let mut opts = sea_orm::ConnectOptions::new(db_url);
-            opts.max_connections(1)
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .acquire_timeout(std::time::Duration::from_secs(10));
-            let db = sea_orm::Database::connect(opts)
-                .await
-                .map_err(|e| TodoError::DatabaseError(format!("独立DB连接失败: {}", e)))?;
-
-            for pragma in &[
-                "PRAGMA journal_mode = WAL",
-                "PRAGMA busy_timeout = 30000",
-                "PRAGMA synchronous = NORMAL",
-            ] {
-                db.execute(Statement::from_string(DbBackend::Sqlite, pragma.to_string()))
-                    .await
-                    .map_err(|e| TodoError::DatabaseError(format!("PRAGMA失败: {}", e)))?;
-            }
-
-            let active: ItemActiveModel = ItemActiveModel::from(item);
-            active
-                .insert(&db)
-                .await
-                .map_err(|e| TodoError::DatabaseError(format!("INSERT失败: {}", e)))
-        })
-    }
-
     /// 更新任务项（核心方法）
     ///
     /// 将任务更新到数据库，支持重试机制
