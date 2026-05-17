@@ -21,22 +21,24 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
 
 async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseConnection, DbErr> {
     let db_path = resolve_db_path(db_config.sqlite_path());
-    // 注意：busy_timeout 只能通过 PRAGMA 设置，不能放 URL（SQLx 不支持此参数）
-    let base_url = format!("sqlite://{}?mode=rwc&cache=shared", db_path);
+    // 🚀 修复 (2026-05-17)：移除 cache=shared 减少锁竞争
+    // cache=shared 可能导致多个连接间的锁竞争，特别是在高并发情况下
+    let base_url = format!("sqlite://{}?mode=rwc", db_path);
 
     let mut options = ConnectOptions::new(base_url);
 
-    // 🚀 修复 (2026-05-16): 连接池耗尽问题
-    // - max_connections: 3 → 8，支持并发读取操作（初始化时加载4类数据）
-    // - acquire_timeout: 15s → 20s，给重试机制更多时间恢复
+    // 🚀 优化 (2026-05-17)：连接池配置优化
+    // - max_connections: 8 → 16，进一步增加连接池容量
+    // - acquire_timeout: 20s → 30s，给更多时间获取连接
+    // - min_connections: 1 → 2，保持一些预热连接
     // SQLite 在 WAL 模式下允许 1 个写者 + 多个读者，适度增加连接数可提升并发性能
     options
-        .min_connections(1)
-        .max_connections(8)  // 修复：增加到 8，平衡并发读取和写入性能
+        .min_connections(2)
+        .max_connections(16)
         .connect_timeout(Duration::from_secs(10))
-        .acquire_timeout(Duration::from_secs(20))  // 修复：增加到 20 秒，给重试机制更多时间
-        .idle_timeout(Duration::from_secs(300))
-        .max_lifetime(Duration::from_secs(1800))
+        .acquire_timeout(Duration::from_secs(30))
+        .idle_timeout(Duration::from_secs(600))
+        .max_lifetime(Duration::from_secs(3600))
         .sqlx_logging(false);
 
     let db = Database::connect(options).await?;
@@ -81,8 +83,8 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
 
     db.ping().await?;
     tracing::info!(
-        "SQLite database connection successful with WAL mode: {} (pool: max=3, \
-         acquire_timeout=15s)",
+        "SQLite database connection successful with WAL mode: {} (pool: max=16, \
+         acquire_timeout=30s, min=2)",
         db_path
     );
     Ok(db)

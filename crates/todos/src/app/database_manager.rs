@@ -51,17 +51,19 @@ impl DatabaseManager {
 
     async fn init_sqlite_db(&self) -> Result<DatabaseConnection, DbErr> {
         let db_path = self.resolve_db_path(self.config.sqlite_path());
-        let base_url = format!("sqlite://{}?mode=rwc&cache=shared", db_path);
+        // 🚀 修复 (2026-05-17)：移除 cache=shared 减少锁竞争
+        let base_url = format!("sqlite://{}?mode=rwc", db_path);
 
         let mut options = ConnectOptions::new(base_url);
 
+        // 🚀 优化 (2026-05-17)：与主连接池配置保持一致
         options
-            .min_connections(1)
-            .max_connections(3)
-            .connect_timeout(Duration::from_secs(30))
-            .acquire_timeout(Duration::from_secs(60))
-            .idle_timeout(Duration::from_secs(300))
-            .max_lifetime(Duration::from_secs(1800))
+            .min_connections(2)
+            .max_connections(16)
+            .connect_timeout(Duration::from_secs(10))
+            .acquire_timeout(Duration::from_secs(30))
+            .idle_timeout(Duration::from_secs(600))
+            .max_lifetime(Duration::from_secs(3600))
             .sqlx_logging(false);
 
         let db = Database::connect(options).await?;

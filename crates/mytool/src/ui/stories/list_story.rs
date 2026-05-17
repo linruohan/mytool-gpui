@@ -128,7 +128,9 @@ impl ListStory {
         let db_state = cx.global::<DBState>().clone();
         cx.spawn(async move |_view, cx| {
             // 🚀 7.0修复：先等待 Store 就绪
-            if let Err(e) = db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await {
+            if let Err(e) =
+                db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await
+            {
                 tracing::warn!("list_story: Store not ready after timeout: {}", e);
                 return;
             }
