@@ -9,7 +9,7 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 
 use crate::{
-    app::{DatabaseManager, PatchManager, TransactionManager},
+    app::{PatchManager, TransactionManager},
     error::TodoError,
     services::{
         AttachmentService, DateValidationService, EventBus, EventRecorder, ItemService,
@@ -21,7 +21,6 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ServiceManager {
     db: Arc<DatabaseConnection>,
-    database_manager: Arc<DatabaseManager>,
     transaction_manager: Arc<TransactionManager>,
     event_recorder: Arc<EventRecorder>,
     event_bus: Arc<EventBus>,
@@ -43,20 +42,6 @@ impl ServiceManager {
     pub async fn new(db: Arc<DatabaseConnection>) -> Result<Self, TodoError> {
         let event_bus = Arc::new(EventBus::new());
         let metrics = Arc::new(MetricsCollector::new());
-
-        // 🚀 关键修复：使用 try_read 避免死锁
-        // 如果无法获取锁，panic 并提示可能的死锁问题
-        let database_config = gconfig::get()
-            .try_read()
-            .expect(
-                "Failed to acquire gconfig read lock - possible deadlock detected! Please report \
-                 this issue.",
-            )
-            .database()
-            .clone();
-
-        // Create new components
-        let database_manager = Arc::new(DatabaseManager::new(database_config).await?);
 
         let transaction_manager = Arc::new(TransactionManager::new(db.clone()));
 
@@ -102,7 +87,6 @@ impl ServiceManager {
 
         Ok(Self {
             db,
-            database_manager,
             transaction_manager,
             event_recorder,
             event_bus,
@@ -166,11 +150,6 @@ impl ServiceManager {
     /// Get the date validation service
     pub fn date_validation_service(&self) -> &DateValidationService {
         &self.date_validation_service
-    }
-
-    /// Get the database manager
-    pub fn database_manager(&self) -> &DatabaseManager {
-        &self.database_manager
     }
 
     /// Get the transaction manager

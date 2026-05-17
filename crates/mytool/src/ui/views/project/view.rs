@@ -18,7 +18,7 @@ use todos::entity::ProjectModel;
 use crate::{
     ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate,
     VisualHierarchy,
-    state_service::load_projects,
+    state_service::load_projects_with_store,
     todo_state::{DBState, TodoStore},
 };
 
@@ -208,9 +208,10 @@ impl ProjectsPanel {
 
     // 更新projects
     fn update_projects(&mut self, cx: &mut Context<Self>) {
-        let db = cx.global::<DBState>().conn.clone();
+        let db_state = cx.global::<DBState>().clone();
         cx.spawn(async move |this, cx| {
-            let projects = load_projects((*db).clone()).await;
+            let store = db_state.get_store_async().await;
+            let projects = load_projects_with_store(store).await.unwrap_or_default();
             let rc_projects: Vec<Arc<ProjectModel>> =
                 projects.iter().map(|pro| Arc::new(pro.clone())).collect();
 
