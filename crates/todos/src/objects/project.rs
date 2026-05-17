@@ -1,4 +1,4 @@
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, sync::Arc};
 
 use futures::stream::{self, StreamExt};
 use sea_orm::{DatabaseConnection, EntityTrait};
@@ -18,9 +18,10 @@ pub struct Project {
     pub model: ProjectModel,
     base: BaseObject,
     db: DatabaseConnection,
-    store: OnceCell<Store>,
+    store: OnceCell<Arc<Store>>,
     project_count: Option<usize>,
 }
+
 #[allow(dead_code)]
 impl Project {
     pub fn icon_style(&self) -> ProjectIconStyle {
@@ -53,17 +54,29 @@ impl Project {
 
 #[allow(dead_code)]
 impl Project {
+    /// 创建新的 Project（懒加载 Store）
     pub fn new(db: DatabaseConnection, model: ProjectModel) -> Self {
         let base = BaseObject::default();
         Self { model, base, db, store: OnceCell::new(), project_count: None }
     }
 
+    /// 创建新的 Project（注入 Store，推荐）
+    pub fn with_store(store: Arc<Store>, model: ProjectModel) -> Self {
+        let base = BaseObject::default();
+        let db = store.db().clone();
+        let store_cell = OnceCell::new();
+        store_cell.set(store).expect("Store already initialized");
+        Self { model, base, db, store: store_cell, project_count: None }
+    }
+
     pub async fn store(&self) -> &Store {
         self.store
             .get_or_init(|| async {
-                Store::new(self.db.clone())
-                    .await
-                    .expect("Failed to initialize Store for Project: database connection failed")
+                Arc::new(
+                    Store::new(self.db.clone()).await.expect(
+                        "Failed to initialize Store for Project: database connection failed",
+                    ),
+                )
             })
             .await
     }

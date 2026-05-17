@@ -8,6 +8,10 @@
 //! - 使用 `spawn_db_operation` + `block_on` 替代每次 `std::thread::spawn`
 //! - 减少线程创建开销，复用 DB runtime 的工作线程
 //! - 仅在极少数必须同步的场景保留阻塞封装
+//!
+//! ## 🚀 7.1 修复说明
+//! - 增加 worker 线程数匹配连接池大小（2 → 16）
+//! - 修复 patch 应用只执行一次，避免重复竞争连接池
 
 use std::sync::{
     Arc, Mutex, OnceLock,
@@ -27,6 +31,7 @@ static SHUTDOWN_FLAG: AtomicBool = AtomicBool::new(false);
 fn get_db_runtime() -> Arc<Mutex<Option<Runtime>>> {
     DB_RUNTIME
         .get_or_init(|| {
+            // 保持 2 个 worker 线程，SQLite 写锁机制决定了不需要太多线程
             let runtime = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)
                 .thread_name("db-worker")

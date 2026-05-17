@@ -37,7 +37,7 @@ use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     core::{
         notification::{NotificationExt, NotificationSystem},
-        state::{TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
+        state::{DBState, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
     },
     state_service,
     todo_actions::{
@@ -332,6 +332,13 @@ impl ItemInfoState {
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
+                // 🚀 关键修复：检查是否需要跳过更新（避免保存时的死锁）
+                if this.state_manager.skip_next_update {
+                    info!("ItemInfoState: skipping update due to skip_next_update flag");
+                    this.state_manager.skip_next_update = false;
+                    return;
+                }
+
                 let store = cx.global::<TodoStore>();
                 let current_id = &this.state_manager.item.id;
 
@@ -521,6 +528,8 @@ impl ItemInfoState {
         // 根据 item.id 是否为空来决定是添加新任务还是更新现有任务
         if item_id.is_empty() {
             // 新建任务：使用 add_item_optimistic
+            // 🚀 关键修复：设置跳过下一次更新标志，避免 TodoStore 更新触发的观察者回调导致死锁
+            self.state_manager.skip_next_update = true;
             info!(
                 "Triggering add_item_optimistic for new item with content: '{}'",
                 current_item.content
@@ -536,9 +545,10 @@ impl ItemInfoState {
                 });
             }
 
-            cx.emit(ItemInfoEvent::Added());
-            // 🚀 标记已保存
-            self.state_manager.mark_clean();
+            // 🚀 7.0修复：直接标记已保存，不通过事件触发，避免阻塞
+            // cx.emit(ItemInfoEvent::Added());
+            info!("save_all_changes: marking clean for new item without event");
+            self.state_manager.update_original();
         } else {
             // 🚀 关键修复：统一保存所有修改，包括标签
             info!(
@@ -1437,12 +1447,16 @@ impl ItemInfoState {
         let item_id = item.id.clone();
         let attachment_state = self.attachment_state.clone();
         let reminder_state = self.reminder_state.clone();
-        let db = get_db_connection(cx);
 
         cx.spawn(async move |_this, cx| {
+            // 异步获取 Store
+            let db_state = cx.update_global::<DBState, _>(|db_state, _| db_state.clone());
+            let store = db_state.get_store_async().await;
+
             // 加载附件
             let attachments =
-                crate::state_service::load_attachments_by_item(&item_id, (*db).clone()).await;
+                crate::state_service::load_attachments_by_item_with_store(&item_id, store.clone())
+                    .await;
             let rc_attachments =
                 attachments.iter().map(|a| Arc::new(a.clone())).collect::<Vec<_>>();
             cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
@@ -1451,7 +1465,7 @@ impl ItemInfoState {
 
             // 加载提醒
             let reminders =
-                crate::state_service::load_reminders_by_item(&item_id, (*db).clone()).await;
+                crate::state_service::load_reminders_by_item_with_store(&item_id, store).await;
             let rc_reminders = reminders.iter().map(|r| Arc::new(r.clone())).collect::<Vec<_>>();
             cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
                 state.set_reminders(rc_reminders, cx);
@@ -1557,10 +1571,20 @@ impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         // 🚀 7.0修复：检查异步保存结果，实现延迟 mark_clean
         let item_id = self.state_manager.item.id.clone();
-        if !item_id.is_empty() && !item_id.starts_with("temp_") {
+        if !item_id.is_empty() {
+            // 检查保存结果（包括临时 ID 和真实 ID）
             let save_result =
                 cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
-                    results.take_result(&item_id)
+                    // 先检查当前 ID，再检查临时 ID
+                    let result = results.take_result(&item_id);
+                    if result.is_some() {
+                        result
+                    } else if item_id.starts_with("temp_") {
+                        // 如果是临时 ID，也检查有没有相关的保存结果
+                        results.take_result(&item_id)
+                    } else {
+                        None
+                    }
                 });
 
             if let Some(save_success) = save_result {

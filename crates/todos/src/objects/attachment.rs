@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
@@ -14,20 +14,31 @@ pub struct Attachment {
     pub model: AttachmentModel,
     base: BaseObject,
     db: DatabaseConnection,
-    store: OnceCell<Store>, // 延迟初始化且线程安全
+    store: OnceCell<Arc<Store>>,
 }
+
 impl Attachment {
+    /// 创建新的 Attachment（懒加载 Store）
     pub fn new(db: DatabaseConnection, model: AttachmentModel) -> Attachment {
         let base = BaseObject::default();
         Self { model, base, db, store: OnceCell::new() }
     }
 
+    /// 创建新的 Attachment（注入 Store，推荐）
+    pub fn with_store(store: Arc<Store>, model: AttachmentModel) -> Self {
+        let base = BaseObject::default();
+        let db = store.db().clone();
+        let store_cell = OnceCell::new();
+        store_cell.set(store).expect("Store already initialized");
+        Self { model, base, db, store: store_cell }
+    }
+
     pub async fn store(&self) -> &Store {
         self.store
             .get_or_init(|| async {
-                Store::new(self.db.clone())
-                    .await
-                    .expect("Failed to initialize Store for Attachment: database connection failed")
+                Arc::new(Store::new(self.db.clone()).await.expect(
+                    "Failed to initialize Store for Attachment: database connection failed",
+                ))
             })
             .await
     }

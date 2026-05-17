@@ -58,9 +58,12 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     // 3. 🔄 异步保存到数据库（增强版：独立 Runtime + 重试机制）
     let db_state = cx.global::<DBState>().clone();
     let item_clone = item.clone();
+    let item_id_for_error = item.id.clone(); // 保存 item_id 用于错误处理
 
     let temp_id_for_async = temp_id.clone();
 
+    // 使用 cx.spawn + .detach() 执行异步任务
+    // .detach() 确保任务不会因为组件销毁而被取消
     cx.spawn(async move |cx| {
         let spawn_start = std::time::Instant::now();
         info!("🚀 [add_item_optimistic] 异步保存任务启动, temp_id={}", temp_id_for_async);
@@ -121,34 +124,47 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
             Ok(Ok(saved_item)) => {
                 let real_id = saved_item.id.clone();
                 info!(
-                    "✅ Successfully saved item, replacing temp ID {} with real ID {}",
+                    "Successfully saved item, replacing temp ID {} with real ID {}",
                     temp_id_for_async, real_id
                 );
 
+                // ✅ 更新 UI：将临时 ID 替换为真实 ID
                 cx.update_global::<TodoStore, _>(|store, _| {
-                    store.replace_item_id(&temp_id_for_async, Arc::new(saved_item));
+                    store.replace_item_id(&temp_id_for_async, Arc::new(saved_item.clone()));
                 });
 
+                // ✅ 发布事件通知所有视图
                 cx.update_global::<TodoEventBus, _>(|bus, _| {
                     bus.publish(TodoStoreEvent::ItemIdChanged {
-                        old_id: temp_id_for_async,
-                        new_id: real_id,
+                        old_id: temp_id_for_async.clone(),
+                        new_id: real_id.clone(),
                     });
+                });
+
+                // ✅ 标记保存成功
+                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                    results.mark_succeeded(temp_id_for_async.clone());
+                    results.mark_succeeded(real_id);
                 });
             },
             Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "add_item_optimistic",
-                    &item.id,
+                    &item_id_for_error,
                 );
                 error!("❌ 添加任务失败（重试耗尽）: {}", context.format_user_message());
 
+                // ✅ 显示错误通知
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
                     notifier.set_error(format!(
                         "添加任务失败：{}。请稍后重试。",
                         context.format_user_message()
                     ));
+                });
+
+                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                    results.mark_failed(temp_id_for_async.clone());
                 });
             },
             Err(join_err) => {

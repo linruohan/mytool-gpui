@@ -599,17 +599,13 @@ impl Store {
 
     /// Batch insert items
     ///
-    /// Inserts multiple items in a single transaction for better performance.
+    /// Inserts multiple items. Each item is inserted independently
+    /// to avoid connection pool exhaustion issues.
     /// Returns the successfully inserted items.
     pub async fn batch_insert_items(
         &self,
         items: Vec<ItemModel>,
     ) -> Result<Vec<ItemModel>, TodoError> {
-        use sea_orm::TransactionTrait;
-
-        let db = self.db();
-        let txn = db.begin().await?;
-
         let mut results = Vec::with_capacity(items.len());
 
         for item in items {
@@ -617,28 +613,22 @@ impl Store {
                 Ok(inserted) => results.push(inserted),
                 Err(e) => {
                     tracing::error!("Failed to insert item in batch: {:?}", e);
-                    // Continue with other items instead of failing the entire batch
                 },
             }
         }
 
-        txn.commit().await?;
         Ok(results)
     }
 
     /// Batch update items
     ///
-    /// Updates multiple items in a single transaction for better performance.
+    /// Updates multiple items. Each item is updated independently
+    /// to avoid connection pool exhaustion issues.
     /// Returns the successfully updated items.
     pub async fn batch_update_items(
         &self,
         items: Vec<ItemModel>,
     ) -> Result<Vec<ItemModel>, TodoError> {
-        use sea_orm::TransactionTrait;
-
-        let db = self.db();
-        let txn = db.begin().await?;
-
         let mut results = Vec::with_capacity(items.len());
 
         for item in items {
@@ -646,25 +636,19 @@ impl Store {
                 Ok(updated) => results.push(updated),
                 Err(e) => {
                     tracing::error!("Failed to update item in batch: {:?}", e);
-                    // Continue with other items
                 },
             }
         }
 
-        txn.commit().await?;
         Ok(results)
     }
 
     /// Batch delete items
     ///
-    /// Deletes multiple items in a single transaction for better performance.
+    /// Deletes multiple items. Each item is deleted independently
+    /// to avoid connection pool exhaustion issues.
     /// Returns the number of successfully deleted items.
     pub async fn batch_delete_items(&self, item_ids: Vec<String>) -> Result<usize, TodoError> {
-        use sea_orm::TransactionTrait;
-
-        let db = self.db();
-        let txn = db.begin().await?;
-
         let mut deleted_count = 0;
 
         for item_id in item_ids {
@@ -672,18 +656,17 @@ impl Store {
                 Ok(_) => deleted_count += 1,
                 Err(e) => {
                     tracing::error!("Failed to delete item {} in batch: {:?}", item_id, e);
-                    // Continue with other items
                 },
             }
         }
 
-        txn.commit().await?;
         Ok(deleted_count)
     }
 
     /// Batch complete items
     ///
-    /// Marks multiple items as completed/uncompleted in a single transaction.
+    /// Marks multiple items as completed/uncompleted. Each item is updated
+    /// independently to avoid connection pool exhaustion issues.
     /// Returns the number of successfully updated items.
     pub async fn batch_complete_items(
         &self,
@@ -691,11 +674,6 @@ impl Store {
         checked: bool,
         complete_sub_items: bool,
     ) -> Result<usize, TodoError> {
-        use sea_orm::TransactionTrait;
-
-        let db = self.db();
-        let txn = db.begin().await?;
-
         let mut updated_count = 0;
 
         for item_id in item_ids {
@@ -703,12 +681,10 @@ impl Store {
                 Ok(_) => updated_count += 1,
                 Err(e) => {
                     tracing::error!("Failed to complete item {} in batch: {:?}", item_id, e);
-                    // Continue with other items
                 },
             }
         }
 
-        txn.commit().await?;
         Ok(updated_count)
     }
 }

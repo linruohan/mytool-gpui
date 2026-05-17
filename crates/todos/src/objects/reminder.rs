@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{Duration, NaiveDateTime};
 use sea_orm::{DatabaseConnection, EntityTrait};
 use tokio::sync::OnceCell;
@@ -17,7 +19,7 @@ pub struct Reminder {
     #[allow(dead_code)]
     base: BaseObject,
     db: DatabaseConnection,
-    store: OnceCell<Store>,
+    store: OnceCell<Arc<Store>>,
 }
 
 impl Reminder {
@@ -54,12 +56,23 @@ impl Reminder {
         Self { model, base, db, store: OnceCell::new() }
     }
 
+    /// 创建新的 Reminder（注入 Store，推荐）
+    pub fn with_store(store: Arc<Store>, model: ReminderModel) -> Self {
+        let base = BaseObject::default();
+        let db = store.db().clone();
+        let store_cell = OnceCell::new();
+        store_cell.set(store).expect("Store already initialized");
+        Self { model, base, db, store: store_cell }
+    }
+
     pub async fn store(&self) -> &Store {
         self.store
             .get_or_init(|| async {
-                Store::new(self.db.clone())
-                    .await
-                    .expect("Failed to initialize Store for Reminder: database connection failed")
+                Arc::new(
+                    Store::new(self.db.clone()).await.expect(
+                        "Failed to initialize Store for Reminder: database connection failed",
+                    ),
+                )
             })
             .await
     }

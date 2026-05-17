@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use chrono::{Datelike, Local, NaiveDateTime};
 use futures::{TryFutureExt, TryStreamExt};
@@ -23,7 +23,7 @@ pub struct Item {
     pub model: ItemModel,
     base: BaseObject,
     db: DatabaseConnection,
-    store: OnceCell<Store>,
+    store: OnceCell<Arc<Store>>,
     labels: OnceCell<Vec<LabelModel>>,
     attachments: OnceCell<Vec<AttachmentModel>>,
     reminders: OnceCell<Vec<ReminderModel>>,
@@ -40,6 +40,7 @@ impl Drop for Item {
         // as it's managed by the connection pool
     }
 }
+
 impl Item {
     pub fn due(&self) -> Option<DueDate> {
         self.model
@@ -150,6 +151,7 @@ impl Item {
 }
 
 impl Item {
+    /// 创建新的 Item（懒加载 Store）
     pub fn new(db: DatabaseConnection, model: ItemModel) -> Self {
         let base = BaseObject::default();
         Self {
@@ -167,12 +169,35 @@ impl Item {
         }
     }
 
+    /// 创建新的 Item（注入 Store，推荐）
+    pub fn with_store(store: Arc<Store>, model: ItemModel) -> Self {
+        let base = BaseObject::default();
+        let db = store.db().clone();
+        let store_cell = OnceCell::new();
+        store_cell.set(store).expect("Store already initialized");
+        Self {
+            model,
+            base,
+            db,
+            store: store_cell,
+            labels: OnceCell::new(),
+            attachments: OnceCell::new(),
+            reminders: OnceCell::new(),
+            subitems: OnceCell::new(),
+            label_count: None,
+            custom_order: false,
+            show_item: false,
+        }
+    }
+
     pub async fn store(&self) -> &Store {
         self.store
             .get_or_init(|| async {
-                Store::new(self.db.clone())
-                    .await
-                    .expect("Failed to initialize Store: database connection failed")
+                Arc::new(
+                    Store::new(self.db.clone())
+                        .await
+                        .expect("Failed to initialize Store: database connection failed"),
+                )
             })
             .await
     }

@@ -9,10 +9,7 @@ use gpui_component::{
     v_flex,
 };
 
-use crate::{
-    ItemInfoState,
-    ui::components::{ItemInfo, dialog::dialog::DialogConfig},
-};
+use crate::ui::components::{ItemInfo, dialog::dialog::DialogConfig};
 
 /// 统一的编辑对话框配置（Item / Section 公用）
 #[derive(Clone)]
@@ -113,39 +110,62 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
 pub fn show_item_dialog<T, F>(
     window: &mut Window,
     cx: &mut Context<T>,
-    item_info: gpui::Entity<ItemInfoState>,
+    item_info: gpui::Entity<crate::ItemInfoState>,
     config: EditDialogConfig,
     on_save: F,
 ) where
     T: Render + 'static,
     F: Fn(Arc<todos::entity::ItemModel>, &mut gpui::App) + Clone + 'static,
 {
-    show_edit_dialog(
-        window,
-        cx,
-        config,
-        {
-            let item_info = item_info.clone();
-            move || {
-                let info = ItemInfo::new(&item_info);
+    let dialog_config = DialogConfig::new(&config.title).overlay(config.overlay);
+    let item_info_clone = item_info.clone();
+    let on_save_clone = on_save.clone();
+
+    window.open_dialog(cx, move |modal, _, _| {
+        let dialog_config = dialog_config.clone();
+        let item_info_for_content = item_info_clone.clone();
+        let item_info_for_ok = item_info_clone.clone();
+        let on_save_for_callback = on_save_clone.clone();
+
+        modal
+            .title(dialog_config.title.clone())
+            .overlay(dialog_config.overlay)
+            .keyboard(dialog_config.keyboard)
+            .overlay_closable(dialog_config.overlay_closable)
+            .child({
+                let info = ItemInfo::new(&item_info_for_content);
                 info.into_any_element()
-            }
-        },
-        {
-            let item_info = item_info.clone();
-            let on_save = on_save.clone();
-            move |app_cx: &mut gpui::App| {
-                // 🚀 关键修复：调用 save_all_changes 统一处理保存（包括标签、新增/更新等）
-                item_info.update(app_cx, |state, cx| {
-                    state.save_all_changes(cx);
-                });
-                // 获取保存后的 item（可能已包含新生成的 ID）
-                let item = item_info.read(app_cx).state_manager.item.clone();
-                // 调用额外的回调（如通知等，不再重复保存）
-                on_save(item, app_cx);
-            }
-        },
-    );
+            })
+            .footer(
+                DialogFooter::new()
+                    .child(DialogClose::new().child(
+                        Button::new("cancel").label("Cancel").outline().on_click(
+                            move |_, _window, _cx| {
+                                // 取消按钮不需要做任何事，DialogClose 会自动处理关闭
+                            },
+                        ),
+                    ))
+                    .child(DialogAction::new().child(
+                        Button::new("ok").label(&config.button_label).primary().on_click(
+                            move |_, window, cx| {
+                                // 调用 save_all_changes 统一处理保存
+                                // 保存是异步的，UI已经立即更新（乐观更新）
+                                // 保存结果会在后台通过 EventBus 通知
+                                item_info_for_ok.update(cx, |state, cx| {
+                                    state.save_all_changes(cx);
+                                });
+                                // 获取保存后的 item
+                                let item = item_info_for_ok.read(cx).state_manager.item.clone();
+                                // 调用额外的回调
+                                on_save_for_callback(item, cx);
+                                // 立即关闭对话框
+                                // 注意：异步保存任务使用 .detach()，会在后台继续执行
+                                window.close_dialog(cx);
+                            },
+                        ),
+                    )),
+            )
+    });
 }
 
 /// 显示 Section 编辑对话框

@@ -3,6 +3,7 @@
 //! ServiceManager is a central coordinator for all services.
 //! It manages the lifecycle of services and provides access to them.
 //! Services can depend on each other through the ServiceManager.
+#![allow(dead_code)]
 
 use std::sync::Arc;
 

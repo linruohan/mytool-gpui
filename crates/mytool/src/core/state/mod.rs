@@ -8,7 +8,7 @@ mod store;
 use std::sync::Arc;
 
 pub use cache::*;
-pub use database::*;
+pub use database::{DBState, *};
 pub use events::*;
 use gpui::App;
 pub use observer::*;
@@ -17,6 +17,15 @@ use sea_orm::DatabaseConnection;
 pub use store::*;
 use todos::entity;
 use tracing::error;
+
+/// 获取全局 DBState 实例
+///
+/// 这个函数用于获取数据库状态，允许在 async 上下文中等待 Store 初始化。
+/// 接受 App 类型。
+#[inline]
+pub fn get_db_state(cx: &App) -> DBState {
+    cx.global::<DBState>().clone()
+}
 
 /// 获取数据库连接的便捷函数
 ///

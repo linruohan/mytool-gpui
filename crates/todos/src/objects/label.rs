@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sea_orm::prelude::*;
 use tokio::sync::OnceCell;
 
@@ -14,7 +16,7 @@ pub struct Label {
     pub model: LabelModel,
     base: BaseObject,
     db: DatabaseConnection,
-    store: OnceCell<Store>,
+    store: OnceCell<Arc<Store>>,
     label_count: Option<usize>,
 }
 
@@ -88,17 +90,29 @@ impl Label {
 }
 
 impl Label {
+    /// 创建新的 Label（懒加载 Store）
     pub fn new(db: DatabaseConnection, model: LabelModel) -> Self {
         let base = BaseObject::default();
         Self { model, base, db, store: OnceCell::new(), label_count: None }
     }
 
+    /// 创建新的 Label（注入 Store，推荐）
+    pub fn with_store(store: Arc<Store>, model: LabelModel) -> Self {
+        let base = BaseObject::default();
+        let db = store.db().clone();
+        let store_cell = OnceCell::new();
+        store_cell.set(store).expect("Store already initialized");
+        Self { model, base, db, store: store_cell, label_count: None }
+    }
+
     pub async fn store(&self) -> &Store {
         self.store
             .get_or_init(|| async {
-                Store::new(self.db.clone())
-                    .await
-                    .expect("Failed to initialize Store for Label: database connection failed")
+                Arc::new(
+                    Store::new(self.db.clone())
+                        .await
+                        .expect("Failed to initialize Store for Label: database connection failed"),
+                )
             })
             .await
     }

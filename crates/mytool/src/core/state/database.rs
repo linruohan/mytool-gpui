@@ -58,6 +58,14 @@ impl DBState {
         Ok(store_arc)
     }
 
+    /// 设置 Store 实例（同步版本）
+    ///
+    /// 用于在同步上下文中直接设置已经初始化好的 Store
+    pub fn set_store(&self, store: Arc<Store>) {
+        let mut guard = self.store.lock().unwrap();
+        *guard = Some(store);
+    }
+
     /// 检查 Store 是否已初始化
     #[inline]
     pub fn is_store_ready(&self) -> bool {
@@ -129,31 +137,20 @@ impl DBState {
     ///
     /// ⚠️ 仅在非 async 上下文中使用！
     /// 如果在 async 上下文中，请使用 `get_store_async()`！
+    /// ⚠️ 仅在 Store 已经初始化后使用！
     ///
     /// # Panics
     /// 如果 Store 尚未初始化（这表示应用逻辑有错误）
     #[inline]
     pub fn get_store(&self) -> Arc<Store> {
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            let store = self.store.lock().unwrap();
-            if let Some(s) = store.as_ref() {
-                return s.clone();
-            }
-            drop(store);
-            let rt = handle.clone();
-            let wait =
-                async { self.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await };
-            let result = rt.block_on(wait);
-            result.expect("Store not initialized after waiting – did you call state_init()?");
-            self.store.lock().unwrap().clone().expect("Store should be initialized after waiting")
-        } else {
-            let rt = tokio::runtime::Handle::current();
-            let wait =
-                async { self.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await };
-            rt.block_on(wait)
-                .expect("Store not initialized after waiting – did you call state_init()?");
-            self.store.lock().unwrap().clone().expect("Store should be initialized after waiting")
+        let store = self.store.lock().unwrap();
+        if let Some(s) = store.as_ref() {
+            return s.clone();
         }
+
+        // 如果 Store 还没就绪，直接 panic，因为这时候不应该调用 get_store()
+        // 应该调用 get_store_async() 或者确保 Store 已经初始化好了
+        panic!("Store not initialized yet! Call get_store_async() or wait for store to be ready");
     }
 
     /// 获取数据库连接（轻量级克隆）
@@ -193,6 +190,27 @@ impl DBState {
         // 当 Store 被释放后，内部引用减少
         // 最终连接池会在进程退出时自动清理（包括 reaper 线程）
         info!("DBState shutdown complete (connection refs: {})", Arc::strong_count(&self.conn));
+    }
+
+    /// 在后台执行异步任务
+    ///
+    /// 这个方法确保任务在组件销毁后仍能继续执行，
+    /// 不会因为 UI 上下文的销毁而被取消。
+    ///
+    /// # 参数
+    /// - `future`: 要执行的异步任务
+    ///
+    /// # 示例
+    /// ```ignore
+    /// db_state.spawn(async {
+    ///     // 执行数据库操作
+    /// });
+    /// ```
+    pub fn spawn<F>(&self, future: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let _ = crate::core::tokio_runtime::spawn_db_operation(future);
     }
 }
 

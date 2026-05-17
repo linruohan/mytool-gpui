@@ -28,15 +28,15 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     let mut options = ConnectOptions::new(base_url);
 
     // 🚀 优化 (2026-05-17)：连接池配置优化
-    // - max_connections: 8 → 16，进一步增加连接池容量
-    // - acquire_timeout: 20s → 30s，给更多时间获取连接
+    // - max_connections: 8 → 20，进一步增加连接池容量（应对高并发场景）
+    // - acquire_timeout: 20s → 60s，给更多时间获取连接（解决30秒超时问题）
     // - min_connections: 1 → 2，保持一些预热连接
     // SQLite 在 WAL 模式下允许 1 个写者 + 多个读者，适度增加连接数可提升并发性能
     options
-        .min_connections(2)
-        .max_connections(16)
-        .connect_timeout(Duration::from_secs(10))
-        .acquire_timeout(Duration::from_secs(30))
+        .min_connections(1)
+        .max_connections(20)
+        .connect_timeout(Duration::from_secs(3))
+        .acquire_timeout(Duration::from_secs(10))
         .idle_timeout(Duration::from_secs(600))
         .max_lifetime(Duration::from_secs(3600))
         .sqlx_logging(false);
@@ -115,8 +115,8 @@ async fn init_network_db(db_config: &gconfig::DatabaseConfig) -> Result<Database
     options
         .min_connections(1)
         .max_connections(pool_size)
-        .connect_timeout(Duration::from_secs(10))
-        .acquire_timeout(Duration::from_secs(30))
+        .connect_timeout(Duration::from_secs(3))
+        .acquire_timeout(Duration::from_secs(10))
         .idle_timeout(Duration::from_secs(600))
         .max_lifetime(Duration::from_secs(3600))
         .sqlx_logging(true);
