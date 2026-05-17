@@ -16,48 +16,32 @@ pub struct Section {
     pub model: SectionModel,
     #[allow(dead_code)]
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
     #[allow(dead_code)]
     activate_name_editable: bool,
 }
 
 #[allow(dead_code)]
 impl Section {
-    /// 创建新的 Section（懒加载 Store）
-    pub fn new(db: DatabaseConnection, model: SectionModel) -> Self {
-        let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new(), activate_name_editable: false }
-    }
-
-    /// 创建新的 Section（注入 Store，推荐）
+    /// 创建新的 Section（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: SectionModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
-        Self { model, base, db, store: store_cell, activate_name_editable: false }
+        Self { model, base, store, activate_name_editable: false }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(
-                    Store::new(self.db.clone()).await.expect(
-                        "Failed to initialize Store for Section: database connection failed",
-                    ),
-                )
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Section（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, item_id: &str) -> Result<Self, TodoError> {
         let item = SectionEntity::find_by_id(item_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
 
-        Ok(Self::new(db, item))
+        Ok(Self::with_store(store, item))
     }
 
     #[allow(dead_code)]
@@ -67,25 +51,24 @@ impl Section {
 
     pub async fn project(&self) -> Option<ProjectModel> {
         if let Some(project_id) = self.model.project_id.as_ref() {
-            self.store().await.get_project(project_id).await
+            self.store().get_project(project_id).await
         } else {
             None
         }
     }
 
     pub async fn items(&self) -> Vec<ItemModel> {
-        let mut items =
-            self.store().await.get_items_by_section(&self.model.id).await.unwrap_or_default();
+        let mut items = self.store().get_items_by_section(&self.model.id).await.unwrap_or_default();
         items.sort_by_key(|a| a.child_order);
         items
     }
 
     pub async fn section_count(&self) -> usize {
         let mut result = 0;
-        if let Ok(items) = self.store().await.get_items_by_section(&self.model.id).await {
+        if let Ok(items) = self.store().get_items_by_section(&self.model.id).await {
             result += items.len();
             for item in &items {
-                if let Ok(subitems) = self.store().await.get_subitems(&item.id).await {
+                if let Ok(subitems) = self.store().get_subitems(&item.id).await {
                     result += subitems.len();
                 }
             }
@@ -101,18 +84,18 @@ impl Section {
             Some(item) => Ok(item),
             None => {
                 item_model.section_id = Some(self.model.id.clone());
-                self.store().await.insert_item(item_model.clone(), true).await
+                self.store().insert_item(item_model.clone(), true).await
             },
         }
     }
 
     pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
-        self.store().await.get_item(item_id).await
+        self.store().get_item(item_id).await
     }
 
     pub async fn get_subitem_size(&self, item_id: &str) -> usize {
         let mut count = 0;
-        if let Ok(subitems) = self.store().await.get_subitems(item_id).await {
+        if let Ok(subitems) = self.store().get_subitems(item_id).await {
             count += subitems.len();
             for subitem in &subitems {
                 count += Box::pin(self.get_subitem_size(&subitem.id)).await;
@@ -131,15 +114,15 @@ impl Section {
     }
 
     pub async fn delete_section(&self) -> Result<(), TodoError> {
-        self.store().await.delete_section(self.id()).await
+        self.store().delete_section(self.id()).await
     }
 
     pub async fn archive_section(&self) -> Result<(), TodoError> {
-        self.store().await.archive_section(self.id(), true).await
+        self.store().archive_section(self.id(), true).await
     }
 
     pub async fn unarchive_section(&self) -> Result<(), TodoError> {
-        self.store().await.archive_section(self.id(), true).await
+        self.store().archive_section(self.id(), true).await
     }
 
     pub async fn was_archived(&self) -> bool {
@@ -151,7 +134,7 @@ impl Section {
 
     pub async fn source(&self) -> Option<SourceModel> {
         let project_model = self.project().await?;
-        if let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await {
+        if let Ok(project) = Project::from_db(self.store.clone(), &project_model.id).await {
             return project.source().await;
         }
         None

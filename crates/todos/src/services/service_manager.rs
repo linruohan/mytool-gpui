@@ -32,7 +32,7 @@ pub struct ServiceManager {
     label_service: Arc<LabelService>,
     reminder_service: Arc<ReminderService>,
     attachment_service: Arc<AttachmentService>,
-    date_validation_service: Arc<DateValidationService>,
+    date_validation_service: Arc<std::sync::Mutex<Option<Arc<DateValidationService>>>>,
     // 用于跟踪是否已经应用过补丁
     #[allow(dead_code)]
     patches_applied: bool,
@@ -84,8 +84,6 @@ impl ServiceManager {
         let attachment_service =
             Arc::new(AttachmentService::new(db.clone(), event_bus.clone(), metrics.clone()));
 
-        let date_validation_service = Arc::new(DateValidationService::new(db.clone()));
-
         Ok(Self {
             db,
             transaction_manager,
@@ -98,9 +96,15 @@ impl ServiceManager {
             label_service,
             reminder_service,
             attachment_service,
-            date_validation_service,
+            date_validation_service: Arc::new(std::sync::Mutex::new(None)),
             patches_applied: false,
         })
+    }
+
+    /// Set the date validation service (used to resolve circular dependency)
+    pub fn set_date_validation_service(&self, service: Arc<DateValidationService>) {
+        let mut lock = self.date_validation_service.lock().unwrap();
+        *lock = Some(service);
     }
 
     /// Get the database connection
@@ -149,8 +153,9 @@ impl ServiceManager {
     }
 
     /// Get the date validation service
-    pub fn date_validation_service(&self) -> &DateValidationService {
-        &self.date_validation_service
+    pub fn date_validation_service(&self) -> Arc<DateValidationService> {
+        let lock = self.date_validation_service.lock().unwrap();
+        lock.as_ref().expect("DateValidationService not initialized").clone()
     }
 
     /// Get the transaction manager

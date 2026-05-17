@@ -15,8 +15,7 @@ use crate::{
 pub struct Label {
     pub model: LabelModel,
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
     label_count: Option<usize>,
 }
 
@@ -90,40 +89,25 @@ impl Label {
 }
 
 impl Label {
-    /// 创建新的 Label（懒加载 Store）
-    pub fn new(db: DatabaseConnection, model: LabelModel) -> Self {
-        let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new(), label_count: None }
-    }
-
-    /// 创建新的 Label（注入 Store，推荐）
+    /// 创建新的 Label（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: LabelModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
-        Self { model, base, db, store: store_cell, label_count: None }
+        Self { model, base, store, label_count: None }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(
-                    Store::new(self.db.clone())
-                        .await
-                        .expect("Failed to initialize Store for Label: database connection failed"),
-                )
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, label_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Label（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, label_id: &str) -> Result<Self, TodoError> {
         let label = LabelEntity::find_by_id(label_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Label {} not found", label_id)))?;
 
-        Ok(Self::new(db, label))
+        Ok(Self::with_store(store, label))
     }
 
     pub async fn source_type(&self) -> Option<SourceType> {
@@ -139,8 +123,7 @@ impl Label {
     }
 
     async fn label_count(&mut self) -> usize {
-        let count =
-            self.store().await.get_items_by_label(self.id()).await.unwrap_or_default().len();
+        let count = self.store().get_items_by_label(self.id()).await.unwrap_or_default().len();
         self.label_count = Some(count);
         count
     }
@@ -155,13 +138,12 @@ impl Label {
     }
 
     pub async fn delete_label(&self) -> Result<u64, TodoError> {
-        let items_model =
-            self.store().await.get_items_by_label(self.id()).await.unwrap_or_default();
+        let items_model = self.store().get_items_by_label(self.id()).await.unwrap_or_default();
         for item_model in items_model {
-            let mut item = Item::from_db(self.db.clone(), &item_model.id).await?;
+            let mut item = Item::from_db(self.store.clone(), &item_model.id).await?;
             let _ = item.delete_item_label(&self.model.id).await;
         }
-        self.store().await.delete_label(self.id()).await
+        self.store().delete_label(self.id()).await
     }
 }
 

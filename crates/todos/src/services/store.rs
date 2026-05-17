@@ -33,27 +33,42 @@ pub struct Store {
     reminder_service: ReminderService,
     attachment_service: AttachmentService,
     query_service: QueryService,
-    date_validation_service: DateValidationService,
 }
 
 impl Store {
     /// Create a new Store
-    pub async fn new(db: DatabaseConnection) -> Result<Self, TodoError> {
+    pub async fn new(db: DatabaseConnection) -> Result<Arc<Self>, TodoError> {
         let db = Arc::new(db);
         let service_manager = ServiceManager::new(db.clone()).await?;
         let query_service = QueryService::new(db.clone());
 
-        Ok(Self {
+        // First create Store
+        let store = Self {
             item_service: (*service_manager.item_service()).clone(),
             project_service: (*service_manager.project_service()).clone(),
             section_service: (*service_manager.section_service()).clone(),
             label_service: (*service_manager.label_service()).clone(),
             reminder_service: (*service_manager.reminder_service()).clone(),
             attachment_service: (*service_manager.attachment_service()).clone(),
-            date_validation_service: (*service_manager.date_validation_service()).clone(),
             service_manager,
             query_service,
-        })
+        };
+
+        // Wrap in Arc
+        let store_arc = Arc::new(store);
+
+        // Create DateValidationService with Store
+        let date_validation_service = DateValidationService::with_store(store_arc.clone());
+
+        // Set it in ServiceManager
+        store_arc.service_manager.set_date_validation_service(Arc::new(date_validation_service));
+
+        Ok(store_arc)
+    }
+
+    /// Get the date validation service
+    pub fn date_validation_service(&self) -> Arc<DateValidationService> {
+        self.service_manager.date_validation_service()
     }
 
     /// Get the service manager
@@ -564,7 +579,7 @@ impl Store {
         date: &chrono::NaiveDateTime,
         checked: bool,
     ) -> bool {
-        self.date_validation_service.valid_item_by_date(item_id, date, checked).await
+        self.date_validation_service().valid_item_by_date(item_id, date, checked).await
     }
 
     /// Validate if an item matches a date range
@@ -575,7 +590,7 @@ impl Store {
         end_date: &chrono::NaiveDateTime,
         checked: bool,
     ) -> bool {
-        self.date_validation_service
+        self.date_validation_service()
             .valid_item_by_date_range(item_id, start_date, end_date, checked)
             .await
     }
@@ -587,12 +602,12 @@ impl Store {
         date: &chrono::NaiveDateTime,
         checked: bool,
     ) -> bool {
-        self.date_validation_service.valid_item_by_month(item_id, date, checked).await
+        self.date_validation_service().valid_item_by_month(item_id, date, checked).await
     }
 
     /// Validate if an item is overdue
     pub async fn valid_item_by_overdue(&self, item_id: &str, checked: bool) -> bool {
-        self.date_validation_service.valid_item_by_overdue(item_id, checked).await
+        self.date_validation_service().valid_item_by_overdue(item_id, checked).await
     }
 
     // ==================== Batch Operations ====================

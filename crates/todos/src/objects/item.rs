@@ -22,8 +22,7 @@ use crate::{
 pub struct Item {
     pub model: ItemModel,
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
     labels: OnceCell<Vec<LabelModel>>,
     attachments: OnceCell<Vec<AttachmentModel>>,
     reminders: OnceCell<Vec<ReminderModel>>,
@@ -71,7 +70,7 @@ impl Item {
         self.labels
             .get_or_init(|| async {
                 // 使用 Store 通过关联表查询 Labels
-                match self.store().await.get_labels_by_item(&self.model.id).await {
+                match self.store().get_labels_by_item(&self.model.id).await {
                     Ok(labels) => labels,
                     Err(e) => {
                         tracing::error!("Failed to get labels for item {}: {:?}", self.model.id, e);
@@ -96,7 +95,7 @@ impl Item {
     ///
     /// 通过 Store 使用 item_labels 关联表添加关系
     pub async fn add_label(&mut self, label: &LabelModel) -> Result<LabelModel, TodoError> {
-        let store = self.store().await;
+        let store = self.store();
 
         // 检查是否已存在
         if store.item_has_label(&self.model.id, &label.id).await? {
@@ -116,7 +115,7 @@ impl Item {
     ///
     /// 通过 Store 使用 item_labels 关联表删除关系
     pub async fn delete_label(&mut self, label_id: &str) -> Result<(), TodoError> {
-        let store = self.store().await;
+        let store = self.store();
 
         // 删除关联
         store.remove_label_from_item(&self.model.id, label_id).await?;
@@ -151,35 +150,13 @@ impl Item {
 }
 
 impl Item {
-    /// 创建新的 Item（懒加载 Store）
-    pub fn new(db: DatabaseConnection, model: ItemModel) -> Self {
-        let base = BaseObject::default();
-        Self {
-            model,
-            base,
-            db,
-            store: OnceCell::new(),
-            labels: OnceCell::new(),
-            attachments: OnceCell::new(),
-            reminders: OnceCell::new(),
-            subitems: OnceCell::new(),
-            label_count: None,
-            custom_order: false,
-            show_item: false,
-        }
-    }
-
-    /// 创建新的 Item（注入 Store，推荐）
+    /// 创建新的 Item（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: ItemModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
         Self {
             model,
             base,
-            db,
-            store: store_cell,
+            store,
             labels: OnceCell::new(),
             attachments: OnceCell::new(),
             reminders: OnceCell::new(),
@@ -190,25 +167,19 @@ impl Item {
         }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(
-                    Store::new(self.db.clone())
-                        .await
-                        .expect("Failed to initialize Store: database connection failed"),
-                )
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Item（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, item_id: &str) -> Result<Self, TodoError> {
         let item = ItemEntity::find_by_id(item_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
 
-        Ok(Self::new(db, item))
+        Ok(Self::with_store(store, item))
     }
 
     pub fn activate_name_editable(&self) -> bool {
@@ -276,14 +247,14 @@ impl Item {
         let Some(id) = self.model.parent_id.as_deref() else {
             return false;
         };
-        self.store().await.get_item(id).await.is_some()
+        self.store().get_item(id).await.is_some()
     }
 
     pub async fn has_section(&self) -> bool {
         let Some(id) = self.model.section_id.as_deref() else {
             return false;
         };
-        self.store().await.get_section(id).await.is_some()
+        self.store().get_section(id).await.is_some()
     }
 
     pub fn show_item(&self) -> bool {
@@ -322,23 +293,22 @@ impl Item {
     }
 
     pub async fn parent(&self) -> Option<ItemModel> {
-        self.store().await.get_item(self.model.parent_id.as_ref()?).await
+        self.store().get_item(self.model.parent_id.as_ref()?).await
     }
 
     pub async fn project(&self) -> Option<ProjectModel> {
-        self.store().await.get_project(self.model.project_id.as_ref()?).await
+        self.store().get_project(self.model.project_id.as_ref()?).await
     }
 
     pub async fn section(&self) -> Option<SectionModel> {
-        self.store().await.get_section(self.model.section_id.as_ref()?).await
+        self.store().get_section(self.model.section_id.as_ref()?).await
     }
 
     // subitems
     pub async fn items(&self) -> Vec<ItemModel> {
         self.subitems
             .get_or_init(|| async {
-                let mut items =
-                    self.store().await.get_subitems(&self.model.id).await.unwrap_or_default();
+                let mut items = self.store().get_subitems(&self.model.id).await.unwrap_or_default();
                 items.sort_by_key(|a| a.child_order);
                 items
             })
@@ -354,7 +324,7 @@ impl Item {
     pub async fn reminders(&self) -> Vec<ReminderModel> {
         self.reminders
             .get_or_init(|| async {
-                self.store().await.get_reminders_by_item(&self.model.id).await.unwrap_or_default()
+                self.store().get_reminders_by_item(&self.model.id).await.unwrap_or_default()
             })
             .await
             .clone()
@@ -381,7 +351,7 @@ impl Item {
     pub async fn exists_project(&self, project: ProjectModel) -> bool {
         Box::pin(async move {
             if let Some(_p) = self.parent().await.as_ref()
-                && let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await
+                && let Ok(item) = Item::from_db(self.store.clone(), &self.model.id).await
             {
                 return item.exists_project(project).await;
             }
@@ -433,7 +403,7 @@ impl Item {
             Some(item) => Ok(item),
             None => {
                 item.parent_id = Some(self.model.id.clone());
-                self.store().await.insert_item(item.clone(), true).await
+                self.store().insert_item(item.clone(), true).await
             },
         }
     }
@@ -557,7 +527,7 @@ impl Item {
             due.recurrency_count = due.recurrency_count.saturating_sub(1);
         }
         self.model.due = serde_json::to_value(&due).ok();
-        self.store().await.update_item(self.model.clone(), "").await?;
+        self.store().update_item(self.model.clone(), "").await?;
         Ok(())
     }
 
@@ -572,11 +542,11 @@ impl Item {
         self.add_label(&label_model).await?;
 
         // 同时插入 Label 到 labels 表（如果不存在）
-        self.store().await.insert_label(label_model.clone()).await
+        self.store().insert_label(label_model.clone()).await
     }
 
     pub async fn delete_item(&self) -> Result<(), TodoError> {
-        self.store().await.delete_item(&self.model.id).await
+        self.store().delete_item(&self.model.id).await
     }
 
     /// 从 Item 删除 Label（使用 item_labels 关联表）
@@ -594,31 +564,31 @@ impl Item {
     }
 
     pub async fn update_local(&self) {
-        let _ = self.store().await.update_item(self.model.clone(), "").await;
+        let _ = self.store().update_item(self.model.clone(), "").await;
     }
 
     pub async fn update(&self, update_id: &str) -> Result<ItemModel, TodoError> {
-        self.store().await.update_item(self.model.clone(), update_id).await
+        self.store().update_item(self.model.clone(), update_id).await
     }
 
     pub async fn move_item(&self, project_id: &str, section_id: &str) -> Result<(), TodoError> {
-        self.store().await.move_item(&self.model.id, project_id, section_id).await
+        self.store().move_item(&self.model.id, project_id, section_id).await
     }
 
     pub async fn update_pin(&self) -> Result<(), TodoError> {
-        self.store().await.update_item_pin(&self.model.id, true).await
+        self.store().update_item_pin(&self.model.id, true).await
     }
 
     pub async fn was_archived(&self) -> bool {
         Box::pin(async move {
             if let Some(_p) = self.parent().await.as_ref()
-                && let Ok(item) = Item::from_db(self.db.clone(), &self.model.id).await
+                && let Ok(item) = Item::from_db(self.store.clone(), &self.model.id).await
             {
                 return item.was_archived().await;
             }
 
             if let Some(s) = self.section().await.as_ref()
-                && let Ok(sec) = Section::from_db(self.db.clone(), &s.id).await
+                && let Ok(sec) = Section::from_db(self.store.clone(), &s.id).await
             {
                 return sec.was_archived().await;
             }
@@ -629,7 +599,7 @@ impl Item {
 
     pub async fn source(&self) -> Option<SourceModel> {
         if let Some(project_model) = self.project().await.as_ref()
-            && let Ok(project) = Project::from_db(self.db.clone(), &project_model.id).await
+            && let Ok(project) = Project::from_db(self.store.clone(), &project_model.id).await
         {
             return project.source().await;
         }
@@ -640,7 +610,7 @@ impl Item {
 
     pub async fn remove_all_relative_reminders(&self) -> Result<(), TodoError> {
         let reminders = self.reminders().await;
-        let store = self.store().await;
+        let store = self.store();
 
         for r in
             reminders.iter().filter(|r| r.reminder_type == Some(ReminderType::RELATIVE.to_string()))
@@ -658,7 +628,7 @@ impl Item {
     }
 
     pub async fn update_sync(&self, update_id: &str) {
-        let _ = self.store().await.update_item(self.model.clone(), update_id).await;
+        let _ = self.store().update_item(self.model.clone(), update_id).await;
     }
 
     pub async fn update_due(&mut self, due_date: DueDate) {
@@ -695,7 +665,7 @@ impl Item {
     ) -> Result<ReminderModel, TodoError> {
         match self.get_reminder(reminder).await {
             Some(reminder) => Ok(reminder),
-            None => self.store().await.insert_reminder(reminder.clone()).await,
+            None => self.store().insert_reminder(reminder.clone()).await,
         }
     }
 
@@ -722,7 +692,7 @@ impl Item {
     ) -> Result<LabelModel, TodoError> {
         match self.get_label(&label.id).await {
             Some(label) => Ok(label),
-            None => self.store().await.insert_label(label.clone()).await,
+            None => self.store().insert_label(label.clone()).await,
         }
     }
 
@@ -735,7 +705,7 @@ impl Item {
     }
 
     pub async fn complete_item(&self) {
-        let _ = self.store().await.complete_item(&self.model.id, true, true).await;
+        let _ = self.store().complete_item(&self.model.id, true, true).await;
     }
 }
 

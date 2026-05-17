@@ -6,30 +6,27 @@
 use std::sync::Arc;
 
 use chrono::Datelike;
-use sea_orm::DatabaseConnection;
 
 use crate::{
-    entity::{ItemModel, items::Entity as ItemEntity},
-    error::TodoError,
-    objects::item::Item,
+    entity::ItemModel, error::TodoError, objects::item::Item, services::store::Store,
     utils::DateTime,
 };
 
 /// Date Validation Service
 #[derive(Clone, Debug)]
 pub struct DateValidationService {
-    db: Arc<DatabaseConnection>,
+    store: Arc<Store>,
 }
 
 impl DateValidationService {
-    /// Create a new DateValidationService
-    pub fn new(db: Arc<DatabaseConnection>) -> Self {
-        Self { db }
+    /// Create a new DateValidationService with Store
+    pub fn with_store(store: Arc<Store>) -> Self {
+        Self { store }
     }
 
-    /// Get the database connection
-    pub fn db(&self) -> &DatabaseConnection {
-        &self.db
+    /// Get the store reference
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
     /// Validate if an item matches a specific date
@@ -43,7 +40,7 @@ impl DateValidationService {
             return false;
         };
         let Ok(item): Result<crate::objects::item::Item, TodoError> =
-            Item::from_db(self.db().clone(), &item_model.id).await
+            Item::from_db(self.store.clone(), &item_model.id).await
         else {
             return false;
         };
@@ -72,7 +69,7 @@ impl DateValidationService {
             return false;
         };
         let Ok(item): Result<crate::objects::item::Item, TodoError> =
-            Item::from_db(self.db().clone(), &item_model.id).await
+            Item::from_db(self.store.clone(), &item_model.id).await
         else {
             return false;
         };
@@ -99,7 +96,7 @@ impl DateValidationService {
             return false;
         };
         let Ok(item): Result<crate::objects::item::Item, TodoError> =
-            Item::from_db(self.db().clone(), &item_model.id).await
+            Item::from_db(self.store.clone(), &item_model.id).await
         else {
             return false;
         };
@@ -121,7 +118,7 @@ impl DateValidationService {
             return false;
         };
         let Ok(item): Result<crate::objects::item::Item, TodoError> =
-            Item::from_db(self.db().clone(), &item_model.id).await
+            Item::from_db(self.store.clone(), &item_model.id).await
         else {
             return false;
         };
@@ -140,8 +137,6 @@ impl DateValidationService {
 
     /// Get an item by ID
     async fn get_item(&self, id: &str) -> Option<ItemModel> {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-        ItemEntity::find_by_id(id.to_string()).one(self.db()).await.ok().flatten()
+        self.store.get_item(id).await
     }
 }

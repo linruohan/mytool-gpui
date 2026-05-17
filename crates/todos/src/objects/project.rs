@@ -17,8 +17,7 @@ use crate::{
 pub struct Project {
     pub model: ProjectModel,
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
     project_count: Option<usize>,
 }
 
@@ -54,45 +53,30 @@ impl Project {
 
 #[allow(dead_code)]
 impl Project {
-    /// 创建新的 Project（懒加载 Store）
-    pub fn new(db: DatabaseConnection, model: ProjectModel) -> Self {
-        let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new(), project_count: None }
-    }
-
-    /// 创建新的 Project（注入 Store，推荐）
+    /// 创建新的 Project（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: ProjectModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
-        Self { model, base, db, store: store_cell, project_count: None }
+        Self { model, base, store, project_count: None }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(
-                    Store::new(self.db.clone()).await.expect(
-                        "Failed to initialize Store for Project: database connection failed",
-                    ),
-                )
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, project_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Project（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, project_id: &str) -> Result<Self, TodoError> {
         let item = ProjectEntity::find_by_id(project_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", project_id)))?;
 
-        Ok(Self::new(db, item))
+        Ok(Self::with_store(store, item))
     }
 
     pub async fn source_type(&self) -> SourceType {
         if let Some(source_model) = self.source().await
-            && let Ok(source) = Source::from_db(self.db.clone(), &source_model.id).await
+            && let Ok(source) = Source::from_db(self.store.clone(), &source_model.id).await
         {
             return source.source_type();
         }
@@ -131,12 +115,11 @@ impl Project {
     }
 
     pub async fn sections(&self) -> Vec<SectionModel> {
-        self.store().await.get_sections_by_project(&self.model.id).await.unwrap_or_default()
+        self.store().get_sections_by_project(&self.model.id).await.unwrap_or_default()
     }
 
     pub async fn items(&self) -> Vec<ItemModel> {
-        let mut items =
-            self.store().await.get_items_by_project(&self.model.id).await.unwrap_or_default();
+        let mut items = self.store().get_items_by_project(&self.model.id).await.unwrap_or_default();
         items.sort_by_key(|a| a.child_order);
         items
     }
@@ -152,7 +135,7 @@ impl Project {
     }
 
     pub async fn all_items(&self) -> Vec<ItemModel> {
-        self.store().await.get_items_by_project(&self.model.id).await.unwrap_or_default()
+        self.store().get_items_by_project(&self.model.id).await.unwrap_or_default()
     }
 
     pub async fn items_pinned(&self) -> Vec<ItemModel> {
@@ -161,11 +144,11 @@ impl Project {
     }
 
     pub async fn subprojects(&self) -> Vec<ProjectModel> {
-        self.store().await.get_subprojects(&self.model.id).await.unwrap_or_default()
+        self.store().get_subprojects(&self.model.id).await.unwrap_or_default()
     }
 
     pub async fn parent(&self) -> Option<ProjectModel> {
-        self.store().await.get_project(self.model.parent_id.as_ref()?).await
+        self.store().get_project(self.model.parent_id.as_ref()?).await
     }
 
     pub fn is_deck(&self) -> bool {
@@ -176,7 +159,7 @@ impl Project {
         let items_model = self.items().await;
         stream::iter(items_model)
             .filter_map(async move |model| {
-                if let Ok(item) = Item::from_db(self.db.clone(), &model.id).await
+                if let Ok(item) = Item::from_db(self.store.clone(), &model.id).await
                     && !item.model.checked
                     && !item.was_archived().await
                 {
@@ -195,7 +178,7 @@ impl Project {
     }
 
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
-        self.store().await.update_project(project).await
+        self.store().update_project(project).await
     }
 
     pub async fn update(
@@ -203,7 +186,7 @@ impl Project {
         _use_timeout: bool,
         _show_loading: bool,
     ) -> Result<ProjectModel, TodoError> {
-        self.store().await.update_project(self.model.clone()).await
+        self.store().update_project(self.model.clone()).await
     }
 
     pub async fn get_subproject(&self, subproject_id: &str) -> Option<ProjectModel> {
@@ -219,7 +202,7 @@ impl Project {
             Some(subproject) => Ok(subproject),
             None => {
                 pro.parent_id = Some(self.model.id.clone());
-                self.store().await.insert_project(pro.clone()).await
+                self.store().insert_project(pro.clone()).await
             },
         }
     }
@@ -232,11 +215,11 @@ impl Project {
         &self,
         subproject: ProjectModel,
     ) -> Result<ProjectModel, TodoError> {
-        self.store().await.insert_project(subproject).await
+        self.store().insert_project(subproject).await
     }
 
     pub async fn get_section(&self, section_id: &str) -> Option<SectionModel> {
-        self.store().await.get_section(section_id).await
+        self.store().get_section(section_id).await
     }
 
     pub async fn add_section_if_not_exists(
@@ -249,7 +232,7 @@ impl Project {
                 section_model.project_id = Some(section_model.id.clone());
                 let section_order = self.sections().await.len() + 1;
                 section_model.section_order = Some(section_order as i32);
-                self.store().await.insert_section(section_model.clone()).await
+                self.store().insert_section(section_model.clone()).await
             },
         }
     }
@@ -258,11 +241,11 @@ impl Project {
         &self,
         section_model: SectionModel,
     ) -> Result<SectionModel, TodoError> {
-        self.store().await.insert_section(section_model).await
+        self.store().insert_section(section_model).await
     }
 
     pub async fn get_item(&self, item_id: &str) -> Option<ItemModel> {
-        self.store().await.get_item(item_id).await
+        self.store().get_item(item_id).await
     }
 
     pub async fn add_item_if_not_exists(
@@ -273,25 +256,25 @@ impl Project {
             Some(item) => Ok(item),
             None => {
                 item_model.project_id = Some(item_model.id.clone());
-                self.store().await.insert_item(item_model.clone(), true).await
+                self.store().insert_item(item_model.clone(), true).await
             },
         }
     }
 
     pub async fn add_item(&self, item: ItemModel) -> Result<ItemModel, TodoError> {
-        self.store().await.insert_item(item.clone(), true).await
+        self.store().insert_item(item.clone(), true).await
     }
 
     pub async fn delete_project(&self) -> Result<(), TodoError> {
-        self.store().await.delete_project(&self.model.id).await
+        self.store().delete_project(&self.model.id).await
     }
 
     pub async fn archive_project(&self) -> Result<(), TodoError> {
-        self.store().await.archive_project(&self.model.id).await
+        self.store().archive_project(&self.model.id).await
     }
 
     pub async fn unarchive_project(&self) -> Result<(), TodoError> {
-        self.store().await.archive_project(&self.model.id).await
+        self.store().archive_project(&self.model.id).await
     }
 
     pub fn duplicate(&self) -> ProjectModel {

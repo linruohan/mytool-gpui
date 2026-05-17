@@ -49,8 +49,7 @@ impl DBState {
     /// 不阻塞主线程首帧渲染。
     pub async fn init_store(&self) -> Result<Arc<Store>, TodoError> {
         let conn = (*self.conn).clone();
-        let store = Store::new(conn).await?;
-        let store_arc = Arc::new(store);
+        let store_arc = Store::new(conn).await?;
 
         let mut guard = self.store.lock().unwrap();
         *guard = Some(store_arc.clone());

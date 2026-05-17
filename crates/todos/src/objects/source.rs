@@ -17,46 +17,30 @@ use crate::{
 pub struct Source {
     pub model: SourceModel,
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
 }
 
 #[allow(dead_code)]
 impl Source {
-    /// 创建新的 Source（懒加载 Store）
-    pub fn new(db: DatabaseConnection, model: SourceModel) -> Self {
-        let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new() }
-    }
-
-    /// 创建新的 Source（注入 Store，推荐）
+    /// 创建新的 Source（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: SourceModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
-        Self { model, base, db, store: store_cell }
+        Self { model, base, store }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(
-                    Store::new(self.db.clone()).await.expect(
-                        "Failed to initialize Store for Source: database connection failed",
-                    ),
-                )
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Source（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, item_id: &str) -> Result<Self, TodoError> {
         let item = SourceEntity::find_by_id(item_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
 
-        Ok(Self::new(db, item))
+        Ok(Self::with_store(store, item))
     }
 
     pub fn source_type(&self) -> SourceType {
@@ -126,7 +110,7 @@ impl Source {
     pub async fn delete_source(&self) -> Result<(), TodoError> {
         use crate::entity::prelude::SourceEntity;
         SourceEntity::delete_by_id(self.model.id.clone())
-            .exec(&self.db)
+            .exec(self.store.db())
             .await
             .map_err(TodoError::DbError)?;
         Ok(())

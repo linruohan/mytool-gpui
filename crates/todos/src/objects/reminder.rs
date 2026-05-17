@@ -18,8 +18,7 @@ pub struct Reminder {
     pub model: ReminderModel,
     #[allow(dead_code)]
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
 }
 
 impl Reminder {
@@ -51,45 +50,31 @@ impl Reminder {
 }
 
 impl Reminder {
-    pub fn new(db: DatabaseConnection, model: ReminderModel) -> Self {
-        let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new() }
-    }
-
-    /// 创建新的 Reminder（注入 Store，推荐）
+    /// 创建新的 Reminder（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: ReminderModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
-        Self { model, base, db, store: store_cell }
+        Self { model, base, store }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(
-                    Store::new(self.db.clone()).await.expect(
-                        "Failed to initialize Store for Reminder: database connection failed",
-                    ),
-                )
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, item_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Reminder（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, item_id: &str) -> Result<Self, TodoError> {
         let item = ReminderEntity::find_by_id(item_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", item_id)))?;
 
-        Ok(Self::new(db, item))
+        Ok(Self::with_store(store, item))
     }
 
     // generate_accessors!(reminder_type:Option<String>);
 
     pub async fn item(&self) -> Option<ItemModel> {
-        self.store().await.get_item(self.model.item_id.as_ref()?).await
+        self.store().get_item(self.model.item_id.as_ref()?).await
     }
 
     pub async fn datetime(&self) -> Option<NaiveDateTime> {
@@ -97,7 +82,7 @@ impl Reminder {
             ReminderType::ABSOLUTE => self.due().as_ref()?.datetime(),
             _ => {
                 let item_id = self.item().await?.id;
-                let item = Item::from_db(self.db.clone(), &item_id).await.ok()?;
+                let item = Item::from_db(self.store.clone(), &item_id).await.ok()?;
                 item.due().as_ref()?.datetime().map(|dt| {
                     dt - Duration::minutes(self.model.mm_offset.unwrap_or_default() as i64)
                 })
@@ -119,14 +104,14 @@ impl Reminder {
     }
 
     pub async fn delete(&self) -> Result<u64, TodoError> {
-        self.store().await.delete_reminder(&self.model.id).await
+        self.store().delete_reminder(&self.model.id).await
     }
 
     pub async fn source(&self) -> Option<SourceModel> {
         let item_id = self.item().await?.id;
-        let item = Item::from_db(self.db.clone(), &item_id).await.ok()?;
+        let item = Item::from_db(self.store.clone(), &item_id).await.ok()?;
         let project_id = item.project().await?.id;
-        let project = Project::from_db(self.db.clone(), &project_id).await.ok()?;
+        let project = Project::from_db(self.store.clone(), &project_id).await.ok()?;
         project.source().await
     }
 

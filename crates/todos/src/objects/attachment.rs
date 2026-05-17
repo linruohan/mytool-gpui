@@ -13,43 +13,29 @@ use crate::{
 pub struct Attachment {
     pub model: AttachmentModel,
     base: BaseObject,
-    db: DatabaseConnection,
-    store: OnceCell<Arc<Store>>,
+    store: Arc<Store>,
 }
 
 impl Attachment {
-    /// 创建新的 Attachment（懒加载 Store）
-    pub fn new(db: DatabaseConnection, model: AttachmentModel) -> Attachment {
-        let base = BaseObject::default();
-        Self { model, base, db, store: OnceCell::new() }
-    }
-
-    /// 创建新的 Attachment（注入 Store，推荐）
+    /// 创建新的 Attachment（必须注入 Store）
     pub fn with_store(store: Arc<Store>, model: AttachmentModel) -> Self {
         let base = BaseObject::default();
-        let db = store.db().clone();
-        let store_cell = OnceCell::new();
-        store_cell.set(store).expect("Store already initialized");
-        Self { model, base, db, store: store_cell }
+        Self { model, base, store }
     }
 
-    pub async fn store(&self) -> &Store {
-        self.store
-            .get_or_init(|| async {
-                Arc::new(Store::new(self.db.clone()).await.expect(
-                    "Failed to initialize Store for Attachment: database connection failed",
-                ))
-            })
-            .await
+    /// 获取 Store 引用
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 
-    pub async fn from_db(db: DatabaseConnection, attachment_id: &str) -> Result<Self, TodoError> {
+    /// 从数据库加载 Attachment（必须传入 Store）
+    pub async fn from_db(store: Arc<Store>, attachment_id: &str) -> Result<Self, TodoError> {
         let attachment = AttachmentEntity::find_by_id(attachment_id)
-            .one(&db)
+            .one(store.db())
             .await?
             .ok_or_else(|| TodoError::NotFound(format!("Item {} not found", attachment_id)))?;
 
-        Ok(Self::new(db, attachment))
+        Ok(Self::with_store(store, attachment))
     }
 
     pub async fn delete_attachment(&self) -> Result<u64, TodoError> {
@@ -58,7 +44,7 @@ impl Attachment {
     }
 
     pub async fn item(&self) -> Option<ItemModel> {
-        self.store().await.get_item(&self.model.item_id).await
+        self.store().get_item(&self.model.item_id).await
     }
 
     pub fn set_item(&mut self, new_item_id: &str) -> &mut Self {
