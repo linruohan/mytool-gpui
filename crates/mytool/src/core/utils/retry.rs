@@ -130,16 +130,28 @@ where
                     return Err(e);
                 }
 
+                // 保存错误信息用于最后返回（不需要 Clone）
+                let error_type = match &e {
+                    TodoError::DatabaseError(msg) if msg.contains("pool") => {
+                        "ConnectionPoolTimeout"
+                    },
+                    TodoError::DatabaseError(_) => "DatabaseError",
+                    TodoError::DbError(_) => "DbError",
+                    TodoError::Timeout(_) => "Timeout",
+                    _ => "Other",
+                };
+
                 last_error = Some(e);
 
                 // 如果还有剩余重试次数，等待后重试
                 if attempt < config.max_retries {
                     let delay = config.delay_for_attempt(attempt);
                     info!(
-                        "Retrying in {:?} (attempt {}/{})",
+                        "Retrying in {:?} (attempt {}/{}) - Error type: {}",
                         delay,
                         attempt + 1,
-                        config.max_retries
+                        config.max_retries,
+                        error_type
                     );
                     tokio::time::sleep(delay).await;
                 }

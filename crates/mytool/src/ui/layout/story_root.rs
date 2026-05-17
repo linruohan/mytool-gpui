@@ -13,8 +13,14 @@ pub struct StoryRoot {
 
 impl Drop for StoryRoot {
     fn drop(&mut self) {
-        // 🚀 7.0新增：窗口关闭时触发退出信号
-        tracing::info!("StoryRoot dropped, window closed, requesting shutdown");
+        tracing::info!(
+            "🔴 StoryRoot dropped, window closed, active DB tasks: {:?}",
+            crate::core::tokio_runtime::get_active_task_count()
+        );
+
+        // ⚠️ 不能在 Drop (async 上下文) 中调用阻塞式 shutdown_db_runtime
+        // 否则会 panic: "Cannot drop a runtime in a context where blocking is not allowed"
+        // 改为只发送退出信号，让 request_shutdown 的后台线程处理
         crate::request_shutdown();
     }
 }

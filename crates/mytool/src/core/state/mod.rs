@@ -44,27 +44,30 @@ pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
     cx.global::<DBState>().get_connection()
 }
 
-/// 获取全局 Store 实例的便捷函数
+/// 获取全局 Store 实例（同步版本）
 ///
-/// 这是一个辅助函数，用于简化从全局状态获取 Store 实例的操作。
-/// 返回的 Arc<Store> 是轻量级的，可以安全地克隆。
-///
-/// 🚀 6.1优化：Store 通过异步创建，此方法在 Store 未就绪时会 panic
+/// ⚠️ 仅在非 async 上下文中使用！
+/// 如果在 async 上下文中，请使用 `get_store_async()`！
 ///
 /// # Panics
 /// 如果 Store 尚未初始化（这表示应用逻辑有错误）
-///
-/// # 示例
-/// ```ignore
-/// let store = get_store(cx);
-/// cx.spawn(async move |_cx| {
-///     // 使用 store 进行数据库操作
-/// })
-/// .detach();
-/// ```
 #[inline]
 pub fn get_store(cx: &App) -> Arc<todos::Store> {
     cx.global::<DBState>().get_store()
+}
+
+/// 获取全局 Store 实例（异步版本）
+///
+/// 用于 async 上下文中，避免嵌套 runtime 问题。
+///
+/// # 示例
+/// ```ignore
+/// let store = get_store_async(cx).await;
+/// // 使用 store 进行数据库操作
+/// ```
+#[inline]
+pub async fn get_store_async(cx: &App) -> Arc<todos::Store> {
+    cx.global::<DBState>().get_store_async().await
 }
 
 /// 初始化所有状态
@@ -116,7 +119,16 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
         tracing::info!("Store initialized, loading data...");
 
+        // 🔍 诊断：初始化完成后检查连接池状态
+        todos::utils::pool_monitor::diagnose_pool_state(
+            &db_state.get_connection(),
+            "after_store_init",
+        )
+        .await;
+
         // 加载数据到 TodoStore（唯一数据源）
+        // 注意：这些操作是顺序执行的，每个操作完成后会释放数据库连接
+        tracing::info!("Loading items...");
         let items_r = crate::state_service::load_items_with_store(store.clone()).await;
         if let Ok(ref items) = items_r {
             let inbox_items: Vec<&entity::ItemModel> = items
@@ -130,20 +142,30 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
             );
         }
 
+        tracing::info!("Loading projects...");
         let projects_r = crate::state_service::load_projects_with_store(store.clone()).await;
         if let Ok(ref projects) = projects_r {
             tracing::info!("Loaded {} projects", projects.len());
         }
 
+        tracing::info!("Loading sections...");
         let sections_r = crate::state_service::load_sections_with_store(store.clone()).await;
         if let Ok(ref sections) = sections_r {
             tracing::info!("Loaded {} sections", sections.len());
         }
 
+        tracing::info!("Loading labels...");
         let labels_r = crate::state_service::load_labels_with_store(store.clone()).await;
         if let Ok(ref labels) = labels_r {
             tracing::info!("Loaded {} labels", labels.len());
         }
+
+        // 🔍 诊断：所有数据加载完成后检查连接池状态
+        todos::utils::pool_monitor::diagnose_pool_state(
+            &db_state.get_connection(),
+            "after_data_load",
+        )
+        .await;
 
         let mut load_failures: Vec<String> = Vec::new();
         if let Err(ref e) = items_r {
@@ -188,6 +210,10 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         }
 
         tracing::info!("Initial data load task finished, UI will be notified");
+
+        // 初始化完成后诊断连接池状态
+        let db_conn = db_state.get_connection();
+        todos::utils::pool_monitor::diagnose_pool_state(&db_conn, "state_init").await;
     })
     .detach();
 }

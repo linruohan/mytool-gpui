@@ -96,8 +96,7 @@ impl PinBoard {
                 self.pending_refresh.set(true);
             } else {
                 tracing::debug!(
-                    "📌 [PinBoard] 首次渲染兜底: TodoStore 也为空 \
-                     (all_items={})，等待数据加载...",
+                    "📌 [PinBoard] 首次渲染兜底: TodoStore 也为空 (all_items={})，等待数据加载...",
                     cx.global::<TodoStore>().all_items.len()
                 );
             }

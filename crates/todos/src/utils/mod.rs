@@ -1,4 +1,6 @@
+pub mod connection_tracker;
 pub mod datetime;
+pub mod pool_monitor;
 pub mod retry;
 mod util;
 pub(crate) use datetime::{DateTime, EMPTY_DATETIME};

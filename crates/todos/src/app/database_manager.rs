@@ -51,13 +51,13 @@ impl DatabaseManager {
 
     async fn init_sqlite_db(&self) -> Result<DatabaseConnection, DbErr> {
         let db_path = self.resolve_db_path(self.config.sqlite_path());
-        let base_url = format!("sqlite://{}?mode=rwc", db_path);
+        let base_url = format!("sqlite://{}?mode=rwc&cache=shared", db_path);
 
         let mut options = ConnectOptions::new(base_url);
 
         options
             .min_connections(1)
-            .max_connections(10)
+            .max_connections(3)
             .connect_timeout(Duration::from_secs(30))
             .acquire_timeout(Duration::from_secs(60))
             .idle_timeout(Duration::from_secs(300))

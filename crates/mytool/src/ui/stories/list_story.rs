@@ -15,7 +15,6 @@ use crate::{
     ItemListDelegate, ItemRow, ItemRowState, LabelsPopoverEvent, LabelsPopoverList,
     popover_list::PopoverList,
     section,
-    state_service::load_items,
     todo_state::{DBState, TodoStore},
 };
 
@@ -124,10 +123,19 @@ impl ListStory {
                 },
             }),
         ];
+
         let company_list_clone = company_list.clone();
-        let db = cx.global::<DBState>().conn.clone();
+        let db_state = cx.global::<DBState>().clone();
         cx.spawn(async move |_view, cx| {
-            let labels = load_items((*db).clone()).await;
+            // 🚀 7.0修复：先等待 Store 就绪
+            if let Err(e) = db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await {
+                tracing::warn!("list_story: Store not ready after timeout: {}", e);
+                return;
+            }
+            let store = db_state.get_store_async().await;
+            // 使用推荐的 with_store API
+            let items_result = crate::state_service::load_items_with_store(store).await;
+            let labels = items_result.unwrap_or_default();
             let rc_labels: Vec<Arc<ItemModel>> =
                 labels.iter().map(|label| Arc::new(label.clone())).collect();
             tracing::debug!("list_story: len labels: {}", rc_labels.len());

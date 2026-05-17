@@ -287,7 +287,7 @@ impl ProjectsPanel {
         std::thread::spawn(move || {
             let save_result = crate::core::tokio_runtime::run_db_operation(async move {
                 db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
-                let store = db_state.get_store();
+                let store = db_state.get_store_async().await;
                 crate::core::utils::retry::retry_async_todo(
                     move |_attempt| {
                         let store = store.clone();
@@ -324,7 +324,7 @@ impl ProjectsPanel {
         std::thread::spawn(move || {
             let save_result = crate::core::tokio_runtime::run_db_operation(async move {
                 db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
-                let store = db_state.get_store();
+                let store = db_state.get_store_async().await;
                 crate::core::utils::retry::retry_async_todo(
                     move |_attempt| {
                         let store = store.clone();

@@ -5,7 +5,7 @@
 use std::{process, sync::mpsc::channel, thread};
 
 use gpui_component_assets::Assets;
-use mytool::{Gallery, init_plugins, todo_state::get_todo_conn};
+use mytool::{Gallery, todo_state::get_todo_conn};
 
 #[tokio::main]
 async fn main() {
@@ -42,7 +42,7 @@ async fn main() {
     app.run(move |cx| {
         mytool::init(cx);
         mytool::todo_state::state_init(cx, db);
-        init_plugins(cx);
+        // init_plugins(cx);
         cx.activate(true);
         mytool::create_new_window(
             "MyTool-GPUI",

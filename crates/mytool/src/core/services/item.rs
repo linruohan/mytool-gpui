@@ -37,7 +37,19 @@ pub async fn add_item_with_store(
     item: Arc<ItemModel>,
     store: Arc<Store>,
 ) -> Result<ItemModel, TodoError> {
-    store.insert_item(item.as_ref().clone(), true).await
+    tracing::info!(
+        "🔗 [state_service::add_item_with_store] 调用 Store::insert_item, content='{}'",
+        item.content
+    );
+
+    let result = store.insert_item(item.as_ref().clone(), true).await;
+
+    tracing::info!(
+        "🔗 [state_service::add_item_with_store] Store::insert_item 返回, 结果={}",
+        if result.is_ok() { "✅" } else { "❌" }
+    );
+
+    result
 }
 
 // ==================== 修改任务 ====================

@@ -105,18 +105,49 @@ impl DBState {
 
     /// 获取全局 Store 实例
     ///
-    /// 🚀 6.1优化：Store 通过异步创建，此方法在 Store 未就绪时会 panic
-    /// （这表明存在编程错误：Store 初始化前的操作）
+    /// 🚀 7.0修复：智能检测上下文，避免嵌套 runtime 问题
+    /// - 如果已经在一个 async runtime 中，直接使用 `.await` 等待
+    /// - 如果不在 runtime 中，使用 `block_on` 等待
+    ///
+    /// # Panics
+    /// 如果 Store 尚未初始化且等待超时
+    #[inline]
+    pub async fn get_store_async(&self) -> Arc<Store> {
+        self.wait_for_store_ready(Some(std::time::Duration::from_secs(10)))
+            .await
+            .expect("Store not initialized after waiting – did you call state_init()?");
+        self.store.lock().unwrap().clone().expect("Store should be initialized after waiting")
+    }
+
+    /// 获取全局 Store 实例（同步版本）
+    ///
+    /// ⚠️ 仅在非 async 上下文中使用！
+    /// 如果在 async 上下文中，请使用 `get_store_async()`！
     ///
     /// # Panics
     /// 如果 Store 尚未初始化（这表示应用逻辑有错误）
     #[inline]
     pub fn get_store(&self) -> Arc<Store> {
-        self.store
-            .lock()
-            .unwrap()
-            .clone()
-            .expect("Store not initialized - did you call state_init()?")
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            let store = self.store.lock().unwrap();
+            if let Some(s) = store.as_ref() {
+                return s.clone();
+            }
+            drop(store);
+            let rt = handle.clone();
+            let wait =
+                async { self.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await };
+            let result = rt.block_on(wait);
+            result.expect("Store not initialized after waiting – did you call state_init()?");
+            self.store.lock().unwrap().clone().expect("Store should be initialized after waiting")
+        } else {
+            let rt = tokio::runtime::Handle::current();
+            let wait =
+                async { self.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await };
+            rt.block_on(wait)
+                .expect("Store not initialized after waiting – did you call state_init()?");
+            self.store.lock().unwrap().clone().expect("Store should be initialized after waiting")
+        }
     }
 
     /// 获取数据库连接（轻量级克隆）

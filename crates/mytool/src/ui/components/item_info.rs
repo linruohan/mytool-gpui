@@ -568,7 +568,7 @@ impl ItemInfoState {
                         db_state
                             .wait_for_store_ready(Some(std::time::Duration::from_secs(5)))
                             .await?;
-                        let store = db_state.get_store();
+                        let store = db_state.get_store_async().await;
                         store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await
                     })
                     .await
@@ -621,7 +621,7 @@ impl ItemInfoState {
                 let save_result = crate::core::tokio_runtime::spawn_db_operation(async move {
                     // 🚀 7.0修复：等待 Store 就绪，而非静默跳过
                     db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
-                    let store = db_state.get_store();
+                    let store = db_state.get_store_async().await;
 
                     // 🚀 7.0新增：使用重试机制，自动处理临时性错误
                     crate::core::utils::retry::retry_async_todo(
@@ -1119,7 +1119,7 @@ impl ItemInfoState {
                 tracing::warn!("Store not ready, skipping add_label_to_item");
                 return;
             }
-            let store = db_state.get_store();
+            let store = db_state.get_store_async().await;
             match store.add_label_to_item(&item_id, &label_name).await {
                 Ok(_) => {
                     NotificationSystem::debug(format!("Label '{}' added to item", label_name));
@@ -1160,7 +1160,7 @@ impl ItemInfoState {
                 tracing::warn!("Store not ready, skipping remove_label_from_item");
                 return;
             }
-            let store = db_state.get_store();
+            let store = db_state.get_store_async().await;
             match store.remove_label_from_item(&item_id, &label_id).await {
                 Ok(_) => {
                     NotificationSystem::debug("Label removed from item");
@@ -1379,7 +1379,7 @@ impl ItemInfoState {
                     return;
                 }
 
-                let store = db_state.get_store();
+                let store = db_state.get_store_async().await;
                 match store.get_labels_by_item(&item_id_for_labels).await {
                     Ok(item_labels) => {
                         let label_ids: Vec<String> =
@@ -1530,7 +1530,7 @@ impl ItemInfoState {
                 tracing::warn!("Store not ready, skipping set_item_labels");
                 return;
             }
-            let store = db_state.get_store();
+            let store = db_state.get_store_async().await;
             match store.set_item_labels(&item_id, &label_ids_vec).await {
                 Ok(_) => {
                     NotificationSystem::debug(format!(
