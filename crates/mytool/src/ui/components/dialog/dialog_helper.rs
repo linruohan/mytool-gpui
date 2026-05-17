@@ -89,12 +89,14 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
                         ),
                     ))
                     .child(DialogAction::new().child(
-                        Button::new("ok").label("Save").primary().on_click(move |_, window, cx| {
-                            // Call save function
-                            (save_fn)(cx);
-                            window.push_notification("Item saved.", cx);
-                            window.close_sheet(cx);
-                        }),
+                        Button::new("ok").label(&config.button_label).primary().on_click(
+                            move |_, window, cx| {
+                                // Call save function with App reference
+                                (save_fn)(cx);
+                                window.push_notification("Item saved.", cx);
+                                window.close_sheet(cx);
+                            },
+                        ),
                     )),
             )
     });

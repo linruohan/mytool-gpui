@@ -21,7 +21,7 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
     "runtime_shaders",
 ] }
 gpui_macros = { git = "https://github.com/zed-industries/zed" }
-gpui-component = { git = "https://github.com/linruohan/gpui-component.git" }
+gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = ["tree-sitter-languages"] }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
 anyhow = "1.0.101"

@@ -82,7 +82,13 @@ impl DBState {
 
         loop {
             if self.is_store_ready() {
-                info!("Store ready after {}ms ({} polls)", start.elapsed().as_millis(), wait_count);
+                if wait_count > 0 {
+                    info!(
+                        "Store ready after {}ms ({} polls)",
+                        start.elapsed().as_millis(),
+                        wait_count
+                    );
+                }
                 return Ok(());
             }
 

@@ -508,8 +508,9 @@ impl ItemInfoState {
             item_id, has_input_changes, has_unsaved_changes, current_item.content, labels_changed
         );
 
-        // 如果没有修改，直接跳过保存
-        if !has_input_changes && !labels_changed && !has_unsaved_changes {
+        // 如果没有修改，直接跳过保存（但新任务除外）
+        // 🔧 修复：新任务（item_id 为空）即使没有检测到修改也应该保存
+        if !has_input_changes && !labels_changed && !has_unsaved_changes && !item_id.is_empty() {
             info!(
                 "save_all_changes: No changes detected for item {}, skipping database update",
                 item_id

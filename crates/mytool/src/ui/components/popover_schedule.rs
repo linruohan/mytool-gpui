@@ -339,6 +339,13 @@ impl ScheduleButtonState {
         cx: &mut Context<Self>,
     ) {
         self.popover_open = false;
+
+        // 🔧 修复：当用户选择日期后关闭 popover 时，发射 DateSelected 事件
+        // 这样 ItemInfoState 才能收到通知并更新 state_manager.item.due
+        if !self.due_date.date.is_empty() {
+            cx.emit(ScheduleButtonEvent::DateSelected(self.due_date.date.clone()));
+        }
+
         cx.notify();
     }
 
