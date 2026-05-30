@@ -164,7 +164,7 @@ impl OperationMerger {
         self.debounce_timer = None;
         self.is_timer_running = false;
         self.insertion_order.clear();
-        let result: Vec<_> = self.pending_operations.values().map(|v| v.clone()).collect();
+        let result: Vec<_> = self.pending_operations.values().cloned().collect();
         self.pending_operations.clear();
         result
     }
@@ -253,10 +253,11 @@ impl OperationMerger {
         let is_new_key = !self.pending_operations.contains_key(&item_id);
 
         // 如果已达最大容量且是新 key，移除最旧的操作
-        if is_new_key && self.pending_operations.len() >= self.config.max_pending {
-            if let Some(oldest_key) = self.insertion_order.pop_front() {
-                self.pending_operations.remove(&oldest_key);
-            }
+        if is_new_key
+            && self.pending_operations.len() >= self.config.max_pending
+            && let Some(oldest_key) = self.insertion_order.pop_front()
+        {
+            self.pending_operations.remove(&oldest_key);
         }
 
         match self.pending_operations.get(&item_id) {

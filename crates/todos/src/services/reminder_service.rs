@@ -39,7 +39,7 @@ impl ReminderService {
 
     /// Get a reminder by ID
     pub async fn get_reminder(&self, id: &str) -> Option<ReminderModel> {
-        let result: Result<ReminderModel, TodoError> = self.reminder_repo.find_by_id(id).await;
+        let result: Result<ReminderModel, Box<TodoError>> = self.reminder_repo.find_by_id(id).await;
         result.ok()
     }
 

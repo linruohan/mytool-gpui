@@ -158,10 +158,7 @@ pub fn create_new_window_with_size<F, E>(
                     focus_handle.focus(window, cx);
                 });
 
-                cx.new(|cx| {
-                    let root = Root::new(story_root, window, cx);
-                    root
-                })
+                cx.new(|cx| Root::new(story_root, window, cx))
             })
             .expect("failed to open window");
 

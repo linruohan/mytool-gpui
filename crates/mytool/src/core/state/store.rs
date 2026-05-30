@@ -877,13 +877,11 @@ impl TodoStore {
             self.update_project_index(new_item, true);
         } else if let Some(project_id) = &new_item.project_id
             && !project_id.is_empty()
-        {
-            if let Some(items) = self.project_index.get_mut(project_id)
+            && let Some(items) = self.project_index.get_mut(project_id)
                 && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
             {
                 items[pos] = new_item.clone();
             }
-        }
 
         // 🚀 优化 2: 检查分区 ID 是否变化
         if old_item.section_id != new_item.section_id {
@@ -891,13 +889,11 @@ impl TodoStore {
             self.update_section_index(new_item, true);
         } else if let Some(section_id) = &new_item.section_id
             && !section_id.is_empty()
-        {
-            if let Some(items) = self.section_index.get_mut(section_id)
+            && let Some(items) = self.section_index.get_mut(section_id)
                 && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
             {
                 items[pos] = new_item.clone();
             }
-        }
 
         // 🚀 优化 3: 检查完成状态是否变化
         if old_item.checked != new_item.checked {

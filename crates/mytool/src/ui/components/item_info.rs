@@ -353,8 +353,8 @@ impl ItemInfoState {
                     }
                 } else if current_id.starts_with("temp_") {
                     // 如果当前是临时 ID 且找不到，检查 ID 映射
-                    if let Some(real_id) = store.get_real_id(current_id) {
-                        if let Some(real_item) = store.get_item(real_id) {
+                    if let Some(real_id) = store.get_real_id(current_id)
+                        && let Some(real_item) = store.get_item(real_id) {
                             tracing::info!(
                                 "ItemInfoState: detected ID change from {} to {} via mapping",
                                 current_id,
@@ -378,7 +378,6 @@ impl ItemInfoState {
                             // 触发重新渲染
                             cx.notify();
                         }
-                    }
                 }
             }),
         ];
@@ -458,7 +457,7 @@ impl ItemInfoState {
                 // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
-            InputEvent::PressEnter { secondary } if !*secondary => {
+            InputEvent::PressEnter { secondary, .. } if !*secondary => {
                 // Enter 键不再自动保存，只同步输入
                 self.sync_inputs(cx);
             },

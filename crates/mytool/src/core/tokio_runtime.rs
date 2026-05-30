@@ -53,6 +53,7 @@ fn get_db_runtime() -> Arc<Mutex<Option<Runtime>>> {
 /// # 返回
 /// - `Ok(())` - Runtime 已成功关闭
 /// - `Err(())` - 超时或已关闭
+#[allow(clippy::result_unit_err)]
 pub fn shutdown_db_runtime(timeout: Option<std::time::Duration>) -> Result<(), ()> {
     // 防止重复 shutdown
     if SHUTDOWN_FLAG.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {

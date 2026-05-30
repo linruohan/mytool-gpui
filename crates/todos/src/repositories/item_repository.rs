@@ -278,11 +278,10 @@ impl ItemQueryRepository for ItemRepositoryImpl {
             .map_err(|e| TodoError::DatabaseError(e.to_string()))?
             .into_iter()
             .filter(|item| {
-                if let Some(due) = item.due_date() {
-                    if let Some(naive) = due.datetime() {
+                if let Some(due) = item.due_date()
+                    && let Some(naive) = due.datetime() {
                         return naive >= today_start && naive <= today_end;
                     }
-                }
                 false
             })
             .collect())
@@ -300,11 +299,10 @@ impl ItemQueryRepository for ItemRepositoryImpl {
             .map_err(|e| TodoError::DatabaseError(e.to_string()))?
             .into_iter()
             .filter(|item| {
-                if let Some(due) = item.due_date() {
-                    if let Some(naive) = due.datetime() {
+                if let Some(due) = item.due_date()
+                    && let Some(naive) = due.datetime() {
                         return naive < now;
                     }
-                }
                 false
             })
             .collect())

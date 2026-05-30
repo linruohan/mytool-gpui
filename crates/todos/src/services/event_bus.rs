@@ -79,11 +79,10 @@ impl GenericEventBus {
         let type_id = TypeId::of::<T>();
         let channels = self.channels.read().await;
 
-        if let Some(sender) = channels.get(&type_id) {
-            if let Some(tx) = sender.downcast_ref::<broadcast::Sender<T>>() {
+        if let Some(sender) = channels.get(&type_id)
+            && let Some(tx) = sender.downcast_ref::<broadcast::Sender<T>>() {
                 let _ = tx.send(event);
             }
-        }
     }
 }
 

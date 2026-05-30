@@ -83,10 +83,10 @@ impl<'a> ActionExecutor<'a> {
         let op_name = self.operation_name.to_string();
 
         self.cx
-            .spawn(async move |mut cx| match operation(entity.clone(), store).await {
+            .spawn(async move |cx| match operation(entity.clone(), store).await {
                 Ok(result) => {
                     info!("Successfully {} entity: {}", op_name, entity_id);
-                    on_success(result, &mut cx);
+                    on_success(result, cx);
                 },
                 Err(e) => {
                     let context = ErrorHandler::handle_with_resource(
@@ -123,10 +123,10 @@ impl<'a> ActionExecutor<'a> {
         let op_name = self.operation_name.to_string();
 
         self.cx
-            .spawn(async move |mut cx| match operation(entity.clone(), store).await {
+            .spawn(async move |cx| match operation(entity.clone(), store).await {
                 Ok(result) => {
                     info!("Successfully {} entity: {}", op_name, entity_id);
-                    on_success(result, &mut cx);
+                    on_success(result, cx);
                 },
                 Err(e) => {
                     let context = ErrorHandler::handle_with_resource(
@@ -159,10 +159,10 @@ impl<'a> ActionExecutor<'a> {
         let op_name = self.operation_name.to_string();
 
         self.cx
-            .spawn(async move |mut cx| match operation(entity.clone(), store).await {
+            .spawn(async move |cx| match operation(entity.clone(), store).await {
                 Ok(()) => {
                     info!("Successfully {} entity: {}", op_name, entity_id);
-                    on_success(&mut cx);
+                    on_success(cx);
                 },
                 Err(e) => {
                     let context = ErrorHandler::handle_with_resource(

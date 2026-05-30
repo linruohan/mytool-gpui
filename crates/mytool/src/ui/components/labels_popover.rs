@@ -174,7 +174,7 @@ impl LabelsPopoverList {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let InputEvent::PressEnter { secondary: _ } = event {
+        if let InputEvent::PressEnter { .. } = event {
             let label_name = self.new_label_input.read(cx).value().to_string();
             if !label_name.trim().is_empty() {
                 self.create_new_label(label_name, window, cx);

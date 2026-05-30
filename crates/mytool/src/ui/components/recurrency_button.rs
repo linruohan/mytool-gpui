@@ -43,7 +43,7 @@ pub enum RecurrencyUnit {
 
 impl RecurrencyUnit {
     /// 将重复单位转换为 RecurrencyType
-    pub fn to_recurrency_type(&self) -> RecurrencyType {
+    pub fn to_recurrency_type(self) -> RecurrencyType {
         match self {
             Self::Days => RecurrencyType::EveryDay,
             Self::Weeks => RecurrencyType::EveryWeek,
@@ -65,7 +65,7 @@ impl RecurrencyUnit {
     }
 
     /// 获取显示标签
-    pub fn to_label(&self) -> &'static str {
+    pub fn to_label(self) -> &'static str {
         match self {
             Self::Days => "Day(s)",
             Self::Weeks => "Week(s)",
@@ -97,7 +97,7 @@ pub enum RecurrencyPreset {
 
 impl RecurrencyPreset {
     /// 获取显示标签
-    pub fn to_label(&self) -> &'static str {
+    pub fn to_label(self) -> &'static str {
         match self {
             Self::Daily => "Daily",
             Self::Weekdays => "Weekdays",
@@ -110,7 +110,7 @@ impl RecurrencyPreset {
     }
 
     /// 转换为 RecurrencyType 和 weeks
-    pub fn to_recurrency(&self) -> (RecurrencyType, Option<&'static str>) {
+    pub fn to_recurrency(self) -> (RecurrencyType, Option<&'static str>) {
         match self {
             Self::Daily => (RecurrencyType::EveryDay, None),
             Self::Weekdays => (RecurrencyType::EveryWeek, Some("1,2,3,4,5")),
@@ -276,12 +276,12 @@ impl RecurrencyForm {
 
         // 更新间隔输入框
         self.interval_input.update(cx, |input, cx| {
-            input.set_value(&self.interval_value.to_string(), window, cx);
+            input.set_value(self.interval_value.to_string(), window, cx);
         });
 
         // 更新次数输入框
         self.count_input.update(cx, |input, cx| {
-            input.set_value(&self.after_count.to_string(), window, cx);
+            input.set_value(self.after_count.to_string(), window, cx);
         });
 
         // 更新日期选择器
@@ -370,7 +370,7 @@ impl RecurrencyForm {
         if self.interval_value > 1 {
             self.interval_value -= 1;
             self.interval_input.update(cx, |input, cx| {
-                input.set_value(&self.interval_value.to_string(), window, cx);
+                input.set_value(self.interval_value.to_string(), window, cx);
             });
         }
     }
@@ -379,7 +379,7 @@ impl RecurrencyForm {
     fn increment_interval(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.interval_value += 1;
         self.interval_input.update(cx, |input, cx| {
-            input.set_value(&self.interval_value.to_string(), window, cx);
+            input.set_value(self.interval_value.to_string(), window, cx);
         });
     }
 
@@ -388,7 +388,7 @@ impl RecurrencyForm {
         if self.after_count > 1 {
             self.after_count -= 1;
             self.count_input.update(cx, |input, cx| {
-                input.set_value(&self.after_count.to_string(), window, cx);
+                input.set_value(self.after_count.to_string(), window, cx);
             });
         }
     }
@@ -397,7 +397,7 @@ impl RecurrencyForm {
     fn increment_count(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.after_count += 1;
         self.count_input.update(cx, |input, cx| {
-            input.set_value(&self.after_count.to_string(), window, cx);
+            input.set_value(self.after_count.to_string(), window, cx);
         });
     }
 
@@ -407,11 +407,13 @@ impl RecurrencyForm {
         let interval = self.interval_value;
 
         // 根据 end_type 设置截止日期相关字段
-        let mut due_date_clone = DueDate::default();
-        due_date_clone.is_recurring = true;
-        due_date_clone.recurrency_supported = true;
-        due_date_clone.recurrency_type = recurrency_type.clone();
-        due_date_clone.recurrency_interval = interval;
+        let mut due_date_clone = DueDate {
+            is_recurring: true,
+            recurrency_supported: true,
+            recurrency_type: recurrency_type.clone(),
+            recurrency_interval: interval,
+            ..Default::default()
+        };
 
         match self.end_type {
             RecurrencyEndOption::Never => {},

@@ -101,12 +101,12 @@ impl ReminderForm {
         self.current_time = parent.current_time.clone();
 
         // 如果有日期，同步到日期选择器
-        if !self.current_date.is_empty() {
-            if let Ok(date) = chrono::NaiveDate::parse_from_str(&self.current_date, "%Y-%m-%d") {
-                self.date_picker.update(cx, |picker, cx| {
-                    picker.set_date(date, window, cx);
-                });
-            }
+        if !self.current_date.is_empty()
+            && let Ok(date) = chrono::NaiveDate::parse_from_str(&self.current_date, "%Y-%m-%d")
+        {
+            self.date_picker.update(cx, |picker, cx| {
+                picker.set_date(date, window, cx);
+            });
         }
 
         cx.notify();

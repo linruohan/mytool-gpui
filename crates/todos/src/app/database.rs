@@ -11,7 +11,6 @@ pub async fn init_db() -> Result<DatabaseConnection, DbErr> {
         let config_guard = get().read().expect("读取配置失败");
         config_guard.database().clone()
     };
-
     if db_config.is_sqlite() {
         init_sqlite_db(&db_config).await
     } else {
@@ -66,16 +65,13 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     if let Ok(result) = db
         .query_one(Statement::from_string(DbBackend::Sqlite, "PRAGMA journal_mode".to_string()))
         .await
-    {
-        if let Some(row) = result {
-            if let Ok(mode) = row.try_get::<String>("", "journal_mode") {
+        && let Some(row) = result
+            && let Ok(mode) = row.try_get::<String>("", "journal_mode") {
                 tracing::info!("SQLite journal_mode = {}", mode);
                 if mode != "wal" {
                     tracing::warn!("SQLite is not in WAL mode! This may cause performance issues.");
                 }
             }
-        }
-    }
 
     // 注意：数据库表的创建由 PatchManager::apply_patches() 统一管理
     // 我们只负责连接池创建、PRAGMA 设置和连接验证

@@ -60,7 +60,7 @@ pub enum SchedulePreset {
 }
 
 impl SchedulePreset {
-    pub fn to_label(&self) -> &'static str {
+    pub fn to_label(self) -> &'static str {
         match self {
             Self::Today => "Today",
             Self::Tomorrow => "Tomorrow",
@@ -155,10 +155,10 @@ impl ScheduleForm {
         cx: &mut Context<Self>,
     ) {
         let DatePickerEvent::Change(date) = event;
-        if let Some(date_str) = date.format("%Y-%m-%d") {
-            if let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
-                self.custom_date = Some(parsed_date);
-            }
+        if let Some(date_str) = date.format("%Y-%m-%d")
+            && let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+        {
+            self.custom_date = Some(parsed_date);
         }
         cx.notify();
     }

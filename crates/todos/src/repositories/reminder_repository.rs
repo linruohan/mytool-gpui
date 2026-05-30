@@ -13,7 +13,7 @@ use crate::{
 /// Repository trait for Reminder operations
 #[async_trait::async_trait]
 pub trait ReminderRepository {
-    async fn find_by_id(&self, id: &str) -> Result<ReminderModel, TodoError>;
+    async fn find_by_id(&self, id: &str) -> Result<ReminderModel, Box<TodoError>>;
     async fn find_all(&self) -> Result<Vec<ReminderModel>, TodoError>;
     async fn find_by_item(&self, item_id: &str) -> Result<Vec<ReminderModel>, TodoError>;
 }
@@ -33,13 +33,15 @@ impl ReminderRepositoryImpl {
 
 #[async_trait::async_trait]
 impl ReminderRepository for ReminderRepositoryImpl {
-    async fn find_by_id(&self, id: &str) -> Result<ReminderModel, TodoError> {
+    async fn find_by_id(&self, id: &str) -> Result<ReminderModel, Box<TodoError>> {
         ReminderEntity::find_by_id(id)
             .one(&*self.db)
             .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
+            .map_err(|e| Box::new(TodoError::DatabaseError(e.to_string())))
             .and_then(|reminder| {
-                reminder.ok_or_else(|| TodoError::NotFound(format!("Reminder {} not found", id)))
+                reminder.ok_or_else(|| {
+                    Box::new(TodoError::NotFound(format!("Reminder {} not found", id)))
+                })
             })
     }
 

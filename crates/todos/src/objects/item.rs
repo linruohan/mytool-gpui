@@ -379,7 +379,7 @@ impl Item {
     pub fn get_caldav_categories(&self) {}
 
     pub async fn check_labels(&mut self, new_labels: HashMap<String, LabelModel>) {
-        for (_key, label) in &new_labels {
+        for label in new_labels.values() {
             if self.get_label(&label.id).await.is_none() {
                 let _ = self.add_label_if_not_exists(label).await;
             }

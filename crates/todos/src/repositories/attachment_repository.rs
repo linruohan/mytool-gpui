@@ -13,7 +13,7 @@ use crate::{
 /// Repository trait for Attachment operations
 #[async_trait]
 pub trait AttachmentRepository {
-    async fn find_by_id(&self, id: &str) -> Result<AttachmentModel, TodoError>;
+    async fn find_by_id(&self, id: &str) -> Result<AttachmentModel, Box<TodoError>>;
     async fn find_all(&self) -> Result<Vec<AttachmentModel>, TodoError>;
     async fn find_by_item(&self, item_id: &str) -> Result<Vec<AttachmentModel>, TodoError>;
 }
@@ -33,14 +33,15 @@ impl AttachmentRepositoryImpl {
 
 #[async_trait::async_trait]
 impl AttachmentRepository for AttachmentRepositoryImpl {
-    async fn find_by_id(&self, id: &str) -> Result<AttachmentModel, TodoError> {
+    async fn find_by_id(&self, id: &str) -> Result<AttachmentModel, Box<TodoError>> {
         AttachmentEntity::find_by_id(id)
             .one(&*self.db)
             .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
+            .map_err(|e| Box::new(TodoError::DatabaseError(e.to_string())))
             .and_then(|attachment| {
-                attachment
-                    .ok_or_else(|| TodoError::NotFound(format!("Attachment {} not found", id)))
+                attachment.ok_or_else(|| {
+                    Box::new(TodoError::NotFound(format!("Attachment {} not found", id)))
+                })
             })
     }
 

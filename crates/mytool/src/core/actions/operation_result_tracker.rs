@@ -228,10 +228,9 @@ impl OperationResultTracker {
 
     /// 检查是否有正在进行的操作
     pub fn has_pending_operations(&self) -> bool {
-        self.operations.values().any(|status| match status {
-            OperationStatus::Pending | OperationStatus::InProgress => true,
-            _ => false,
-        })
+        self.operations
+            .values()
+            .any(|status| matches!(status, OperationStatus::Pending | OperationStatus::InProgress))
     }
 
     /// 检查是否有失败的操作

@@ -87,24 +87,24 @@ impl Source {
         }
     }
 
-    pub fn run_server(&self) -> Result<(), TodoError> {
+    pub fn run_server(&self) -> Result<(), Box<TodoError>> {
         match self.source_type() {
             SourceType::CALDAV => {
                 // Services.CalDAV.Core.get_default ().sync.begin (this);
-                Ok(())
+                Ok::<(), Box<TodoError>>(())
             },
             SourceType::TODOIST => {
                 // Services.Todoist.get_default ().sync.begin (this);
-                Ok(())
+                Ok::<(), Box<TodoError>>(())
             },
-            _ => Ok(()),
+            _ => Ok::<(), Box<TodoError>>(()),
         }
     }
 
-    pub fn save(&self) -> Result<(), TodoError> {
+    pub fn save(&self) -> Result<(), Box<TodoError>> {
         // updated_at = new GLib.DateTime.now_local ().to_string ();
         // Services.Store.instance ().update_source (this);
-        Ok(())
+        Ok::<(), Box<TodoError>>(())
     }
 
     pub async fn delete_source(&self) -> Result<(), TodoError> {

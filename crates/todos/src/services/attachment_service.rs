@@ -36,7 +36,8 @@ impl AttachmentService {
 
     /// Get an attachment by ID
     pub async fn get_attachment(&self, id: &str) -> Option<AttachmentModel> {
-        let result: Result<AttachmentModel, TodoError> = self.attachment_repo.find_by_id(id).await;
+        let result: Result<AttachmentModel, Box<TodoError>> =
+            self.attachment_repo.find_by_id(id).await;
         result.ok()
     }
 
