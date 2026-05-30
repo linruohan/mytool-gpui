@@ -2,9 +2,9 @@ use gpui::{
     AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement, Render, SharedString, Styled, Window, div,
 };
-use gpui_component::{Root, v_flex};
+use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
 
-use crate::AppTitleBar;
+use crate::{AppTitleBar, ShowPanelInfo, ToggleSearch};
 pub struct StoryRoot {
     pub(crate) focus_handle: FocusHandle,
     pub(crate) title_bar: Entity<AppTitleBar>,
@@ -35,6 +35,33 @@ impl StoryRoot {
         let title_bar = cx.new(|cx| AppTitleBar::new(title, window, cx));
         Self { focus_handle: cx.focus_handle(), title_bar, view: view.into() }
     }
+
+    fn on_action_panel_info(
+        &mut self,
+        _: &ShowPanelInfo,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        struct Info;
+        let note = Notification::new().message("You have clicked panel info.").id::<Info>();
+        window.push_notification(note, cx);
+    }
+
+    fn on_action_toggle_search(
+        &mut self,
+        _: &ToggleSearch,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.propagate();
+        if window.has_focused_input(cx) {
+            return;
+        }
+
+        struct Search;
+        let note = Notification::new().message("You have toggled search.").id::<Search>();
+        window.push_notification(note, cx);
+    }
 }
 
 impl Focusable for StoryRoot {
@@ -49,20 +76,25 @@ impl Render for StoryRoot {
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
 
-        div().id("story-root").size_full().child(
-            v_flex()
-                .size_full()
-                .child(self.title_bar.clone())
-                .child(
-                    div()
-                        .track_focus(&self.focus_handle)
-                        .flex_1()
-                        .overflow_hidden()
-                        .child(self.view.clone()),
-                )
-                .children(sheet_layer)
-                .children(dialog_layer)
-                .children(notification_layer),
-        )
+        div()
+            .id("story-root")
+            .on_action(cx.listener(Self::on_action_panel_info))
+            .on_action(cx.listener(Self::on_action_toggle_search))
+            .size_full()
+            .child(
+                v_flex()
+                    .size_full()
+                    .child(self.title_bar.clone())
+                    .child(
+                        div()
+                            .track_focus(&self.focus_handle)
+                            .flex_1()
+                            .overflow_hidden()
+                            .child(self.view.clone()),
+                    )
+                    .children(sheet_layer)
+                    .children(dialog_layer)
+                    .children(notification_layer),
+            )
     }
 }

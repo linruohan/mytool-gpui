@@ -51,11 +51,7 @@ impl StoryState {
             "TodoStory" => story!(TodoStory),
             "EditorStory" => story!(EditorStory),
             _ => {
-                tracing::error!(
-                    "Invalid story klass: {}. Falling back to ListStory",
-                    self.story_klass
-                );
-                story!(ListStory)
+                unreachable!("Invalid story klass: {}", self.story_klass)
             },
         }
     }

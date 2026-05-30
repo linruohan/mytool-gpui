@@ -2,6 +2,7 @@
 
 pub mod app_menus; // 应用菜单
 pub mod components; // UI 组件
+pub mod embedded_themes;
 pub mod gallery; // 画廊
 pub mod layout; // 布局组件
 pub mod stories; // 故事/示例

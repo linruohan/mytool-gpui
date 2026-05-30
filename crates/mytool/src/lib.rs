@@ -87,6 +87,7 @@ actions!(mytool, [
     ShowPanelInfo,
     ToggleListActiveHighlight
 ]);
+
 const PANEL_NAME: &str = "StoryContainer";
 
 pub struct AppState {
@@ -155,19 +156,19 @@ pub fn create_new_window_with_size<F, E>(
                 // Set focus to the StoryRoot to enable it's actions.
                 let focus_handle = story_root.focus_handle(cx);
                 window.defer(cx, move |window, cx| {
-                    focus_handle.focus(window, cx);
+                    if window.focused(cx).is_none() {
+                        focus_handle.focus(window, cx);
+                    }
                 });
 
                 cx.new(|cx| Root::new(story_root, window, cx))
             })
             .expect("failed to open window");
 
-        window
-            .update(cx, |_, window, _| {
-                window.activate_window();
-                window.set_window_title(&title);
-            })
-            .expect("failed to update window");
+        window.update(cx, |_, window, _| {
+            window.activate_window();
+            window.set_window_title(&title);
+        })?;
 
         Ok::<_, anyhow::Error>(())
     })
@@ -197,11 +198,54 @@ pub fn init(cx: &mut App) {
         )
         .with(env_filter)
         .init();
+    // Try to initialize tracing subscriber, but ignore if already initialized
+    #[cfg(not(target_family = "wasm"))]
+    {
+        use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
+        let _ = tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer())
+            .with(
+                tracing_subscriber::EnvFilter::from_default_env()
+                    .add_directive("gpui_component=trace".parse().unwrap()),
+            )
+            .try_init();
+    }
+
+    // For WASM, use a subscriber without time support
+    #[cfg(target_family = "wasm")]
+    {
+        use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
+        let _ = tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer().without_time())
+            .with(
+                tracing_subscriber::EnvFilter::from_default_env()
+                    .add_directive("gpui_component=trace".parse().unwrap()),
+            )
+            .try_init();
+    }
 
     gpui_component::init(cx);
     AppState::init(cx);
     themes::init(cx);
     ui::stories::init(cx);
+
+    #[cfg(not(target_family = "wasm"))]
+    {
+        // let http_client =
+        //     reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap();
+        // cx.set_http_client(std::sync::Arc::new(http_client));
+    }
+
+    #[cfg(target_family = "wasm")]
+    {
+        // Safety: the web examples run single-threaded; the client is
+        // created and used exclusively on the main thread.
+        let http_client = unsafe {
+            gpui_web::FetchHttpClient::with_user_agent("gpui-component/story")
+                .expect("failed to create FetchHttpClient")
+        };
+        cx.set_http_client(std::sync::Arc::new(http_client));
+    }
 
     cx.bind_keys([
         KeyBinding::new("/", ToggleSearch, None),
@@ -227,38 +271,6 @@ pub fn init(cx: &mut App) {
 
         cx.quit();
         request_shutdown();
-    });
-
-    cx.on_action(|_: &About, cx: &mut App| {
-        if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
-            cx.defer(move |cx| {
-                window
-                    .update(cx, |root, window, cx| {
-                        root.push_notification(
-                            "GPUI Component Storybook\nVersion 0.1.0",
-                            window,
-                            cx,
-                        );
-                    })
-                    .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
-                    .ok();
-            });
-        }
-    });
-
-    // Central handlers for panel info and toggle search actions. Panels emit these actions;
-    // Handle them globally by finding the active Root window and pushing a notification.
-    cx.on_action(|_: &ShowPanelInfo, cx: &mut App| {
-        if let Some(window) = cx.active_window().and_then(|w| w.downcast::<Root>()) {
-            cx.defer(move |cx| {
-                window
-                    .update(cx, |root, window, cx| {
-                        root.push_notification("You have clicked panel info.", window, cx);
-                    })
-                    .map_err(|e| tracing::error!("failed to push notification: {:?}", e))
-                    .ok();
-            });
-        }
     });
 
     cx.on_action(|_: &About, cx: &mut App| {
@@ -312,6 +324,7 @@ pub fn init(cx: &mut App) {
 
     cx.activate(true);
 }
+
 pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
     StorySection {
         title: title.into(),

@@ -66,12 +66,13 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
         .query_one(Statement::from_string(DbBackend::Sqlite, "PRAGMA journal_mode".to_string()))
         .await
         && let Some(row) = result
-            && let Ok(mode) = row.try_get::<String>("", "journal_mode") {
-                tracing::info!("SQLite journal_mode = {}", mode);
-                if mode != "wal" {
-                    tracing::warn!("SQLite is not in WAL mode! This may cause performance issues.");
-                }
-            }
+        && let Ok(mode) = row.try_get::<String>("", "journal_mode")
+    {
+        tracing::info!("SQLite journal_mode = {}", mode);
+        if mode != "wal" {
+            tracing::warn!("SQLite is not in WAL mode! This may cause performance issues.");
+        }
+    }
 
     // 注意：数据库表的创建由 PatchManager::apply_patches() 统一管理
     // 我们只负责连接池创建、PRAGMA 设置和连接验证

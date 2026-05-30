@@ -354,30 +354,31 @@ impl ItemInfoState {
                 } else if current_id.starts_with("temp_") {
                     // 如果当前是临时 ID 且找不到，检查 ID 映射
                     if let Some(real_id) = store.get_real_id(current_id)
-                        && let Some(real_item) = store.get_item(real_id) {
-                            tracing::info!(
-                                "ItemInfoState: detected ID change from {} to {} via mapping",
-                                current_id,
-                                real_id
-                            );
+                        && let Some(real_item) = store.get_item(real_id)
+                    {
+                        tracing::info!(
+                            "ItemInfoState: detected ID change from {} to {} via mapping",
+                            current_id,
+                            real_id
+                        );
 
-                            // 更新 state_manager 中的 item
-                            this.state_manager.item = real_item.clone();
+                        // 更新 state_manager 中的 item
+                        this.state_manager.item = real_item.clone();
 
-                            // 更新 AttachmentButtonState 的 item_id
-                            let new_item_id = real_item.id.clone();
-                            this.attachment_state.update(cx, |state, cx| {
-                                state.update_item_id(new_item_id.clone(), cx);
-                            });
+                        // 更新 AttachmentButtonState 的 item_id
+                        let new_item_id = real_item.id.clone();
+                        this.attachment_state.update(cx, |state, cx| {
+                            state.update_item_id(new_item_id.clone(), cx);
+                        });
 
-                            // 更新 ReminderButtonState 的 item_id
-                            this.reminder_state.update(cx, |state, cx| {
-                                state.update_item_id(new_item_id, cx);
-                            });
+                        // 更新 ReminderButtonState 的 item_id
+                        this.reminder_state.update(cx, |state, cx| {
+                            state.update_item_id(new_item_id, cx);
+                        });
 
-                            // 触发重新渲染
-                            cx.notify();
-                        }
+                        // 触发重新渲染
+                        cx.notify();
+                    }
                 }
             }),
         ];

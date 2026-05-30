@@ -80,9 +80,10 @@ impl GenericEventBus {
         let channels = self.channels.read().await;
 
         if let Some(sender) = channels.get(&type_id)
-            && let Some(tx) = sender.downcast_ref::<broadcast::Sender<T>>() {
-                let _ = tx.send(event);
-            }
+            && let Some(tx) = sender.downcast_ref::<broadcast::Sender<T>>()
+        {
+            let _ = tx.send(event);
+        }
     }
 }
 

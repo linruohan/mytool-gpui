@@ -7,6 +7,7 @@ use gpui_component::{
     group_box::{GroupBox, GroupBoxVariants},
     h_flex,
 };
+
 #[derive(IntoElement)]
 pub struct StorySection {
     pub(crate) base: Div,
@@ -53,40 +54,27 @@ impl ParentElement for StorySection {
 }
 
 impl Styled for StorySection {
-    fn style(&mut self) -> &mut StyleRefinement {
+    fn style(&mut self) -> &mut gpui::StyleRefinement {
         self.base.style()
     }
 }
 
 impl RenderOnce for StorySection {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let has_sub_title = !self.sub_title.is_empty();
-        let title_is_empty = self.title.is_empty();
-        let title_clone = self.title.clone();
-
-        // 分离 sub_title 用于标题和内容
-        let (title_element, remaining_sub_titles) = if title_is_empty && has_sub_title {
-            let mut sub_titles = self.sub_title;
-            let title = sub_titles.remove(0);
-            (title, sub_titles)
-        } else {
-            (self.title.into_any_element(), self.sub_title)
-        };
-
         GroupBox::new()
-            .id(title_clone)
+            .id(self.title.clone())
             .outline()
             .title(
                 h_flex()
                     .justify_between()
                     .w_full()
-                    .gap_2()
-                    .child(title_element)
-                    .children(remaining_sub_titles),
+                    .gap_4()
+                    .child(self.title)
+                    .children(self.sub_title),
             )
             .content_style(
                 StyleRefinement::default()
-                    .rounded(cx.theme().radius)
+                    .rounded(cx.theme().radius_lg)
                     .overflow_x_hidden()
                     .items_center()
                     .justify_center(),

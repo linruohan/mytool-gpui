@@ -51,7 +51,6 @@ fn build_menus(title: impl Into<SharedString>, cx: &App) -> Vec<Menu> {
     vec![
         Menu {
             name: title.into(),
-            disabled: false,
             items: vec![
                 MenuItem::action("About", About),
                 MenuItem::Separator,
@@ -59,23 +58,23 @@ fn build_menus(title: impl Into<SharedString>, cx: &App) -> Vec<Menu> {
                 MenuItem::Separator,
                 MenuItem::Submenu(Menu {
                     name: "Appearance".into(),
-                    disabled: false,
                     items: vec![
                         MenuItem::action("Light", SwitchThemeMode(ThemeMode::Light))
                             .checked(!cx.theme().mode.is_dark()),
                         MenuItem::action("Dark", SwitchThemeMode(ThemeMode::Dark))
                             .checked(cx.theme().mode.is_dark()),
                     ],
+                    disabled: false,
                 }),
                 theme_menu(cx),
                 language_menu(cx),
                 MenuItem::Separator,
                 MenuItem::action("Quit", Quit),
             ],
+            disabled: false,
         },
         Menu {
             name: "Edit".into(),
-            disabled: false,
             items: vec![
                 MenuItem::action("Undo", gpui_component::input::Undo),
                 MenuItem::action("Redo", gpui_component::input::Redo),
@@ -95,16 +94,21 @@ fn build_menus(title: impl Into<SharedString>, cx: &App) -> Vec<Menu> {
                 MenuItem::separator(),
                 MenuItem::action("Select All", gpui_component::input::SelectAll),
             ],
+            disabled: false,
         },
         Menu {
             name: "Window".into(),
-            disabled: false,
             items: vec![MenuItem::action("Toggle Search", ToggleSearch)],
+            disabled: false,
         },
         Menu {
             name: "Help".into(),
+            items: vec![
+                MenuItem::action("Documentation", Open).disabled(true),
+                MenuItem::separator(),
+                MenuItem::action("Open Website", Open),
+            ],
             disabled: false,
-            items: vec![MenuItem::action("Open Website", Open)],
         },
     ]
 }
@@ -113,11 +117,11 @@ fn language_menu(_: &App) -> MenuItem {
     let locale = rust_i18n::locale().to_string();
     MenuItem::Submenu(Menu {
         name: "Language".into(),
-        disabled: false,
         items: vec![
             MenuItem::action("English", SelectLocale("en".into())).checked(locale == "en"),
             MenuItem::action("简体中文", SelectLocale("zh-CN".into())).checked(locale == "zh-CN"),
         ],
+        disabled: false,
     })
 }
 
@@ -126,7 +130,6 @@ fn theme_menu(cx: &App) -> MenuItem {
     let current_name = cx.theme().theme_name();
     MenuItem::Submenu(Menu {
         name: "Theme".into(),
-        disabled: false,
         items: themes
             .iter()
             .map(|theme| {
@@ -135,5 +138,6 @@ fn theme_menu(cx: &App) -> MenuItem {
                     .checked(checked)
             })
             .collect(),
+        disabled: false,
     })
 }

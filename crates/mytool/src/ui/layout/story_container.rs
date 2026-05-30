@@ -4,7 +4,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName,
+    ActiveTheme, IconName, WindowExt,
     button::Button,
     dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
@@ -12,24 +12,26 @@ use gpui_component::{
 };
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
-#[derive(Debug)]
 #[allow(dead_code)]
-pub enum ContainerEvent {
-    Close,
-}
 pub struct StoryContainer {
     pub(crate) focus_handle: gpui::FocusHandle,
     pub name: SharedString,
     pub title_bg: Option<Hsla>,
     pub description: SharedString,
-    width: Option<Pixels>,
-    height: Option<Pixels>,
+    width: Option<gpui::Pixels>,
+    height: Option<gpui::Pixels>,
     story: Option<AnyView>,
     story_klass: Option<SharedString>,
     pub(crate) closable: bool,
     pub(crate) zoomable: Option<PanelControl>,
     paddings: Pixels,
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum ContainerEvent {
+    Close,
 }
 
 impl EventEmitter<ContainerEvent> for StoryContainer {}
@@ -74,13 +76,13 @@ impl StoryContainer {
         })
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub fn width(mut self, width: gpui::Pixels) -> Self {
         self.width = Some(width);
         self
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub fn height(mut self, height: gpui::Pixels) -> Self {
         self.height = Some(height);
         self
@@ -123,14 +125,13 @@ impl Panel for StoryContainer {
     }
 
     fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
-        tracing::debug!("panel: {} zoomed: {}", self.name, zoomed);
+        println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
-        tracing::debug!("panel: {} active: {}", self.name, active);
+        println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active
-            && let Some(story) = self.story.clone()
-        {
+            && let Some(story) = self.story.clone() {
             on_active(story, active, _window, cx);
         }
     }
@@ -150,19 +151,18 @@ impl Panel for StoryContainer {
         _cx: &mut Context<Self>,
     ) -> Option<Vec<Button>> {
         Some(vec![
-            Button::new("info").icon(IconName::Info).on_click(|_, _window, cx| {
-                cx.dispatch_action(&crate::ShowPanelInfo);
+            Button::new("info").icon(IconName::Info).on_click(|_, window, cx| {
+                window.push_notification("You have clicked info button", cx);
             }),
-            Button::new("search").icon(IconName::Search).on_click(|_, _window, cx| {
-                cx.dispatch_action(&crate::ToggleSearch);
+            Button::new("search").icon(IconName::Search).on_click(|_, window, cx| {
+                window.push_notification("You have clicked search button", cx);
             }),
         ])
     }
 
     fn dump(&self, _cx: &App) -> PanelState {
         let mut state = PanelState::new(self);
-        let klass = self.story_klass.clone().unwrap_or_else(|| SharedString::from("ListStory"));
-        let story_state = StoryState { story_klass: klass };
+        let story_state = StoryState { story_klass: self.story_klass.clone().unwrap() };
         state.info = PanelInfo::panel(story_state.to_value());
         state
     }
