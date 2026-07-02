@@ -12,15 +12,15 @@ resolver = "2"
 todos = { path = "crates/todos" }     # todos库，提供核心的任务管理功能
 mytool = { path = "crates/mytool" }   # 主工具库，包含核心功能和命令行接口
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
-# gpui
-gpui = { git = "https://github.com/zed-industries/zed" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
+# gpui - 使用与 gpui-component 相同的 commit 确保兼容性
+gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe", features = [
     "font-kit",
     "x11",
     "wayland",
     "runtime_shaders",
 ] }
-gpui_macros = { git = "https://github.com/zed-industries/zed" }
+gpui_macros = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = ["tree-sitter-languages"] }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
@@ -38,7 +38,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1"
 serde_repr = "0.1"
 paste = "1.0.15"
-rust-i18n = { version = "3.1.5" }
+rust-i18n = "4"
 sea-orm = { version = "1.1.19", features = [
     "with-chrono",
     "with-json",
