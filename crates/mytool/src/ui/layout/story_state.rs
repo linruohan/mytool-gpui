@@ -20,7 +20,7 @@ impl StoryState {
         serde_json::from_value(value).unwrap()
     }
 
-    pub(crate) fn to_story(
+    pub fn to_story(
         &self,
         window: &mut Window,
         cx: &mut App,

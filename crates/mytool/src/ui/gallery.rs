@@ -1,13 +1,17 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _,
+    ActiveTheme as _, Icon, IconName, Sizable as _,
+    button::{Button, ButtonVariants as _},
+    h_flex,
     input::{Input, InputEvent, InputState},
     resizable::{h_resizable, resizable_panel},
-    sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
+    separator::Separator,
+    sidebar::{Sidebar, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
+    status_bar::StatusBar,
     v_flex,
 };
 
-use crate::{CalendarStory, EditorStory, ListStory, StoryContainer, TodoStory, WelcomeStory};
+use crate::*;
 
 pub struct Gallery {
     stories: Vec<(&'static str, Vec<Entity<StoryContainer>>)>,
@@ -21,12 +25,13 @@ pub struct Gallery {
 impl Gallery {
     pub fn new(init_story: Option<&str>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
-        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| {
-            if let InputEvent::Change = e {
+        let _subscriptions = vec![cx.subscribe(&search_input, |this, _, e, cx| match e {
+            InputEvent::Change => {
                 this.active_group_index = Some(0);
                 this.active_index = Some(0);
                 cx.notify()
-            }
+            },
+            _ => {},
         })];
         let stories = vec![
             // ("Getting Started", vec![StoryContainer::panel::<WelcomeStory>(window, cx)]),
@@ -90,14 +95,17 @@ impl Render for Gallery {
             .active_index
             .and(active_group)
             .and_then(|group| group.1.get(self.active_index.unwrap()));
-        let (_story_name, _description) =
+        let (story_name, description) =
             if let Some(story) = active_story.as_ref().map(|story| story.read(cx)) {
                 (story.name.clone(), story.description.clone())
             } else {
                 ("".into(), "".into())
             };
 
-        h_resizable("gallery-container")
+        let current_story = story_name.clone();
+        let total_components: usize = self.stories.iter().map(|(_, items)| items.len()).sum();
+
+        let body = h_resizable("gallery-container")
             .child(
                 resizable_panel().size(px(255.)).size_range(px(200.)..px(320.)).child(
                     Sidebar::new("gallery-sidebar")
@@ -105,25 +113,76 @@ impl Render for Gallery {
                         .border_0()
                         .collapsed(self.collapsed)
                         .header(
-                            v_flex().w_full().gap_4().child(
-                                div()
-                                    .bg(cx.theme().sidebar_accent)
-                                    .rounded_full()
-                                    .px_1()
-                                    .when(cx.theme().radius.is_zero(), |this| this.rounded(px(0.)))
-                                    .flex_1()
-                                    .mx_1()
-                                    .child(
-                                        Input::new(&self.search_input)
-                                            .appearance(false)
-                                            .cleanable(true),
-                                    ),
-                            ),
+                            v_flex()
+                                .w_full()
+                                .gap_4()
+                                .child(
+                                    SidebarHeader::new()
+                                        .w_full()
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded(cx.theme().radius_lg)
+                                                .bg(cx.theme().primary)
+                                                .text_color(cx.theme().primary_foreground)
+                                                .size_8()
+                                                .flex_shrink_0()
+                                                .when(!self.collapsed, |this| {
+                                                    this.child(Icon::new(
+                                                        IconName::GalleryVerticalEnd,
+                                                    ))
+                                                })
+                                                .when(self.collapsed, |this| {
+                                                    this.size_4()
+                                                        .bg(cx.theme().transparent)
+                                                        .text_color(cx.theme().foreground)
+                                                        .child(Icon::new(
+                                                            IconName::GalleryVerticalEnd,
+                                                        ))
+                                                }),
+                                        )
+                                        .when(!self.collapsed, |this| {
+                                            this.child(
+                                                v_flex()
+                                                    .gap_0()
+                                                    .text_sm()
+                                                    .flex_1()
+                                                    .line_height(relative(1.25))
+                                                    .overflow_hidden()
+                                                    .text_ellipsis()
+                                                    .child("GPUI Component")
+                                                    .child(
+                                                        div()
+                                                            .text_color(cx.theme().muted_foreground)
+                                                            .child("Gallery")
+                                                            .text_xs(),
+                                                    ),
+                                            )
+                                        }),
+                                )
+                                .child(
+                                    div()
+                                        .bg(cx.theme().sidebar_accent)
+                                        .rounded_full()
+                                        .px_1()
+                                        .when(cx.theme().radius.is_zero(), |this| {
+                                            this.rounded(px(0.))
+                                        })
+                                        .flex_1()
+                                        .mx_1()
+                                        .child(
+                                            Input::new(&self.search_input)
+                                                .appearance(false)
+                                                .cleanable(true),
+                                        ),
+                                ),
                         )
                         .children(stories.clone().into_iter().enumerate().map(
-                            |(group_ix, (_group_name, sub_stories))| {
-                                SidebarMenu::new().children(sub_stories.iter().enumerate().map(
-                                    |(ix, story)| {
+                            |(group_ix, (group_name, sub_stories))| {
+                                SidebarGroup::new(*group_name).child(SidebarMenu::new().children(
+                                    sub_stories.iter().enumerate().map(|(ix, story)| {
                                         SidebarMenuItem::new(story.read(cx).name.clone())
                                             .active(
                                                 self.active_group_index == Some(group_ix)
@@ -136,7 +195,7 @@ impl Render for Gallery {
                                                     cx.notify();
                                                 },
                                             ))
-                                    },
+                                    }),
                                 ))
                             },
                         )),
@@ -148,6 +207,22 @@ impl Render for Gallery {
                     .h_full()
                     .overflow_x_hidden()
                     .child(
+                        h_flex()
+                            .id("header")
+                            .p_4()
+                            .border_b_1()
+                            .border_color(cx.theme().border)
+                            .justify_between()
+                            .items_start()
+                            .child(
+                                v_flex().gap_1().child(div().text_xl().child(story_name)).child(
+                                    div()
+                                        .text_color(cx.theme().muted_foreground)
+                                        .child(description),
+                                ),
+                            ),
+                    )
+                    .child(
                         div()
                             .id("story")
                             .flex_1()
@@ -157,6 +232,26 @@ impl Render for Gallery {
                             }),
                     )
                     .into_any_element(),
-            )
+            );
+
+        v_flex().size_full().child(div().flex_1().min_h_0().child(body)).child(
+            StatusBar::new()
+                .child(Icon::new(IconName::GalleryVerticalEnd).xsmall())
+                .child(format!("{total_components} components"))
+                .child(Separator::vertical())
+                .when(!current_story.is_empty(), |this| this.child(current_story.clone()))
+                .right(cx.theme().theme_name().clone())
+                .right(format!("v{}", env!("CARGO_PKG_VERSION")))
+                .right(
+                    Button::new("assistant")
+                        .ghost()
+                        .xsmall()
+                        .icon(IconName::Github)
+                        .tooltip("GPUI Component GitHub repository")
+                        .on_click(|_, _, cx| {
+                            cx.open_url("https://github.com/longbridge/gpui-component")
+                        }),
+                ),
+        )
     }
 }

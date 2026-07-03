@@ -12,7 +12,7 @@ use gpui_component::{
 };
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
-#[allow(dead_code)]
+
 pub struct StoryContainer {
     pub(crate) focus_handle: gpui::FocusHandle,
     pub name: SharedString,
@@ -29,7 +29,6 @@ pub struct StoryContainer {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum ContainerEvent {
     Close,
 }
@@ -62,7 +61,7 @@ impl StoryContainer {
         let story = S::new_view(window, cx);
         let story_klass = S::klass();
 
-        cx.new(|cx| {
+        let view = cx.new(|cx| {
             let mut story =
                 Self::new(window, cx).story(story.into(), story_klass).on_active(S::on_active_any);
             story.focus_handle = cx.focus_handle();
@@ -73,16 +72,16 @@ impl StoryContainer {
             story.title_bg = S::title_bg();
             story.paddings = S::paddings();
             story
-        })
+        });
+
+        view
     }
 
-    #[allow(dead_code)]
     pub fn width(mut self, width: gpui::Pixels) -> Self {
         self.width = Some(width);
         self
     }
 
-    #[allow(dead_code)]
     pub fn height(mut self, height: gpui::Pixels) -> Self {
         self.height = Some(height);
         self
@@ -99,6 +98,7 @@ impl StoryContainer {
         self
     }
 }
+
 impl Panel for StoryContainer {
     fn panel_name(&self) -> &'static str {
         "StoryContainer"
@@ -109,7 +109,11 @@ impl Panel for StoryContainer {
     }
 
     fn title_style(&self, cx: &App) -> Option<TitleStyle> {
-        self.title_bg.map(|bg| TitleStyle { background: bg, foreground: cx.theme().foreground })
+        if let Some(bg) = self.title_bg {
+            Some(TitleStyle { background: bg, foreground: cx.theme().foreground })
+        } else {
+            None
+        }
     }
 
     fn closable(&self, _cx: &App) -> bool {
@@ -130,10 +134,10 @@ impl Panel for StoryContainer {
 
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
         println!("panel: {} active: {}", self.name, active);
-        if let Some(on_active) = self.on_active
-            && let Some(story) = self.story.clone()
-        {
-            on_active(story, active, _window, cx);
+        if let Some(on_active) = self.on_active {
+            if let Some(story) = self.story.clone() {
+                on_active(story, active, _window, cx);
+            }
         }
     }
 

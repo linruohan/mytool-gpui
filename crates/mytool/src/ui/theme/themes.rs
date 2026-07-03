@@ -38,7 +38,7 @@ pub fn init(cx: &mut App) {
     }
 
     let state = if cfg!(not(target_family = "wasm")) {
-        let json = std::fs::read_to_string(STATE_FILE).unwrap_or_default();
+        let json = std::fs::read_to_string(STATE_FILE).unwrap_or(String::default());
         serde_json::from_str::<State>(&json).unwrap_or_default()
     } else {
         State::default()

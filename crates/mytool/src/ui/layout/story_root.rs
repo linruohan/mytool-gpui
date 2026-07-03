@@ -5,24 +5,11 @@ use gpui::{
 use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
 
 use crate::{AppTitleBar, ShowPanelInfo, ToggleSearch};
+
 pub struct StoryRoot {
     pub(crate) focus_handle: FocusHandle,
     pub(crate) title_bar: Entity<AppTitleBar>,
     pub(crate) view: AnyView,
-}
-
-impl Drop for StoryRoot {
-    fn drop(&mut self) {
-        tracing::info!(
-            "🔴 StoryRoot dropped, window closed, active DB tasks: {:?}",
-            crate::core::tokio_runtime::get_active_task_count()
-        );
-
-        // ⚠️ 不能在 Drop (async 上下文) 中调用阻塞式 shutdown_db_runtime
-        // 否则会 panic: "Cannot drop a runtime in a context where blocking is not allowed"
-        // 改为只发送退出信号，让 request_shutdown 的后台线程处理
-        crate::request_shutdown();
-    }
 }
 
 impl StoryRoot {

@@ -309,7 +309,7 @@ pub fn init(cx: &mut App) {
                 .on_active(on_active);
 
             cx.on_focus_in(&container.focus_handle, window, |this: &mut StoryContainer, _, _| {
-                tracing::debug!("StoryContainer focus in: {}", this.name);
+                println!("StoryContainer focus in: {}", this.name);
             })
             .detach();
 
@@ -329,7 +329,7 @@ pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
     StorySection {
         title: title.into(),
         sub_title: vec![],
-        base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_2(),
+        base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_4(),
         children: vec![],
     }
 }

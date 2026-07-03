@@ -10,7 +10,6 @@ use mytool::{Gallery, todo_state::get_todo_conn};
 #[tokio::main]
 async fn main() {
     let app = gpui_platform::application().with_assets(Assets);
-
     let name = std::env::args().nth(1);
 
     let db = match get_todo_conn().await {
@@ -42,7 +41,6 @@ async fn main() {
     app.run(move |cx| {
         mytool::init(cx);
         mytool::todo_state::state_init(cx, db);
-        // init_plugins(cx);
         cx.activate(true);
         mytool::create_new_window(
             "MyTool-GPUI",
