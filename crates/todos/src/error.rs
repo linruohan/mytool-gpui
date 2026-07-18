@@ -168,7 +168,7 @@ impl fmt::Display for ErrorContext {
 pub enum TodoError {
     /// 数据库错误（来自 SeaORM）
     #[error("Database error: {0}")]
-    DbError(#[from] sea_orm::DbErr),
+    DbError(Box<sea_orm::DbErr>),
 
     /// 数据库错误（自定义消息）
     #[error("Database error: {0}")]
@@ -204,11 +204,20 @@ pub enum TodoError {
 
     /// 带上下文的错误
     #[error("{message} {context}")]
-    WithContext { message: String, context: ErrorContext, source: Box<TodoError> },
+    WithContext { message: String, context: Box<ErrorContext>, source: Box<TodoError> },
 
     /// 内部错误
     #[error("Internal error: {0}")]
     InternalError(String),
+}
+
+/// 从 SeaORM 错误转换为 TodoError
+///
+/// 这里手动实现而不是用 #[from]，是因为我们将 DbErr 装箱了（Box）来减小枚举大小。
+impl From<sea_orm::DbErr> for TodoError {
+    fn from(err: sea_orm::DbErr) -> Self {
+        TodoError::DbError(Box::new(err))
+    }
 }
 
 impl TodoError {
@@ -256,7 +265,7 @@ impl TodoError {
     /// 添加上下文信息
     pub fn with_context(self, context: ErrorContext) -> Self {
         let message = self.to_string();
-        Self::WithContext { message, context, source: Box::new(self) }
+        Self::WithContext { message, context: Box::new(context), source: Box::new(self) }
     }
 
     /// 快速添加操作上下文

@@ -112,7 +112,7 @@ impl Source {
         SourceEntity::delete_by_id(self.model.id.clone())
             .exec(self.store.db())
             .await
-            .map_err(TodoError::DbError)?;
+            .map_err(|e| TodoError::DbError(Box::new(e)))?;
         Ok(())
     }
 }

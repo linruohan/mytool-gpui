@@ -62,7 +62,7 @@ impl ProjectService {
                 self.metrics.record_operation("insert_project", 1).await;
                 Ok(model)
             },
-            Err(e) => Err(TodoError::DbError(e)),
+            Err(e) => Err(TodoError::DbError(Box::new(e))),
         }
     }
 

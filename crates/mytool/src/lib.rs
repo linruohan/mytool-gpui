@@ -1,8 +1,3 @@
-#[macro_use]
-extern crate rust_i18n;
-
-i18n!("locales");
-
 use std::sync::mpsc::Sender;
 
 /// 🚀 7.0新增：应用退出信号发送器
@@ -59,6 +54,7 @@ pub use ui::{
 };
 // 重新导出工具
 pub use utils::play_ogg_file;
+rust_i18n::i18n!("locales", fallback = "zh-CN");
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]
@@ -95,7 +91,6 @@ pub struct AppState {
 }
 impl AppState {
     fn init(cx: &mut App) {
-        rust_i18n::set_locale("zh-CN");
         let state = Self { invisible_panels: cx.new(|_| Vec::new()) };
         cx.set_global::<AppState>(state);
     }
@@ -223,7 +218,7 @@ pub fn init(cx: &mut App) {
             )
             .try_init();
     }
-
+    rust_i18n::extend!(gpui_component);
     gpui_component::init(cx);
     AppState::init(cx);
     themes::init(cx);
