@@ -25,9 +25,9 @@ use crate::{
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, FinishItemDialogStyle,
-            render_board_header, show_finish_item_dialog, show_item_delete_dialog,
-            show_pin_item_dialog, with_selected_item,
+            BoardItemClickEvent, FinishItemDialogStyle, render_board_header,
+            show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
+            with_selected_item,
         },
         board_renderer::{self, SectionBlockOptions},
         container_board::Board,
@@ -93,7 +93,12 @@ impl PinBoard {
         let cache = cx.global::<crate::core::state::QueryCache>();
         let state_items = cx.global::<TodoStore>().pinned_items_cached(cache);
 
-        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, _window, cx);
+        self.base.diff_update_item_rows(
+            state_items.as_slice(),
+            &mut self.item_row_ids,
+            _window,
+            cx,
+        );
 
         self.base.pinned_items.clear();
         self.base.no_section_items.clear();
@@ -105,7 +110,6 @@ impl PinBoard {
 
         self.base.clamp_active_index();
     }
-
 
     pub fn show_item_dialog(
         &mut self,
@@ -229,7 +233,7 @@ impl Render for PinBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
-        let sections = cx.global::<TodoStore>().sections.clone();
+        let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
@@ -241,28 +245,26 @@ impl Render for PinBoard {
             .track_focus(&self.base.focus_handle)
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
-            .child(
-                render_board_header(
-                    cx,
-                    <PinBoard as Board>::icon(),
-                    <PinBoard as Board>::title(),
-                    <PinBoard as Board>::description(),
-                    Button::new("unpin-item")
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::PinSymbolic)
-                        .on_click({
-                            let view = view.clone();
-                            move |_event, window, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.show_unpin_item_dialog(window, cx);
-                                    cx.notify();
-                                })
-                            }
-                        }),
-                ),
-            )
+            .child(render_board_header(
+                cx,
+                <PinBoard as Board>::icon(),
+                <PinBoard as Board>::title(),
+                <PinBoard as Board>::description(),
+                Button::new("unpin-item")
+                    .small()
+                    .ghost()
+                    .compact()
+                    .icon(IconName::PinSymbolic)
+                    .on_click({
+                        let view = view.clone();
+                        move |_event, window, cx| {
+                            view.update(cx, |this, cx| {
+                                this.show_unpin_item_dialog(window, cx);
+                                cx.notify();
+                            })
+                        }
+                    }),
+            ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
@@ -283,12 +285,15 @@ impl Render for PinBoard {
                                                     let view = view_clone.clone();
                                                     move |this, window, _cx| {
                                                         this.item(
-                                                            PopupMenuItem::new("Show Completed Tasks")
-                                                                .on_click(
-                                                                    window.listener_for(&view, |_this, _, _window, cx| {
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
+                                                            PopupMenuItem::new(
+                                                                "Show Completed Tasks",
+                                                            )
+                                                            .on_click(window.listener_for(
+                                                                &view,
+                                                                |_this, _, _window, cx| {
+                                                                    cx.notify();
+                                                                },
+                                                            )),
                                                         )
                                                     }
                                                 }),
@@ -300,7 +305,7 @@ impl Render for PinBoard {
                                         active_index,
                                         active_border,
                                         view_clone,
-                                    ))
+                                    )),
                             )
                         })
                         .when(!no_section_items.is_empty(), |this| {

@@ -142,5 +142,4 @@ impl Model {
         let today = chrono::Utc::now().naive_utc().date();
         self.due_date_naive().is_some_and(|due| due < today)
     }
-
 }

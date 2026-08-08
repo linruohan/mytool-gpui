@@ -6,8 +6,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    Entity, Hsla, InteractiveElement, IntoElement, ParentElement, Render, StatefulInteractiveElement,
-    Styled, Window, div, prelude::FluentBuilder,
+    Entity, Hsla, InteractiveElement, IntoElement, ParentElement, Render,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     IconName, Sizable,
@@ -18,11 +18,8 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
-use super::board_base::BoardView;
-use super::board_common::BoardSectionActions;
-use crate::{
-    ItemRow, ItemRowState, ScheduleButtonState, VisualHierarchy, section,
-};
+use super::{board_base::BoardView, board_common::BoardSectionActions};
+use crate::{ItemRow, ItemRowState, ScheduleButtonState, VisualHierarchy, section};
 
 // ==================== 通用渲染辅助 ====================
 /// 渲染单行任务项（可点击选中、高亮、展示 ItemRow）
@@ -85,40 +82,45 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
         let section_id3 = section_id.clone();
         let section_id4 = section_id.clone();
         let section_id5 = section_id.clone();
-        this.item(
-            PopupMenuItem::new("+ Add Task").on_click(window.listener_for(&view, move |this, _, window, cx| {
+        this.item(PopupMenuItem::new("+ Add Task").on_click(window.listener_for(
+            &view,
+            move |this, _, window, cx| {
                 this.show_item_dialog(window, cx, false, Some(section_id1.clone()));
                 cx.notify();
-            })),
-        )
+            },
+        )))
         .separator()
-        .item(
-            PopupMenuItem::new("Edit Section").on_click(window.listener_for(&view, move |this, _, window, cx| {
+        .item(PopupMenuItem::new("Edit Section").on_click(window.listener_for(
+            &view,
+            move |this, _, window, cx| {
                 this.show_section_dialog(window, cx, Some(section_id2.clone()), true);
                 cx.notify();
-            })),
-        )
+            },
+        )))
         .separator()
-        .item(
-            PopupMenuItem::new("Duplicate").on_click(window.listener_for(&view, move |this, _, window, cx| {
+        .item(PopupMenuItem::new("Duplicate").on_click(window.listener_for(
+            &view,
+            move |this, _, window, cx| {
                 this.duplicate_section(window, cx, section_id3.clone());
                 cx.notify();
-            })),
-        )
+            },
+        )))
         .separator()
-        .item(
-            PopupMenuItem::new("Archive").on_click(window.listener_for(&view, move |this, _, window, cx| {
+        .item(PopupMenuItem::new("Archive").on_click(window.listener_for(
+            &view,
+            move |this, _, window, cx| {
                 this.archive_section(window, cx, section_id4.clone());
                 cx.notify();
-            })),
-        )
+            },
+        )))
         .separator()
-        .item(
-            PopupMenuItem::new("Delete Section").on_click(window.listener_for(&view, move |this, _, window, cx| {
+        .item(PopupMenuItem::new("Delete Section").on_click(window.listener_for(
+            &view,
+            move |this, _, window, cx| {
                 this.show_section_delete_dialog(window, cx, section_id5.clone());
                 cx.notify();
-            })),
-        )
+            },
+        )))
     }
 }
 
@@ -210,13 +212,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
     }
 
-    block.child(render_item_list(
-        items,
-        item_rows,
-        active_index,
-        active_border,
-        view_clone,
-    ))
+    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }
 
 /// 渲染「No Section」区块
@@ -254,20 +250,19 @@ pub fn render_no_section_block<V: BoardSectionActions>(
         .dropdown_menu({
             let view = view_clone.clone();
             move |this, window, _cx| {
-                this.item(
-                    PopupMenuItem::new("+ Add Task").on_click(window.listener_for(&view, |this, _, window, cx| {
+                this.item(PopupMenuItem::new("+ Add Task").on_click(window.listener_for(
+                    &view,
+                    |this, _, window, cx| {
                         this.show_item_dialog(window, cx, false, None);
                         cx.notify();
-                    })),
-                )
+                    },
+                )))
                 .separator()
-                .item(
-                    PopupMenuItem::new("Show Completed Tasks").on_click(
-                        window.listener_for(&view, |_this, _, _window, cx| {
-                            cx.notify();
-                        }),
-                    ),
-                )
+                .item(PopupMenuItem::new("Show Completed Tasks").on_click(
+                    window.listener_for(&view, |_this, _, _window, cx| {
+                        cx.notify();
+                    }),
+                ))
             }
         });
 
@@ -281,13 +276,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
             .sub_title(h_flex().gap_1().child(more_button));
     }
 
-    block.child(render_item_list(
-        items,
-        item_rows,
-        active_index,
-        active_border,
-        view_clone,
-    ))
+    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }
 
 /// 渲染简单分组（标题 + 可选更多菜单 + 任务列表），用于 Pinned / Today 等虚拟分组
@@ -304,32 +293,28 @@ pub fn render_simple_group_block<V: BoardView + Render>(
     let mut block = section(title);
 
     if show_more_menu {
-        block = block.sub_title(h_flex().gap_1().child(
-            Button::new(format!("more-{}", title.to_lowercase().replace(' ', "-")))
-                .small()
-                .ghost()
-                .compact()
-                .icon(IconName::EllipsisVertical)
-                .dropdown_menu({
-                    let view = view_clone.clone();
-                    move |this, window, _cx| {
-                        this.item(PopupMenuItem::new("Show Completed Tasks").on_click(
-                            window.listener_for(&view, |_this, _, _window, cx| {
-                                cx.notify();
-                            }),
-                        ))
-                    }
-                }),
-        ));
+        block = block.sub_title(
+            h_flex().gap_1().child(
+                Button::new(format!("more-{}", title.to_lowercase().replace(' ', "-")))
+                    .small()
+                    .ghost()
+                    .compact()
+                    .icon(IconName::EllipsisVertical)
+                    .dropdown_menu({
+                        let view = view_clone.clone();
+                        move |this, window, _cx| {
+                            this.item(PopupMenuItem::new("Show Completed Tasks").on_click(
+                                window.listener_for(&view, |_this, _, _window, cx| {
+                                    cx.notify();
+                                }),
+                            ))
+                        }
+                    }),
+            ),
+        );
     }
 
-    block.child(render_item_list(
-        items,
-        item_rows,
-        active_index,
-        active_border,
-        view_clone,
-    ))
+    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }
 
 /// 渲染带 Schedule 按钮的简单分组，用于 Past Due 等
@@ -367,13 +352,7 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
                         }),
                 ),
         )
-        .child(render_item_list(
-            items,
-            item_rows,
-            active_index,
-            active_border,
-            view_clone,
-        ))
+        .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }
 
 /// 渲染带前置工具栏元素的 Section 区块（如 Calendar Schedule 按钮 + Add + More）
@@ -413,18 +392,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .icon(IconName::EllipsisVertical)
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
-    section(section_name).sub_title(
-        h_flex()
-            .gap_1()
-            .child(leading)
-            .child(add_button)
-            .child(more_button),
-    )
-    .child(render_item_list(
-        items,
-        item_rows,
-        active_index,
-        active_border,
-        view_clone,
-    ))
+    section(section_name)
+        .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
+        .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }

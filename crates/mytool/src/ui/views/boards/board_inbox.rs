@@ -267,7 +267,7 @@ impl Render for InboxBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
-        let sections = cx.global::<TodoStore>().sections.clone();
+        let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = self.base.pinned_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();

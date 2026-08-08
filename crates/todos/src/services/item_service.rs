@@ -133,7 +133,8 @@ impl ItemService {
                     let mut results = Vec::with_capacity(items.len());
                     for item in items {
                         let item_id = item.id.clone();
-                        let rows_affected = Self::update_item_fields_in_conn(txn, &item, now).await?;
+                        let rows_affected =
+                            Self::update_item_fields_in_conn(txn, &item, now).await?;
                         if rows_affected == 0 {
                             return Err(TodoError::not_found("Item").with_entity("Item", &item_id));
                         }
@@ -222,7 +223,10 @@ impl ItemService {
     }
 
     /// 收集任务及其所有子任务的 ID（按层批量查询，避免 N+1 逐条删除）
-    pub(crate) async fn collect_descendant_ids(&self, root_id: &str) -> Result<Vec<String>, TodoError> {
+    pub(crate) async fn collect_descendant_ids(
+        &self,
+        root_id: &str,
+    ) -> Result<Vec<String>, TodoError> {
         let mut result = vec![root_id.to_string()];
         let mut parents_to_search = vec![root_id.to_string()];
 
@@ -248,10 +252,7 @@ impl ItemService {
             return Ok(());
         }
 
-        items::Entity::delete_many()
-            .filter(items::Column::Id.is_in(ids))
-            .exec(&*self.db)
-            .await?;
+        items::Entity::delete_many().filter(items::Column::Id.is_in(ids)).exec(&*self.db).await?;
 
         Ok(())
     }

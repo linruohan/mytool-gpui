@@ -14,14 +14,13 @@ pub mod reminders;
 pub mod sections;
 pub mod sources;
 
+// Active domain models
 pub use attachments::{ActiveModel as AttachmentActiveModel, Model as AttachmentModel};
-pub use cur_temp_ids::{ActiveModel as CurTempIdActiveModel, Model as CurTempIdModel};
 pub use item_labels::{ActiveModel as ItemLabelActiveModel, Model as ItemLabelModel};
 pub use items::{ActiveModel as ItemActiveModel, Model as ItemModel};
 pub use labels::{ActiveModel as LabelActiveModel, Model as LabelModel};
-pub use o_events::{ActiveModel as OEventActiveModel, Model as OEventModel};
 pub use projects::{ActiveModel as ProjectActiveModel, Model as ProjectModel};
-pub use queue::{ActiveModel as QueueActiveModel, Model as QueueModel};
 pub use reminders::{ActiveModel as ReminderActiveModel, Model as ReminderModel};
 pub use sections::{ActiveModel as SectionActiveModel, Model as SectionModel};
-pub use sources::{ActiveModel as SourceActiveModel, Model as SourceModel};
+
+// Schema-only leftovers (tables exist; no service path). Kept as modules for codegen/migrations.

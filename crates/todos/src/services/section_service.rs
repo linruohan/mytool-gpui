@@ -70,9 +70,7 @@ impl SectionService {
         }
 
         if !item_ids.is_empty() {
-            self.item_service
-                .delete_items_by_ids(item_ids.into_iter().collect())
-                .await?;
+            self.item_service.delete_items_by_ids(item_ids.into_iter().collect()).await?;
         }
 
         BaseRepository::delete(&self.section_repo, section_id).await?;

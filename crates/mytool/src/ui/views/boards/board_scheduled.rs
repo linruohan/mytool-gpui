@@ -29,7 +29,8 @@ use crate::{
             show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
             with_selected_item,
         },
-        board_renderer, container_board::Board,
+        board_renderer,
+        container_board::Board,
     },
 };
 
@@ -92,11 +93,15 @@ impl ScheduledBoard {
         let cache = cx.global::<crate::core::state::QueryCache>();
         let state_items = cx.global::<TodoStore>().scheduled_items_cached(cache);
 
-        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, _window, cx);
+        self.base.diff_update_item_rows(
+            state_items.as_slice(),
+            &mut self.item_row_ids,
+            _window,
+            cx,
+        );
         self.base.update_items(state_items.as_slice());
         self.base.clamp_active_index();
     }
-
 
     pub fn show_item_dialog(
         &mut self,
@@ -235,29 +240,27 @@ impl Render for ScheduledBoard {
             .track_focus(&self.base.focus_handle)
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
-            .child(
-                render_board_header(
-                    cx,
-                    <ScheduledBoard as Board>::icon(),
-                    <ScheduledBoard as Board>::title(),
-                    <ScheduledBoard as Board>::description(),
-                    Button::new("add-section")
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::PlusLargeSymbolic)
-                        .label("Add Section")
-                        .on_click({
-                            let view = view.clone();
-                            move |_event, window, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.show_section_dialog(window, cx, None, false);
-                                    cx.notify();
-                                })
-                            }
-                        }),
-                ),
-            )
+            .child(render_board_header(
+                cx,
+                <ScheduledBoard as Board>::icon(),
+                <ScheduledBoard as Board>::title(),
+                <ScheduledBoard as Board>::description(),
+                Button::new("add-section")
+                    .small()
+                    .ghost()
+                    .compact()
+                    .icon(IconName::PlusLargeSymbolic)
+                    .label("Add Section")
+                    .on_click({
+                        let view = view.clone();
+                        move |_event, window, cx| {
+                            view.update(cx, |this, cx| {
+                                this.show_section_dialog(window, cx, None, false);
+                                cx.notify();
+                            })
+                        }
+                    }),
+            ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()

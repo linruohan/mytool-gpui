@@ -25,10 +25,11 @@ use crate::{
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, render_board_header,
-            show_item_delete_dialog, show_schedule_popover, with_selected_item,
+            BoardItemClickEvent, render_board_header, show_item_delete_dialog,
+            show_schedule_popover, with_selected_item,
         },
-        board_renderer, container_board::Board,
+        board_renderer,
+        container_board::Board,
     },
 };
 
@@ -305,63 +306,70 @@ impl Render for TodayBoard {
             .track_focus(&self.base.focus_handle)
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
-            .child(
-                render_board_header(
-                    cx,
-                    <TodayBoard as Board>::icon(),
-                    <TodayBoard as Board>::title(),
-                    <TodayBoard as Board>::description(),
-                    h_flex()
-                        .gap(VisualHierarchy::spacing(2.0))
-                        .child(
-                                Button::new("item-actions")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .tooltip("Item Operation")
-                                    .icon(IconName::CheckSquare)
-                                    .dropdown_menu({
-                                        let view = view.clone();
-                                        move |this, window, _cx| {
-                                            let view = view.clone();
-                                            this.item(
-                                                PopupMenuItem::new("Add Item").icon(IconName::PlusLargeSymbolic).on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_dialog(window, cx, false, None);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Edit Item").icon(IconName::EditSymbolic).on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_dialog(window, cx, true, None);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Delete Item").icon(IconName::UserTrashSymbolic).on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_delete_dialog(window, cx);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                        }
-                                    }),
-                            )
-                            .child(create_header_button(
-                                "section-actions".to_string(),
-                                IconName::PlusLargeSymbolic,
-                                Some("Add Section"),
-                                view.clone(),
-                                |this, window, cx| this.show_section_dialog(window, cx, None, false),
-                            )),
-                ),
-            )
+            .child(render_board_header(
+                cx,
+                <TodayBoard as Board>::icon(),
+                <TodayBoard as Board>::title(),
+                <TodayBoard as Board>::description(),
+                h_flex()
+                    .gap(VisualHierarchy::spacing(2.0))
+                    .child(
+                        Button::new("item-actions")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .tooltip("Item Operation")
+                            .icon(IconName::CheckSquare)
+                            .dropdown_menu({
+                                let view = view.clone();
+                                move |this, window, _cx| {
+                                    let view = view.clone();
+                                    this.item(
+                                        PopupMenuItem::new("Add Item")
+                                            .icon(IconName::PlusLargeSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_dialog(window, cx, false, None);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                    .separator()
+                                    .item(
+                                        PopupMenuItem::new("Edit Item")
+                                            .icon(IconName::EditSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_dialog(window, cx, true, None);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                    .separator()
+                                    .item(
+                                        PopupMenuItem::new("Delete Item")
+                                            .icon(IconName::UserTrashSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_delete_dialog(window, cx);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                }
+                            }),
+                    )
+                    .child(create_header_button(
+                        "section-actions".to_string(),
+                        IconName::PlusLargeSymbolic,
+                        Some("Add Section"),
+                        view.clone(),
+                        |this, window, cx| this.show_section_dialog(window, cx, None, false),
+                    )),
+            ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
@@ -420,18 +428,19 @@ impl Render for TodayBoard {
                             let section_id = sec.id.clone();
                             let section_name = sec.name.clone();
 
-                            let schedule_button = Button::new(format!("schedule-section-{}", section_id))
-                                .small()
-                                .ghost()
-                                .compact()
-                                .icon(IconName::Calendar)
-                                .label("Schedule")
-                                .on_click({
-                                    let section_id = section_id.clone();
-                                    move |_, window, cx| {
-                                        show_schedule_popover(window, cx, section_id.clone());
-                                    }
-                                });
+                            let schedule_button =
+                                Button::new(format!("schedule-section-{}", section_id))
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::Calendar)
+                                    .label("Schedule")
+                                    .on_click({
+                                        let section_id = section_id.clone();
+                                        move |_, window, cx| {
+                                            show_schedule_popover(window, cx, section_id.clone());
+                                        }
+                                    });
 
                             Some(board_renderer::render_section_block_with_leading(
                                 section_name,

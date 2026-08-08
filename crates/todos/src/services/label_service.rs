@@ -87,10 +87,8 @@ impl LabelService {
 
     /// Get all labels
     pub async fn get_all_labels(&self) -> Result<Vec<LabelModel>, TodoError> {
-        let labels = LabelEntity::find()
-            .filter(labels::Column::IsDeleted.eq(false))
-            .all(&*self.db)
-            .await?;
+        let labels =
+            LabelEntity::find().filter(labels::Column::IsDeleted.eq(false)).all(&*self.db).await?;
         Ok(labels)
     }
 }
