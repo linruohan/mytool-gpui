@@ -72,62 +72,52 @@ test/               # 测试工具和基准测试
 ```
 ┌─────────────────────────────────────────┐
 │   mytool (GUI 层)                        │
-│   - Stories, Views, Components          │
-│   - 全局状态 (DBState, TodoStore)        │
+│   - Boards / Views / Components         │
+│   - Globals: DBState, TodoStore, Cache  │
+│   - 写路径：optimistic actions           │
 ├─────────────────────────────────────────┤
 │   服务层 (todos/services/)              │
-│   - ItemService, LabelService 等        │
-│   - QueryService, EventBus, Store       │
+│   - Item/Label/Project/Section/...      │
+│   - Store（GUI/冷加载薄门面）             │
 ├─────────────────────────────────────────┤
 │   仓库层 (todos/repositories/)          │
-│   - 数据访问模式                        │
+│   - Item/Label/Section (+ BaseRepository)│
 ├─────────────────────────────────────────┤
 │   实体层 (todos/entity/)                │
 │   - Sea-ORM 生成的模型                   │
 ├─────────────────────────────────────────┤
-│   SQLite 数据库                         │
+│   SQLite 数据库 (WAL)                   │
 └─────────────────────────────────────────┘
 ```
 
+UI 刷新依赖 `TodoStore` + `ChangeMask` + `QueryCache`（无领域 EventBus）。
+
 ### 核心实体 (todos/entity/)
+活跃领域模型：
 - **ItemModel** - 任务，包含内容、到期日期、优先级、标签
 - **ProjectModel** - 项目容器
 - **SectionModel** - 项目内的分区
 - **LabelModel** - 任务的标签/标记
 - **ReminderModel** - 提醒通知
 - **AttachmentModel** - 文件附件
-- **SourceModel** - 数据源
-- **QueueModel** - 任务队列
-- **OEventModel** - 操作/事件记录
-- **CurTempIdModel** - 临时 ID 跟踪
+
+Schema 残留（已生成、无服务路径）：`SourceModel`、`QueueModel`、`OEventModel`、`CurTempIdModel`。
 
 ### 服务层 (todos/services/)
-核心服务协调业务逻辑：
-- `ItemService` - 任务的 CRUD 操作
-- `LabelService`, `ProjectService`, `SectionService`, `ReminderService`
-- `QueryService` - 批量查询操作，带并发控制
-- `EventBus` - 组件间的事件驱动通信
-- `Store` - 集中式状态管理
-- `ServiceManager` - 协调所有服务
+- `ItemService`、`LabelService`、`ProjectService`、`SectionService`、`ReminderService`、`AttachmentService`
+- `Store` - GUI 冷加载与 `state_service` 使用的薄透传门面
 
 ### 全局状态管理 (mytool/core/state/)
-GPUI 使用全局状态模式：
-- `DBState` - 全局数据库连接
-- `TodoStore` - 所有数据的唯一数据源
-- `TodoEventBus` - 事件分发
-- `QueryCache` - LRU 缓存，提升性能
-- `BatchOperations` - 批量操作队列
-- `ErrorNotifier` - 错误通知处理
-- `ObserverRegistry` - 状态观察者注册表
-- `DirtyFlags` - 变更标记系统
-- `PendingTasksState` - 异步任务跟踪
-
-状态初始化在 `state_init(cx: &mut App, db: DatabaseConnection)` 中进行。
+在 `state_init(cx, db)` 中初始化：
+- `DBState` - 数据库连接 + 异步 `todos::Store` 初始化
+- `TodoStore` - 内存唯一数据源 + 索引 + `ChangeMask`
+- `QueryCache` - 看板过滤结果的 Arc 共享缓存
+- `ErrorNotifier` / `PendingTasksState` / `SaveResults` - 错误与保存状态跟踪
 
 ### UI 组件 (mytool/ui/)
-- **Stories** (`stories/`) - Storybook 风格的演示视图 (WelcomeStory, CalendarStory, TodoStory, ListStory)
-- **Views** (`views/`) - 主视图，包括看板视图 (Inbox, Today, Scheduled, Pin, Completed, Labels)
-- **Components** (`components/`) - 可复用 UI 组件（按钮、弹窗、对话框等）
+- **Views** (`views/boards/`) - Inbox、Today、Scheduled、Pin、Completed、Labels（共享 `board_base` / `board_common` / `board_renderer`）
+- **Components** (`components/`) - `item_row`（懒加载 `ItemInfo`）、弹窗、对话框
+- **Stories** (`stories/`) - Storybook 风格演示视图
 - **Widgets** (`widgets/`) - 自定义组件
 
 ## 构建配置
@@ -174,13 +164,6 @@ echo "IgnorePkg = mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-libs" >> /etc/pacman
 ## 主题
 
 主题文件位于 `themes/` 目录，格式为 JSON。默认主题是 `themes/default.json`。提供超过 20 个主题（catppuccin、tokyonight、gruvbox、ayu、solarized 等）。
-
-## 插件系统
-
-位于 `crates/mytool/src/plugins/`：
-- `Plugin` - 插件基础 trait
-- `PluginRegistry` - 插件发现和管理
-- `PluginConfig` - 插件配置结构
 
 ## 外部依赖
 

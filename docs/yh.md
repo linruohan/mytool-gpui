@@ -1,6 +1,10 @@
 # MyTool-GPUI 项目架构分析
 
-本文从**目录与工程划分**、**数据与业务结构**、**UI 与状态更新链路**等角度梳理当前代码库，便于后续扩展与排障。
+> **状态：过时（historical）**  
+> 本文描述的是重构前的架构设想，包含已删除的 `EventBus` / `ServiceManager` / `plugins` / `TodoEventBus` / `ObserverRegistry` / `DirtyFlags` / `QueryService` / `filters/` 等。  
+> **请以 [`CLAUDE.md`](../CLAUDE.md) / [`CLAUDE_zh.md`](../CLAUDE_zh.md) 与当前源码为准。**
+
+本文从**目录与工程划分**、**数据与业务结构**、**UI 与状态更新链路**等角度梳理代码库（历史快照）。
 
 ---
 

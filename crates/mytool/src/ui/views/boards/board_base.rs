@@ -22,7 +22,8 @@ pub struct BoardBase {
     pub section_items_map:
         std::collections::HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>>,
     pub pinned_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
-    pub overdue_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
+    /// 今日到期任务（仅 Today Board 使用）
+    pub due_today_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
     /// 过期任务分组（超过今天但还未完成，仅 Today Board 使用）
     pub past_due_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
     pub is_today_board: bool,
@@ -39,7 +40,7 @@ impl BoardBase {
         let no_section_items = vec![];
         let section_items_map = std::collections::HashMap::new();
         let pinned_items = vec![];
-        let overdue_items = vec![];
+        let due_today_items = vec![];
         let past_due_items = vec![];
         let sections = vec![];
 
@@ -52,7 +53,7 @@ impl BoardBase {
             no_section_items,
             section_items_map,
             pinned_items,
-            overdue_items,
+            due_today_items,
             past_due_items,
             is_today_board: false,
             sections,
@@ -70,9 +71,7 @@ impl BoardBase {
         ix: IndexPath,
         cx: &gpui::App,
     ) -> Option<Arc<todos::entity::ItemModel>> {
-        self.item_rows
-            .get(ix.row)
-            .map(|row| row.read(cx).item.clone())
+        self.item_rows.get(ix.row).map(|row| row.read(cx).item.clone())
     }
 
     /// 显示新建/编辑任务对话框
@@ -89,11 +88,7 @@ impl BoardBase {
                     item_row.update(cx, |row, cx| {
                         row.ensure_item_info(window, cx);
                     });
-                    item_row
-                        .read(cx)
-                        .item_info
-                        .clone()
-                        .unwrap_or_else(|| self.item_info.clone())
+                    item_row.read(cx).item_info.clone().unwrap_or_else(|| self.item_info.clone())
                 } else {
                     self.item_info.clone()
                 }
@@ -344,7 +339,7 @@ impl BoardBase {
     {
         self.pinned_items.clear();
         self.past_due_items.clear();
-        self.overdue_items.clear();
+        self.due_today_items.clear();
         self.no_section_items.clear();
         self.section_items_map.clear();
         self.sections.clear();
@@ -387,7 +382,7 @@ impl BoardBase {
         }
 
         self.past_due_items = past_due;
-        self.overdue_items = today_items;
+        self.due_today_items = today_items;
         self.no_section_items = non_pinned_non_overdue_no_section;
         self.section_items_map = non_pinned_non_overdue_sections;
 

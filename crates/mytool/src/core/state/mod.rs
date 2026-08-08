@@ -10,10 +10,10 @@ pub use cache::*;
 pub use database::DBState;
 pub use events::*;
 use gpui::App;
-use tracing::error;
 pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
+use tracing::error;
 
 /// 获取数据库连接的便捷函数
 ///

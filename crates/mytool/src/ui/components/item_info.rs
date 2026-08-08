@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::sync::Arc;
 
 use gpui::{
     Action, App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter,
@@ -37,7 +34,7 @@ use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     core::{
         notification::{NotificationExt, NotificationSystem},
-        state::{DBState, TodoStore, get_db_connection},
+        state::{DBState, TodoStore},
     },
     state_service,
     todo_actions::{
@@ -74,10 +71,6 @@ pub struct ItemStateManager {
     original_item: Arc<ItemModel>,
     /// 避免重复更新的标志
     pub skip_next_update: bool,
-    /// 上次更新时间
-    last_update_time: Option<Instant>,
-    /// 更新间隔（毫秒）
-    update_interval: Duration,
     /// 标记是否有未保存的修改
     has_unsaved_changes: bool,
     /// 是否是新建任务
@@ -107,8 +100,6 @@ impl ItemStateManager {
             original_item: item.clone(),
             item,
             skip_next_update: false,
-            last_update_time: None,
-            update_interval: Duration::from_millis(500), // 500ms 更新间隔
             has_unsaved_changes: false,
             is_new_item: is_new,
             save_status: SaveItemStatus::Idle,
@@ -118,11 +109,6 @@ impl ItemStateManager {
     /// 检查是否是新建任务
     pub fn is_new_item(&self) -> bool {
         self.is_new_item
-    }
-
-    /// 设置是否是新建任务
-    pub fn set_is_new_item(&mut self, is_new: bool) {
-        self.is_new_item = is_new;
     }
 
     /// 恢复到原始数据（取消编辑）
@@ -159,16 +145,6 @@ impl ItemStateManager {
     /// 性能注意：每次调用都会克隆整个 ItemModel
     /// 考虑批量更新以减少克隆次数
     pub fn update_item<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut ItemModel),
-    {
-        let mut item_data = (*self.item).clone();
-        f(&mut item_data);
-        self.item = Arc::new(item_data);
-    }
-
-    /// 批量更新多个字段，减少克隆次数
-    pub fn batch_update<F>(&mut self, f: F)
     where
         F: FnOnce(&mut ItemModel),
     {
@@ -232,19 +208,6 @@ impl ItemStateManager {
         self.update_item(|item| {
             item.pinned = pinned;
         });
-    }
-
-    /// 检查是否可以进行更新
-    /// 基于上次更新时间和更新间隔
-    pub fn can_update(&mut self) -> bool {
-        let now = Instant::now();
-        if let Some(last_time) = self.last_update_time
-            && now.duration_since(last_time) < self.update_interval
-        {
-            return false;
-        }
-        self.last_update_time = Some(now);
-        true
     }
 }
 
@@ -399,43 +362,6 @@ impl ItemInfoState {
         };
         this.set_item(item, window, cx);
         this
-    }
-
-    /// 检查是否有任何子组件具有焦点
-    pub fn has_focus_within(&self, window: &Window, cx: &App) -> bool {
-        // 检查主焦点句柄
-        if self.focus_handle.is_focused(window) {
-            return true;
-        }
-
-        // 检查输入框焦点
-        if self.name_input.focus_handle(cx).is_focused(window)
-            || self.desc_input.focus_handle(cx).is_focused(window)
-        {
-            return true;
-        }
-
-        // 检查其他子组件焦点
-        if self.priority_state.focus_handle(cx).is_focused(window)
-            || self.project_state.focus_handle(cx).is_focused(window)
-            || self.section_state.focus_handle(cx).is_focused(window)
-            || self.schedule_button_state.focus_handle(cx).is_focused(window)
-            || self.recurrency_button_state.focus_handle(cx).is_focused(window)
-            || self.label_popover_list.focus_handle(cx).is_focused(window)
-            || self.attachment_state.focus_handle(cx).is_focused(window)
-            || self.reminder_state.focus_handle(cx).is_focused(window)
-        {
-            return true;
-        }
-
-        false
-    }
-
-    /// 当失去焦点时调用，用于通知父组件
-    /// 注意：不再自动保存，用户需要点击保存按钮
-    pub fn on_focus_lost(&mut self, cx: &mut Context<Self>) {
-        // 不再自动保存，只通知 UI 更新
-        cx.notify();
     }
 
     fn on_input_event(
@@ -1089,7 +1015,6 @@ impl ItemInfoState {
     ) {
         let item_id = self.state_manager.item.id.clone();
         let label_name = label.name.clone();
-        let _db = get_db_connection(cx);
 
         // 先更新本地状态，确保UI立即响应且状态保持一致
         self.label_popover_list.update(cx, |popover_list, cx| {
@@ -1103,7 +1028,7 @@ impl ItemInfoState {
             }
         });
 
-        // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+        // 使用全局 Store 持久化标签变更
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         cx.spawn(async move |_this, _cx| {
@@ -1132,7 +1057,6 @@ impl ItemInfoState {
     ) {
         let item_id = self.state_manager.item.id.clone();
         let label_id = label.id.clone();
-        let _db = get_db_connection(cx);
 
         // 先更新本地状态，确保 UI 立即响应且状态保持一致
         self.label_popover_list.update(cx, |popover_list, cx| {
@@ -1144,7 +1068,7 @@ impl ItemInfoState {
             });
         });
 
-        // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+        // 使用全局 Store 持久化标签变更
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         cx.spawn(async move |_this, _cx| {
@@ -1460,7 +1384,7 @@ impl ItemInfoState {
         &mut self,
         label: Arc<LabelModel>,
         selected: &bool,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         info!("Label toggle clicked: {} -> {}", label.name, selected);
@@ -1482,13 +1406,6 @@ impl ItemInfoState {
                     .set_item_checked_labels(popover_list.selected_labels.clone(), cx);
             });
         });
-
-        // 执行数据库操作
-        if *selected {
-            self.add_checked_labels(label.clone(), window, cx);
-        } else {
-            self.rm_checked_labels(label.clone(), window, cx);
-        }
 
         // 更新 state_manager.item.labels 字段
         let selected_label_ids = self
@@ -1518,7 +1435,7 @@ impl ItemInfoState {
             .map(|s| s.to_string())
             .collect();
 
-        // 🚀 关键修复：使用全局 Store，避免重复创建 ServiceManager
+        // 使用全局 Store 持久化标签变更
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
 
         cx.spawn(async move |_this, _cx| {

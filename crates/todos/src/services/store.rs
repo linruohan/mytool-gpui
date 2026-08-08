@@ -36,21 +36,23 @@ impl Store {
         let patch_manager = PatchManager::new(db.clone());
         patch_manager.apply_patches().await?;
 
-        let label_service = Arc::new(LabelService::new(db.clone()));
-        let item_service = Arc::new(ItemService::new(db.clone(), label_service.clone()));
+        let label_service = LabelService::new(db.clone());
+        let label_service_for_item = Arc::new(label_service.clone());
+        let item_service = ItemService::new(db.clone(), label_service_for_item);
+        let item_service_for_deps = Arc::new(item_service.clone());
         let section_service =
-            Arc::new(SectionService::new(db.clone(), item_service.clone()));
-        let project_service = Arc::new(ProjectService::new(db.clone(), item_service.clone()));
-        let reminder_service = Arc::new(ReminderService::new(db.clone()));
-        let attachment_service = Arc::new(AttachmentService::new(db.clone()));
+            SectionService::new(db.clone(), item_service_for_deps.clone());
+        let project_service = ProjectService::new(db.clone(), item_service_for_deps);
+        let reminder_service = ReminderService::new(db.clone());
+        let attachment_service = AttachmentService::new(db.clone());
 
         Ok(Arc::new(Self {
-            item_service: (*item_service).clone(),
-            project_service: (*project_service).clone(),
-            section_service: (*section_service).clone(),
-            label_service: (*label_service).clone(),
-            reminder_service: (*reminder_service).clone(),
-            attachment_service: (*attachment_service).clone(),
+            item_service,
+            project_service,
+            section_service,
+            label_service,
+            reminder_service,
+            attachment_service,
         }))
     }
 

@@ -52,58 +52,59 @@ impl ItemRowState {
         let item_id = item.id.clone();
         let focus_handle = cx.focus_handle();
 
-        let _subscriptions = vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-            let store = cx.global::<TodoStore>();
+        let _subscriptions =
+            vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+                let store = cx.global::<TodoStore>();
 
-            // 性能优化：检查版本号，只在数据变化时更新
-            if this.cached_store_version == store.version() {
-                return;
-            }
-            this.cached_store_version = store.version();
+                // 性能优化：检查版本号，只在数据变化时更新
+                if this.cached_store_version == store.version() {
+                    return;
+                }
+                this.cached_store_version = store.version();
 
-            // 性能优化：非 items 域变更时跳过（如仅项目/标签变化）
-            if !store.peek_change_mask().items_changed {
-                return;
-            }
-
-            if let Some(updated_item) = store.get_item(&item_id) {
-                // 检查 item 是否真的发生了变化
-                if this.item == updated_item {
-                    // item 没有变化，跳过更新
+                // 性能优化：非 items 域变更时跳过（如仅项目/标签变化）
+                if !store.peek_change_mask().items_changed {
                     return;
                 }
 
-                // 检查是否是标签更新（通过比较 labels 字段）
-                let is_label_update = this.item.labels != updated_item.labels;
+                if let Some(updated_item) = store.get_item(&item_id) {
+                    // 检查 item 是否真的发生了变化
+                    if this.item == updated_item {
+                        // item 没有变化，跳过更新
+                        return;
+                    }
 
-                this.item = updated_item.clone();
-                this.update_version += 1; // 增加版本号，强制重新渲染
+                    // 检查是否是标签更新（通过比较 labels 字段）
+                    let is_label_update = this.item.labels != updated_item.labels;
 
-                // 添加调试日志
-                use tracing::info;
-                info!(
-                    "ItemRowState: item updated - id: {}, labels: {:?}, version: {}, \
-                     is_label_update: {}",
-                    updated_item.id, updated_item.labels, this.update_version, is_label_update
-                );
+                    this.item = updated_item.clone();
+                    this.update_version += 1; // 增加版本号，强制重新渲染
 
-                // 仅在 item_info 已创建时同步状态
-                if let Some(item_info) = this.item_info.as_ref() {
-                    item_info.update(cx, |this_info, cx| {
-                        this_info.state_manager.item = updated_item.clone();
-                        this_info.update_item_without_reloading_labels(
-                            updated_item.clone(),
-                            window,
-                            cx,
-                        );
-                        if is_label_update {
-                            this_info.refresh_labels_selection_from_item(cx);
-                        }
-                    });
+                    // 添加调试日志
+                    use tracing::info;
+                    info!(
+                        "ItemRowState: item updated - id: {}, labels: {:?}, version: {}, \
+                         is_label_update: {}",
+                        updated_item.id, updated_item.labels, this.update_version, is_label_update
+                    );
+
+                    // 仅在 item_info 已创建时同步状态
+                    if let Some(item_info) = this.item_info.as_ref() {
+                        item_info.update(cx, |this_info, cx| {
+                            this_info.state_manager.item = updated_item.clone();
+                            this_info.update_item_without_reloading_labels(
+                                updated_item.clone(),
+                                window,
+                                cx,
+                            );
+                            if is_label_update {
+                                this_info.refresh_labels_selection_from_item(cx);
+                            }
+                        });
+                    }
+                    cx.notify();
                 }
-                cx.notify();
-            }
-        })];
+            })];
 
         Self {
             item,
@@ -354,29 +355,25 @@ impl Render for ItemRowState {
             .border_color(priority_color)
             .bg(colors.priority_background_tint(priority, cx.theme().background))
             .opacity(completed_opacity)
-            .when(is_focused, |this| {
-                this.shadow_md()
-                    .border_color(priority_color)
-                    .border(px(2.0))
-            })
+            .when(is_focused, |this| this.shadow_md().border_color(priority_color).border(px(2.0)))
             .on_mouse_move(cx.listener(|this, _event, _window, cx| {
                 this.is_hovered = true;
                 cx.notify();
             }))
-            .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event, window, cx| {
-                if this.is_toggle_button_click(event) {
-                    this.toggle_expand(window, cx);
-                } else if !this.is_open {
-                    this.expand(window, cx);
-                }
-                this.focus_handle.focus(window, cx);
-                cx.notify();
-            }))
+            .on_mouse_down(
+                gpui::MouseButton::Left,
+                cx.listener(|this, event, window, cx| {
+                    if this.is_toggle_button_click(event) {
+                        this.toggle_expand(window, cx);
+                    } else if !this.is_open {
+                        this.expand(window, cx);
+                    }
+                    this.focus_handle.focus(window, cx);
+                    cx.notify();
+                }),
+            )
             .hover(|style: gpui::StyleRefinement| {
-                style
-                    .bg(colors.hover_overlay)
-                    .shadow_md()
-                    .cursor_pointer()
+                style.bg(colors.hover_overlay).shadow_md().cursor_pointer()
             })
             .when_some(status_indicator, |this: gpui::Stateful<gpui::Div>, color| {
                 this.border_t_2().border_color(color)
@@ -419,22 +416,19 @@ impl Render for ItemRowState {
                                     }),
                             ),
                     )
-                    .when_some(
-                        item_info_entity.filter(|_| is_open),
-                        |collapsible, item_info| {
-                            collapsible.content(
-                                v_flex()
-                                    .gap(px(6.0))
-                                    .p(px(6.0))
-                                    .mt(px(6.0))
-                                    .bg(cx.theme().background.opacity(0.5))
-                                    .rounded(px(4.0))
-                                    .border_1()
-                                    .border_color(cx.theme().border.opacity(0.5))
-                                    .child(ItemInfo::new(&item_info)),
-                            )
-                        },
-                    ),
+                    .when_some(item_info_entity.filter(|_| is_open), |collapsible, item_info| {
+                        collapsible.content(
+                            v_flex()
+                                .gap(px(6.0))
+                                .p(px(6.0))
+                                .mt(px(6.0))
+                                .bg(cx.theme().background.opacity(0.5))
+                                .rounded(px(4.0))
+                                .border_1()
+                                .border_color(cx.theme().border.opacity(0.5))
+                                .child(ItemInfo::new(&item_info)),
+                        )
+                    }),
             )
     }
 }

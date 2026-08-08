@@ -150,7 +150,7 @@ pub fn show_item_dialog<T, F>(
                             move |_, window, cx| {
                                 // 调用 save_all_changes 统一处理保存
                                 // 保存是异步的，UI已经立即更新（乐观更新）
-                                // 保存结果会在后台通过 EventBus 通知
+                                // 保存结果由后台任务更新 SaveResults / ErrorNotifier
                                 item_info_for_ok.update(cx, |state, cx| {
                                     state.save_all_changes(cx);
                                 });

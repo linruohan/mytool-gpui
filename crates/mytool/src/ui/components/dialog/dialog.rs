@@ -1,6 +1,6 @@
 #[derive(Clone)]
-    #[allow(dead_code)] // overlay/keyboard fields kept for dialog_helper API compatibility
-    pub struct DialogConfig {
+#[allow(dead_code)] // overlay/keyboard fields kept for dialog_helper API compatibility
+pub struct DialogConfig {
     pub title: String,
     pub overlay: bool,
     pub keyboard: bool,

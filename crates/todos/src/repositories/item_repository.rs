@@ -19,29 +19,8 @@ use crate::{
 /// Item 特有的查询方法 trait
 #[async_trait]
 pub trait ItemQueryRepository: BaseRepository<ItemModel> {
-    /// 根据项目 ID 查找任务
-    async fn find_by_project(&self, project_id: &str) -> RepositoryResult<Vec<ItemModel>>;
-
-    /// 根据分区 ID 查找任务
-    async fn find_by_section(&self, section_id: &str) -> RepositoryResult<Vec<ItemModel>>;
-
     /// 根据父任务 ID 查找子任务
     async fn find_by_parent(&self, parent_id: &str) -> RepositoryResult<Vec<ItemModel>>;
-
-    /// 查找已完成的任务
-    async fn find_checked(&self) -> RepositoryResult<Vec<ItemModel>>;
-
-    /// 查找未完成的任务
-    async fn find_unchecked(&self) -> RepositoryResult<Vec<ItemModel>>;
-
-    /// 查找置顶的任务
-    async fn find_pinned(&self) -> RepositoryResult<Vec<ItemModel>>;
-
-    /// 查找今日到期的任务
-    async fn find_due_today(&self) -> RepositoryResult<Vec<ItemModel>>;
-
-    /// 查找过期的任务
-    async fn find_overdue(&self) -> RepositoryResult<Vec<ItemModel>>;
 }
 
 /// Item Repository 实现结构体
@@ -152,26 +131,6 @@ impl BaseRepository<ItemModel> for ItemRepositoryImpl {
 
 #[async_trait]
 impl ItemQueryRepository for ItemRepositoryImpl {
-    async fn find_by_project(&self, project_id: &str) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::ProjectId.eq(project_id))
-            .filter(items::Column::IsDeleted.eq(false))
-            .order_by_asc(items::Column::ChildOrder)
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_by_section(&self, section_id: &str) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::SectionId.eq(section_id))
-            .filter(items::Column::IsDeleted.eq(false))
-            .order_by_asc(items::Column::ChildOrder)
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
     async fn find_by_parent(&self, parent_id: &str) -> RepositoryResult<Vec<ItemModel>> {
         ItemEntity::find()
             .filter(items::Column::ParentId.eq(parent_id))
@@ -179,78 +138,5 @@ impl ItemQueryRepository for ItemRepositoryImpl {
             .all(self.base.database())
             .await
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_checked(&self) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::Checked.eq(true))
-            .filter(items::Column::IsDeleted.eq(false))
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_unchecked(&self) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::Checked.eq(false))
-            .filter(items::Column::IsDeleted.eq(false))
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_pinned(&self) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::Pinned.eq(true))
-            .filter(items::Column::IsDeleted.eq(false))
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_due_today(&self) -> RepositoryResult<Vec<ItemModel>> {
-        let today = chrono::Utc::now().date_naive();
-        let today_start = today.and_hms_opt(0, 0, 0).unwrap();
-        let today_end = today.and_hms_opt(23, 59, 59).unwrap();
-
-        Ok(ItemEntity::find()
-            .filter(items::Column::Checked.eq(false))
-            .filter(items::Column::IsDeleted.eq(false))
-            .filter(items::Column::Due.is_not_null())
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))?
-            .into_iter()
-            .filter(|item| {
-                if let Some(due) = item.due_date()
-                    && let Some(naive) = due.datetime()
-                {
-                    return naive >= today_start && naive <= today_end;
-                }
-                false
-            })
-            .collect())
-    }
-
-    async fn find_overdue(&self) -> RepositoryResult<Vec<ItemModel>> {
-        let now = chrono::Utc::now().naive_utc();
-
-        Ok(ItemEntity::find()
-            .filter(items::Column::Checked.eq(false))
-            .filter(items::Column::IsDeleted.eq(false))
-            .filter(items::Column::Due.is_not_null())
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))?
-            .into_iter()
-            .filter(|item| {
-                if let Some(due) = item.due_date()
-                    && let Some(naive) = due.datetime()
-                {
-                    return naive < now;
-                }
-                false
-            })
-            .collect())
     }
 }

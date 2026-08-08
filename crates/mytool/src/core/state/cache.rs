@@ -29,8 +29,6 @@ pub struct QueryCache {
     completed_cache: RefCell<Option<ItemList>>,
     /// 置顶任务缓存
     pinned_cache: RefCell<Option<ItemList>>,
-    /// 过期任务缓存
-    overdue_cache: RefCell<Option<ItemList>>,
     /// 项目任务缓存（按项目 ID）
     project_cache: RefCell<HashMap<String, ItemList>>,
     /// 分区任务缓存（按分区 ID）
@@ -51,7 +49,6 @@ impl QueryCache {
             scheduled_cache: RefCell::new(None),
             completed_cache: RefCell::new(None),
             pinned_cache: RefCell::new(None),
-            overdue_cache: RefCell::new(None),
             project_cache: RefCell::new(HashMap::new()),
             section_cache: RefCell::new(HashMap::new()),
             cache_version: RefCell::new(0),
@@ -75,7 +72,6 @@ impl QueryCache {
         *self.scheduled_cache.borrow_mut() = None;
         *self.completed_cache.borrow_mut() = None;
         *self.pinned_cache.borrow_mut() = None;
-        *self.overdue_cache.borrow_mut() = None;
         self.project_cache.borrow_mut().clear();
         self.section_cache.borrow_mut().clear();
     }
@@ -148,18 +144,6 @@ impl QueryCache {
     /// 设置置顶任务缓存
     pub fn set_pinned(&self, items: ItemList) {
         *self.pinned_cache.borrow_mut() = Some(items);
-    }
-
-    // ==================== 过期任务缓存 ====================
-
-    /// 获取过期任务缓存
-    pub fn get_overdue(&self) -> Option<ItemList> {
-        self.overdue_cache.borrow().clone()
-    }
-
-    /// 设置过期任务缓存
-    pub fn set_overdue(&self, items: ItemList) {
-        *self.overdue_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 项目任务缓存 ====================

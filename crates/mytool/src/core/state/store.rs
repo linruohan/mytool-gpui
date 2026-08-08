@@ -581,30 +581,6 @@ impl TodoStore {
         items
     }
 
-    /// 获取过期任务
-    pub fn overdue_items(&self) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| !item.checked && item.is_overdue())
-    }
-
-    /// 获取过期任务（带缓存）
-    pub fn overdue_items_cached(
-        &self,
-        cache: &crate::core::state::cache::QueryCache,
-    ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version) {
-            if let Some(cached) = cache.get_overdue() {
-                return cached;
-            }
-        } else {
-            cache.invalidate_all();
-        }
-
-        let items = Arc::new(self.overdue_items());
-        cache.set_overdue(items.clone());
-        cache.update_version(self.version);
-        items
-    }
-
     /// 获取指定项目的任务（走 project_index）
     pub fn items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
         self.project_index.get(project_id).cloned().unwrap_or_default()

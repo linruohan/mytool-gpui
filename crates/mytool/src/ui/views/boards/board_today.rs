@@ -293,7 +293,7 @@ impl Render for TodayBoard {
         let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = self.base.pinned_items.clone();
         let past_due_items = self.base.past_due_items.clone();
-        let overdue_items = self.base.overdue_items.clone();
+        let due_today_items = self.base.due_today_items.clone();
         let no_section_items = self.base.no_section_items.clone();
         let section_items_map = self.base.section_items_map.clone();
         let active_border = cx.theme().list_active_border;
@@ -389,10 +389,10 @@ impl Render for TodayBoard {
                                 &past_due_schedule_button,
                             ))
                         })
-                        .when(!overdue_items.is_empty(), |this| {
+                        .when(!due_today_items.is_empty(), |this| {
                             this.child(board_renderer::render_simple_group_block(
                                 "Today",
-                                &overdue_items,
+                                &due_today_items,
                                 item_rows,
                                 active_index,
                                 active_border,

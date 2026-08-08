@@ -19,9 +19,9 @@ mod server_cfg;
 
 use anyhow::{Context, Result, anyhow, bail};
 use config::{Config, FileFormat};
-use serde::Deserialize;
 pub use database_cfg::DatabaseConfig;
 pub use logging_cfg::LoggingConfig;
+use serde::Deserialize;
 pub use server_cfg::ServerConfig;
 
 /// 运行环境

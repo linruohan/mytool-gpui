@@ -26,7 +26,8 @@ use crate::{
             BoardItemClickEvent, render_board_header, show_item_delete_dialog,
             show_item_unfinish_dialog, with_selected_item,
         },
-        board_renderer, container_board::Board,
+        board_renderer,
+        container_board::Board,
     },
 };
 
@@ -89,7 +90,12 @@ impl CompletedBoard {
         let cache = cx.global::<crate::core::state::QueryCache>();
         let state_items = cx.global::<TodoStore>().completed_items_cached(cache);
 
-        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, _window, cx);
+        self.base.diff_update_item_rows(
+            state_items.as_slice(),
+            &mut self.item_row_ids,
+            _window,
+            cx,
+        );
         self.base.update_items(state_items.as_slice());
         self.base.clamp_active_index();
     }
@@ -179,28 +185,26 @@ impl Render for CompletedBoard {
             .track_focus(&self.base.focus_handle)
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
-            .child(
-                render_board_header(
-                    cx,
-                    <CompletedBoard as Board>::icon(),
-                    <CompletedBoard as Board>::title(),
-                    <CompletedBoard as Board>::description(),
-                    Button::new("unfinish-item")
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::Undo)
-                        .on_click({
-                            let view = view.clone();
-                            move |_event, window, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.show_item_unfinish_dialog(window, cx);
-                                    cx.notify();
-                                })
-                            }
-                        }),
-                ),
-            )
+            .child(render_board_header(
+                cx,
+                <CompletedBoard as Board>::icon(),
+                <CompletedBoard as Board>::title(),
+                <CompletedBoard as Board>::description(),
+                Button::new("unfinish-item")
+                    .small()
+                    .ghost()
+                    .compact()
+                    .icon(IconName::Undo)
+                    .on_click({
+                        let view = view.clone();
+                        move |_event, window, cx| {
+                            view.update(cx, |this, cx| {
+                                this.show_item_unfinish_dialog(window, cx);
+                                cx.notify();
+                            })
+                        }
+                    }),
+            ))
             .child(
                 v_flex()
                     .flex_1()

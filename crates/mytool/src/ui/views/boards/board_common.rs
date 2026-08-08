@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Render, Styled, Window,
+    App, AppContext, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
+    Styled, Window,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, WindowExt,
@@ -13,16 +13,13 @@ use gpui_component::{
 };
 use todos::entity::ItemModel;
 
+use super::board_base::BoardView;
 use crate::{
     ScheduleButtonState, VisualHierarchy,
     core::actions::batch::batch_update_items,
-    todo_actions::{
-        complete_item_optimistic, delete_item_optimistic, set_item_pinned_optimistic,
-    },
+    todo_actions::{complete_item_optimistic, delete_item_optimistic, set_item_pinned_optimistic},
     todo_state::TodoStore,
 };
-
-use super::board_base::BoardView;
 
 /// 所有 Board 共享的任务点击事件
 #[derive(Debug, Clone)]
@@ -110,11 +107,8 @@ pub fn show_confirm_dialog<T, F>(
 }
 
 /// 删除任务确认对话框
-pub fn show_item_delete_dialog<T>(
-    window: &mut Window,
-    cx: &mut Context<T>,
-    item: Arc<ItemModel>,
-) where
+pub fn show_item_delete_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: Arc<ItemModel>)
+where
     T: Render + 'static,
 {
     show_confirm_dialog(
@@ -153,23 +147,12 @@ pub fn show_finish_item_dialog<T>(
 }
 
 /// 置顶/取消置顶任务确认对话框
-pub fn show_pin_item_dialog<T>(
-    window: &mut Window,
-    cx: &mut Context<T>,
-    item: Arc<ItemModel>,
-) where
+pub fn show_pin_item_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: Arc<ItemModel>)
+where
     T: Render + 'static,
 {
-    let message = if item.pinned {
-        "Unpin this item?"
-    } else {
-        "Pin this item?"
-    };
-    let success = if item.pinned {
-        "Item unpinned."
-    } else {
-        "Item pinned."
-    };
+    let message = if item.pinned { "Unpin this item?" } else { "Pin this item?" };
+    let success = if item.pinned { "Item unpinned." } else { "Item pinned." };
 
     show_confirm_dialog(
         window,
@@ -185,11 +168,8 @@ pub fn show_pin_item_dialog<T>(
 }
 
 /// 标记未完成确认对话框（Completed Board）
-pub fn show_item_unfinish_dialog<T>(
-    window: &mut Window,
-    cx: &mut Context<T>,
-    item: Arc<ItemModel>,
-) where
+pub fn show_item_unfinish_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: Arc<ItemModel>)
+where
     T: Render + 'static,
 {
     show_confirm_dialog(
@@ -254,12 +234,7 @@ pub trait BoardSectionActions: BoardView + Render {
         section_id: String,
     );
 
-    fn archive_section(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        section_id: String,
-    );
+    fn archive_section(&mut self, window: &mut Window, cx: &mut Context<Self>, section_id: String);
 }
 
 /// 将 Board 已有的同名固有方法委托给 `BoardSectionActions`
@@ -347,12 +322,14 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
             )
             .footer(
                 gpui_component::dialog::DialogFooter::new()
-                    .child(gpui_component::dialog::DialogClose::new().child(
-                        Button::new("cancel").label("Cancel").outline(),
-                    ))
-                    .child(gpui_component::dialog::DialogAction::new().child(
-                        Button::new("schedule").label("Schedule").primary(),
-                    )),
+                    .child(
+                        gpui_component::dialog::DialogClose::new()
+                            .child(Button::new("cancel").label("Cancel").outline()),
+                    )
+                    .child(
+                        gpui_component::dialog::DialogAction::new()
+                            .child(Button::new("schedule").label("Schedule").primary()),
+                    ),
             )
             .on_ok({
                 let schedule_state = schedule_state.clone();

@@ -72,62 +72,52 @@ test/               # Test utilities and benchmarks
 ```
 ┌─────────────────────────────────────────┐
 │   mytool (GUI Layer)                    │
-│   - Stories, Views, Components          │
-│   - Global State (DBState, TodoStore)   │
+│   - Boards, Views, Components           │
+│   - Globals: DBState, TodoStore, Cache  │
+│   - Write path: optimistic actions      │
 ├─────────────────────────────────────────┤
-│   Service Layer (todos/services/)      │
-│   - ItemService, LabelService, etc.     │
-│   - QueryService, EventBus, Store       │
+│   Service Layer (todos/services/)       │
+│   - Item/Label/Project/Section/...      │
+│   - Store (thin facade for GUI/coldload)│
 ├─────────────────────────────────────────┤
 │   Repository Layer (todos/repositories/)│
-│   - Data access patterns                │
+│   - Item/Label/Section (+ BaseRepository)│
 ├─────────────────────────────────────────┤
 │   Entity Layer (todos/entity/)          │
 │   - Sea-ORM generated models            │
 ├─────────────────────────────────────────┤
-│   SQLite Database                       │
+│   SQLite Database (WAL)                 │
 └─────────────────────────────────────────┘
 ```
 
+UI refresh uses `TodoStore` + `ChangeMask` + `QueryCache` (not a domain EventBus).
+
 ### Key Entities (todos/entity/)
+Active domain models:
 - **ItemModel** - Tasks with content, due dates, priority, labels
 - **ProjectModel** - Project containers
 - **SectionModel** - Sections within projects
 - **LabelModel** - Tags/labels for items
 - **ReminderModel** - Reminder notifications
 - **AttachmentModel** - File attachments
-- **SourceModel** - Data sources
-- **QueueModel** - Task queue
-- **OEventModel** - Operations/events
-- **CurTempIdModel** - Temporary ID tracking
+
+Schema leftovers (generated, no service path): `SourceModel`, `QueueModel`, `OEventModel`, `CurTempIdModel`.
 
 ### Service Layer (todos/services/)
-Core services coordinate business logic:
-- `ItemService` - CRUD operations for items
-- `LabelService`, `ProjectService`, `SectionService`, `ReminderService`
-- `QueryService` - Batch query operations with concurrency control
-- `EventBus` - Event-driven communication between components
-- `Store` - Centralized state management
-- `ServiceManager` - Coordinates all services
+- `ItemService`, `LabelService`, `ProjectService`, `SectionService`, `ReminderService`, `AttachmentService`
+- `Store` - Thin passthrough facade used by GUI cold load and `state_service`
 
 ### Global State Management (mytool/core/state/)
-GPUI uses a global state pattern:
-- `DBState` - Global database connection
-- `TodoStore` - Single source of truth for all data
-- `TodoEventBus` - Event distribution
-- `QueryCache` - LRU caching for performance
-- `BatchOperations` - Batch operation queue
-- `ErrorNotifier` - Error notification handling
-- `ObserverRegistry` - State observers
-- `DirtyFlags` - Change tracking
-- `PendingTasksState` - Async task tracking
-
-State initialization happens in `state_init(cx: &mut App, db: DatabaseConnection)`.
+Initialized in `state_init(cx, db)`:
+- `DBState` - DB connection + async `todos::Store` init
+- `TodoStore` - In-memory source of truth + indexes + `ChangeMask`
+- `QueryCache` - Arc-shared filtered board query results
+- `ErrorNotifier` / `PendingTasksState` / `SaveResults` - error & save tracking
 
 ### UI Components (mytool/ui/)
-- **Stories** (`stories/`) - Storybook-style demo views (WelcomeStory, CalendarStory, TodoStory, ListStory)
-- **Views** (`views/`) - Main views including board views (Inbox, Today, Scheduled, Pin, Completed, Labels)
-- **Components** (`components/`) - Reusable UI components (buttons, popovers, dialogs, etc.)
+- **Views** (`views/boards/`) - Inbox, Today, Scheduled, Pin, Completed, Labels (shared via `board_base` / `board_common` / `board_renderer`)
+- **Components** (`components/`) - `item_row` (lazy `ItemInfo`), popovers, dialogs
+- **Stories** (`stories/`) - Storybook-style demos
 - **Widgets** (`widgets/`) - Custom widgets
 
 ## Build Profile Configuration
@@ -174,13 +164,6 @@ Locale files: `crates/mytool/locales/ui.yml`
 ## Themes
 
 Theme files are in `themes/` directory as JSON files. Default theme is `themes/default.json`. Over 20 themes available (catppuccin, tokyonight, gruvbox, ayu, solarized, etc.).
-
-## Plugin System
-
-Located in `crates/mytool/src/plugins/`:
-- `Plugin` - Base trait for plugins
-- `PluginRegistry` - Plugin discovery and management
-- `PluginConfig` - Plugin configuration structure
 
 ## External Dependencies
 

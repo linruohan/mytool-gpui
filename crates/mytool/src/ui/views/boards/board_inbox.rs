@@ -18,15 +18,16 @@ use gpui_component::{
     scroll::ScrollableElement,
     v_flex,
 };
+
 use crate::{
     BoardBase, VisualHierarchy, section,
     todo_state::TodoStore,
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, FinishItemDialogStyle,
-            render_board_header, show_finish_item_dialog, show_item_delete_dialog,
-            show_pin_item_dialog, with_selected_item,
+            BoardItemClickEvent, FinishItemDialogStyle, render_board_header,
+            show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
+            with_selected_item,
         },
         board_renderer::{self, SectionBlockOptions},
         container_board::Board,
@@ -136,7 +137,6 @@ impl InboxBoard {
 
         self.base.clamp_active_index();
     }
-
 
     pub fn show_item_dialog(
         &mut self,
@@ -279,90 +279,94 @@ impl Render for InboxBoard {
             .track_focus(&self.base.focus_handle)
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
-            .child(
-                render_board_header(
-                    cx,
-                    <InboxBoard as Board>::icon(),
-                    <InboxBoard as Board>::title(),
-                    <InboxBoard as Board>::description(),
-                    h_flex()
-                        .gap(VisualHierarchy::spacing(2.0))
-                        .child(
-                                Button::new("item-actions")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .tooltip("Item Operation")
-                                    .icon(IconName::CheckSquare)
-                                    .dropdown_menu({
-                                        let view = view.clone();
-                                        move |this, window, _cx| {
-                                            let view = view.clone();
-                                            this.item(
-                                                PopupMenuItem::new("Add Item").icon(IconName::PlusLargeSymbolic).on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_dialog(window, cx, false, None);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Edit Item").icon(IconName::EditSymbolic).on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_dialog(window, cx, true, None);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                            .separator()
-                                            .item(
-                                                PopupMenuItem::new("Delete Item").icon(IconName::UserTrashSymbolic).on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_item_delete_dialog(window, cx);
-                                                        cx.notify();
-                                                    }),
-                                                ),
-                                            )
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("add-action")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .label("Section")
-                                    .tooltip("Section Operation")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_section_dialog(window, cx, None, false);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            ),
-                ),
-            )
+            .child(render_board_header(
+                cx,
+                <InboxBoard as Board>::icon(),
+                <InboxBoard as Board>::title(),
+                <InboxBoard as Board>::description(),
+                h_flex()
+                    .gap(VisualHierarchy::spacing(2.0))
+                    .child(
+                        Button::new("item-actions")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .tooltip("Item Operation")
+                            .icon(IconName::CheckSquare)
+                            .dropdown_menu({
+                                let view = view.clone();
+                                move |this, window, _cx| {
+                                    let view = view.clone();
+                                    this.item(
+                                        PopupMenuItem::new("Add Item")
+                                            .icon(IconName::PlusLargeSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_dialog(window, cx, false, None);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                    .separator()
+                                    .item(
+                                        PopupMenuItem::new("Edit Item")
+                                            .icon(IconName::EditSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_dialog(window, cx, true, None);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                    .separator()
+                                    .item(
+                                        PopupMenuItem::new("Delete Item")
+                                            .icon(IconName::UserTrashSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_delete_dialog(window, cx);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                }
+                            }),
+                    )
+                    .child(
+                        Button::new("add-action")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::PlusLargeSymbolic)
+                            .label("Section")
+                            .tooltip("Section Operation")
+                            .on_click({
+                                let view = view.clone();
+                                move |_event, window, cx| {
+                                    view.update(cx, |this, cx| {
+                                        this.show_section_dialog(window, cx, None, false);
+                                        cx.notify();
+                                    })
+                                }
+                            }),
+                    ),
+            ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(
-                                section("Pinned")
-                                    .child(board_renderer::render_item_list(
-                                        &pinned_items,
-                                        item_rows,
-                                        active_index,
-                                        active_border,
-                                        view.clone(),
-                                    ))
-                            )
+                            this.child(section("Pinned").child(board_renderer::render_item_list(
+                                &pinned_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
+                            )))
                         })
                         .when(!no_section_items.is_empty(), |this| {
                             this.child(board_renderer::render_no_section_block(
