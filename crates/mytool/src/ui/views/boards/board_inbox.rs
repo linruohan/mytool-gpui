@@ -51,12 +51,11 @@ impl InboxBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let mut base = BoardBase::new(window, cx);
+        let base = BoardBase::new(window, cx);
 
         // 🚀 7.0修复：不在 new() 中注册 observe_global！
         // 原因：在初始化阶段注册会导致与异步冷加载产生竞争条件 → 主线程冻结
-        // 修复：延迟到首次 render() 时通过 lazy_init_observer() 注册
-        base._subscriptions = vec![];
+        // 修复：延迟到首次 render() 时通过 begin_pending_refresh 注册
 
         Self {
             base,
@@ -66,44 +65,33 @@ impl InboxBoard {
         }
     }
 
-    /// 🚀 7.0修复：延迟注册 TodoStore 观察者（在首次 render 时调用）
-    fn lazy_init_observer(&self, cx: &mut Context<Self>) {
-        if self.observer_registered.get() {
-            return;
-        }
-        self.observer_registered.set(true);
-
-        tracing::info!("📭 [InboxBoard] 注册 TodoStore 观察者 (延迟注册策略)");
-
-        let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
-            if BoardBase::store_change_affects(cx, |m| m.affects_inbox()) {
-                this.pending_refresh.set(true);
-                cx.notify();
-            }
-        });
-    }
-
     /// 🚀 7.0修复：在 render() 中执行实际的增量更新
     fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.lazy_init_observer(cx);
-
-        if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
+        let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
             let cache = cx.global::<crate::core::state::QueryCache>();
-            let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
-            BoardBase::bootstrap_pending_if_needed(
-                &self.pending_refresh,
-                true,
-                !state_items.is_empty(),
-            );
-            if self.pending_refresh.get() {
+            let items = cx.global::<TodoStore>().inbox_items_cached(cache);
+            let has = !items.is_empty();
+            if has {
                 tracing::info!(
                     "📭 [InboxBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
-                    state_items.len()
+                    items.len()
                 );
             }
-        }
+            has
+        } else {
+            false
+        };
 
-        if !BoardBase::take_pending_refresh(&self.pending_refresh) {
+        if !BoardBase::begin_pending_refresh(
+            &self.observer_registered,
+            &self.pending_refresh,
+            &mut self.base._subscriptions,
+            self.base.item_rows.is_empty(),
+            has_store_data,
+            cx,
+            crate::core::state::ChangeMask::affects_inbox,
+            |this| &this.pending_refresh,
+        ) {
             return;
         }
 

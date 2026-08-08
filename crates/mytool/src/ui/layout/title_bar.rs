@@ -1,9 +1,6 @@
-use std::rc::Rc;
-
 use gpui::{
-    Anchor, AnyElement, App, AppContext, Context, Entity, FocusHandle, InteractiveElement as _,
-    IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Subscription,
-    Window, div, px,
+    AppContext, Context, Entity, FocusHandle, InteractiveElement as _, IntoElement, MouseButton,
+    ParentElement as _, Render, SharedString, Styled as _, Subscription, Window, div, px,
 };
 use gpui_component::{
     ActiveTheme as _, IconName, Side, Sizable as _, Theme, TitleBar, WindowExt as _,
@@ -18,7 +15,6 @@ use crate::{SelectFont, SelectRadius, SelectScrollbarShow, ToggleListActiveHighl
 pub struct AppTitleBar {
     app_menu_bar: Entity<AppMenuBar>,
     font_size_selector: Entity<FontSizeSelector>,
-    child: Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -31,21 +27,7 @@ impl AppTitleBar {
         let app_menu_bar = app_menus::init(title, cx);
         let font_size_selector = cx.new(|cx| FontSizeSelector::new(window, cx));
 
-        Self {
-            app_menu_bar,
-            font_size_selector,
-            child: Rc::new(|_, _| div().into_any_element()),
-            _subscriptions: vec![],
-        }
-    }
-
-    pub fn child<F, E>(mut self, f: F) -> Self
-    where
-        E: IntoElement,
-        F: Fn(&mut Window, &mut App) -> E + 'static,
-    {
-        self.child = Rc::new(move |window, cx| f(window, cx).into_any_element());
-        self
+        Self { app_menu_bar, font_size_selector, _subscriptions: vec![] }
     }
 }
 
@@ -64,7 +46,6 @@ impl Render for AppTitleBar {
                     .px_2()
                     .gap_2()
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child((self.child.clone())(window, cx))
                     .child(self.font_size_selector.clone())
                     .child(
                         Button::new("github")
@@ -208,7 +189,7 @@ impl Render for FontSizeSelector {
                                 Box::new(ToggleListActiveHighlight),
                             )
                     })
-                    .anchor(Anchor::TopRight),
+                    .anchor(gpui::Anchor::TopRight),
             )
     }
 }

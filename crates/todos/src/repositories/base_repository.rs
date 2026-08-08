@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sea_orm::{ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::DatabaseConnection;
 
 use crate::error::TodoError;
 
@@ -138,20 +138,20 @@ pub trait PageableRepository<T>: BaseRepository<T> {
     async fn find_paged(&self, pagination: Pagination) -> RepositoryResult<PagedResult<T>>;
 }
 
-/// 支持条件查询的 Repository trait
+/// 软删除支持 trait
 #[async_trait]
-pub trait ConditionalRepository<T>: BaseRepository<T> {
-    /// 根据条件查询实体
-    async fn find_by_condition(&self, condition: Condition) -> RepositoryResult<Vec<T>>;
+pub trait SoftDeletableRepository<T>: BaseRepository<T> {
+    /// 软删除实体（标记为已删除）
+    async fn soft_delete(&self, id: &str) -> RepositoryResult<bool>;
 
-    /// 根据条件统计数量
-    async fn count_by_condition(&self, condition: Condition) -> RepositoryResult<u64>;
-}
+    /// 恢复软删除的实体
+    async fn restore(&self, id: &str) -> RepositoryResult<bool>;
 
-/// 仓库工厂 trait - 用于创建仓库实例
-pub trait RepositoryFactory: Send + Sync {
-    /// 获取数据库连接
-    fn database(&self) -> &Arc<DatabaseConnection>;
+    /// 查找所有未删除的实体
+    async fn find_active(&self) -> RepositoryResult<Vec<T>>;
+
+    /// 查找所有已删除的实体
+    async fn find_deleted(&self) -> RepositoryResult<Vec<T>>;
 }
 
 /// 仓库基础实现结构体
@@ -177,22 +177,6 @@ impl RepositoryBase {
     pub fn database_arc(&self) -> Arc<DatabaseConnection> {
         self.db.clone()
     }
-}
-
-/// 软删除支持 trait
-#[async_trait]
-pub trait SoftDeletableRepository<T>: BaseRepository<T> {
-    /// 软删除实体（标记为已删除）
-    async fn soft_delete(&self, id: &str) -> RepositoryResult<bool>;
-
-    /// 恢复软删除的实体
-    async fn restore(&self, id: &str) -> RepositoryResult<bool>;
-
-    /// 查找所有未删除的实体
-    async fn find_active(&self) -> RepositoryResult<Vec<T>>;
-
-    /// 查找所有已删除的实体
-    async fn find_deleted(&self) -> RepositoryResult<Vec<T>>;
 }
 
 #[cfg(test)]

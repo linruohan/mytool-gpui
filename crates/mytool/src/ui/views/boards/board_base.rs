@@ -21,8 +21,6 @@ pub struct BoardBase {
     pub is_today_board: bool,
     /// 分区列表（用于渲染 Section 分组）
     pub sections: Vec<Arc<todos::entity::SectionModel>>,
-    /// 上次已处理的 `TodoStore::version()`，用于观察者回调中快速跳过无结构变更
-    cached_todo_store_version: usize,
 }
 
 impl BoardBase {
@@ -51,7 +49,6 @@ impl BoardBase {
             past_due_items,
             is_today_board: false,
             sections,
-            cached_todo_store_version: 0,
         }
     }
 
@@ -93,33 +90,6 @@ impl BoardBase {
         self.update_items_ordered(&filtered_items);
     }
 
-    /// 若当前 `TodoStore` 版本与上次处理不同，则更新基类内缓存并返回 `true`；
-    /// 若版本未变返回 `false`，调用方应跳过后续列表重建。
-    pub fn todo_store_version_changed(&mut self, store: &TodoStore) -> bool {
-        let v = store.version();
-        if self.cached_todo_store_version == v {
-            return false;
-        }
-        self.cached_todo_store_version = v;
-        true
-    }
-
-    /// 检查版本号并查看变更掩码（不清空，多 Board 可安全 peek）
-    ///
-    /// 若版本未变返回 `None`，调用方应直接跳过；
-    /// 若版本变化返回 `Some(ChangeMask)` 拷贝，调用方可根据掩码判断是否需要更新。
-    pub fn todo_store_version_and_mask(
-        &mut self,
-        store: &TodoStore,
-    ) -> Option<crate::core::state::ChangeMask> {
-        let v = store.version();
-        if self.cached_todo_store_version == v {
-            return None;
-        }
-        self.cached_todo_store_version = v;
-        Some(*store.peek_change_mask())
-    }
-
     /// 当前 ChangeMask 是否影响指定视图
     #[inline]
     pub fn store_change_affects(
@@ -147,6 +117,36 @@ impl BoardBase {
         }
         pending_refresh.set(false);
         true
+    }
+
+    /// 延迟注册 TodoStore 观察者 + 首屏 bootstrap，并消费 pending。
+    ///
+    /// 返回 `true` 时调用方应继续执行本 Board 的刷新逻辑。
+    /// 订阅会推入 `subscriptions`，避免 `observe_global` 立即 drop 失效。
+    #[allow(clippy::too_many_arguments)]
+    pub fn begin_pending_refresh<V: 'static>(
+        observer_registered: &Cell<bool>,
+        pending_refresh: &Cell<bool>,
+        subscriptions: &mut Vec<Subscription>,
+        item_rows_empty: bool,
+        has_store_data: bool,
+        cx: &mut Context<V>,
+        affects: fn(&crate::core::state::ChangeMask) -> bool,
+        pending_of: fn(&V) -> &Cell<bool>,
+    ) -> bool {
+        if !observer_registered.get() {
+            observer_registered.set(true);
+            let subscription = cx.observe_global::<TodoStore>(move |this, cx| {
+                if Self::store_change_affects(cx, affects) {
+                    pending_of(this).set(true);
+                    cx.notify();
+                }
+            });
+            subscriptions.push(subscription);
+        }
+
+        Self::bootstrap_pending_if_needed(pending_refresh, item_rows_empty, has_store_data);
+        Self::take_pending_refresh(pending_refresh)
     }
 
     /// 修正 active_index，避免越界

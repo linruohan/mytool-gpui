@@ -16,7 +16,7 @@ use crate::{
         BaseRepository, ItemLabelRepository, ItemLabelRepositoryImpl, ItemQueryRepository,
         ItemRepositoryImpl,
     },
-    services::{EventBus, LabelService, MetricsCollector},
+    services::{EventBus, LabelService},
     utils::retry_with_context,
 };
 
@@ -25,7 +25,6 @@ use crate::{
 pub struct ItemService {
     db: Arc<DatabaseConnection>,
     event_bus: Arc<EventBus>,
-    metrics: Arc<MetricsCollector>,
     label_service: Arc<LabelService>,
     item_repo: ItemRepositoryImpl,
     item_label_repo: ItemLabelRepositoryImpl,
@@ -36,12 +35,11 @@ impl ItemService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        metrics: Arc<MetricsCollector>,
         label_service: Arc<LabelService>,
     ) -> Self {
         let item_repo = ItemRepositoryImpl::new(db.clone());
         let item_label_repo = ItemLabelRepositoryImpl::new(db.clone());
-        Self { db, event_bus, metrics, label_service, item_repo, item_label_repo }
+        Self { db, event_bus, label_service, item_repo, item_label_repo }
     }
 
     /// Get an item by ID
@@ -329,12 +327,10 @@ impl ItemService {
         &self,
         project_id: &str,
     ) -> Result<Vec<ItemModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_items_by_project");
         let items = ItemEntity::find()
             .filter(items::Column::ProjectId.eq(project_id))
             .all(&*self.db)
             .await?;
-        self.metrics.record_operation("get_items_by_project", items.len()).await;
         Ok(items)
     }
 
@@ -344,7 +340,6 @@ impl ItemService {
     /// 原来：每个 item 都会触发一次 get_labels_by_item 查询
     /// 现在：只触发一次 get_all_item_labels 查询，然后将结果填充到 items
     pub async fn get_all_items(&self) -> Result<Vec<ItemModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_all_items");
         let items = ItemEntity::find().all(&*self.db).await?;
 
         tracing::info!("get_all_items: loaded {} items from database", items.len());
@@ -365,7 +360,6 @@ impl ItemService {
             result.push(item);
         }
 
-        self.metrics.record_operation("get_all_items", result.len()).await;
         Ok(result)
     }
 
@@ -406,11 +400,7 @@ impl ItemService {
         &self,
         item_id: &str,
     ) -> Result<Vec<crate::entity::LabelModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_labels_by_item");
-
         let labels = self.item_label_repo.get_labels_by_item(item_id).await?;
-
-        self.metrics.record_operation("get_labels_by_item", labels.len()).await;
         Ok(labels)
     }
 

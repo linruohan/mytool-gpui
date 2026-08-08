@@ -11,7 +11,7 @@ use crate::{
     entity::{LabelActiveModel, LabelModel, labels, prelude::*},
     error::TodoError,
     repositories::{BaseRepository, LabelRepositoryImpl},
-    services::{EventBus, MetricsCollector},
+    services::EventBus,
 };
 
 /// Service for Label business operations
@@ -19,37 +19,29 @@ use crate::{
 pub struct LabelService {
     db: Arc<DatabaseConnection>,
     event_bus: Arc<EventBus>,
-    metrics: Arc<MetricsCollector>,
     label_repo: LabelRepositoryImpl,
 }
 
 impl LabelService {
     /// Create a new LabelService
-    pub fn new(
-        db: Arc<DatabaseConnection>,
-        event_bus: Arc<EventBus>,
-        metrics: Arc<MetricsCollector>,
-    ) -> Self {
+    pub fn new(db: Arc<DatabaseConnection>, event_bus: Arc<EventBus>) -> Self {
         let label_repo = LabelRepositoryImpl::new(db.clone());
-        Self { db, event_bus, metrics, label_repo }
+        Self { db, event_bus, label_repo }
     }
 
     /// Insert a new label
     pub async fn insert_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
-        let _timer = self.metrics.start_timer("insert_label");
         let active_label: LabelActiveModel = label.into();
         let label_model = active_label.insert(&*self.db).await?;
 
         let label_id = label_model.id.clone();
         self.event_bus.publish(crate::services::event_bus::Event::LabelCreated(label_id));
 
-        self.metrics.record_operation("insert_label", 1).await;
         Ok(label_model)
     }
 
     /// Update an existing label
     pub async fn update_label(&self, label: LabelModel) -> Result<LabelModel, TodoError> {
-        let _timer = self.metrics.start_timer("update_label");
         let label_id = label.id.clone();
 
         // 显式设置需要更新的字段
@@ -68,34 +60,29 @@ impl LabelService {
 
         self.event_bus.publish(crate::services::event_bus::Event::LabelUpdated(label_id));
 
-        self.metrics.record_operation("update_label", 1).await;
         Ok(result)
     }
 
     /// Delete a label
     pub async fn delete_label(&self, id: &str) -> Result<u64, TodoError> {
-        let _timer = self.metrics.start_timer("delete_label");
         let id_clone = id.to_string();
 
         let deleted = BaseRepository::delete(&self.label_repo, id).await?;
         self.event_bus.publish(crate::services::event_bus::Event::LabelDeleted(id_clone));
 
-        self.metrics.record_operation("delete_label", 1).await;
         Ok(if deleted { 1 } else { 0 })
     }
 
     /// Get or create a label by name
     ///
-    /// 关键修复：首先全局查找 name（忽略 source_id），避免 UNIQUE constraint 错误
+    /// 🚀 修复：首先全局查找 name（忽略 source_id），避免 UNIQUE constraint 错误
     /// 因为 labels 表有 UNIQUE(name) 约束，相同 name 的 label 只能存在一个
     pub async fn get_or_create_label(
         &self,
         name: &str,
         _source_id: &str,
     ) -> Result<LabelModel, TodoError> {
-        let _timer = self.metrics.start_timer("get_or_create_label");
-
-        // 关键修复：首先只按 name 查找（全局查找），不指定 source_id
+        // 🚀 修复：首先只按 name 查找（全局查找），不指定 source_id
         // 这样可以找到已存在的同名 label，避免尝试插入导致 UNIQUE constraint 错误
         if let Some(label) = self.find_label_by_name_global(name).await? {
             return Ok(label);
@@ -113,7 +100,6 @@ impl LabelService {
         };
 
         let label = self.insert_label(new_label).await?;
-        self.metrics.record_operation("get_or_create_label", 1).await;
         Ok(label)
     }
 
@@ -128,9 +114,7 @@ impl LabelService {
 
     /// Get all labels
     pub async fn get_all_labels(&self) -> Result<Vec<LabelModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_all_labels");
         let labels = BaseRepository::find_all(&self.label_repo).await?;
-        self.metrics.record_operation("get_all_labels", labels.len()).await;
         Ok(labels)
     }
 }

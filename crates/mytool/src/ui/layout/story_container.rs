@@ -18,8 +18,6 @@ pub struct StoryContainer {
     pub name: SharedString,
     pub title_bg: Option<Hsla>,
     pub description: SharedString,
-    width: Option<gpui::Pixels>,
-    height: Option<gpui::Pixels>,
     story: Option<AnyView>,
     story_klass: Option<SharedString>,
     pub(crate) closable: bool,
@@ -27,13 +25,6 @@ pub struct StoryContainer {
     paddings: Pixels,
     on_active: Option<fn(AnyView, bool, &mut Window, &mut App)>,
 }
-
-#[derive(Debug)]
-pub enum ContainerEvent {
-    Close,
-}
-
-impl EventEmitter<ContainerEvent> for StoryContainer {}
 
 impl StoryContainer {
     pub fn new(_window: &mut Window, cx: &mut App) -> Self {
@@ -44,8 +35,6 @@ impl StoryContainer {
             name: "".into(),
             title_bg: None,
             description: "".into(),
-            width: None,
-            height: None,
             story: None,
             story_klass: None,
             closable: true,
@@ -75,16 +64,6 @@ impl StoryContainer {
         });
 
         view
-    }
-
-    pub fn width(mut self, width: gpui::Pixels) -> Self {
-        self.width = Some(width);
-        self
-    }
-
-    pub fn height(mut self, height: gpui::Pixels) -> Self {
-        self.height = Some(height);
-        self
     }
 
     pub fn story(mut self, story: AnyView, story_klass: impl Into<SharedString>) -> Self {

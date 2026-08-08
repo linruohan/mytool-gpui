@@ -10,7 +10,6 @@ use gpui_component::{
     h_flex, v_flex,
 };
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
-use tracing::info;
 
 use crate::{
     ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, SemanticColors, todo_state::TodoStore,
@@ -175,30 +174,6 @@ impl ItemRowState {
         }
     }
 
-    /// 保存所有修改
-    fn save_all_changes(&mut self, cx: &mut Context<Self>) {
-        info!("🚀 ItemRow::save_all_changes START for item: {}", self.item.id);
-
-        // 调用 ItemInfoState 的 save_all_changes 方法
-        // 让 ItemInfoState 处理保存操作，避免重复调用 update_item_optimistic
-        self.item_info.update(cx, |state, cx| {
-            state.save_all_changes(cx);
-        });
-
-        // 获取最新的 item 数据（已包含用户的修改）
-        let latest_item = self.item_info.read(cx).state_manager.item.clone();
-        info!(
-            "📊 Item data after save - id: {}, content: '{}', priority: {:?}, labels: {:?}",
-            latest_item.id, latest_item.content, latest_item.priority, latest_item.labels
-        );
-
-        // 更新本地 item 引用
-        self.item = latest_item;
-        self.update_version += 1;
-        cx.notify();
-        info!("✅ ItemRow::save_all_changes END");
-    }
-
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         // 收起时不再自动保存，用户需要点击保存按钮
@@ -226,16 +201,6 @@ impl ItemRowState {
             self.item_info.update(cx, |state, cx| {
                 state.focus_name_input(window, cx);
             });
-            cx.notify();
-        }
-    }
-
-    /// 收起详情面板并保存修改
-    #[allow(dead_code)]
-    fn collapse(&mut self, cx: &mut Context<Self>) {
-        if self.is_open {
-            self.save_all_changes(cx);
-            self.is_open = false;
             cx.notify();
         }
     }

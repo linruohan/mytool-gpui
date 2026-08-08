@@ -1,8 +1,5 @@
 use std::{
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
-    },
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -21,13 +18,11 @@ use tracing::{info, warn};
 /// ## 优化说明
 /// - 🚀 6.1优化：Store 异步创建，不再阻塞首帧
 /// - 使用 Arc 包装，明确表达共享语义
-/// - 添加连接统计，便于监控和诊断
 /// - 支持连接健康检查
 #[derive(Clone)]
 pub struct DBState {
     pub conn: Arc<DatabaseConnection>,
     store: Arc<Mutex<Option<Arc<Store>>>>, // 🚀 6.1: 异步初始化
-    stats: Arc<ConnectionStats>,
 }
 
 impl DBState {
@@ -36,11 +31,7 @@ impl DBState {
     /// 🚀 6.1优化：Store 将在 state_init 的异步任务中创建，
     /// 避免阻塞应用首帧。
     pub fn new(conn: DatabaseConnection) -> Self {
-        Self {
-            conn: Arc::new(conn),
-            store: Arc::new(Mutex::new(None)),
-            stats: Arc::new(ConnectionStats::new()),
-        }
+        Self { conn: Arc::new(conn), store: Arc::new(Mutex::new(None)) }
     }
 
     /// 异步创建并设置 Store 实例
@@ -155,18 +146,7 @@ impl DBState {
     /// 获取数据库连接（轻量级克隆）
     #[inline]
     pub fn get_connection(&self) -> Arc<DatabaseConnection> {
-        self.stats.record_access();
         self.conn.clone()
-    }
-
-    /// 获取连接统计信息
-    pub fn get_stats(&self) -> ConnectionStatsSnapshot {
-        self.stats.snapshot()
-    }
-
-    /// 重置统计信息
-    pub fn reset_stats(&self) {
-        self.stats.reset()
     }
 
     /// 🚀 7.0新增：优雅关闭数据库连接和 Store
@@ -214,39 +194,3 @@ impl DBState {
 }
 
 impl Global for DBState {}
-
-/// 连接统计信息
-#[derive(Debug, Clone)]
-pub struct ConnectionStatsSnapshot {
-    pub access_count: usize,
-    pub last_access: Option<Instant>,
-}
-
-/// 连接统计收集器
-struct ConnectionStats {
-    access_count: AtomicUsize,
-    last_access: std::sync::Mutex<Option<Instant>>,
-}
-
-impl ConnectionStats {
-    fn new() -> Self {
-        Self { access_count: AtomicUsize::new(0), last_access: std::sync::Mutex::new(None) }
-    }
-
-    fn record_access(&self) {
-        self.access_count.fetch_add(1, Ordering::Relaxed);
-        *self.last_access.lock().unwrap() = Some(Instant::now());
-    }
-
-    fn snapshot(&self) -> ConnectionStatsSnapshot {
-        ConnectionStatsSnapshot {
-            access_count: self.access_count.load(Ordering::Relaxed),
-            last_access: *self.last_access.lock().unwrap(),
-        }
-    }
-
-    fn reset(&self) {
-        self.access_count.store(0, Ordering::Relaxed);
-        *self.last_access.lock().unwrap() = None;
-    }
-}

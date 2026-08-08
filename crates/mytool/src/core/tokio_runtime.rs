@@ -88,20 +88,6 @@ pub fn shutdown_db_runtime(timeout: Option<std::time::Duration>) -> Result<(), (
     Ok(())
 }
 
-/// 检查 DB Runtime 是否仍在运行
-pub fn is_db_runtime_active() -> bool {
-    !SHUTDOWN_FLAG.load(Ordering::SeqCst)
-        && DB_RUNTIME.get().map(|r| r.lock().unwrap().is_some()).unwrap_or(false)
-}
-
-/// 获取当前 DB Runtime 中的活跃任务数量（用于调试和日志）
-pub fn get_active_task_count() -> Option<usize> {
-    DB_RUNTIME.get().and_then(|r| {
-        let guard = r.lock().unwrap();
-        guard.as_ref().map(|rt| rt.metrics().num_alive_tasks())
-    })
-}
-
 /// 在独立的 tokio runtime 中执行异步操作（阻塞当前线程直到完成）
 ///
 /// 🚀 6.2优化：使用 `spawn` + `block_on` 替代 `std::thread::spawn`，

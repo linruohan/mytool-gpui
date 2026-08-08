@@ -16,19 +16,7 @@ pub async fn add_item_with_store(
     item: Arc<ItemModel>,
     store: Arc<Store>,
 ) -> Result<ItemModel, TodoError> {
-    tracing::info!(
-        "🔗 [state_service::add_item_with_store] 调用 Store::insert_item, content='{}'",
-        item.content
-    );
-
-    let result = store.insert_item(item.as_ref().clone(), true).await;
-
-    tracing::info!(
-        "🔗 [state_service::add_item_with_store] Store::insert_item 返回, 结果={}",
-        if result.is_ok() { "✅" } else { "❌" }
-    );
-
-    result
+    store.insert_item(item.as_ref().clone(), true).await
 }
 
 // ==================== 修改任务 ====================
@@ -58,17 +46,6 @@ pub async fn finish_item_with_store(
     store: Arc<Store>,
 ) -> Result<(), TodoError> {
     store.complete_item(&item.id, checked, complete_sub_items).await
-}
-
-// ==================== 置顶任务 ====================
-
-/// 使用全局 Store pin item（推荐）
-pub async fn pin_item_with_store(
-    item: Arc<ItemModel>,
-    pinned: bool,
-    store: Arc<Store>,
-) -> Result<(), TodoError> {
-    store.update_item_pin(&item.id, pinned).await
 }
 
 // ==================== 按项目查询 ====================

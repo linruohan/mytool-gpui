@@ -769,19 +769,6 @@ impl ItemInfoState {
         }
     }
 
-    /// 同步标签选择状态 - 仅在需要时调用，避免过度刷新
-    #[allow(dead_code)]
-    fn sync_labels_selection(&mut self, cx: &mut Context<Self>) {
-        // 从当前选中的标签生成 label_ids 字符串
-        let selected_label_ids = self.label_popover_list.read(cx).get_selected_label_ids();
-
-        // 只在有实际变化时触发事件
-        if !selected_label_ids.is_empty() {
-            // 简单地发送更新事件，但不立即通知以避免关闭 popover
-            cx.emit(ItemInfoEvent::Updated());
-        }
-    }
-
     /// 让名称输入框获得焦点
     pub fn focus_name_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.name_input.update(cx, |input_state, cx| {

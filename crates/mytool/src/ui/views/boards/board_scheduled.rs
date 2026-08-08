@@ -51,10 +51,9 @@ impl ScheduledBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let mut base = BoardBase::new(window, cx);
+        let base = BoardBase::new(window, cx);
 
-        // 延迟注册：在首次 render 时通过 lazy_init_observer 注册
-        base._subscriptions = vec![];
+        // 延迟注册：在首次 render 时通过 begin_pending_refresh 注册
 
         Self {
             base,
@@ -64,39 +63,27 @@ impl ScheduledBoard {
         }
     }
 
-    /// 延迟初始化全局观察者
-    ///
-    /// 只在首次 render 时注册，避免 new() 阶段访问 global_mut 导致的问题
-    fn lazy_init_observer(&self, cx: &mut Context<Self>) {
-        if self.observer_registered.get() {
-            return;
-        }
-        self.observer_registered.set(true);
-
-        let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
-            if BoardBase::store_change_affects(cx, |m| m.affects_scheduled()) {
-                this.pending_refresh.set(true);
-                cx.notify();
-            }
-        });
-    }
-
     /// 在 render() 中执行实际的增量更新
     ///
     /// 只在 pending_refresh=true 时执行，避免每帧重复操作
     fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        self.lazy_init_observer(cx);
+        let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
+            let items = cx.global::<TodoStore>().scheduled_items();
+            !items.is_empty()
+        } else {
+            false
+        };
 
-        if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let state_items = cx.global::<TodoStore>().scheduled_items();
-            BoardBase::bootstrap_pending_if_needed(
-                &self.pending_refresh,
-                true,
-                !state_items.is_empty(),
-            );
-        }
-
-        if !BoardBase::take_pending_refresh(&self.pending_refresh) {
+        if !BoardBase::begin_pending_refresh(
+            &self.observer_registered,
+            &self.pending_refresh,
+            &mut self.base._subscriptions,
+            self.base.item_rows.is_empty(),
+            has_store_data,
+            cx,
+            crate::core::state::ChangeMask::affects_scheduled,
+            |this| &this.pending_refresh,
+        ) {
             return;
         }
 

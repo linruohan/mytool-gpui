@@ -149,17 +149,6 @@ impl Util {
         }
     }
 
-    /// 检查 URL 是否存在于列表中
-    #[allow(dead_code)]
-    fn url_exists(&self, url: String, urls: Vec<RegexMarkdown>) -> bool {
-        for m in urls {
-            if url == m.extra {
-                return true;
-            }
-        }
-        false
-    }
-
     /// 获取提醒偏移时间（分钟）
     pub fn get_reminders_mm_offset(&self) -> i32 {
         let value = 4;
@@ -207,17 +196,6 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
 };
-
-/// 截断字符串并添加省略号
-pub fn truncate_at(input: &str, max: i32) -> String {
-    let max_len: usize = max as usize;
-    if input.len() > max_len {
-        let truncated = &input[..(max_len - 3)];
-        return format!("{truncated}...");
-    };
-
-    input.to_string()
-}
 
 /// 验证数据库路径，如果不存在则创建
 pub fn verify_db_path(db_folder: &str) -> Result<(), Error> {

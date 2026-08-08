@@ -10,7 +10,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 use crate::{
     entity::{ProjectActiveModel, ProjectModel, prelude::*, projects, sections},
     error::TodoError,
-    services::{EventBus, ItemService, MetricsCollector, SectionService},
+    services::{EventBus, ItemService, SectionService},
 };
 
 /// Service for Project business operations
@@ -18,7 +18,6 @@ use crate::{
 pub struct ProjectService {
     db: Arc<DatabaseConnection>,
     event_bus: Arc<EventBus>,
-    metrics: Arc<MetricsCollector>,
     item_service: Arc<ItemService>,
     section_service: Arc<SectionService>,
 }
@@ -28,23 +27,20 @@ impl ProjectService {
     pub fn new(
         db: Arc<DatabaseConnection>,
         event_bus: Arc<EventBus>,
-        metrics: Arc<MetricsCollector>,
         item_service: Arc<ItemService>,
         section_service: Arc<SectionService>,
     ) -> Self {
-        Self { db, event_bus, metrics, item_service, section_service }
+        Self { db, event_bus, item_service, section_service }
     }
 
     /// Insert a new project
     pub async fn insert_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
-        let _timer = self.metrics.start_timer("insert_project");
         let active_project: ProjectActiveModel = project.into();
         match active_project.insert(&*self.db).await {
             Ok(model) => {
                 let project_id = model.id.clone();
                 self.event_bus
                     .publish(crate::services::event_bus::Event::ProjectCreated(project_id));
-                self.metrics.record_operation("insert_project", 1).await;
                 Ok(model)
             },
             Err(e) => Err(TodoError::DbError(Box::new(e))),
@@ -53,7 +49,6 @@ impl ProjectService {
 
     /// Update an existing project
     pub async fn update_project(&self, project: ProjectModel) -> Result<ProjectModel, TodoError> {
-        let _timer = self.metrics.start_timer("update_project");
         let project_id = project.id.clone();
 
         // 显式设置需要更新的字段
@@ -87,13 +82,11 @@ impl ProjectService {
 
         self.event_bus.publish(crate::services::event_bus::Event::ProjectUpdated(project_id));
 
-        self.metrics.record_operation("update_project", 1).await;
         Ok(result)
     }
 
     /// Delete a project and its children
     pub async fn delete_project(&self, id: &str) -> Result<(), TodoError> {
-        let _timer = self.metrics.start_timer("delete_project");
         let id_clone = id.to_string();
 
         // 使用迭代方式处理项目，避免递归调用导致的无限大小 future 问题
@@ -132,15 +125,12 @@ impl ProjectService {
         }
 
         self.event_bus.publish(crate::services::event_bus::Event::ProjectDeleted(id_clone));
-        self.metrics.record_operation("delete_project", 1).await;
         Ok(())
     }
 
     /// Get all projects
     pub async fn get_all_projects(&self) -> Result<Vec<ProjectModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_all_projects");
         let projects: Vec<ProjectModel> = ProjectEntity::find().all(&*self.db).await?;
-        self.metrics.record_operation("get_all_projects", projects.len()).await;
         Ok(projects)
     }
 }

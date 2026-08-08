@@ -15,8 +15,6 @@ mod recurrency_button;
 mod reminder_button;
 mod save_status_indicator;
 
-mod subscription_manager;
-
 pub use attachment_button::*;
 pub use color_group::*;
 pub use dialog::*;
@@ -33,4 +31,3 @@ pub use popover_schedule::*;
 pub use recurrency_button::*;
 pub use reminder_button::*;
 pub use save_status_indicator::*;
-pub use subscription_manager::*;

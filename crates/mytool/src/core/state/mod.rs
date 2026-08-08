@@ -7,7 +7,7 @@ mod store;
 use std::sync::Arc;
 
 pub use cache::*;
-pub use database::{DBState, *};
+pub use database::DBState;
 pub use events::*;
 use gpui::App;
 pub use pending_tasks::*;
@@ -15,15 +15,6 @@ use sea_orm::DatabaseConnection;
 pub use store::*;
 use todos::entity;
 use tracing::error;
-
-/// 获取全局 DBState 实例
-///
-/// 这个函数用于获取数据库状态，允许在 async 上下文中等待 Store 初始化。
-/// 接受 App 类型。
-#[inline]
-pub fn get_db_state(cx: &App) -> DBState {
-    cx.global::<DBState>().clone()
-}
 
 /// 获取数据库连接的便捷函数
 ///
@@ -54,27 +45,13 @@ pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
 /// 获取全局 Store 实例（同步版本）
 ///
 /// ⚠️ 仅在非 async 上下文中使用！
-/// 如果在 async 上下文中，请使用 `get_store_async()`！
+/// 如果在 async 上下文中，请使用 `DBState::get_store_async()`！
 ///
 /// # Panics
 /// 如果 Store 尚未初始化（这表示应用逻辑有错误）
 #[inline]
 pub fn get_store(cx: &App) -> Arc<todos::Store> {
     cx.global::<DBState>().get_store()
-}
-
-/// 获取全局 Store 实例（异步版本）
-///
-/// 用于 async 上下文中，避免嵌套 runtime 问题。
-///
-/// # 示例
-/// ```ignore
-/// let store = get_store_async(cx).await;
-/// // 使用 store 进行数据库操作
-/// ```
-#[inline]
-pub async fn get_store_async(cx: &App) -> Arc<todos::Store> {
-    cx.global::<DBState>().get_store_async().await
 }
 
 /// 初始化所有状态
