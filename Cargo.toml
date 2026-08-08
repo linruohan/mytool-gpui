@@ -21,25 +21,27 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
     "runtime_shaders",
 ] }
 gpui_macros = { git = "https://github.com/zed-industries/zed" }
-gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = ["tree-sitter-languages"] }
+gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = [
+    "tree-sitter-languages",
+] }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
 # External crates
-anyhow = "1.0.101"
+anyhow = "1.0.104"
 # rand = "0.8.5"
 # 启用 small_rng 特性，使用更快的随机数生成器
-rand = { version = "0.8.5", features = ["small_rng"] }
-tokio = { version = "1.49.0", features = [
+rand = { version = "0.8.7", features = ["small_rng"] }
+tokio = { version = "1.53.1", features = [
     "rt-multi-thread",
     "macros",
     "sync",
     "time",
 ] }
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1"
 serde_repr = "0.1"
 paste = "1.0.15"
 rust-i18n = "4"
-sea-orm = { version = "1.1.19", features = [
+sea-orm = { version = "1.1.20", features = [
     "with-chrono",
     "with-json",
     "with-uuid",
@@ -47,25 +49,25 @@ sea-orm = { version = "1.1.19", features = [
     "sqlx-sqlite",
     "runtime-tokio",
 ] }
-winresource = "0.1.30"
+winresource = "0.1.31"
 rodio = "0.21.1"
 tracing = { version = "0.1.44", features = ["async-await"] }
-tracing-subscriber = { version = "0.3.22", features = ["env-filter", "chrono"] }
-chrono = { version = "0.4.43", features = ["serde"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "chrono"] }
+chrono = { version = "0.4.45", features = ["serde"] }
 smallvec = { version = "1.15", features = ["union"] }
 rfd = "0.14"
 # Additional dependencies used by multiple crates
-thiserror = "2.0.18"
-async-trait = "0.1.89"
+thiserror = "2.0.19"
+async-trait = "0.1.91"
 # futures = "0.3.31"
 # 精简特性，减少编译时间和体积
-futures = { version = "0.3.31", default-features = false, features = [
+futures = { version = "0.3.33", default-features = false, features = [
     "std",
     "async-await",
     "executor",
 ] }
 strum = { version = "0.27.2", features = ["derive"] }
-uuid = { version = "1.20.0", features = [
+uuid = { version = "1.24.0", features = [
     "v4",
     "fast-rng",
     "macro-diagnostics",
@@ -76,7 +78,7 @@ base64 = "0.22.1"
 pbkdf2 = { version = "0.12.2", features = ["simple"] }
 aes-gcm = "0.10.3"
 password-hash = "0.5.0"
-embed-resource = "3.0.6"
+embed-resource = "3.0.11"
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"
