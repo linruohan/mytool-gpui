@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
-/// 服务器配置结构体
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+/// 服务器配置结构体（桌面应用可选）
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct ServerConfig {
     port: Option<u16>,
     host: Option<String>,

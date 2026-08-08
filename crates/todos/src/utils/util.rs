@@ -1,6 +1,5 @@
-use std::{borrow::Cow, collections::HashMap, fmt::Error};
+use std::{collections::HashMap, fmt::Error};
 
-use rand::Rng;
 use uuid::Uuid;
 
 use crate::{constants, objects::Color};

@@ -7,14 +7,13 @@ use std::{cell::Cell, collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div,
+    ParentElement, Render, Styled, Window, div,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IconName, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
-    input::InputState,
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
@@ -22,17 +21,19 @@ use gpui_component::{
 
 use crate::{
     BoardBase, VisualHierarchy, section_with_title,
-    todo_actions::{add_section, delete_item, delete_section, update_item, update_section},
     todo_state::TodoStore,
-    ui::views::boards::{BoardView, board_renderer, container_board::Board},
+    ui::views::boards::{
+        BoardView,
+        board_common::{
+            BoardItemClickEvent, FinishItemDialogStyle, render_board_header,
+            show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
+            with_selected_item,
+        },
+        board_renderer, container_board::Board,
+    },
 };
 
-pub enum ItemClickEvent {
-    ShowModal,
-    ConnectionError { field1: String },
-}
-
-impl EventEmitter<ItemClickEvent> for ScheduledBoard {}
+impl EventEmitter<BoardItemClickEvent> for ScheduledBoard {}
 
 pub struct ScheduledBoard {
     base: BoardBase,
@@ -68,7 +69,8 @@ impl ScheduledBoard {
     /// 只在 pending_refresh=true 时执行，避免每帧重复操作
     fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let items = cx.global::<TodoStore>().scheduled_items();
+            let cache = cx.global::<crate::core::state::QueryCache>();
+            let items = cx.global::<TodoStore>().scheduled_items_cached(cache);
             !items.is_empty()
         } else {
             false
@@ -87,21 +89,14 @@ impl ScheduledBoard {
             return;
         }
 
-        let state_items = cx.global::<TodoStore>().scheduled_items();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        let state_items = cx.global::<TodoStore>().scheduled_items_cached(cache);
 
-        self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
-        self.base.update_items(&state_items);
+        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, _window, cx);
+        self.base.update_items(state_items.as_slice());
         self.base.clamp_active_index();
     }
 
-    pub(crate) fn get_selected_item(
-        &self,
-        ix: IndexPath,
-        cx: &App,
-    ) -> Option<Arc<todos::entity::ItemModel>> {
-        let item_list = cx.global::<TodoStore>().scheduled_items();
-        item_list.get(ix.row).cloned()
-    }
 
     pub fn show_item_dialog(
         &mut self,
@@ -110,131 +105,25 @@ impl ScheduledBoard {
         is_edit: bool,
         section_id: Option<String>,
     ) {
-        let item_info = if is_edit {
-            if let Some(active_index) = self.base.active_index {
-                if let Some(item_row) = self.base.item_rows.get(active_index) {
-                    item_row.read(cx).item_info.clone()
-                } else {
-                    self.base.item_info.clone()
-                }
-            } else {
-                self.base.item_info.clone()
-            }
-        } else {
-            let mut ori_item = todos::entity::ItemModel::default();
-
-            if let Some(sid) = section_id {
-                ori_item.section_id = Some(sid);
-            }
-
-            self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
-                cx.notify();
-            });
-            self.base.item_info.clone()
-        };
-
-        let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "Edit Item" } else { "New Item" },
-            if is_edit { "Save" } else { "Add" },
-            is_edit,
-        );
-
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
+        self.base.show_item_dialog(window, cx, is_edit, section_id);
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Are you sure to delete the item?")
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                let _view = view.clone();
-                                delete_item(item.clone(), cx);
-                                window.push_notification("You have delete ok.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("You have canceled delete.", cx);
-                            true
-                        })
-                });
-            };
-        }
+        with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
+            show_item_delete_dialog(window, cx, item);
+        });
     }
 
     pub fn show_pin_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child(if item.pinned { "Unpin this item?" } else { "Pin this item?" })
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                let _view = view.clone();
-                                let mut item_model = (*item).clone();
-                                item_model.pinned = !item.pinned;
-                                update_item(Arc::new(item_model), cx);
-                                window.push_notification(
-                                    if item.pinned { "Item unpinned." } else { "Item pinned." },
-                                    cx,
-                                );
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("Operation canceled.", cx);
-                            true
-                        })
-                });
-            };
-        }
+        with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
+            show_pin_item_dialog(window, cx, item);
+        });
     }
 
     pub fn show_finish_item_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Mark this item as completed?")
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                let _view = view.clone();
-                                let mut item_model = (*item).clone();
-                                item_model.checked = true;
-                                update_item(Arc::new(item_model), cx);
-                                window.push_notification("Item marked as completed.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("Operation canceled.", cx);
-                            true
-                        })
-                });
-            };
-        }
+        with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
+            show_finish_item_dialog(window, cx, item, FinishItemDialogStyle::Standard);
+        });
     }
 
     pub fn show_section_dialog(
@@ -244,51 +133,7 @@ impl ScheduledBoard {
         section_id: Option<String>,
         is_edit: bool,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let ori_section = if is_edit {
-            sections
-                .iter()
-                .find(|s| s.id == section_id.clone().unwrap_or_default())
-                .map(|s| s.as_ref().clone())
-                .unwrap_or_default()
-        } else {
-            todos::entity::SectionModel::default()
-        };
-
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
-        if is_edit {
-            name_input.update(cx, |is, cx| {
-                is.set_value(ori_section.name.clone(), window, cx);
-                cx.notify();
-            })
-        };
-
-        let config = crate::ui::components::SectionDialogConfig::new(
-            if is_edit { "Edit Section" } else { "New Section" },
-            if is_edit { "Save" } else { "Add" },
-            is_edit,
-        )
-        .with_overlay(false);
-
-        let view = cx.entity().clone();
-        crate::ui::components::show_section_dialog(
-            window,
-            cx,
-            name_input,
-            config,
-            move |name, cx| {
-                view.update(cx, |_view, cx| {
-                    let section =
-                        Arc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
-                    if is_edit {
-                        update_section(section, cx);
-                    } else {
-                        add_section(section, cx);
-                    }
-                    cx.notify();
-                });
-            },
-        );
+        self.base.show_section_dialog(window, cx, section_id, is_edit);
     }
 
     pub fn show_section_delete_dialog(
@@ -297,22 +142,7 @@ impl ScheduledBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
-        if let Some(section) = section_some {
-            let view = cx.entity().clone();
-            crate::ui::components::show_section_delete_dialog(
-                window,
-                cx,
-                "Are you sure to delete the section?",
-                move |cx| {
-                    view.update(cx, |_view, cx| {
-                        delete_section(section.clone(), cx);
-                        cx.notify();
-                    });
-                },
-            );
-        };
+        BoardBase::show_section_delete_dialog(window, cx, section_id);
     }
 }
 
@@ -332,7 +162,9 @@ impl Board for ScheduledBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        cx.global::<TodoStore>().scheduled_items().len()
+        let store = cx.global::<TodoStore>();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        store.scheduled_items_cached(cache).len()
     }
 
     fn title() -> &'static str {
@@ -373,11 +205,11 @@ impl Render for ScheduledBoard {
         let active_index = self.base.active_index;
 
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        let all_scheduled = cx.global::<TodoStore>().scheduled_items_cached(cache);
 
         let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
             HashMap::new();
-        let store = cx.global::<TodoStore>();
-        let all_scheduled = store.scheduled_items();
 
         for (i, item) in all_scheduled.iter().enumerate() {
             let date_key = item
@@ -404,57 +236,27 @@ impl Render for ScheduledBoard {
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
             .child(
-                h_flex()
-                    .id("header")
-                    .border_b_1()
-                    .border_color(cx.theme().border)
-                    .justify_between()
-                    .items_start()
-                    .p(VisualHierarchy::spacing(3.0))
-                    .child(
-                        v_flex()
-                            .gap(VisualHierarchy::spacing(1.0))
-                            .child(
-                                h_flex()
-                                    .gap(VisualHierarchy::spacing(2.0))
-                                    .items_center()
-                                    .child(<ScheduledBoard as Board>::icon())
-                                    .child(
-                                        div().text_base().child(<ScheduledBoard as Board>::title()),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(<ScheduledBoard as Board>::description()),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_end()
-                            .gap(VisualHierarchy::spacing(2.0))
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("add-section")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .label("Add Section")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_section_dialog(window, cx, None, false);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            ),
-                    ),
+                render_board_header(
+                    cx,
+                    <ScheduledBoard as Board>::icon(),
+                    <ScheduledBoard as Board>::title(),
+                    <ScheduledBoard as Board>::description(),
+                    Button::new("add-section")
+                        .small()
+                        .ghost()
+                        .compact()
+                        .icon(IconName::PlusLargeSymbolic)
+                        .label("Add Section")
+                        .on_click({
+                            let view = view.clone();
+                            move |_event, window, cx| {
+                                view.update(cx, |this, cx| {
+                                    this.show_section_dialog(window, cx, None, false);
+                                    cx.notify();
+                                })
+                            }
+                        }),
+                ),
             )
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
@@ -462,8 +264,7 @@ impl Render for ScheduledBoard {
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
                         .children(sorted_dates.into_iter().filter_map(|date| {
-                            let items = store
-                                .scheduled_items()
+                            let items = all_scheduled
                                 .iter()
                                 .enumerate()
                                 .filter(|(_, item)| {

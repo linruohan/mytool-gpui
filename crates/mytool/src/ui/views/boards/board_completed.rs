@@ -3,34 +3,34 @@
 //! 显示已完成的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::{cell::Cell, sync::Arc};
+use std::cell::Cell;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div,
+    ParentElement, Render, Styled, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IconName, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
-    h_flex,
     scroll::ScrollableElement,
     v_flex,
 };
 
 use crate::{
     BoardBase, VisualHierarchy,
-    todo_actions::{delete_item, update_item},
     todo_state::TodoStore,
-    ui::views::boards::{BoardView, board_renderer, container_board::Board},
+    ui::views::boards::{
+        BoardView,
+        board_common::{
+            BoardItemClickEvent, render_board_header, show_item_delete_dialog,
+            show_item_unfinish_dialog, with_selected_item,
+        },
+        board_renderer, container_board::Board,
+    },
 };
 
-pub enum ItemClickEvent {
-    ShowModal,
-    ConnectionError { field1: String },
-}
-
-impl EventEmitter<ItemClickEvent> for CompletedBoard {}
+impl EventEmitter<BoardItemClickEvent> for CompletedBoard {}
 
 pub struct CompletedBoard {
     base: BoardBase,
@@ -66,7 +66,8 @@ impl CompletedBoard {
     /// 只在 pending_refresh=true 时执行，避免每帧重复操作
     fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let items = cx.global::<TodoStore>().completed_items();
+            let cache = cx.global::<crate::core::state::QueryCache>();
+            let items = cx.global::<TodoStore>().completed_items_cached(cache);
             !items.is_empty()
         } else {
             false
@@ -85,20 +86,12 @@ impl CompletedBoard {
             return;
         }
 
-        let state_items = cx.global::<TodoStore>().completed_items();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        let state_items = cx.global::<TodoStore>().completed_items_cached(cache);
 
-        self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
-        self.base.update_items(&state_items);
+        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, _window, cx);
+        self.base.update_items(state_items.as_slice());
         self.base.clamp_active_index();
-    }
-
-    pub(crate) fn get_selected_item(
-        &self,
-        ix: IndexPath,
-        cx: &App,
-    ) -> Option<Arc<todos::entity::ItemModel>> {
-        let item_list = cx.global::<TodoStore>().completed_items();
-        item_list.get(ix.row).cloned()
     }
 
     pub fn show_item_dialog(
@@ -108,97 +101,19 @@ impl CompletedBoard {
         is_edit: bool,
         section_id: Option<String>,
     ) {
-        let item_info = if is_edit {
-            if let Some(active_index) = self.base.active_index {
-                if let Some(item_row) = self.base.item_rows.get(active_index) {
-                    item_row.read(cx).item_info.clone()
-                } else {
-                    self.base.item_info.clone()
-                }
-            } else {
-                self.base.item_info.clone()
-            }
-        } else {
-            let mut ori_item = todos::entity::ItemModel::default();
-
-            if let Some(sid) = section_id {
-                ori_item.section_id = Some(sid);
-            }
-
-            self.base.item_info.update(cx, |state, cx| {
-                state.set_item(std::sync::Arc::new(ori_item.clone()), window, cx);
-                cx.notify();
-            });
-            self.base.item_info.clone()
-        };
-
-        let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "Edit Item" } else { "New Item" },
-            if is_edit { "Save" } else { "Add" },
-            is_edit,
-        );
-
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
+        self.base.show_item_dialog(window, cx, is_edit, section_id);
     }
 
     pub fn show_item_unfinish_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Are you sure to mark this item as unfinished?")
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                let _view = view.clone();
-                                let mut item_model = (*item).clone();
-                                item_model.checked = false;
-                                update_item(Arc::new(item_model), cx);
-                                window.push_notification("Item marked as unfinished.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("You have canceled.", cx);
-                            true
-                        })
-                });
-            };
-        }
+        with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
+            show_item_unfinish_dialog(window, cx, item);
+        });
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Are you sure to delete the item?")
-                        .on_ok({
-                            let view = view.clone();
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                let _view = view.clone();
-                                delete_item(item.clone(), cx);
-                                window.push_notification("You have delete ok.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("You have canceled delete.", cx);
-                            true
-                        })
-                });
-            };
-        }
+        with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
+            show_item_delete_dialog(window, cx, item);
+        });
     }
 }
 
@@ -218,7 +133,9 @@ impl Board for CompletedBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        cx.global::<TodoStore>().completed_items().len()
+        let store = cx.global::<TodoStore>();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        store.completed_items_cached(cache).len()
     }
 
     fn title() -> &'static str {
@@ -263,56 +180,26 @@ impl Render for CompletedBoard {
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
             .child(
-                h_flex()
-                    .id("header")
-                    .border_b_1()
-                    .border_color(cx.theme().border)
-                    .justify_between()
-                    .items_start()
-                    .p(VisualHierarchy::spacing(3.0))
-                    .child(
-                        v_flex()
-                            .gap(VisualHierarchy::spacing(1.0))
-                            .child(
-                                h_flex()
-                                    .gap(VisualHierarchy::spacing(2.0))
-                                    .items_center()
-                                    .child(<CompletedBoard as Board>::icon())
-                                    .child(
-                                        div().text_base().child(<CompletedBoard as Board>::title()),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(<CompletedBoard as Board>::description()),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_end()
-                            .gap(VisualHierarchy::spacing(2.0))
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("unfinish-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::Undo)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_unfinish_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            ),
-                    ),
+                render_board_header(
+                    cx,
+                    <CompletedBoard as Board>::icon(),
+                    <CompletedBoard as Board>::title(),
+                    <CompletedBoard as Board>::description(),
+                    Button::new("unfinish-item")
+                        .small()
+                        .ghost()
+                        .compact()
+                        .icon(IconName::Undo)
+                        .on_click({
+                            let view = view.clone();
+                            move |_event, window, cx| {
+                                view.update(cx, |this, cx| {
+                                    this.show_item_unfinish_dialog(window, cx);
+                                    cx.notify();
+                                })
+                            }
+                        }),
+                ),
             )
             .child(
                 v_flex()

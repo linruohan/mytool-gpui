@@ -6,104 +6,33 @@
 use std::{cell::Cell, sync::Arc};
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, MouseButton,
-    ParentElement, Render, Styled, Subscription, Window, div, prelude::FluentBuilder,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, ParentElement,
+    Render, Styled, Subscription, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IconName, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     h_flex,
-    input::InputState,
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
 
 use crate::{
-    BoardBase, ItemRowState, ScheduleButtonEvent, ScheduleButtonState, VisualHierarchy,
+    BoardBase, ScheduleButtonEvent, ScheduleButtonState, VisualHierarchy,
     core::actions::batch::batch_update_items,
-    section,
-    todo_actions::{add_section, delete_item, delete_section, update_section},
     todo_state::TodoStore,
-    ui::views::boards::{BoardView, board_renderer, container_board::Board},
+    ui::views::boards::{
+        BoardView,
+        board_common::{
+            BoardItemClickEvent, render_board_header,
+            show_item_delete_dialog, show_schedule_popover, with_selected_item,
+        },
+        board_renderer, container_board::Board,
+    },
 };
 
-/// 显示 section 的 schedule popover
-fn show_schedule_popover(
-    window: &mut Window,
-    cx: &mut App,
-    section_id: String,
-    _view: Entity<TodayBoard>,
-) {
-    let store = cx.global::<TodoStore>();
-    let section_items: Vec<Arc<todos::entity::ItemModel>> = store
-        .all_items
-        .iter()
-        .filter(|item| item.section_id.as_deref() == Some(&section_id) && !item.checked)
-        .cloned()
-        .collect();
-
-    if section_items.is_empty() {
-        window.push_notification("No items to schedule in this section", cx);
-        return;
-    }
-
-    let schedule_state = cx.new(|cx| ScheduleButtonState::new(window, cx));
-
-    window.open_dialog(cx, move |dialog, _, _| {
-        dialog
-            .title("Schedule Section Tasks")
-            .overlay(true)
-            .overlay_closable(true)
-            .child(
-                v_flex()
-                    .gap_2()
-                    .child(div().child("Select date for all tasks in this section:"))
-                    .child(crate::ui::components::ScheduleButton::new(&schedule_state)),
-            )
-            .footer(
-                gpui_component::dialog::DialogFooter::new()
-                    .child(gpui_component::dialog::DialogClose::new().child(
-                        gpui_component::button::Button::new("cancel").label("Cancel").outline(),
-                    ))
-                    .child(gpui_component::dialog::DialogAction::new().child(
-                        gpui_component::button::Button::new("schedule").label("Schedule").primary(),
-                    )),
-            )
-            .on_ok({
-                let schedule_state = schedule_state.clone();
-                let section_items = section_items.clone();
-                let section_id = section_id.clone();
-                move |_, window, cx| {
-                    let due_date = schedule_state.read(cx).due_date.clone();
-
-                    let mut updated_items = Vec::new();
-                    for item in &section_items {
-                        let mut item_clone = (**item).clone();
-                        item_clone.set_due_date(Some(due_date.clone()));
-                        updated_items.push(Arc::new(item_clone));
-                    }
-
-                    let count = updated_items.len();
-
-                    crate::core::actions::batch::batch_update_items(updated_items, cx);
-
-                    window.push_notification(
-                        format!("Scheduled {} tasks in section '{}'", count, section_id),
-                        cx,
-                    );
-                    true
-                }
-            })
-    });
-}
-
-pub enum ItemClickEvent {
-    ShowModal,
-    ConnectionError { field1: String },
-}
-
-impl EventEmitter<ItemClickEvent> for TodayBoard {}
+impl EventEmitter<BoardItemClickEvent> for TodayBoard {}
 
 pub struct TodayBoard {
     base: BoardBase,
@@ -223,15 +152,6 @@ impl TodayBoard {
         self.base.clamp_active_index();
     }
 
-    pub(crate) fn get_selected_item(
-        &self,
-        ix: IndexPath,
-        cx: &App,
-    ) -> Option<Arc<todos::entity::ItemModel>> {
-        let item_list = cx.global::<TodoStore>().today_items();
-        item_list.get(ix.row).cloned()
-    }
-
     pub fn show_item_dialog(
         &mut self,
         window: &mut Window,
@@ -239,61 +159,13 @@ impl TodayBoard {
         is_edit: bool,
         section_id: Option<String>,
     ) {
-        let item_info = if is_edit {
-            if let Some(active_index) = self.base.active_index {
-                if let Some(item_row) = self.base.item_rows.get(active_index) {
-                    item_row.read(cx).item_info.clone()
-                } else {
-                    self.base.item_info.clone()
-                }
-            } else {
-                self.base.item_info.clone()
-            }
-        } else {
-            let mut ori_item = todos::entity::ItemModel::default();
-            if let Some(sid) = section_id {
-                ori_item.section_id = Some(sid);
-            }
-            self.base.item_info.update(cx, |state, cx| {
-                state.set_item(Arc::new(ori_item.clone()), window, cx);
-                cx.notify();
-            });
-            self.base.item_info.clone()
-        };
-
-        let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "Edit Item" } else { "New Item" },
-            if is_edit { "Save" } else { "Add" },
-            is_edit,
-        );
-
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
+        self.base.show_item_dialog(window, cx, is_edit, section_id);
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.base.active_index {
-            let item_some = self.get_selected_item(IndexPath::new(active_index), cx);
-            if let Some(item) = item_some {
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child("Are you sure to delete the item?")
-                        .on_ok({
-                            let item = item.clone();
-                            move |_, window: &mut Window, cx| {
-                                delete_item(item.clone(), cx);
-                                window.push_notification("You have delete ok.", cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("You have canceled delete.", cx);
-                            true
-                        })
-                });
-            };
-        }
+        with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
+            show_item_delete_dialog(window, cx, item);
+        });
     }
 
     pub fn show_section_dialog(
@@ -303,51 +175,7 @@ impl TodayBoard {
         section_id: Option<String>,
         is_edit: bool,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let ori_section = if is_edit {
-            sections
-                .iter()
-                .find(|s| s.id == section_id.clone().unwrap_or_default())
-                .map(|s| s.as_ref().clone())
-                .unwrap_or_default()
-        } else {
-            todos::entity::SectionModel::default()
-        };
-
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
-        if is_edit {
-            name_input.update(cx, |is, cx| {
-                is.set_value(ori_section.name.clone(), window, cx);
-                cx.notify();
-            })
-        };
-
-        let config = crate::ui::components::SectionDialogConfig::new(
-            if is_edit { "Edit Section" } else { "New Section" },
-            if is_edit { "Save" } else { "Add" },
-            is_edit,
-        )
-        .with_overlay(false);
-
-        let view = cx.entity().clone();
-        crate::ui::components::show_section_dialog(
-            window,
-            cx,
-            name_input,
-            config,
-            move |name, cx| {
-                view.update(cx, |_view, cx| {
-                    let section =
-                        Arc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
-                    if is_edit {
-                        update_section(section, cx);
-                    } else {
-                        add_section(section, cx);
-                    }
-                    cx.notify();
-                });
-            },
-        );
+        self.base.show_section_dialog(window, cx, section_id, is_edit);
     }
 
     pub fn show_section_delete_dialog(
@@ -356,22 +184,7 @@ impl TodayBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
-        if let Some(section) = section_some {
-            let view = cx.entity().clone();
-            crate::ui::components::show_section_delete_dialog(
-                window,
-                cx,
-                "Are you sure to delete the section?",
-                move |cx| {
-                    view.update(cx, |_view, cx| {
-                        delete_section(section.clone(), cx);
-                        cx.notify();
-                    });
-                },
-            );
-        };
+        BoardBase::show_section_delete_dialog(window, cx, section_id);
     }
 
     pub fn duplicate_section(
@@ -380,14 +193,7 @@ impl TodayBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
-            let mut new_section = section.as_ref().clone();
-            new_section.id = uuid::Uuid::new_v4().to_string();
-            new_section.name = format!("{} (copy)", new_section.name);
-            add_section(Arc::new(new_section), cx);
-            window.push_notification("Section duplicated successfully.", cx);
-        }
+        self.base.duplicate_section(window, cx, section_id);
     }
 
     pub fn archive_section(
@@ -396,13 +202,7 @@ impl TodayBoard {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
-            let mut updated_section = section.as_ref().clone();
-            updated_section.is_archived = true;
-            update_section(Arc::new(updated_section), cx);
-            window.push_notification("Section archived successfully.", cx);
-        }
+        self.base.archive_section(window, cx, section_id);
     }
 }
 
@@ -411,6 +211,8 @@ impl BoardView for TodayBoard {
         self.base.set_active_index(index);
     }
 }
+
+crate::impl_board_section_actions!(TodayBoard);
 
 impl Board for TodayBoard {
     fn icon() -> IconName {
@@ -422,7 +224,9 @@ impl Board for TodayBoard {
     }
 
     fn count(cx: &mut gpui::App) -> usize {
-        cx.global::<TodoStore>().today_items().len()
+        let store = cx.global::<TodoStore>();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        store.today_items_cached(cache).len()
     }
 
     fn title() -> &'static str {
@@ -440,157 +244,6 @@ impl Board for TodayBoard {
     fn new_view(window: &mut Window, cx: &mut gpui::App) -> Entity<impl gpui::Render> {
         Self::view(window, cx)
     }
-}
-
-/// 渲染普通的分组（不带 schedule 按钮）
-fn render_section_group(
-    title: &str,
-    items: &[(usize, Arc<todos::entity::ItemModel>)],
-    item_rows: &[Entity<ItemRowState>],
-    active_index: Option<usize>,
-    active_border: gpui::Hsla,
-    view: Entity<TodayBoard>,
-) -> impl gpui::IntoElement {
-    let view_clone = view.clone();
-
-    section(title)
-        .sub_title(
-            h_flex().gap_1().child(
-                Button::new(format!("more-{}", title.to_lowercase().replace(" ", "-")))
-                    .small()
-                    .ghost()
-                    .compact()
-                    .icon(IconName::EllipsisVertical)
-                    .dropdown_menu({
-                        let view = view_clone.clone();
-                        move |this, window, _cx| {
-                            this.item(PopupMenuItem::new("Show Completed Tasks").on_click(
-                                window.listener_for(&view, |_this, _, _window, cx| {
-                                    cx.notify();
-                                }),
-                            ))
-                        }
-                    }),
-            ),
-        )
-        .child(board_renderer::render_item_list(
-            items,
-            item_rows,
-            active_index,
-            active_border,
-            view_clone,
-        ))
-}
-
-/// 渲染带 schedule 按钮的分组
-fn render_section_group_with_schedule(
-    title: &str,
-    items: &[(usize, Arc<todos::entity::ItemModel>)],
-    item_rows: &[Entity<ItemRowState>],
-    active_index: Option<usize>,
-    active_border: gpui::Hsla,
-    view: Entity<TodayBoard>,
-    schedule_button: &Entity<ScheduleButtonState>,
-) -> impl gpui::IntoElement {
-    let view_clone = view.clone();
-
-    section(title)
-        .sub_title(
-            h_flex()
-                .gap_1()
-                .child(crate::ui::components::ScheduleButton::new(schedule_button))
-                .child(
-                    Button::new(format!("more-{}", title.to_lowercase().replace(" ", "-")))
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::EllipsisVertical)
-                        .dropdown_menu({
-                            let view = view_clone.clone();
-                            move |this, window, _cx| {
-                                this.item(PopupMenuItem::new("Show Completed Tasks").on_click(
-                                    window.listener_for(&view, |_this, _, _window, cx| {
-                                        cx.notify();
-                                    }),
-                                ))
-                            }
-                        }),
-                ),
-        )
-        .child(board_renderer::render_item_list(
-            items,
-            item_rows,
-            active_index,
-            active_border,
-            view_clone,
-        ))
-}
-
-/// 渲染 No Section 分组（有自定义的 Add Task 按钮）
-fn render_no_section_group(
-    items: &[(usize, Arc<todos::entity::ItemModel>)],
-    item_rows: &[Entity<ItemRowState>],
-    active_index: Option<usize>,
-    active_border: gpui::Hsla,
-    view: Entity<TodayBoard>,
-) -> impl gpui::IntoElement {
-    let view_clone = view.clone();
-
-    section("No Section")
-        .sub_title(
-            h_flex()
-                .gap_1()
-                .child(
-                    Button::new("add-item-to-no-section")
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::PlusLargeSymbolic)
-                        .label("Add Task")
-                        .on_click({
-                            let view = view_clone.clone();
-                            move |_, window, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.show_item_dialog(window, cx, false, None);
-                                    cx.notify();
-                                })
-                            }
-                        }),
-                )
-                .child(
-                    Button::new("more-no-section")
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::EllipsisVertical)
-                        .dropdown_menu({
-                            let view = view_clone.clone();
-                            move |this, window, _cx| {
-                                this.item(PopupMenuItem::new("+ Add Task").on_click(
-                                    window.listener_for(&view, |this, _, window, cx| {
-                                        this.show_item_dialog(window, cx, false, None);
-                                        cx.notify();
-                                    }),
-                                ))
-                                .separator()
-                                .item(
-                                    PopupMenuItem::new("Show Completed Tasks").on_click(
-                                        window.listener_for(&view, |_this, _, _window, cx| {
-                                            cx.notify();
-                                        }),
-                                    ),
-                                )
-                            }
-                        }),
-                ),
-        )
-        .child(board_renderer::render_item_list(
-            items,
-            item_rows,
-            active_index,
-            active_border,
-            view_clone,
-        ))
 }
 
 /// 创建头部按钮的辅助函数
@@ -637,7 +290,7 @@ impl Render for TodayBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
-        let sections = cx.global::<TodoStore>().sections.clone();
+        let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = self.base.pinned_items.clone();
         let past_due_items = self.base.past_due_items.clone();
         let overdue_items = self.base.overdue_items.clone();
@@ -653,38 +306,14 @@ impl Render for TodayBoard {
             .size_full()
             .gap(VisualHierarchy::spacing(4.0))
             .child(
-                h_flex()
-                    .id("header")
-                    .border_b_1()
-                    .border_color(cx.theme().border)
-                    .justify_between()
-                    .items_start()
-                    .p(VisualHierarchy::spacing(3.0))
-                    .child(
-                        v_flex()
-                            .gap(VisualHierarchy::spacing(1.0))
-                            .child(
-                                h_flex()
-                                    .gap(VisualHierarchy::spacing(2.0))
-                                    .items_center()
-                                    .child(<TodayBoard as Board>::icon())
-                                    .child(div().text_base().child(<TodayBoard as Board>::title())),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(<TodayBoard as Board>::description()),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_end()
-                            .gap(VisualHierarchy::spacing(2.0))
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                           .child(
+                render_board_header(
+                    cx,
+                    <TodayBoard as Board>::icon(),
+                    <TodayBoard as Board>::title(),
+                    <TodayBoard as Board>::description(),
+                    h_flex()
+                        .gap(VisualHierarchy::spacing(2.0))
+                        .child(
                                 Button::new("item-actions")
                                     .small()
                                     .ghost()
@@ -731,7 +360,7 @@ impl Render for TodayBoard {
                                 view.clone(),
                                 |this, window, cx| this.show_section_dialog(window, cx, None, false),
                             )),
-                    ),
+                ),
             )
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
@@ -739,17 +368,18 @@ impl Render for TodayBoard {
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(render_section_group(
+                            this.child(board_renderer::render_simple_group_block(
                                 "Pinned",
                                 &pinned_items,
                                 item_rows,
                                 active_index,
                                 active_border,
                                 view.clone(),
+                                true,
                             ))
                         })
                         .when(!past_due_items.is_empty(), |this| {
-                            this.child(render_section_group_with_schedule(
+                            this.child(board_renderer::render_group_with_schedule_button(
                                 "Past Due",
                                 &past_due_items,
                                 item_rows,
@@ -760,22 +390,24 @@ impl Render for TodayBoard {
                             ))
                         })
                         .when(!overdue_items.is_empty(), |this| {
-                            this.child(render_section_group(
+                            this.child(board_renderer::render_simple_group_block(
                                 "Today",
                                 &overdue_items,
                                 item_rows,
                                 active_index,
                                 active_border,
                                 view.clone(),
+                                true,
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
-                            this.child(render_no_section_group(
+                            this.child(board_renderer::render_no_section_block(
                                 &no_section_items,
                                 item_rows,
                                 active_index,
                                 active_border,
                                 view.clone(),
+                                true,
                             ))
                         })
                         .children(sections.iter().filter_map(|sec| {
@@ -786,154 +418,31 @@ impl Render for TodayBoard {
 
                             let view_clone = view.clone();
                             let section_id = sec.id.clone();
+                            let section_name = sec.name.clone();
 
-                            Some(
-                                section(sec.name.clone())
-                                    .sub_title(
-                                        h_flex().gap_1()
-                                            .child(
-                                                Button::new(format!(
-                                                    "schedule-section-{}",
-                                                    section_id
-                                                ))
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::Calendar)
-                                                .label("Schedule")
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    let section_id = section_id.clone();
-                                                    move |_, window, cx| {
-                                                        show_schedule_popover(
-                                                            window,
-                                                            cx,
-                                                            section_id.clone(),
-                                                            view.clone(),
-                                                        );
-                                                    }
-                                                }),
-                                            )
-                                            .child(
-                                                Button::new(format!(
-                                                    "add-item-to-section-{}",
-                                                    section_id
-                                                ))
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::PlusLargeSymbolic)
-                                                .label("Add Task")
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    let section_id = section_id.clone();
-                                                    move |_, window, cx| {
-                                                        view.update(cx, |this, cx| {
-                                                            this.show_item_dialog(
-                                                                window,
-                                                                cx,
-                                                                false,
-                                                                Some(section_id.clone()),
-                                                            );
-                                                            cx.notify();
-                                                        })
-                                                    }
-                                                }),
-                                            )
-                                            .child(
-                                                Button::new(format!("more-section-{}", section_id))
-                                                    .small()
-                                                    .ghost()
-                                                    .compact()
-                                                    .icon(IconName::EllipsisVertical)
-                                                    .dropdown_menu({
-                                                        let view = view_clone.clone();
-                                                        let section_id = section_id.clone();
-                                                        move |this, window, _cx| {
-                                                            let view = view.clone();
-                                                            let section_id1 = section_id.clone();
-                                                            let section_id2 = section_id.clone();
-                                                            let section_id3 = section_id.clone();
-                                                            let section_id4 = section_id.clone();
-                                                            let section_id5 = section_id.clone();
-                                                            this.item(
-                                                                PopupMenuItem::new("+ Add Task").on_click(
-                                                                    window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.show_item_dialog(
-                                                                            window,
-                                                                            cx,
-                                                                            false,
-                                                                            Some(section_id1.clone()),
-                                                                        );
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                            )
-                                                            .separator()
-                                                            .item(
-                                                                PopupMenuItem::new("Edit Section").on_click(
-                                                                    window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.show_section_dialog(
-                                                                            window,
-                                                                            cx,
-                                                                            Some(section_id2.clone()),
-                                                                            true,
-                                                                        );
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                            )
-                                                            .separator()
-                                                            .item(
-                                                                PopupMenuItem::new("Duplicate").on_click(
-                                                                    window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.duplicate_section(
-                                                                            window,
-                                                                            cx,
-                                                                            section_id3.clone(),
-                                                                        );
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                            )
-                                                            .separator()
-                                                            .item(
-                                                                PopupMenuItem::new("Archive").on_click(
-                                                                    window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.archive_section(
-                                                                            window,
-                                                                            cx,
-                                                                            section_id4.clone(),
-                                                                        );
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                            )
-                                                            .separator()
-                                                            .item(
-                                                                PopupMenuItem::new("Delete Section").on_click(
-                                                                    window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.show_section_delete_dialog(
-                                                                            window,
-                                                                            cx,
-                                                                            section_id5.clone(),
-                                                                        );
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                            )
-                                                        }
-                                                    }),
-                                            ),
-                                    )
-                                    .child(board_renderer::render_item_list(
-                                        items,
-                                        item_rows,
-                                        active_index,
-                                        active_border,
-                                        view_clone,
-                                    )),
-                            )
+                            let schedule_button = Button::new(format!("schedule-section-{}", section_id))
+                                .small()
+                                .ghost()
+                                .compact()
+                                .icon(IconName::Calendar)
+                                .label("Schedule")
+                                .on_click({
+                                    let section_id = section_id.clone();
+                                    move |_, window, cx| {
+                                        show_schedule_popover(window, cx, section_id.clone());
+                                    }
+                                });
+
+                            Some(board_renderer::render_section_block_with_leading(
+                                section_name,
+                                section_id,
+                                items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view_clone,
+                                schedule_button,
+                            ))
                         })),
                 ),
             )

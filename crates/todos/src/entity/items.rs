@@ -4,7 +4,7 @@
 //! 但提供了 due_date() 和 set_due_date() 方法进行类型安全的转换
 
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use sea_orm::{DbErr, Set, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 
@@ -77,9 +77,14 @@ impl ActiveModelBehavior for ActiveModel {
 }
 
 impl Model {
+    /// 从 JSON 字段解析 DueDate（避免 clone Value）
+    fn parse_due_date(&self) -> Option<DueDate> {
+        self.due.as_ref().and_then(|json| DueDate::deserialize(json).ok())
+    }
+
     /// 获取强类型的 DueDate
     pub fn due_date(&self) -> Option<DueDate> {
-        self.due.as_ref().and_then(|json| serde_json::from_value(json.clone()).ok())
+        self.parse_due_date()
     }
 
     /// 设置 DueDate
@@ -96,7 +101,17 @@ impl Model {
     /// * `Some(NaiveDateTime)` - 如果存在有效的截止日期
     /// * `None` - 如果没有截止日期或解析失败
     pub fn due_datetime(&self) -> Option<NaiveDateTime> {
-        self.due_date()?.datetime()
+        self.parse_due_date()?.datetime()
+    }
+
+    /// 解析截止日期中的日期部分（过滤热路径便捷方法）
+    pub fn due_date_naive(&self) -> Option<NaiveDate> {
+        self.due_datetime().map(|dt| dt.date())
+    }
+
+    /// 检查是否在指定日期到期
+    pub fn is_due_on_date(&self, today: NaiveDate) -> bool {
+        self.due_date_naive().is_some_and(|due| due == today)
     }
 
     /// 检查是否已过期
@@ -105,10 +120,7 @@ impl Model {
     /// * `true` - 如果截止日期已过
     /// * `false` - 如果没有截止日期或尚未过期
     pub fn is_overdue(&self) -> bool {
-        match self.due_datetime() {
-            Some(due) => due < chrono::Utc::now().naive_utc(),
-            None => false,
-        }
+        self.due_datetime().is_some_and(|due| due < chrono::Utc::now().naive_utc())
     }
 
     /// 检查是否今天到期
@@ -117,13 +129,8 @@ impl Model {
     /// * `true` - 如果截止日期是今天
     /// * `false` - 如果没有截止日期或不是今天
     pub fn is_due_today(&self) -> bool {
-        match self.due_datetime() {
-            Some(due) => {
-                let today = chrono::Utc::now().naive_utc().date();
-                due.date() == today
-            },
-            None => false,
-        }
+        let today = chrono::Utc::now().naive_utc().date();
+        self.is_due_on_date(today)
     }
 
     /// 检查是否为过去日期（超过今天，即昨天及之前）
@@ -132,115 +139,8 @@ impl Model {
     /// * `true` - 如果截止日期是昨天或更早
     /// * `false` - 如果没有截止日期或是今天及之后
     pub fn is_past_due(&self) -> bool {
-        match self.due_datetime() {
-            Some(due) => {
-                let today = chrono::Utc::now().naive_utc().date();
-                due.date() < today
-            },
-            None => false,
-        }
+        let today = chrono::Utc::now().naive_utc().date();
+        self.due_date_naive().is_some_and(|due| due < today)
     }
 
-    // ==================== 字段分组辅助方法 ====================
-
-    /// 获取基础信息字段组
-    ///
-    /// 包含：id, content, description
-    pub fn base_info(&self) -> ItemBaseInfo {
-        ItemBaseInfo {
-            id: self.id.clone(),
-            content: self.content.clone(),
-            description: self.description.clone(),
-        }
-    }
-
-    /// 获取时间字段组
-    ///
-    /// 包含：added_at, completed_at, updated_at, due
-    pub fn time_info(&self) -> ItemTimeInfo {
-        ItemTimeInfo {
-            added_at: self.added_at,
-            completed_at: self.completed_at,
-            updated_at: self.updated_at,
-            due_date: self.due_date(),
-        }
-    }
-
-    /// 获取层级关系字段组
-    ///
-    /// 包含：section_id, project_id, parent_id
-    pub fn hierarchy_info(&self) -> ItemHierarchyInfo {
-        ItemHierarchyInfo {
-            section_id: self.section_id.clone(),
-            project_id: self.project_id.clone(),
-            parent_id: self.parent_id.clone(),
-        }
-    }
-
-    /// 获取状态字段组
-    ///
-    /// 包含：checked, is_deleted, collapsed, pinned
-    pub fn status_info(&self) -> ItemStatusInfo {
-        ItemStatusInfo {
-            checked: self.checked,
-            is_deleted: self.is_deleted,
-            collapsed: self.collapsed,
-            pinned: self.pinned,
-        }
-    }
-
-    /// 获取排序字段组
-    ///
-    /// 包含：priority, child_order, day_order
-    pub fn order_info(&self) -> ItemOrderInfo {
-        ItemOrderInfo {
-            priority: self.priority,
-            child_order: self.child_order,
-            day_order: self.day_order,
-        }
-    }
-}
-
-// ==================== 字段分组结构体 ====================
-
-/// 基础信息字段组
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ItemBaseInfo {
-    pub id: String,
-    pub content: String,
-    pub description: Option<String>,
-}
-
-/// 时间字段组
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ItemTimeInfo {
-    pub added_at: NaiveDateTime,
-    pub completed_at: Option<NaiveDateTime>,
-    pub updated_at: NaiveDateTime,
-    pub due_date: Option<DueDate>,
-}
-
-/// 层级关系字段组
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ItemHierarchyInfo {
-    pub section_id: Option<String>,
-    pub project_id: Option<String>,
-    pub parent_id: Option<String>,
-}
-
-/// 状态字段组
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct ItemStatusInfo {
-    pub checked: bool,
-    pub is_deleted: bool,
-    pub collapsed: bool,
-    pub pinned: bool,
-}
-
-/// 排序字段组
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct ItemOrderInfo {
-    pub priority: Option<i32>,
-    pub child_order: Option<i32>,
-    pub day_order: Option<i32>,
 }

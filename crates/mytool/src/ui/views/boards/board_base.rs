@@ -1,8 +1,15 @@
 use std::{cell::Cell, sync::Arc};
 
 use gpui::{AppContext, Context, Entity, FocusHandle, Subscription, Window};
+use gpui_component::{IndexPath, WindowExt};
+use sea_orm::sqlx::types::uuid;
+use todos::entity::SectionModel;
 
-use crate::{ItemInfoState, ItemRowState, todo_state::TodoStore};
+use crate::{
+    ItemInfoState, ItemRowState,
+    todo_actions::{add_section, update_section},
+    todo_state::TodoStore,
+};
 
 /// 所有 Board 类型的基础结构体
 pub struct BoardBase {
@@ -55,6 +62,168 @@ impl BoardBase {
     /// 设置当前激活的索引
     pub fn set_active_index(&mut self, index: Option<usize>) {
         self.active_index = index;
+    }
+
+    /// 从 item_rows 获取选中任务（与列表显示一致，避免重复查询 Store）
+    pub fn get_selected_item_from_index(
+        &self,
+        ix: IndexPath,
+        cx: &gpui::App,
+    ) -> Option<Arc<todos::entity::ItemModel>> {
+        self.item_rows
+            .get(ix.row)
+            .map(|row| row.read(cx).item.clone())
+    }
+
+    /// 显示新建/编辑任务对话框
+    pub fn show_item_dialog<V: gpui::Render>(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<V>,
+        is_edit: bool,
+        section_id: Option<String>,
+    ) {
+        let item_info = if is_edit {
+            if let Some(active_index) = self.active_index {
+                if let Some(item_row) = self.item_rows.get(active_index) {
+                    item_row.update(cx, |row, cx| {
+                        row.ensure_item_info(window, cx);
+                    });
+                    item_row
+                        .read(cx)
+                        .item_info
+                        .clone()
+                        .unwrap_or_else(|| self.item_info.clone())
+                } else {
+                    self.item_info.clone()
+                }
+            } else {
+                self.item_info.clone()
+            }
+        } else {
+            let mut ori_item = todos::entity::ItemModel::default();
+            if let Some(sid) = section_id {
+                ori_item.section_id = Some(sid);
+            }
+            self.item_info.update(cx, |state, cx| {
+                state.set_item(Arc::new(ori_item.clone()), window, cx);
+                cx.notify();
+            });
+            self.item_info.clone()
+        };
+
+        let config = crate::ui::components::ItemDialogConfig::new(
+            if is_edit { "Edit Item" } else { "New Item" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        );
+
+        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
+    }
+
+    /// 显示新建/编辑分区对话框
+    pub fn show_section_dialog<V: gpui::Render>(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<V>,
+        section_id: Option<String>,
+        is_edit: bool,
+    ) {
+        let sections = cx.global::<TodoStore>().sections.clone();
+        let ori_section = if is_edit {
+            sections
+                .iter()
+                .find(|s| s.id == section_id.clone().unwrap_or_default())
+                .map(|s| s.as_ref().clone())
+                .unwrap_or_default()
+        } else {
+            todos::entity::SectionModel::default()
+        };
+
+        let name_input = cx.new(|cx| {
+            gpui_component::input::InputState::new(window, cx).placeholder("Section Name")
+        });
+        if is_edit {
+            name_input.update(cx, |is, cx| {
+                is.set_value(ori_section.name.clone(), window, cx);
+                cx.notify();
+            });
+        }
+
+        let config = crate::ui::components::SectionDialogConfig::new(
+            if is_edit { "Edit Section" } else { "New Section" },
+            if is_edit { "Save" } else { "Add" },
+            is_edit,
+        )
+        .with_overlay(false);
+
+        crate::ui::components::show_section_dialog(
+            window,
+            cx,
+            name_input,
+            config,
+            move |name, cx| {
+                let section = Arc::new(SectionModel { name, ..ori_section.clone() });
+                if is_edit {
+                    update_section(section, cx);
+                } else {
+                    add_section(section, cx);
+                }
+            },
+        );
+    }
+
+    /// 显示删除分区确认对话框
+    pub fn show_section_delete_dialog<V: gpui::Render>(
+        window: &mut Window,
+        cx: &mut Context<V>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<TodoStore>().sections.clone();
+        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
+        if let Some(section) = section_some {
+            crate::ui::components::show_section_delete_dialog(
+                window,
+                cx,
+                "Are you sure to delete the section?",
+                move |cx| {
+                    crate::todo_actions::delete_section(section.clone(), cx);
+                },
+            );
+        }
+    }
+
+    /// 复制分区
+    pub fn duplicate_section<V: gpui::Render>(
+        &self,
+        window: &mut Window,
+        cx: &mut Context<V>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<TodoStore>().sections.clone();
+        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+            let mut new_section = section.as_ref().clone();
+            new_section.id = uuid::Uuid::new_v4().to_string();
+            new_section.name = format!("{} (copy)", new_section.name);
+            add_section(Arc::new(new_section), cx);
+            window.push_notification("Section duplicated successfully.", cx);
+        }
+    }
+
+    /// 归档分区
+    pub fn archive_section<V: gpui::Render>(
+        &self,
+        window: &mut Window,
+        cx: &mut Context<V>,
+        section_id: String,
+    ) {
+        let sections = cx.global::<TodoStore>().sections.clone();
+        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+            let mut updated_section = section.as_ref().clone();
+            updated_section.is_archived = true;
+            update_section(Arc::new(updated_section), cx);
+            window.push_notification("Section archived successfully.", cx);
+        }
     }
 
     /// 从 TodoStore 刷新项目列表（通用方法）
@@ -304,76 +473,4 @@ impl BoardBase {
 /// 用于通用渲染的 Board 视图 trait（可设置当前选中项索引）
 pub trait BoardView: gpui::Render {
     fn set_active_index(&mut self, index: Option<usize>);
-}
-
-/// 所有 Board 类型的通用 trait
-pub trait BoardCommon {
-    /// 获取视图
-    fn view(window: &mut Window, cx: &mut gpui::App) -> Entity<Self>
-    where
-        Self: Sized;
-
-    /// 获取选中的项目
-    fn get_selected_item(
-        &self,
-        ix: gpui_component::IndexPath,
-        cx: &gpui::App,
-    ) -> Option<std::rc::Rc<todos::entity::ItemModel>>;
-
-    /// 显示项目对话框
-    fn show_item_dialog(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        is_edit: bool,
-        section_id: Option<String>,
-    ) where
-        Self: Sized;
-
-    /// 显示项目删除对话框
-    fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>)
-    where
-        Self: Sized;
-}
-
-/// Board trait 的默认实现宏
-#[macro_export]
-macro_rules! impl_board_default {
-    ($board:ident, $icon:expr, $colors:expr, $title:expr, $description:expr, $count_fn:expr) => {
-        impl Board for $board {
-            fn icon() -> IconName {
-                $icon
-            }
-
-            fn colors() -> Vec<gpui::Hsla> {
-                $colors
-            }
-
-            fn count(cx: &mut gpui::App) -> usize {
-                $count_fn(cx)
-            }
-
-            fn title() -> &'static str {
-                $title
-            }
-
-            fn description() -> &'static str {
-                $description
-            }
-
-            fn zoomable() -> Option<gpui_component::dock::PanelControl> {
-                None
-            }
-
-            fn new_view(window: &mut Window, cx: &mut gpui::App) -> Entity<impl gpui::Render> {
-                Self::view(window, cx)
-            }
-        }
-
-        impl gpui::Focusable for $board {
-            fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
-                self.focus_handle.clone()
-            }
-        }
-    };
 }

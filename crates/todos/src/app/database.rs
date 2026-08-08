@@ -26,14 +26,11 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
 
     let mut options = ConnectOptions::new(base_url);
 
-    // 🚀 优化 (2026-05-17)：连接池配置优化
-    // - max_connections: 8 → 20，进一步增加连接池容量（应对高并发场景）
-    // - acquire_timeout: 20s → 60s，给更多时间获取连接（解决30秒超时问题）
-    // - min_connections: 1 → 2，保持一些预热连接
-    // SQLite 在 WAL 模式下允许 1 个写者 + 多个读者，适度增加连接数可提升并发性能
+    // SQLite 连接池：读取配置并限制在 [2, 8] 范围内（WAL 模式下适度并发即可）
+    let max_connections = db_config.pool_size().min(8).max(2);
     options
-        .min_connections(1)
-        .max_connections(20)
+        .min_connections(2)
+        .max_connections(max_connections)
         .connect_timeout(Duration::from_secs(3))
         .acquire_timeout(Duration::from_secs(10))
         .idle_timeout(Duration::from_secs(600))
@@ -80,9 +77,10 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
 
     db.ping().await?;
     tracing::info!(
-        "SQLite database connection successful with WAL mode: {} (pool: max=16, \
-         acquire_timeout=30s, min=2)",
-        db_path
+        "SQLite database connection successful with WAL mode: {} (pool: max={}, min=2, \
+         acquire_timeout=10s)",
+        db_path,
+        max_connections
     );
     Ok(db)
 }

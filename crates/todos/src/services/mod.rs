@@ -1,18 +1,14 @@
 pub mod attachment_service;
-pub mod event_bus;
 pub mod item_service;
 pub mod label_service;
 pub mod project_service;
 pub mod reminder_service;
 pub mod section_service;
-pub mod service_manager;
 pub mod store;
 pub use attachment_service::AttachmentService;
-pub use event_bus::{EventBus, Subscription};
 pub use item_service::ItemService;
 pub use label_service::LabelService;
 pub use project_service::ProjectService;
 pub use reminder_service::ReminderService;
 pub use section_service::SectionService;
-pub use service_manager::ServiceManager;
 pub use store::Store;

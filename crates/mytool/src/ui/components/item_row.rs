@@ -29,7 +29,7 @@ pub enum ItemRowEvent {
 
 pub struct ItemRowState {
     pub item: Arc<ItemModel>,
-    pub item_info: Entity<ItemInfoState>,
+    pub item_info: Option<Entity<ItemInfoState>>,
     is_open: bool,
     is_hovered: bool,          // 悬停状态
     is_focused: bool,          // 焦点状态
@@ -49,121 +49,65 @@ impl Focusable for ItemRowState {
 
 impl ItemRowState {
     pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item_info = cx.new(|cx| ItemInfoState::new(item.clone(), window, cx));
         let item_id = item.id.clone();
         let focus_handle = cx.focus_handle();
 
-        let _subscriptions = vec![
-            cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let store = cx.global::<TodoStore>();
+        let _subscriptions = vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
+            let store = cx.global::<TodoStore>();
 
-                // 性能优化：检查版本号，只在数据变化时更新
-                if this.cached_store_version == store.version() {
+            // 性能优化：检查版本号，只在数据变化时更新
+            if this.cached_store_version == store.version() {
+                return;
+            }
+            this.cached_store_version = store.version();
+
+            // 性能优化：非 items 域变更时跳过（如仅项目/标签变化）
+            if !store.peek_change_mask().items_changed {
+                return;
+            }
+
+            if let Some(updated_item) = store.get_item(&item_id) {
+                // 检查 item 是否真的发生了变化
+                if this.item == updated_item {
+                    // item 没有变化，跳过更新
                     return;
                 }
-                this.cached_store_version = store.version();
 
-                let state_items = store.all_items.clone();
-                if let Some(updated_item) = state_items.iter().find(|i| i.id == item_id) {
-                    // 检查 item 是否真的发生了变化
-                    if this.item == *updated_item {
-                        // item 没有变化，跳过更新
-                        return;
-                    }
+                // 检查是否是标签更新（通过比较 labels 字段）
+                let is_label_update = this.item.labels != updated_item.labels;
 
-                    // 检查是否是标签更新（通过比较 labels 字段）
-                    let is_label_update = this.item.labels != updated_item.labels;
-
-                    this.item = updated_item.clone();
-                    this.update_version += 1; // 增加版本号，强制重新渲染
-
-                    // 添加调试日志
-                    use tracing::info;
-                    info!(
-                        "ItemRowState: item updated - id: {}, labels: {:?}, version: {}, \
-                         is_label_update: {}",
-                        updated_item.id, updated_item.labels, this.update_version, is_label_update
-                    );
-
-                    // 更新 item_info 中的状态
-                    this.item_info.update(cx, |this_info, cx| {
-                        // 关键修复：直接更新 state_manager.item，确保 ItemRowState.render
-                        // 能获取到最新的 item 包括 labels 字段的更新
-                        this_info.state_manager.item = updated_item.clone();
-
-                        // 无论是否是标签更新，都使用 update_item_without_reloading_labels
-                        // 这样可以避免覆盖用户正在进行的编辑
-                        this_info.update_item_without_reloading_labels(
-                            updated_item.clone(),
-                            window,
-                            cx,
-                        );
-
-                        // 如果是标签更新，强制刷新 LabelsPopoverList 的选中状态
-                        if is_label_update {
-                            this_info.refresh_labels_selection_from_item(cx);
-                        }
-                    });
-                    cx.notify();
-                }
-            }),
-            cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
-                // 处理特殊事件
-                match event {
-                    ItemInfoEvent::Cancelled() => {
-                        // 取消编辑，如果是新建任务则从 store 中移除
-                        let is_new = this.item.id.is_empty() || this.item.id.starts_with("temp_");
-                        if is_new {
-                            // 从 TodoStore 中移除临时项
-                            cx.update_global::<TodoStore, _>(|store, _| {
-                                store.remove_item(&this.item.id);
-                            });
-                        }
-                        // 收起面板
-                        this.is_open = false;
-                        cx.notify();
-                        return;
-                    },
-                    ItemInfoEvent::Deleted() => {
-                        // 删除任务，从 store 中移除
-                        cx.update_global::<TodoStore, _>(|store, _| {
-                            store.remove_item(&this.item.id);
-                        });
-                        this.is_open = false;
-                        cx.notify();
-                        return;
-                    },
-                    _ => {},
-                }
-
-                this.item_info.update(cx, |state, cx| {
-                    state.handle_item_info_event(event, cx);
-                });
-                // 关键修复：直接从 item_info 中获取最新的 item，确保及时更新
-                // 这确保了当 labels 更新时，ItemRowState 能立即获取到最新的 item
-                let latest_item = this.item_info.read(cx).state_manager.item.clone();
-
-                // 检查是否是标签更新
-                let is_label_update = this.item.labels != latest_item.labels;
-
-                this.item = latest_item.clone();
+                this.item = updated_item.clone();
                 this.update_version += 1; // 增加版本号，强制重新渲染
 
                 // 添加调试日志
                 use tracing::info;
                 info!(
-                    "ItemRowState subscribe: item updated - id: {}, labels: {:?}, version: {}, \
+                    "ItemRowState: item updated - id: {}, labels: {:?}, version: {}, \
                      is_label_update: {}",
-                    latest_item.id, latest_item.labels, this.update_version, is_label_update
+                    updated_item.id, updated_item.labels, this.update_version, is_label_update
                 );
 
+                // 仅在 item_info 已创建时同步状态
+                if let Some(item_info) = this.item_info.as_ref() {
+                    item_info.update(cx, |this_info, cx| {
+                        this_info.state_manager.item = updated_item.clone();
+                        this_info.update_item_without_reloading_labels(
+                            updated_item.clone(),
+                            window,
+                            cx,
+                        );
+                        if is_label_update {
+                            this_info.refresh_labels_selection_from_item(cx);
+                        }
+                    });
+                }
                 cx.notify();
-            }),
-        ];
+            }
+        })];
 
         Self {
             item,
-            item_info,
+            item_info: None,
             is_open: false,
             is_hovered: false,
             is_focused: false,
@@ -174,19 +118,74 @@ impl ItemRowState {
         }
     }
 
+    /// 首次展开/编辑时懒创建 ItemInfoState 并订阅其事件
+    pub fn ensure_item_info(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<ItemInfoState> {
+        if let Some(ref entity) = self.item_info {
+            return entity.clone();
+        }
+
+        let item_info = cx.new(|cx| ItemInfoState::new(self.item.clone(), window, cx));
+        let subscription = cx.subscribe(&item_info, |this, _, event: &ItemInfoEvent, cx| {
+            match event {
+                ItemInfoEvent::Cancelled() => {
+                    let is_new = this.item.id.is_empty() || this.item.id.starts_with("temp_");
+                    if is_new {
+                        cx.update_global::<TodoStore, _>(|store, _| {
+                            store.remove_item(&this.item.id);
+                        });
+                    }
+                    this.is_open = false;
+                    cx.notify();
+                    return;
+                },
+                ItemInfoEvent::Deleted() => {
+                    cx.update_global::<TodoStore, _>(|store, _| {
+                        store.remove_item(&this.item.id);
+                    });
+                    this.is_open = false;
+                    cx.notify();
+                    return;
+                },
+                _ => {},
+            }
+
+            if let Some(ref item_info) = this.item_info {
+                item_info.update(cx, |state, cx| {
+                    state.handle_item_info_event(event, cx);
+                });
+                let latest_item = item_info.read(cx).state_manager.item.clone();
+                let is_label_update = this.item.labels != latest_item.labels;
+
+                this.item = latest_item.clone();
+                this.update_version += 1;
+
+                use tracing::info;
+                info!(
+                    "ItemRowState subscribe: item updated - id: {}, labels: {:?}, version: {}, \
+                     is_label_update: {}",
+                    latest_item.id, latest_item.labels, this.update_version, is_label_update
+                );
+
+                cx.notify();
+            }
+        });
+        self._subscriptions.push(subscription);
+        self.item_info = Some(item_info.clone());
+        item_info
+    }
+
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 收起时不再自动保存，用户需要点击保存按钮
         self.is_open = !self.is_open;
 
-        // 如果展开，尝试让第一个输入框获得焦点
         if self.is_open {
-            self.item_info.update(cx, |state, cx| {
-                // 尝试让 name_input 获得焦点
+            let item_info = self.ensure_item_info(window, cx);
+            item_info.update(cx, |state, cx| {
                 state.focus_name_input(window, cx);
-
-                // 关键修复：展开时强制刷新标签选中状态
-                // 从当前 item 的 labels 字段同步 LabelsPopoverList 的选中状态
                 state.refresh_labels_selection_from_item(cx);
             });
         }
@@ -198,7 +197,8 @@ impl ItemRowState {
     fn expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.is_open {
             self.is_open = true;
-            self.item_info.update(cx, |state, cx| {
+            let item_info = self.ensure_item_info(window, cx);
+            item_info.update(cx, |state, cx| {
                 state.focus_name_input(window, cx);
             });
             cx.notify();
@@ -207,25 +207,25 @@ impl ItemRowState {
 
     /// 检查点击是否在展开按钮区域
     fn is_toggle_button_click(&self, event: &gpui::MouseDownEvent) -> bool {
-        // 这里可以根据实际的按钮位置来判断
-        // 暂时简化处理，假设右侧区域是按钮区域
-        event.position.x > px(300.0) // 简化的判断逻辑
+        event.position.x > px(300.0)
     }
 
     // ==================== 快捷键处理方法 ====================
 
     /// 处理删除任务快捷键 (Cmd/Ctrl + D)
-    fn handle_delete_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
-        self.item_info.update(cx, |_state, cx| {
+    fn handle_delete_shortcut(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let item_info = self.ensure_item_info(window, cx);
+        item_info.update(cx, |_state, cx| {
             cx.emit(ItemInfoEvent::Deleted());
         });
         true
     }
 
     /// 处理切换置顶快捷键 (Cmd/Ctrl + P)
-    fn handle_toggle_pin_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+    fn handle_toggle_pin_shortcut(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let new_pinned = !self.item.pinned;
-        self.item_info.update(cx, |state, cx| {
+        let item_info = self.ensure_item_info(window, cx);
+        item_info.update(cx, |state, cx| {
             state.state_manager.set_pinned(new_pinned);
             cx.emit(ItemInfoEvent::Updated());
         });
@@ -233,9 +233,14 @@ impl ItemRowState {
     }
 
     /// 处理切换完成状态快捷键 (Space)
-    fn handle_toggle_complete_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+    fn handle_toggle_complete_shortcut(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let new_checked = !self.item.checked;
-        self.item_info.update(cx, |state, cx| {
+        let item_info = self.ensure_item_info(window, cx);
+        item_info.update(cx, |state, cx| {
             state.state_manager.set_completed(new_checked);
             if new_checked {
                 cx.emit(ItemInfoEvent::Finished());
@@ -247,19 +252,21 @@ impl ItemRowState {
     }
 
     /// 处理展开编辑快捷键 (Cmd/Ctrl + E)
-    fn handle_edit_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+    fn handle_edit_shortcut(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         self.is_open = true;
+        self.ensure_item_info(window, cx);
         cx.notify();
         true
     }
 
     /// 处理收起并取消快捷键 (Escape)
-    fn handle_escape_shortcut(&mut self, cx: &mut Context<Self>) -> bool {
+    fn handle_escape_shortcut(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> bool {
         if self.is_open {
-            // Escape 键取消编辑，不保存
-            self.item_info.update(cx, |_state, cx| {
-                cx.emit(ItemInfoEvent::Cancelled());
-            });
+            if let Some(item_info) = self.item_info.as_ref() {
+                item_info.update(cx, |_state, cx| {
+                    cx.emit(ItemInfoEvent::Cancelled());
+                });
+            }
             self.is_open = false;
             cx.notify();
         }
@@ -277,21 +284,19 @@ impl ItemRowState {
         let is_plain = event.keystroke.modifiers == gpui::Modifiers::default();
         let key = event.keystroke.key.as_str();
 
-        // 通用快捷键（两种状态都有效）
         match (key, is_cmd) {
-            ("d", true) => return self.handle_delete_shortcut(cx),
-            ("p", true) => return self.handle_toggle_pin_shortcut(cx),
+            ("d", true) => return self.handle_delete_shortcut(window, cx),
+            ("p", true) => return self.handle_toggle_pin_shortcut(window, cx),
             _ => {},
         }
 
-        // 根据展开状态处理不同的快捷键
         if self.is_open {
             match (key, is_plain) {
                 ("enter", true) => {
                     self.toggle_expand(window, cx);
                     return true;
                 },
-                ("escape", _) => return self.handle_escape_shortcut(cx),
+                ("escape", _) => return self.handle_escape_shortcut(window, cx),
                 _ => {},
             }
         } else {
@@ -300,8 +305,8 @@ impl ItemRowState {
                     self.toggle_expand(window, cx);
                     return true;
                 },
-                ("space", true, _) => return self.handle_toggle_complete_shortcut(cx),
-                ("e", _, true) => return self.handle_edit_shortcut(cx),
+                ("space", true, _) => return self.handle_toggle_complete_shortcut(window, cx),
+                ("e", _, true) => return self.handle_edit_shortcut(window, cx),
                 _ => {},
             }
         }
@@ -312,80 +317,58 @@ impl ItemRowState {
 
 impl Render for ItemRowState {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        // 更新焦点状态
         self.is_focused = self.focus_handle.is_focused(window);
 
         let text_color =
             if self.is_open { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        // 从 item_info 中获取最新的 item，确保显示最新的数据
-        let item = self.item_info.read(cx).state_manager.item.clone();
-
-        let _version = self.update_version; // 获取当前版本号
-        let item_info = self.item_info.clone();
+        let item = self.item.clone();
         let is_open = self.is_open;
         let is_focused = self.is_focused;
         let item_id = format!("item-{}", item.id);
         let view = cx.entity();
-        let version = self.update_version; // 获取当前版本号
+        let version = self.update_version;
 
-        // 获取语义化颜色
         let colors = SemanticColors::from_theme(cx);
-        // 获取优先级值 (1=High, 2=Medium, 3=Low, 4=None)
         let priority = item.priority.unwrap_or(4);
-        // 使用 ItemPriority::get_color() 获取优先级颜色
         let priority_color = gpui::rgb(ItemPriority::from_i32(priority).get_color());
-
-        // 根据任务状态选择状态颜色（只显示完成状态）
         let status_indicator = if item.checked { Some(colors.status_completed) } else { None };
-
-        // 完成状态的视觉效果
         let completed_opacity = if item.checked { 0.6 } else { 1.0 };
-
-        // 优先级边框宽度
         let left_border_width = match priority {
-            1 => px(4.0), // High: 更粗的边框
-            2 => px(3.0), // Medium: 中等边框
-            3 => px(2.0), // Low: 细边框
-            _ => px(1.0), // None: 最细边框
+            1 => px(4.0),
+            2 => px(3.0),
+            3 => px(2.0),
+            _ => px(1.0),
         };
+
+        let item_info_entity = self.item_info.clone();
 
         div()
             .id(item_id.clone())
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
-            // 应用视觉层次：圆角和间距（紧凑版）
             .rounded(px(6.0))
             .p(px(6.0))
             .my(px(2.0))
-            // 优先级边框 - 左侧边框
             .border_l(left_border_width)
             .border_color(priority_color)
-            // 背景色 - 根据优先级添加轻微色调
             .bg(colors.priority_background_tint(priority, cx.theme().background))
-            // 完成状态的透明度
             .opacity(completed_opacity)
-            // 焦点环效果 - 使用优先级颜色
             .when(is_focused, |this| {
                 this.shadow_md()
                     .border_color(priority_color)
-                    .border(px(2.0)) // 焦点时加粗边框
+                    .border(px(2.0))
             })
-            // 悬停效果：提升视觉层次
             .on_mouse_move(cx.listener(|this, _event, _window, cx| {
                 this.is_hovered = true;
                 cx.notify();
             }))
             .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event, window, cx| {
-                // 检查是否点击的是展开按钮区域
                 if this.is_toggle_button_click(event) {
-                    // 点击展开按钮，切换状态
                     this.toggle_expand(window, cx);
                 } else if !this.is_open {
-                    // 点击其他区域且当前未展开，则展开详情
                     this.expand(window, cx);
                 }
-                // 无论如何都获得焦点
                 this.focus_handle.focus(window, cx);
                 cx.notify();
             }))
@@ -395,11 +378,9 @@ impl Render for ItemRowState {
                     .shadow_md()
                     .cursor_pointer()
             })
-            // 状态指示器：顶部边框（如果有状态）
             .when_some(status_indicator, |this: gpui::Stateful<gpui::Div>, color| {
                 this.border_t_2().border_color(color)
             })
-            // 键盘事件处理
             .on_key_down(cx.listener(|this, event, window, cx| {
                 if this.handle_key_event(event, window, cx) {
                     cx.stop_propagation();
@@ -438,16 +419,21 @@ impl Render for ItemRowState {
                                     }),
                             ),
                     )
-                    .content(
-                        v_flex()
-                            .gap(px(6.0))
-                            .p(px(6.0))
-                            .mt(px(6.0))
-                            .bg(cx.theme().background.opacity(0.5))  // 半透明背景
-                            .rounded(px(4.0))  // 稍小的圆角
-                            .border_1()
-                            .border_color(cx.theme().border.opacity(0.5))
-                            .child(ItemInfo::new(&item_info))
+                    .when_some(
+                        item_info_entity.filter(|_| is_open),
+                        |collapsible, item_info| {
+                            collapsible.content(
+                                v_flex()
+                                    .gap(px(6.0))
+                                    .p(px(6.0))
+                                    .mt(px(6.0))
+                                    .bg(cx.theme().background.opacity(0.5))
+                                    .rounded(px(4.0))
+                                    .border_1()
+                                    .border_color(cx.theme().border.opacity(0.5))
+                                    .child(ItemInfo::new(&item_info)),
+                            )
+                        },
                     ),
             )
     }

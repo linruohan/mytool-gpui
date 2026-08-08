@@ -10,20 +10,18 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 use crate::{
     entity::{ReminderActiveModel, ReminderModel, prelude::*, reminders},
     error::TodoError,
-    services::EventBus,
 };
 
 /// Service for Reminder business operations
 #[derive(Clone, Debug)]
 pub struct ReminderService {
     db: Arc<DatabaseConnection>,
-    event_bus: Arc<EventBus>,
 }
 
 impl ReminderService {
     /// Create a new ReminderService
-    pub fn new(db: Arc<DatabaseConnection>, event_bus: Arc<EventBus>) -> Self {
-        Self { db, event_bus }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 
     /// Get reminders by item ID
@@ -44,21 +42,12 @@ impl ReminderService {
         reminder: ReminderModel,
     ) -> Result<ReminderModel, TodoError> {
         let active_reminder: ReminderActiveModel = reminder.into();
-        let reminder_model = active_reminder.insert(&*self.db).await?;
-
-        let reminder_id = reminder_model.id.clone();
-        self.event_bus.publish(crate::services::event_bus::Event::ReminderCreated(reminder_id));
-
-        Ok(reminder_model)
+        active_reminder.insert(&*self.db).await.map_err(TodoError::from)
     }
 
     /// Delete a reminder
     pub async fn delete_reminder(&self, id: &str) -> Result<u64, TodoError> {
-        let id_clone = id.to_string();
-
         let result = ReminderEntity::delete_by_id(id).exec(&*self.db).await?;
-        self.event_bus.publish(crate::services::event_bus::Event::ReminderDeleted(id_clone));
-
         Ok(result.rows_affected)
     }
 }

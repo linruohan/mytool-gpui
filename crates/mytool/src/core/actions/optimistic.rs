@@ -15,7 +15,7 @@ use tracing::{error, info, warn};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{ErrorNotifier, TodoEventBus, TodoStore, TodoStoreEvent, get_store},
+        state::{ErrorNotifier, TodoStore, get_store},
         tokio_runtime::spawn_db_operation,
         utils::retry::{self, RetryConfig},
     },
@@ -49,10 +49,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     // 2. ⚡ 立即更新 UI（乐观更新，用户无感知延迟）
     cx.update_global::<TodoStore, _>(|store, _| {
         store.add_item(Arc::new(optimistic_item.clone()));
-    });
-
-    cx.update_global::<TodoEventBus, _>(|bus, _| {
-        bus.publish(TodoStoreEvent::ItemAdded(temp_id_clone.clone()));
     });
 
     // 3. 🔄 异步保存到数据库（增强版：独立 Runtime + 重试机制）
@@ -133,14 +129,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     store.replace_item_id(&temp_id_for_async, Arc::new(saved_item.clone()));
                 });
 
-                // ✅ 发布事件通知所有视图
-                cx.update_global::<TodoEventBus, _>(|bus, _| {
-                    bus.publish(TodoStoreEvent::ItemIdChanged {
-                        old_id: temp_id_for_async.clone(),
-                        new_id: real_id.clone(),
-                    });
-                });
-
                 // ✅ 标记保存成功
                 cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
                     results.mark_succeeded(temp_id_for_async.clone());
@@ -191,10 +179,6 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
     cx.update_global::<TodoStore, _>(|store, _| {
         store.update_item(item.clone());
-    });
-
-    cx.update_global::<TodoEventBus, _>(|bus, _| {
-        bus.publish(TodoStoreEvent::ItemUpdated(item.id.clone()));
     });
 
     // 为了避免在 Store 未初始化时 panic，异步等待 Store 准备后再执行数据库更新。
@@ -252,10 +236,6 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         store.remove_item(&item_id);
     });
 
-    cx.update_global::<TodoEventBus, _>(|bus, _| {
-        bus.publish(TodoStoreEvent::ItemDeleted(item_id.clone()));
-    });
-
     let item_for_recovery = item.clone();
     let store = get_store(cx);
     let item_clone = item.clone();
@@ -303,10 +283,6 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 
     cx.update_global::<TodoStore, _>(|store, _| {
         store.update_item(Arc::new(updated_item.clone()));
-    });
-
-    cx.update_global::<TodoEventBus, _>(|bus, _| {
-        bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
     });
 
     let store = get_store(cx);
@@ -363,10 +339,6 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
 
     cx.update_global::<TodoStore, _>(|store, _| {
         store.update_item(Arc::new(updated_item.clone()));
-    });
-
-    cx.update_global::<TodoEventBus, _>(|bus, _| {
-        bus.publish(TodoStoreEvent::ItemUpdated(item_id.clone()));
     });
 
     let store = get_store(cx);

@@ -1,7 +1,6 @@
 use std::{fmt, str::FromStr};
 
 use chrono::NaiveDateTime;
-use sea_orm::Iden;
 use serde::{Deserialize, Serialize};
 
 use crate::{

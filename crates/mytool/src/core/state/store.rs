@@ -448,10 +448,11 @@ impl TodoStore {
     ///
     /// 使用通用查询方法
     pub fn inbox_items(&self) -> Vec<Arc<ItemModel>> {
+        let today = chrono::Utc::now().naive_utc().date();
         self.query_items(|item| {
             !item.checked
                 && (item.project_id.is_none() || item.project_id.as_deref() == Some(""))
-                && !item.is_due_today()
+                && !item.is_due_on_date(today)
         })
     }
 
@@ -462,10 +463,12 @@ impl TodoStore {
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version)
-            && let Some(cached) = cache.get_inbox()
-        {
-            return cached;
+        if cache.is_valid(self.version) {
+            if let Some(cached) = cache.get_inbox() {
+                return cached;
+            }
+        } else {
+            cache.invalidate_all();
         }
 
         let items = Arc::new(self.inbox_items());
@@ -478,7 +481,8 @@ impl TodoStore {
     ///
     /// 使用通用查询方法
     pub fn today_items(&self) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| !item.checked && item.is_due_today())
+        let today = chrono::Utc::now().naive_utc().date();
+        self.query_items(|item| !item.checked && item.is_due_on_date(today))
     }
 
     /// 获取今日到期的任务（带缓存）
@@ -486,10 +490,12 @@ impl TodoStore {
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version)
-            && let Some(cached) = cache.get_today()
-        {
-            return cached;
+        if cache.is_valid(self.version) {
+            if let Some(cached) = cache.get_today() {
+                return cached;
+            }
+        } else {
+            cache.invalidate_all();
         }
 
         let items = Arc::new(self.today_items());
@@ -503,9 +509,47 @@ impl TodoStore {
         self.query_items(|item| !item.checked && item.due_date().is_some())
     }
 
+    /// 获取计划任务（带缓存）
+    pub fn scheduled_items_cached(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+    ) -> Arc<Vec<Arc<ItemModel>>> {
+        if cache.is_valid(self.version) {
+            if let Some(cached) = cache.get_scheduled() {
+                return cached;
+            }
+        } else {
+            cache.invalidate_all();
+        }
+
+        let items = Arc::new(self.scheduled_items());
+        cache.set_scheduled(items.clone());
+        cache.update_version(self.version);
+        items
+    }
+
     /// 获取已完成的任务（走 checked_set + id_map）
     pub fn completed_items(&self) -> Vec<Arc<ItemModel>> {
         self.checked_set.iter().filter_map(|id| self.id_map.get(id).cloned()).collect()
+    }
+
+    /// 获取已完成的任务（带缓存）
+    pub fn completed_items_cached(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+    ) -> Arc<Vec<Arc<ItemModel>>> {
+        if cache.is_valid(self.version) {
+            if let Some(cached) = cache.get_completed() {
+                return cached;
+            }
+        } else {
+            cache.invalidate_all();
+        }
+
+        let items = Arc::new(self.completed_items());
+        cache.set_completed(items.clone());
+        cache.update_version(self.version);
+        items
     }
 
     /// 获取置顶任务（未完成且已置顶）
@@ -518,9 +562,47 @@ impl TodoStore {
             .collect()
     }
 
+    /// 获取置顶任务（带缓存）
+    pub fn pinned_items_cached(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+    ) -> Arc<Vec<Arc<ItemModel>>> {
+        if cache.is_valid(self.version) {
+            if let Some(cached) = cache.get_pinned() {
+                return cached;
+            }
+        } else {
+            cache.invalidate_all();
+        }
+
+        let items = Arc::new(self.pinned_items());
+        cache.set_pinned(items.clone());
+        cache.update_version(self.version);
+        items
+    }
+
     /// 获取过期任务
     pub fn overdue_items(&self) -> Vec<Arc<ItemModel>> {
         self.query_items(|item| !item.checked && item.is_overdue())
+    }
+
+    /// 获取过期任务（带缓存）
+    pub fn overdue_items_cached(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+    ) -> Arc<Vec<Arc<ItemModel>>> {
+        if cache.is_valid(self.version) {
+            if let Some(cached) = cache.get_overdue() {
+                return cached;
+            }
+        } else {
+            cache.invalidate_all();
+        }
+
+        let items = Arc::new(self.overdue_items());
+        cache.set_overdue(items.clone());
+        cache.update_version(self.version);
+        items
     }
 
     /// 获取指定项目的任务（走 project_index）

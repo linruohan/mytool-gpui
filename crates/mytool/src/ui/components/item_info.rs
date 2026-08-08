@@ -37,7 +37,7 @@ use crate::{
     LabelsPopoverEvent, LabelsPopoverList,
     core::{
         notification::{NotificationExt, NotificationSystem},
-        state::{DBState, TodoEventBus, TodoStore, TodoStoreEvent, get_db_connection},
+        state::{DBState, TodoStore, get_db_connection},
     },
     state_service,
     todo_actions::{
@@ -590,9 +590,6 @@ impl ItemInfoState {
                                     "save_all_changes: labels saved successfully for item {}",
                                     item_id_for_log
                                 );
-                                cx.update_global::<TodoEventBus, _>(|bus, _| {
-                                    bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log));
-                                });
                             },
                             Err(e) => {
                                 error!(
@@ -654,9 +651,6 @@ impl ItemInfoState {
                             // 仅在成功时更新 TodoStore 和发布事件
                             cx.update_global::<TodoStore, _>(|store, _| {
                                 store.update_item(item_for_update.clone());
-                            });
-                            cx.update_global::<TodoEventBus, _>(|bus, _| {
-                                bus.publish(TodoStoreEvent::ItemUpdated(item_id_for_log.clone()));
                             });
                             // 🚀 7.0修复：记录保存成功结果，让主线程后续处理
                             cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {

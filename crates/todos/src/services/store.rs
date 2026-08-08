@@ -1,4 +1,4 @@
-//! Unified Store facade over ServiceManager
+//! Unified Store facade over domain services
 //!
 //! Thin passthrough for GUI/cold-start hot paths only. Prefer specialized
 //! services for new call sites.
@@ -8,15 +8,16 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 
 use crate::{
+    app::PatchManager,
     entity::{AttachmentModel, ItemModel, LabelModel, ProjectModel, ReminderModel, SectionModel},
     error::TodoError,
     services::{
         AttachmentService, ItemService, LabelService, ProjectService, ReminderService,
-        SectionService, ServiceManager,
+        SectionService,
     },
 };
 
-/// Unified Store implementation using ServiceManager
+/// Unified Store implementation holding domain services directly
 #[derive(Clone, Debug)]
 pub struct Store {
     item_service: ItemService,
@@ -31,15 +32,25 @@ impl Store {
     /// Create a new Store
     pub async fn new(db: DatabaseConnection) -> Result<Arc<Self>, TodoError> {
         let db = Arc::new(db);
-        let service_manager = ServiceManager::new(db).await?;
+
+        let patch_manager = PatchManager::new(db.clone());
+        patch_manager.apply_patches().await?;
+
+        let label_service = Arc::new(LabelService::new(db.clone()));
+        let item_service = Arc::new(ItemService::new(db.clone(), label_service.clone()));
+        let section_service =
+            Arc::new(SectionService::new(db.clone(), item_service.clone()));
+        let project_service = Arc::new(ProjectService::new(db.clone(), item_service.clone()));
+        let reminder_service = Arc::new(ReminderService::new(db.clone()));
+        let attachment_service = Arc::new(AttachmentService::new(db.clone()));
 
         Ok(Arc::new(Self {
-            item_service: (*service_manager.item_service()).clone(),
-            project_service: (*service_manager.project_service()).clone(),
-            section_service: (*service_manager.section_service()).clone(),
-            label_service: (*service_manager.label_service()).clone(),
-            reminder_service: (*service_manager.reminder_service()).clone(),
-            attachment_service: (*service_manager.attachment_service()).clone(),
+            item_service: (*item_service).clone(),
+            project_service: (*project_service).clone(),
+            section_service: (*section_service).clone(),
+            label_service: (*label_service).clone(),
+            reminder_service: (*reminder_service).clone(),
+            attachment_service: (*attachment_service).clone(),
         }))
     }
 
@@ -217,13 +228,6 @@ impl Store {
         &self,
         items: Vec<ItemModel>,
     ) -> Result<Vec<ItemModel>, TodoError> {
-        let mut results = Vec::with_capacity(items.len());
-        for item in items {
-            match self.item_service.update_item(item, "").await {
-                Ok(updated) => results.push(updated),
-                Err(e) => tracing::error!("Failed to update item in batch: {:?}", e),
-            }
-        }
-        Ok(results)
+        self.item_service.batch_update_items(items).await
     }
 }

@@ -10,11 +10,10 @@ pub use cache::*;
 pub use database::DBState;
 pub use events::*;
 use gpui::App;
+use tracing::error;
 pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
-use todos::entity;
-use tracing::error;
 
 /// 获取数据库连接的便捷函数
 ///
@@ -65,9 +64,6 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化统一的 TodoStore（唯一数据源）
     cx.set_global(TodoStore::new());
 
-    // 初始化事件总线
-    cx.set_global(TodoEventBus::new());
-
     // 初始化查询缓存
     cx.set_global(QueryCache::new());
 
@@ -94,36 +90,24 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
         tracing::info!("Store initialized, loading data...");
 
-        // 加载数据到 TodoStore（唯一数据源）
-        // 注意：这些操作是顺序执行的，每个操作完成后会释放数据库连接
-        tracing::info!("Loading items...");
-        let items_r = crate::state_service::load_items_with_store(store.clone()).await;
-        if let Ok(ref items) = items_r {
-            let inbox_items: Vec<&entity::ItemModel> = items
-                .iter()
-                .filter(|item| item.project_id.is_none() || item.project_id.as_deref() == Some(""))
-                .collect();
-            tracing::info!(
-                "Loaded {} items ({} inbox without project)",
-                items.len(),
-                inbox_items.len()
-            );
-        }
+        // 并行冷加载：items / projects / sections / labels
+        tracing::info!("Loading items, projects, sections, labels in parallel...");
+        let (items_r, projects_r, sections_r, labels_r) = tokio::join!(
+            crate::state_service::load_items_with_store(store.clone()),
+            crate::state_service::load_projects_with_store(store.clone()),
+            crate::state_service::load_sections_with_store(store.clone()),
+            crate::state_service::load_labels_with_store(store.clone()),
+        );
 
-        tracing::info!("Loading projects...");
-        let projects_r = crate::state_service::load_projects_with_store(store.clone()).await;
+        if let Ok(ref items) = items_r {
+            tracing::info!("Loaded {} items", items.len());
+        }
         if let Ok(ref projects) = projects_r {
             tracing::info!("Loaded {} projects", projects.len());
         }
-
-        tracing::info!("Loading sections...");
-        let sections_r = crate::state_service::load_sections_with_store(store.clone()).await;
         if let Ok(ref sections) = sections_r {
             tracing::info!("Loaded {} sections", sections.len());
         }
-
-        tracing::info!("Loading labels...");
-        let labels_r = crate::state_service::load_labels_with_store(store.clone()).await;
         if let Ok(ref labels) = labels_r {
             tracing::info!("Loaded {} labels", labels.len());
         }

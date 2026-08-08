@@ -13,7 +13,6 @@ use std::{
     sync::{LazyLock, RwLock},
 };
 
-mod app_settings_cfg;
 mod database_cfg;
 mod logging_cfg;
 mod server_cfg;
@@ -21,9 +20,6 @@ mod server_cfg;
 use anyhow::{Context, Result, anyhow, bail};
 use config::{Config, FileFormat};
 use serde::Deserialize;
-mod crypto;
-pub use app_settings_cfg::AppSettings;
-pub use crypto::*;
 pub use database_cfg::DatabaseConfig;
 pub use logging_cfg::LoggingConfig;
 pub use server_cfg::ServerConfig;
@@ -63,13 +59,12 @@ impl Environment {
 
 /// 应用配置结构体
 ///
-/// 包含服务器、数据库和应用设置的配置信息
+/// 包含服务器、数据库和日志的配置信息
 #[derive(Deserialize, Debug, Clone)]
 pub struct AppConfig {
-    server: ServerConfig,
-    database: DatabaseConfig,
     #[serde(default)]
-    app: AppSettings,
+    server: Option<ServerConfig>,
+    database: DatabaseConfig,
     #[serde(default)]
     logging: LoggingConfig,
     #[serde(skip)]
@@ -169,10 +164,12 @@ impl AppConfig {
 
     /// 验证配置有效性
     fn validate(&self) -> Result<()> {
-        // 验证端口范围
-        let port = self.server.port();
-        if port == 0 {
-            bail!("服务器端口不能为0");
+        // 桌面应用可不配置 server；仅在有配置时校验端口
+        if let Some(server) = &self.server {
+            let port = server.port();
+            if port == 0 {
+                bail!("服务器端口不能为0");
+            }
         }
 
         // 验证数据库连接池大小
@@ -198,19 +195,14 @@ impl AppConfig {
         self.config_path.as_deref()
     }
 
-    /// 获取服务器配置
-    pub fn server(&self) -> &ServerConfig {
-        &self.server
+    /// 获取服务器配置（未配置时返回 None）
+    pub fn server(&self) -> Option<&ServerConfig> {
+        self.server.as_ref()
     }
 
     /// 获取数据库配置
     pub fn database(&self) -> &DatabaseConfig {
         &self.database
-    }
-
-    /// 获取应用设置
-    pub fn app(&self) -> &AppSettings {
-        &self.app
     }
 
     /// 获取日志配置
@@ -301,7 +293,7 @@ pub fn reload_with_env(env: Environment) -> Result<()> {
 /// ```ignore
 /// use gconfig::config;
 ///
-/// let port = config!(|cfg| cfg.server().port());
+/// let port = config!(|cfg| cfg.server().map(|s| s.port()));
 /// let db_host = config!(|cfg| cfg.database().host().to_string());
 /// ```
 #[macro_export]

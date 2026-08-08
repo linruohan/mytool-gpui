@@ -1,92 +1,16 @@
 use std::sync::Arc;
 
-use gpui::{App, AsyncApp};
+use gpui::App;
 use todos::entity::ItemModel;
-use tracing::{error, info};
 
-use crate::core::{
-    error_handler::{AppError, ErrorHandler, validation},
-    state::{ErrorNotifier, TodoStore, get_store},
-};
+use super::{delete_item_optimistic, update_item_optimistic};
 
-// 刷新项目 items（由于使用了 TodoStore 作为唯一数据源，不再需要单独更新）
-async fn refresh_project_items(_project_id: &str, _cx: &mut AsyncApp) {
-    // TodoStore 会通过观察者模式自动更新所有视图
-}
-
-/// 统一错误处理辅助函数
-///
-/// 将数据库错误转换为统一格式并通知用户
-fn handle_db_error(
-    cx: &mut AsyncApp,
-    operation: &str,
-    entity_id: &str,
-    e: todos::error::TodoError,
-) {
-    let context =
-        ErrorHandler::handle_with_resource(AppError::Database(Box::new(e)), operation, entity_id);
-    error!("{}", context.format_user_message());
-    cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-        notifier.set_error(context.format_user_message());
-    });
-}
-
-/// 修改 item（异步执行，统一写路径）
-///
-/// 🚀 6.3优化：统一异步模式，使用 DB 返回的最新数据更新内存
+/// 修改 item（委托给乐观更新路径）
 pub fn update_item(item: Arc<ItemModel>, cx: &mut App) {
-    // 验证输入
-    if let Err(e) = validation::validate_task_content(&item.content) {
-        let context = ErrorHandler::handle_with_location(e, "update_item");
-        error!("{}", context.format_user_message());
-        return;
-    }
-
-    let store = get_store(cx);
-    let active_project = cx.global::<TodoStore>().active_project.clone();
-    let item_id = item.id.clone();
-
-    cx.spawn(async move |cx| {
-        match crate::state_service::mod_item_with_store(item.clone(), store).await {
-            Ok(updated_item) => {
-                info!("Successfully updated item: {}", updated_item.id);
-                // 🚀 7.x修复：使用 DB 返回的最新数据，避免内存不一致
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.update_item(Arc::new(updated_item));
-                });
-                // 如果有活跃项目，刷新项目列表
-                if let Some(active) = active_project {
-                    refresh_project_items(&active.id, cx).await;
-                }
-            },
-            Err(e) => {
-                handle_db_error(cx, "update_item", &item_id, e);
-            },
-        }
-    })
-    .detach();
+    update_item_optimistic(item, cx);
 }
 
-/// 删除 item（异步执行，统一写路径）
-///
-/// 🚀 6.3优化：统一为 cx.spawn 异步模式
+/// 删除 item（委托给乐观更新路径）
 pub fn delete_item(item: Arc<ItemModel>, cx: &mut App) {
-    let store = get_store(cx);
-    let item_id = item.id.clone();
-    let item_clone = item.clone();
-
-    cx.spawn(async move |cx| {
-        match crate::state_service::del_item_with_store(item_clone, store).await {
-            Ok(_) => {
-                info!("Successfully deleted item: {}", item_id);
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.remove_item(&item_id);
-                });
-            },
-            Err(e) => {
-                handle_db_error(cx, "delete_item", &item_id, e);
-            },
-        }
-    })
-    .detach();
+    delete_item_optimistic(item, cx);
 }

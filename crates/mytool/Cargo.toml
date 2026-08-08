@@ -24,7 +24,6 @@ sea-orm.workspace = true
 tokio.workspace = true
 itertools.workspace = true
 rfd.workspace = true
-toml.workspace = true
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource.workspace = true

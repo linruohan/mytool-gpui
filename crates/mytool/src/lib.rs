@@ -25,8 +25,6 @@ pub mod core;
 // UI 模块
 mod ui;
 
-// 其他模块
-mod plugins; // 插件系统
 mod utils;
 
 // 重新导出核心模块
@@ -35,8 +33,6 @@ pub use core::{
     state as todo_state,
 };
 
-// 重新导出插件
-pub use plugins::*;
 // 重新导出 UI 模块
 pub use ui::app_menus;
 // 内部使用

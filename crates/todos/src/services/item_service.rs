@@ -6,7 +6,8 @@
 use std::sync::Arc;
 
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, prelude::Expr,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    Set, TransactionTrait, prelude::Expr,
 };
 
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
         BaseRepository, ItemLabelRepository, ItemLabelRepositoryImpl, ItemQueryRepository,
         ItemRepositoryImpl,
     },
-    services::{EventBus, LabelService},
+    services::LabelService,
     utils::retry_with_context,
 };
 
@@ -24,7 +25,6 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ItemService {
     db: Arc<DatabaseConnection>,
-    event_bus: Arc<EventBus>,
     label_service: Arc<LabelService>,
     item_repo: ItemRepositoryImpl,
     item_label_repo: ItemLabelRepositoryImpl,
@@ -32,14 +32,10 @@ pub struct ItemService {
 
 impl ItemService {
     /// Create a new ItemService
-    pub fn new(
-        db: Arc<DatabaseConnection>,
-        event_bus: Arc<EventBus>,
-        label_service: Arc<LabelService>,
-    ) -> Self {
+    pub fn new(db: Arc<DatabaseConnection>, label_service: Arc<LabelService>) -> Self {
         let item_repo = ItemRepositoryImpl::new(db.clone());
         let item_label_repo = ItemLabelRepositoryImpl::new(db.clone());
-        Self { db, event_bus, label_service, item_repo, item_label_repo }
+        Self { db, label_service, item_repo, item_label_repo }
     }
 
     /// Get an item by ID
@@ -78,10 +74,6 @@ impl ItemService {
             start.elapsed().as_millis()
         );
 
-        let item_id = item_model.id.clone();
-        self.publish_item_position(&item_model);
-        self.event_bus.publish(crate::services::event_bus::Event::ItemCreated(item_id));
-
         Ok(item_model)
     }
 
@@ -103,9 +95,13 @@ impl ItemService {
 
         let now = chrono::Utc::now().naive_utc();
 
-        self.execute_item_update(&item, now).await?;
+        let rows_affected = self.execute_item_update(&item, now).await?;
+        if rows_affected == 0 {
+            return Err(TodoError::not_found("Item").with_entity("Item", &item_id));
+        }
 
-        let updated_item = self.fetch_updated_item(&item_id).await?;
+        let mut updated_item = item;
+        updated_item.updated_at = now;
 
         tracing::info!(
             "✅ 更新成功 - id: {}, content: '{}', priority: {:?}",
@@ -114,17 +110,55 @@ impl ItemService {
             updated_item.priority
         );
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id));
-
         Ok(updated_item)
     }
 
-    /// 执行数据库更新操作
+    /// 批量更新任务（单事务）
+    pub async fn batch_update_items(
+        &self,
+        items: Vec<ItemModel>,
+    ) -> Result<Vec<ItemModel>, TodoError> {
+        if items.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let now = chrono::Utc::now().naive_utc();
+        let db = self.db.clone();
+        let items_to_update = items;
+
+        let updated_items = db
+            .transaction::<_, Vec<ItemModel>, TodoError>(|txn| {
+                let items = items_to_update.clone();
+                Box::pin(async move {
+                    let mut results = Vec::with_capacity(items.len());
+                    for item in items {
+                        let item_id = item.id.clone();
+                        let rows_affected = Self::update_item_fields_in_conn(txn, &item, now).await?;
+                        if rows_affected == 0 {
+                            return Err(TodoError::not_found("Item").with_entity("Item", &item_id));
+                        }
+                        let mut updated = item;
+                        updated.updated_at = now;
+                        results.push(updated);
+                    }
+                    Ok(results)
+                })
+            })
+            .await
+            .map_err(|e| match e {
+                sea_orm::TransactionError::Connection(db_err) => TodoError::from(db_err),
+                sea_orm::TransactionError::Transaction(err) => err,
+            })?;
+
+        Ok(updated_items)
+    }
+
+    /// 执行数据库更新操作，返回影响行数
     async fn execute_item_update(
         &self,
         item: &ItemModel,
         now: chrono::NaiveDateTime,
-    ) -> Result<(), TodoError> {
+    ) -> Result<u64, TodoError> {
         let item_id = item.id.clone();
         let db = self.db.clone();
         let item_clone = item.clone();
@@ -132,39 +166,18 @@ impl ItemService {
         retry_with_context("execute_item_update", "Item", &item_id, || {
             let db = db.clone();
             let item = item_clone.clone();
-            let item_id = item_id.clone();
 
-            Box::pin(async move {
-                self.verify_item_exists(&db, &item_id).await?;
-                self.update_item_fields(&db, &item, now).await
-            })
+            Box::pin(async move { Self::update_item_fields_in_conn(&*db, &item, now).await })
         })
         .await
     }
 
-    /// 验证任务是否存在
-    async fn verify_item_exists(
-        &self,
-        db: &DatabaseConnection,
-        item_id: &str,
-    ) -> Result<(), TodoError> {
-        let exists =
-            items::Entity::find().filter(items::Column::Id.eq(item_id)).one(db).await?.is_some();
-
-        if !exists {
-            return Err(TodoError::not_found("Item").with_entity("Item", item_id));
-        }
-
-        Ok(())
-    }
-
     /// 更新任务字段到数据库
-    async fn update_item_fields(
-        &self,
-        db: &DatabaseConnection,
+    async fn update_item_fields_in_conn<C: ConnectionTrait>(
+        conn: &C,
         item: &ItemModel,
         now: chrono::NaiveDateTime,
-    ) -> Result<(), TodoError> {
+    ) -> Result<u64, TodoError> {
         let result = items::Entity::update_many()
             .col_expr(items::Column::Content, Expr::value(item.content.clone()))
             .col_expr(items::Column::Description, Expr::value(item.description.clone()))
@@ -184,7 +197,7 @@ impl ItemService {
             .col_expr(items::Column::ExtraData, Expr::value(item.extra_data.clone()))
             .col_expr(items::Column::ItemType, Expr::value(item.item_type.clone()))
             .filter(items::Column::Id.eq(item.id.clone()))
-            .exec(db)
+            .exec(conn)
             .await;
 
         match &result {
@@ -196,47 +209,49 @@ impl ItemService {
             },
         }
 
-        result.map(|_| ()).map_err(TodoError::from)
-    }
-
-    /// 获取更新后的任务
-    async fn fetch_updated_item(&self, item_id: &str) -> Result<ItemModel, TodoError> {
-        let service = self.clone();
-        let item_id = item_id.to_string();
-
-        retry_with_context("fetch_updated_item", "Item", &item_id, || {
-            let service = service.clone();
-            let item_id = item_id.clone();
-
-            Box::pin(async move {
-                service.get_item(&item_id).await.ok_or_else(|| {
-                    TodoError::not_found("Updated item").with_entity("Item", &item_id)
-                })
-            })
-        })
-        .await
+        result.map(|res| res.rows_affected).map_err(TodoError::from)
     }
 
     /// Delete an item and its children
     ///
     /// 同时删除 item_labels 关联表中的记录（通过数据库级联删除）
     pub async fn delete_item(&self, item_id: &str) -> Result<(), TodoError> {
-        let item_id_clone = item_id.to_string();
+        let ids = self.collect_descendant_ids(item_id).await?;
+        self.delete_items_by_ids(ids).await?;
+        Ok(())
+    }
 
-        let mut items_to_delete = vec![item_id.to_string()];
+    /// 收集任务及其所有子任务的 ID（按层批量查询，避免 N+1 逐条删除）
+    pub(crate) async fn collect_descendant_ids(&self, root_id: &str) -> Result<Vec<String>, TodoError> {
+        let mut result = vec![root_id.to_string()];
+        let mut parents_to_search = vec![root_id.to_string()];
 
-        while let Some(current_id) = items_to_delete.pop() {
-            let subitems =
-                ItemQueryRepository::find_by_parent(&self.item_repo, &current_id).await?;
+        while !parents_to_search.is_empty() {
+            let batch = std::mem::take(&mut parents_to_search);
+            let children = items::Entity::find()
+                .filter(items::Column::ParentId.is_in(batch))
+                .all(&*self.db)
+                .await?;
 
-            for item in subitems {
-                items_to_delete.push(item.id);
+            for child in children {
+                result.push(child.id.clone());
+                parents_to_search.push(child.id);
             }
-
-            BaseRepository::delete(&self.item_repo, &current_id).await?;
         }
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemDeleted(item_id_clone));
+        Ok(result)
+    }
+
+    /// 批量删除任务（item_labels/reminders/attachments 由 FK CASCADE 处理）
+    pub(crate) async fn delete_items_by_ids(&self, ids: Vec<String>) -> Result<(), TodoError> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+
+        items::Entity::delete_many()
+            .filter(items::Column::Id.is_in(ids))
+            .exec(&*self.db)
+            .await?;
 
         Ok(())
     }
@@ -252,8 +267,6 @@ impl ItemService {
             .exec(&*self.db)
             .await?;
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
-
         Ok(())
     }
 
@@ -264,8 +277,6 @@ impl ItemService {
         checked: bool,
         complete_subitems: bool,
     ) -> Result<(), TodoError> {
-        let item_id_clone = item_id.to_string();
-
         let active_model = ItemActiveModel {
             id: Set(item_id.to_string()),
             checked: Set(checked),
@@ -298,26 +309,7 @@ impl ItemService {
             }
         }
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id_clone));
-
         Ok(())
-    }
-
-    // ==================== Helper Methods ====================
-
-    fn publish_item_position(&self, item: &ItemModel) {
-        if let Some(project_id) = &item.project_id
-            && let Some(section_id) = &item.section_id
-        {
-            self.publish_item_position_update(project_id, section_id);
-        }
-    }
-
-    fn publish_item_position_update(&self, project_id: &str, section_id: &str) {
-        self.event_bus.publish(crate::services::event_bus::Event::ItemsPositionUpdated(
-            project_id.to_string(),
-            section_id.to_string(),
-        ));
     }
 
     // ==================== Additional Business Logic Methods ====================
@@ -375,7 +367,6 @@ impl ItemService {
 
         self.item_label_repo.add_label_to_item(item_id, &label.id).await?;
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }
 
@@ -389,7 +380,6 @@ impl ItemService {
     ) -> Result<(), TodoError> {
         self.item_label_repo.remove_label_from_item(item_id, label_id).await?;
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }
 
@@ -414,7 +404,6 @@ impl ItemService {
     ) -> Result<(), TodoError> {
         self.item_label_repo.set_item_labels(item_id, label_ids).await?;
 
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
         Ok(())
     }
 }

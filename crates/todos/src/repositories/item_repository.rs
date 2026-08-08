@@ -6,14 +6,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder,
 };
 
-use super::base_repository::{
-    BaseRepository, PageableRepository, PagedResult, Pagination, RepositoryBase, RepositoryResult,
-    SoftDeletableRepository,
-};
+use super::base_repository::{BaseRepository, RepositoryBase, RepositoryResult};
 use crate::{
     entity::{ItemModel, items, prelude::ItemEntity},
     error::TodoError,
@@ -148,59 +145,6 @@ impl BaseRepository<ItemModel> for ItemRepositoryImpl {
     async fn count(&self) -> RepositoryResult<u64> {
         ItemEntity::find()
             .count(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-}
-
-#[async_trait]
-impl PageableRepository<ItemModel> for ItemRepositoryImpl {
-    async fn find_paged(&self, pagination: Pagination) -> RepositoryResult<PagedResult<ItemModel>> {
-        let total = self.count().await?;
-        let items = ItemEntity::find()
-            .order_by_asc(items::Column::DayOrder)
-            .offset(pagination.offset())
-            .limit(pagination.limit())
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
-
-        Ok(PagedResult::new(items, total, pagination.page, pagination.per_page))
-    }
-}
-
-#[async_trait]
-impl SoftDeletableRepository<ItemModel> for ItemRepositoryImpl {
-    async fn soft_delete(&self, id: &str) -> RepositoryResult<bool> {
-        if let Some(mut item) = BaseRepository::find_by_id(self, id).await? {
-            item.is_deleted = true;
-            self.update(&item).await?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
-    async fn restore(&self, id: &str) -> RepositoryResult<bool> {
-        if let Some(mut item) = BaseRepository::find_by_id(self, id).await? {
-            item.is_deleted = false;
-            self.update(&item).await?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
-    async fn find_active(&self) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::IsDeleted.eq(false))
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_deleted(&self) -> RepositoryResult<Vec<ItemModel>> {
-        ItemEntity::find()
-            .filter(items::Column::IsDeleted.eq(true))
-            .all(self.base.database())
             .await
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
     }

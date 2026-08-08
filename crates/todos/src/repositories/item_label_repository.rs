@@ -4,7 +4,6 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     QuerySelect, Set,

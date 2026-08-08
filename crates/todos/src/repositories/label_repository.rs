@@ -7,13 +7,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect,
+    QueryOrder,
 };
 
-use super::base_repository::{
-    BaseRepository, PageableRepository, PagedResult, Pagination, RepositoryBase, RepositoryResult,
-    SoftDeletableRepository,
-};
+use super::base_repository::{BaseRepository, RepositoryBase, RepositoryResult};
 use crate::{
     entity::{LabelModel, labels, prelude::LabelEntity},
     error::TodoError,
@@ -125,62 +122,6 @@ impl BaseRepository<LabelModel> for LabelRepositoryImpl {
     async fn count(&self) -> RepositoryResult<u64> {
         LabelEntity::find()
             .count(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-}
-
-#[async_trait]
-impl PageableRepository<LabelModel> for LabelRepositoryImpl {
-    async fn find_paged(
-        &self,
-        pagination: Pagination,
-    ) -> RepositoryResult<PagedResult<LabelModel>> {
-        let total = self.count().await?;
-        let items = LabelEntity::find()
-            .order_by_asc(labels::Column::ItemOrder)
-            .offset(pagination.offset())
-            .limit(pagination.limit())
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))?;
-
-        Ok(PagedResult::new(items, total, pagination.page, pagination.per_page))
-    }
-}
-
-#[async_trait]
-impl SoftDeletableRepository<LabelModel> for LabelRepositoryImpl {
-    async fn soft_delete(&self, id: &str) -> RepositoryResult<bool> {
-        if let Some(mut label) = BaseRepository::find_by_id(self, id).await? {
-            label.is_deleted = true;
-            self.update(&label).await?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
-    async fn restore(&self, id: &str) -> RepositoryResult<bool> {
-        if let Some(mut label) = BaseRepository::find_by_id(self, id).await? {
-            label.is_deleted = false;
-            self.update(&label).await?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-
-    async fn find_active(&self) -> RepositoryResult<Vec<LabelModel>> {
-        LabelEntity::find()
-            .filter(labels::Column::IsDeleted.eq(false))
-            .all(self.base.database())
-            .await
-            .map_err(|e| TodoError::DatabaseError(e.to_string()))
-    }
-
-    async fn find_deleted(&self) -> RepositoryResult<Vec<LabelModel>> {
-        LabelEntity::find()
-            .filter(labels::Column::IsDeleted.eq(true))
-            .all(self.base.database())
             .await
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
     }
