@@ -136,8 +136,12 @@ trait IndexOperation {
     /// 🚀 6.8优化：更新标签索引
     fn update_label_index(&mut self, item: &Arc<ItemModel>, add: bool);
 
+    /// 更新 id → item 映射
+    fn update_id_map(&mut self, item: &Arc<ItemModel>, add: bool);
+
     /// 添加任务到所有索引
     fn add_to_all_indexes(&mut self, item: &Arc<ItemModel>) {
+        self.update_id_map(item, true);
         self.update_project_index(item, true);
         self.update_section_index(item, true);
         self.update_checked_set(item, true);
@@ -152,6 +156,7 @@ trait IndexOperation {
         self.update_checked_set(item, false);
         self.update_pinned_set(item, false);
         self.update_label_index(item, false);
+        self.update_id_map(item, false);
     }
 }
 
@@ -182,6 +187,8 @@ pub struct TodoStore {
     /// 🚀 6.8优化：标签索引 - label_id -> item_ids 反查索引
     /// 避免每次查询时解析 JSON/字符串
     label_index: HashMap<String, Vec<String>>,
+    /// id → item 映射，供索引反查 O(1) 取 Arc
+    id_map: HashMap<String, Arc<ItemModel>>,
 
     /// 临时 ID 到真实 ID 的映射（用于 ID 变化检测）
     id_mappings: HashMap<String, String>,
@@ -259,6 +266,7 @@ impl TodoStore {
             checked_set: HashSet::new(),
             pinned_set: HashSet::new(),
             label_index: HashMap::new(),
+            id_map: HashMap::new(),
             id_mappings: HashMap::new(),
             version: 0,
             change_mask: ChangeMask::none(),
@@ -305,16 +313,16 @@ impl TodoStore {
 
     /// 🚀 6.9修复：安全地递增版本号（基于时间窗口的防重入）
     ///
-    /// 如果距上次 version++ 不足 2ms（说明在同一事件循环/观察者分发周期内），
-    /// 则跳过版本递增。这打破了 observe_global 的无限递归循环：
-    ///   - 正常的用户操作 → version++ → 观察者触发 → 嵌套 update → 被跳过 ✅
-    ///   - 下一次独立事件 → 距上次 >2ms → 正常 version++ ✅
+    /// 如果距上次 version++ 不足 50ms（同一事件循环/观察者分发窗口），
+    /// 则跳过版本递增，掩码继续 OR 合并。真正递增时先清空掩码，
+    /// 保证多 Board 可安全 peek 且掩码不会永久 sticky。
     #[inline]
     fn bump_version(&mut self) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_bump_time.get());
         if elapsed.as_millis() >= 50 {
             self.version += 1;
+            self.change_mask.clear();
             self.last_bump_time.set(now);
         }
     }
@@ -409,10 +417,13 @@ impl TodoStore {
         self.section_index.clear();
         self.checked_set.clear();
         self.pinned_set.clear();
+        self.label_index.clear();
+        self.id_map.clear();
 
-        let items = self.all_items.clone();
-        for item in &items {
-            self.add_to_all_indexes(item);
+        // 用下标遍历，避免 clone 整表 Vec<Arc<_>>
+        for i in 0..self.all_items.len() {
+            let item = self.all_items[i].clone();
+            self.add_to_all_indexes(&item);
         }
     }
 
@@ -446,20 +457,18 @@ impl TodoStore {
 
     /// 获取收件箱任务（带缓存）
     ///
-    /// 如果缓存有效，直接返回缓存结果；否则重新计算并更新缓存
+    /// 命中时只克隆 Arc，避免整表 Vec 分配。
     pub fn inbox_items_cached(
         &self,
         cache: &crate::core::state::cache::QueryCache,
-    ) -> Vec<Arc<ItemModel>> {
-        // 检查缓存是否有效
+    ) -> Arc<Vec<Arc<ItemModel>>> {
         if cache.is_valid(self.version)
             && let Some(cached) = cache.get_inbox()
         {
             return cached;
         }
 
-        // 缓存无效，重新计算
-        let items = self.inbox_items();
+        let items = Arc::new(self.inbox_items());
         cache.set_inbox(items.clone());
         cache.update_version(self.version);
         items
@@ -476,14 +485,14 @@ impl TodoStore {
     pub fn today_items_cached(
         &self,
         cache: &crate::core::state::cache::QueryCache,
-    ) -> Vec<Arc<ItemModel>> {
+    ) -> Arc<Vec<Arc<ItemModel>>> {
         if cache.is_valid(self.version)
             && let Some(cached) = cache.get_today()
         {
             return cached;
         }
 
-        let items = self.today_items();
+        let items = Arc::new(self.today_items());
         cache.set_today(items.clone());
         cache.update_version(self.version);
         items
@@ -494,14 +503,19 @@ impl TodoStore {
         self.query_items(|item| !item.checked && item.due_date().is_some())
     }
 
-    /// 获取已完成的任务
+    /// 获取已完成的任务（走 checked_set + id_map）
     pub fn completed_items(&self) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| item.checked)
+        self.checked_set.iter().filter_map(|id| self.id_map.get(id).cloned()).collect()
     }
 
     /// 获取置顶任务（未完成且已置顶）
     pub fn pinned_items(&self) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| !item.checked && item.pinned)
+        self.pinned_set
+            .iter()
+            .filter_map(|id| self.id_map.get(id))
+            .filter(|item| !item.checked)
+            .cloned()
+            .collect()
     }
 
     /// 获取过期任务
@@ -509,21 +523,24 @@ impl TodoStore {
         self.query_items(|item| !item.checked && item.is_overdue())
     }
 
-    /// 获取指定项目的任务
+    /// 获取指定项目的任务（走 project_index）
     pub fn items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| item.project_id.as_deref() == Some(project_id))
+        self.project_index.get(project_id).cloned().unwrap_or_default()
     }
 
     /// 获取指定项目的置顶任务（未完成且已置顶）
     pub fn pinned_items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| {
-            item.project_id.as_deref() == Some(project_id) && !item.checked && item.pinned
-        })
+        self.project_index
+            .get(project_id)
+            .map(|items| {
+                items.iter().filter(|item| !item.checked && item.pinned).cloned().collect()
+            })
+            .unwrap_or_default()
     }
 
-    /// 获取指定分区的任务
+    /// 获取指定分区的任务（走 section_index）
     pub fn items_by_section(&self, section_id: &str) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| item.section_id.as_deref() == Some(section_id))
+        self.section_index.get(section_id).cloned().unwrap_or_default()
     }
 
     /// 获取无分区的任务
@@ -533,18 +550,11 @@ impl TodoStore {
         })
     }
 
-    /// 🚀 6.8优化：获取指定标签的任务（使用标签索引）
-    ///
-    /// 优先使用 label_index 反查索引，避免遍历所有任务并解析字符串。
+    /// 获取指定标签的任务（label_index + id_map）
     pub fn items_by_label(&self, label_id: &str) -> Vec<Arc<ItemModel>> {
-        // 使用标签索引快速查找
         if let Some(item_ids) = self.label_index.get(label_id) {
-            item_ids
-                .iter()
-                .filter_map(|id| self.all_items.iter().find(|item| &item.id == id).cloned())
-                .collect()
+            item_ids.iter().filter_map(|id| self.id_map.get(id).cloned()).collect()
         } else {
-            // 索引未命中（理论上不应发生），降级为全量扫描
             self.query_items(|item| {
                 item.labels
                     .as_deref()
@@ -681,7 +691,7 @@ impl TodoStore {
 
     /// 根据ID获取单个任务
     pub fn get_item(&self, id: &str) -> Option<Arc<ItemModel>> {
-        self.all_items.iter().find(|i| i.id == id).cloned()
+        self.id_map.get(id).cloned()
     }
 
     /// 增量更新单个项目
@@ -895,6 +905,9 @@ impl TodoStore {
             items[pos] = new_item.clone();
         }
 
+        // 始终刷新 id_map 中的 Arc
+        self.update_id_map(new_item, true);
+
         // 🚀 优化 3: 检查完成状态是否变化
         if old_item.checked != new_item.checked {
             self.update_checked_set(new_item, true);
@@ -1005,7 +1018,10 @@ impl IndexOperation for TodoStore {
                 if label_id.is_empty() {
                     continue;
                 }
-                self.label_index.entry(label_id.to_string()).or_default().push(item.id.clone());
+                let entry = self.label_index.entry(label_id.to_string()).or_default();
+                if !entry.iter().any(|id| id == &item.id) {
+                    entry.push(item.id.clone());
+                }
             }
         } else {
             // 移除：从各标签对应的列表中移除 item.id
@@ -1021,6 +1037,14 @@ impl IndexOperation for TodoStore {
                     }
                 }
             }
+        }
+    }
+
+    fn update_id_map(&mut self, item: &Arc<ItemModel>, add: bool) {
+        if add {
+            self.id_map.insert(item.id.clone(), item.clone());
+        } else {
+            self.id_map.remove(&item.id);
         }
     }
 }
@@ -1080,22 +1104,22 @@ mod tests {
         let tomorrow =
             (chrono::Utc::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
 
-        store.all_items = vec![
+        store.set_items(vec![
             // 无项目、未完成、无日期 -> 应该在 Inbox
-            Arc::new(create_test_item("1", false, false, None)),
+            create_test_item("1", false, false, None),
             // 无项目、已完成、无日期 -> 不应该在 Inbox
-            Arc::new(create_test_item("2", true, false, None)),
+            create_test_item("2", true, false, None),
             // 无项目、未完成、有日期 -> 应该在 Inbox
-            Arc::new(create_test_item("3", false, false, None)),
+            create_test_item("3", false, false, None),
             // 无项目、未完成、昨天日期 -> 应该在 Inbox (is_past_due = true)
-            Arc::new(create_test_item("4", false, false, Some(&yesterday))),
+            create_test_item("4", false, false, Some(&yesterday)),
             // 无项目、未完成、今天日期 -> 不应该在 Inbox (is_due_today = true)
-            Arc::new(create_test_item("5", false, false, Some(&today))),
+            create_test_item("5", false, false, Some(&today)),
             // 无项目、未完成、明天日期 -> 应该在 Inbox (!is_due_today = true)
-            Arc::new(create_test_item("6", false, false, Some(&tomorrow))),
+            create_test_item("6", false, false, Some(&tomorrow)),
             // 有项目、未完成 -> 不应该在 Inbox
-            Arc::new(create_test_item_with_project("7", false, false, None, "proj1")),
-        ];
+            create_test_item_with_project("7", false, false, None, "proj1"),
+        ]);
 
         let inbox = store.inbox_items();
         // 应该在 Inbox: 1, 3, 4, 6 = 4 个
@@ -1115,14 +1139,43 @@ mod tests {
     #[test]
     fn test_pinned_items() {
         let mut store = TodoStore::new();
-        store.all_items = vec![
-            Arc::new(create_test_item("1", false, true, None)),
-            Arc::new(create_test_item("2", false, false, None)),
-            Arc::new(create_test_item("3", true, true, None)),
-        ];
+        store.set_items(vec![
+            create_test_item("1", false, true, None),
+            create_test_item("2", false, false, None),
+            create_test_item("3", true, true, None),
+        ]);
 
         let pinned = store.pinned_items();
         assert_eq!(pinned.len(), 1);
         assert_eq!(pinned[0].id, "1");
+    }
+
+    #[test]
+    fn test_items_by_project_uses_index() {
+        let mut store = TodoStore::new();
+        store.set_items(vec![
+            create_test_item_with_project("1", false, false, None, "p1"),
+            create_test_item_with_project("2", false, false, None, "p1"),
+            create_test_item_with_project("3", false, false, None, "p2"),
+            create_test_item("4", false, false, None),
+        ]);
+
+        let p1 = store.items_by_project("p1");
+        assert_eq!(p1.len(), 2);
+        let p2 = store.items_by_project("p2");
+        assert_eq!(p2.len(), 1);
+    }
+
+    #[test]
+    fn test_label_index_rebuild_clears() {
+        let mut store = TodoStore::new();
+        let mut a = create_test_item("1", false, false, None);
+        a.labels = Some("l1".to_string());
+        store.set_items(vec![a.clone(), create_test_item("2", false, false, None)]);
+        assert_eq!(store.items_by_label("l1").len(), 1);
+
+        // 再次 set_items 应清空后重建，不应重复
+        store.set_items(vec![a]);
+        assert_eq!(store.items_by_label("l1").len(), 1);
     }
 }

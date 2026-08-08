@@ -1,7 +1,6 @@
 mod cache;
 mod database;
 mod events;
-mod observer;
 mod pending_tasks;
 mod store;
 
@@ -11,7 +10,6 @@ pub use cache::*;
 pub use database::{DBState, *};
 pub use events::*;
 use gpui::App;
-pub use observer::*;
 pub use pending_tasks::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
@@ -96,17 +94,8 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化查询缓存
     cx.set_global(QueryCache::new());
 
-    // 初始化批量操作队列
-    cx.set_global(BatchOperations::new());
-
     // 初始化错误通知器
     cx.set_global(ErrorNotifier::new());
-
-    // 初始化观察者注册表
-    cx.set_global(ObserverRegistry::new());
-
-    // 初始化脏标记系统
-    cx.set_global(DirtyFlags::new());
 
     // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
@@ -127,13 +116,6 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
             .unwrap_or_else(|e| panic!("Failed to initialize Store: {e}"));
 
         tracing::info!("Store initialized, loading data...");
-
-        // 🔍 诊断：初始化完成后检查连接池状态
-        todos::utils::pool_monitor::diagnose_pool_state(
-            &db_state.get_connection(),
-            "after_store_init",
-        )
-        .await;
 
         // 加载数据到 TodoStore（唯一数据源）
         // 注意：这些操作是顺序执行的，每个操作完成后会释放数据库连接
@@ -168,13 +150,6 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         if let Ok(ref labels) = labels_r {
             tracing::info!("Loaded {} labels", labels.len());
         }
-
-        // 🔍 诊断：所有数据加载完成后检查连接池状态
-        todos::utils::pool_monitor::diagnose_pool_state(
-            &db_state.get_connection(),
-            "after_data_load",
-        )
-        .await;
 
         let mut load_failures: Vec<String> = Vec::new();
         if let Err(ref e) = items_r {
@@ -219,10 +194,6 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         }
 
         tracing::info!("Initial data load task finished, UI will be notified");
-
-        // 初始化完成后诊断连接池状态
-        let db_conn = db_state.get_connection();
-        todos::utils::pool_monitor::diagnose_pool_state(&db_conn, "state_init").await;
     })
     .detach();
 }

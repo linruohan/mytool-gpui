@@ -83,36 +83,10 @@ pub async fn get_items_by_project_id_with_store(
 
 // ==================== 批量操作 ====================
 
-/// 批量添加任务（推荐）
-pub async fn batch_add_items_with_store(
-    items: Vec<ItemModel>,
-    store: Arc<Store>,
-) -> Result<Vec<ItemModel>, TodoError> {
-    store.batch_insert_items(items).await
-}
-
 /// 批量更新任务（推荐）
 pub async fn batch_update_items_with_store(
     items: Vec<ItemModel>,
     store: Arc<Store>,
 ) -> Result<Vec<ItemModel>, TodoError> {
     store.batch_update_items(items).await
-}
-
-/// 批量删除任务（推荐）
-pub async fn batch_delete_items_with_store(
-    item_ids: Vec<String>,
-    store: Arc<Store>,
-) -> Result<usize, TodoError> {
-    store.batch_delete_items(item_ids).await
-}
-
-/// 批量完成/取消完成任务（推荐）
-pub async fn batch_complete_items_with_store(
-    item_ids: Vec<String>,
-    checked: bool,
-    complete_sub_items: bool,
-    store: Arc<Store>,
-) -> Result<usize, TodoError> {
-    store.batch_complete_items(item_ids, checked, complete_sub_items).await
 }

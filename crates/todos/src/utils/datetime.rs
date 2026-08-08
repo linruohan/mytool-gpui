@@ -6,7 +6,7 @@ use chrono::{
 };
 use serde_json::Value;
 
-use crate::{Item, enums::RecurrencyType, objects::DueDate};
+use crate::{enums::RecurrencyType, objects::DueDate};
 pub const EMPTY_DATETIME: NaiveDateTime =
     chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc();
 #[derive(Default)]
@@ -461,14 +461,6 @@ impl DateTime {
     pub fn is_current_month(&self, date: NaiveDateTime) -> bool {
         let now = Local::now().naive_local();
         if date.year() == now.year() { date.month() == now.month() } else { false }
-    }
-
-    pub fn get_markdown_format_date(&self, item: &Item) -> String {
-        item.due()
-            .expect("REASON")
-            .datetime()
-            .map(|dt| format!(" ({}) ", self.get_relative_date_from_date(&dt)))
-            .unwrap_or_else(|| " ".to_string())
     }
 
     pub fn get_datetime_no_seconds(&self, datetime: NaiveDateTime) -> NaiveDateTime {

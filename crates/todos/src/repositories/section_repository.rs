@@ -204,36 +204,3 @@ impl SectionQueryRepository for SectionRepositoryImpl {
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
     }
 }
-
-/// 旧版兼容接口（已废弃，请使用 BaseRepository）
-#[deprecated(since = "0.2.0", note = "请使用 BaseRepository<SectionModel> trait")]
-#[async_trait::async_trait]
-pub trait SectionRepository {
-    async fn find_by_id(&self, id: &str) -> Result<SectionModel, TodoError>;
-    async fn find_all(&self) -> Result<Vec<SectionModel>, TodoError>;
-    async fn find_by_project(&self, project_id: &str) -> Result<Vec<SectionModel>, TodoError>;
-    async fn delete(&self, id: &str) -> Result<(), TodoError>;
-}
-
-#[allow(deprecated)]
-#[async_trait::async_trait]
-impl SectionRepository for SectionRepositoryImpl {
-    async fn find_by_id(&self, id: &str) -> Result<SectionModel, TodoError> {
-        BaseRepository::find_by_id(self, id)
-            .await?
-            .ok_or_else(|| TodoError::NotFound(format!("Section {} not found", id)))
-    }
-
-    async fn find_all(&self) -> Result<Vec<SectionModel>, TodoError> {
-        BaseRepository::find_all(self).await
-    }
-
-    async fn find_by_project(&self, project_id: &str) -> Result<Vec<SectionModel>, TodoError> {
-        SectionQueryRepository::find_by_project(self, project_id).await
-    }
-
-    async fn delete(&self, id: &str) -> Result<(), TodoError> {
-        BaseRepository::delete(self, id).await?;
-        Ok(())
-    }
-}

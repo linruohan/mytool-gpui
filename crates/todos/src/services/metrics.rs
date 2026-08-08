@@ -1,12 +1,6 @@
-//! Performance metrics and monitoring
+//! Performance metrics and monitoring (no-op stub)
 
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::{Duration, Instant},
-};
-
-use tokio::sync::RwLock;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 /// Performance metrics for database operations
 #[derive(Debug, Clone)]
@@ -26,30 +20,17 @@ impl OperationMetrics {
             count: 0,
             total_duration: Duration::ZERO,
             avg_duration: Duration::ZERO,
-            min_duration: Duration::MAX,
+            min_duration: Duration::ZERO,
             max_duration: Duration::ZERO,
             cache_hits: 0,
             cache_misses: 0,
         }
     }
 
-    pub fn record(&mut self, duration: Duration, cache_hit: bool) {
-        self.count += 1;
-        self.total_duration += duration;
-        self.avg_duration = self.total_duration / self.count as u32;
-        self.min_duration = self.min_duration.min(duration);
-        self.max_duration = self.max_duration.max(duration);
-
-        if cache_hit {
-            self.cache_hits += 1;
-        } else {
-            self.cache_misses += 1;
-        }
-    }
+    pub fn record(&mut self, _duration: Duration, _cache_hit: bool) {}
 
     pub fn cache_hit_rate(&self) -> f64 {
-        let total = self.cache_hits + self.cache_misses;
-        if total == 0 { 0.0 } else { self.cache_hits as f64 / total as f64 }
+        0.0
     }
 }
 
@@ -59,76 +40,51 @@ impl Default for OperationMetrics {
     }
 }
 
-/// Metrics collector for performance monitoring
-#[derive(Clone, Debug)]
+/// Metrics collector for performance monitoring (no-op)
+#[derive(Clone, Debug, Default)]
 pub struct MetricsCollector {
-    metrics: Arc<RwLock<HashMap<String, OperationMetrics>>>,
+    _marker: Arc<()>,
 }
 
 impl MetricsCollector {
     pub fn new() -> Self {
-        Self { metrics: Arc::new(RwLock::new(HashMap::new())) }
+        Self { _marker: Arc::new(()) }
     }
 
     /// Record an operation with its duration and cache hit status
-    pub async fn record(&self, operation: &str, duration: Duration, cache_hit: bool) {
-        let mut metrics = self.metrics.write().await;
-        let op_metrics = metrics.entry(operation.to_string()).or_default();
-        op_metrics.record(duration, cache_hit);
-    }
+    pub async fn record(&self, _operation: &str, _duration: Duration, _cache_hit: bool) {}
 
     /// Get metrics for a specific operation
-    pub async fn get_metrics(&self, operation: &str) -> Option<OperationMetrics> {
-        let metrics = self.metrics.read().await;
-        metrics.get(operation).cloned()
+    pub async fn get_metrics(&self, _operation: &str) -> Option<OperationMetrics> {
+        None
     }
 
     /// Get all metrics
     pub async fn get_all_metrics(&self) -> HashMap<String, OperationMetrics> {
-        let metrics = self.metrics.read().await;
-        metrics.clone()
+        HashMap::new()
     }
 
     /// Clear all metrics
-    pub async fn clear(&self) {
-        let mut metrics = self.metrics.write().await;
-        metrics.clear();
-    }
+    pub async fn clear(&self) {}
 
     /// Start a timer for an operation
-    pub fn start_timer(&self, operation: &str) -> Timer {
-        Timer::new(operation.to_string(), self.clone())
+    pub fn start_timer(&self, _operation: &str) -> Timer {
+        Timer
     }
 
     /// Record an operation with count
-    pub async fn record_operation(&self, operation: &str, _count: usize) {
-        // This is a simplified version, just record a zero duration
-        self.record(operation, Duration::ZERO, false).await;
-    }
+    pub async fn record_operation(&self, _operation: &str, _count: usize) {}
 }
 
-impl Default for MetricsCollector {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Timer for measuring operation duration
-pub struct Timer {
-    start: Instant,
-    operation: String,
-    collector: MetricsCollector,
-}
+/// Timer for measuring operation duration (no-op)
+pub struct Timer;
 
 impl Timer {
-    pub fn new(operation: String, collector: MetricsCollector) -> Self {
-        Self { start: Instant::now(), operation, collector }
+    pub fn new(_operation: String, _collector: MetricsCollector) -> Self {
+        Self
     }
 
-    pub async fn stop(self, cache_hit: bool) {
-        let duration = self.start.elapsed();
-        self.collector.record(&self.operation, duration, cache_hit).await;
-    }
+    pub async fn stop(self, _cache_hit: bool) {}
 }
 
 /// Macro to easily time operations

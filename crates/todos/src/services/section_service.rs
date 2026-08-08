@@ -2,19 +2,15 @@
 //!
 //! This module provides business logic for Section operations,
 //! separating it from data access layer.
-#![allow(deprecated)] // 允许使用废弃的 Repository trait（兼容层，待迁移到 BaseRepository）
 
 use std::sync::Arc;
 
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QuerySelect, Set, prelude::Expr,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use crate::{
-    entity::{SectionActiveModel, SectionModel, prelude::*, sections},
+    entity::{SectionActiveModel, SectionModel},
     error::TodoError,
-    repositories::{SectionRepository, SectionRepositoryImpl},
+    repositories::{BaseRepository, SectionRepositoryImpl},
     services::{EventBus, ItemService, MetricsCollector},
 };
 
@@ -38,12 +34,6 @@ impl SectionService {
     ) -> Self {
         let section_repo = SectionRepositoryImpl::new(db.clone());
         Self { db, event_bus, metrics, section_repo, item_service }
-    }
-
-    /// Get a section by ID
-    pub async fn get_section(&self, id: &str) -> Option<SectionModel> {
-        let result: Result<SectionModel, TodoError> = self.section_repo.find_by_id(id).await;
-        result.ok()
     }
 
     /// Insert a new section
@@ -99,102 +89,18 @@ impl SectionService {
             self.item_service.delete_item(&item.id).await?;
         }
 
-        self.section_repo.delete(section_id).await?;
+        BaseRepository::delete(&self.section_repo, section_id).await?;
         self.event_bus.publish(crate::services::event_bus::Event::SectionDeleted(section_id_clone));
 
         (*self.metrics).record_operation("delete_section", 1).await;
         Ok(())
     }
 
-    /// Move section to another project
-    pub async fn move_section(&self, section_id: &str, project_id: &str) -> Result<(), TodoError> {
-        let _timer = (*self.metrics).start_timer("move_section");
-        let section = self
-            .get_section(section_id)
-            .await
-            .ok_or_else(|| TodoError::not_found("Section").with_entity("Section", section_id))?;
-
-        // 显式设置所有字段，避免使用 ..section.into()
-        SectionEntity::update(SectionActiveModel {
-            id: Set(section_id.to_string()),
-            name: Set(section.name),
-            archived_at: Set(section.archived_at),
-            added_at: Set(section.added_at),
-            project_id: Set(Some(project_id.to_string())),
-            section_order: Set(section.section_order),
-            collapsed: Set(section.collapsed),
-            is_deleted: Set(section.is_deleted),
-            is_archived: Set(section.is_archived),
-            color: Set(section.color),
-            description: Set(section.description),
-            hidded: Set(section.hidded),
-        })
-        .exec(&*self.db)
-        .await?;
-
-        self.event_bus
-            .publish(crate::services::event_bus::Event::SectionUpdated(section_id.to_string()));
-
-        (*self.metrics).record_operation("move_section", 1).await;
-        Ok(())
-    }
-
-    /// Archive a section and its items
-    pub async fn archive_section(&self, section_id: &str, archived: bool) -> Result<(), TodoError> {
-        let _timer = (*self.metrics).start_timer("archive_section");
-        let section = self
-            .get_section(section_id)
-            .await
-            .ok_or_else(|| TodoError::not_found("Section").with_entity("Section", section_id))?;
-
-        let archived_new = if section.is_archived == archived { !archived } else { archived };
-        // 显式设置所有字段，避免使用 ..section.into()
-        let active_model = SectionActiveModel {
-            id: Set(section_id.to_string()),
-            name: Set(section.name),
-            archived_at: Set(Some(chrono::Utc::now().naive_utc())),
-            added_at: Set(section.added_at),
-            project_id: Set(section.project_id),
-            section_order: Set(section.section_order),
-            collapsed: Set(section.collapsed),
-            is_deleted: Set(section.is_deleted),
-            is_archived: Set(archived_new),
-            color: Set(section.color),
-            description: Set(section.description),
-            hidded: Set(section.hidded),
-        };
-        SectionEntity::update(active_model).exec(&*self.db).await?;
-
-        let items_count = self.get_items_by_section(section_id).await?.len();
-        tracing::info!(
-            "Section {} archived with {} items, but Items table has no is_archived field, so \
-             items are not actually archived.",
-            section_id,
-            items_count
-        );
-
-        (*self.metrics).record_operation("archive_section", 1).await;
-        Ok(())
-    }
-
-    // ==================== Additional Business Logic Methods ====================
-
     /// Get all sections
     pub async fn get_all_sections(&self) -> Result<Vec<SectionModel>, TodoError> {
         let _timer = (*self.metrics).start_timer("get_all_sections");
-        let sections = self.section_repo.find_all().await?;
+        let sections = BaseRepository::find_all(&self.section_repo).await?;
         (*self.metrics).record_operation("get_all_sections", sections.len()).await;
-        Ok(sections)
-    }
-
-    /// Get sections by project
-    pub async fn get_sections_by_project(
-        &self,
-        project_id: &str,
-    ) -> Result<Vec<SectionModel>, TodoError> {
-        let _timer = (*self.metrics).start_timer("get_sections_by_project");
-        let sections = self.section_repo.find_by_project(project_id).await?;
-        (*self.metrics).record_operation("get_sections_by_project", sections.len()).await;
         Ok(sections)
     }
 
@@ -212,84 +118,4 @@ impl SectionService {
         (*self.metrics).record_operation("get_items_by_section", items.len()).await;
         Ok(items)
     }
-
-    /// Get archived sections
-    pub async fn get_archived_sections(&self) -> Result<Vec<SectionModel>, TodoError> {
-        let _timer = (*self.metrics).start_timer("get_archived_sections");
-        let sections = SectionEntity::find()
-            .filter(sections::Column::IsArchived.eq(true))
-            .all(&*self.db)
-            .await?;
-        (*self.metrics).record_operation("get_archived_sections", sections.len()).await;
-        Ok(sections)
-    }
-
-    /// Search sections
-    pub async fn search_sections(&self, search_text: &str) -> Result<Vec<SectionModel>, TodoError> {
-        let _timer = (*self.metrics).start_timer("search_sections");
-        let search_lower = search_text.to_lowercase();
-        let sections = SectionEntity::find()
-            .filter(sections::Column::Name.contains(&search_lower))
-            .all(&*self.db)
-            .await?;
-        (*self.metrics).record_operation("search_sections", sections.len()).await;
-        Ok(sections)
-    }
-
-    /// Duplicate a section
-    pub async fn duplicate_section(&self, section_id: &str) -> Result<SectionModel, TodoError> {
-        let _timer = (*self.metrics).start_timer("duplicate_section");
-        let section = self
-            .get_section(section_id)
-            .await
-            .ok_or_else(|| TodoError::not_found("Section").with_entity("Section", section_id))?;
-
-        let mut new_section = section.clone();
-        new_section.id = uuid::Uuid::new_v4().to_string();
-        new_section.name = format!("{} (copy)", section.name);
-        new_section.added_at = chrono::Utc::now().naive_utc();
-
-        let duplicated_section = self.insert_section(new_section).await?;
-
-        // Duplicate items
-        let items = self.get_items_by_section(section_id).await?;
-        for item in items {
-            let mut new_item = item.clone();
-            new_item.id = uuid::Uuid::new_v4().to_string();
-            new_item.section_id = Some(duplicated_section.id.clone());
-            self.item_service.insert_item(new_item, true).await?;
-        }
-
-        (*self.metrics).record_operation("duplicate_section", 1).await;
-        Ok(duplicated_section)
-    }
-
-    /// Get section statistics
-    pub async fn get_section_stats(&self, section_id: &str) -> Result<SectionStats, TodoError> {
-        let _timer = (*self.metrics).start_timer("get_section_stats");
-
-        let items = self.get_items_by_section(section_id).await?;
-        let total_items = items.len();
-        let completed_items = items.iter().filter(|i| i.checked).count();
-        let pending_items = total_items - completed_items;
-
-        let stats = SectionStats {
-            section_id: section_id.to_string(),
-            total_items,
-            completed_items,
-            pending_items,
-        };
-
-        (*self.metrics).record_operation("get_section_stats", 1).await;
-        Ok(stats)
-    }
-}
-
-/// Section statistics
-#[derive(Debug, Clone)]
-pub struct SectionStats {
-    pub section_id: String,
-    pub total_items: usize,
-    pub completed_items: usize,
-    pub pending_items: usize,
 }

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use gpui::{AppContext, Context, Entity, FocusHandle, Subscription, Window};
 
@@ -104,20 +104,60 @@ impl BoardBase {
         true
     }
 
-    /// 🚀 6.4优化：检查版本号并获取变更掩码
+    /// 检查版本号并查看变更掩码（不清空，多 Board 可安全 peek）
     ///
     /// 若版本未变返回 `None`，调用方应直接跳过；
-    /// 若版本变化返回 `Some(ChangeMask)`，调用方可根据掩码判断是否需要更新。
+    /// 若版本变化返回 `Some(ChangeMask)` 拷贝，调用方可根据掩码判断是否需要更新。
     pub fn todo_store_version_and_mask(
         &mut self,
-        store: &mut TodoStore,
+        store: &TodoStore,
     ) -> Option<crate::core::state::ChangeMask> {
         let v = store.version();
         if self.cached_todo_store_version == v {
             return None;
         }
         self.cached_todo_store_version = v;
-        Some(store.take_change_mask())
+        Some(*store.peek_change_mask())
+    }
+
+    /// 当前 ChangeMask 是否影响指定视图
+    #[inline]
+    pub fn store_change_affects(
+        cx: &gpui::App,
+        affects: fn(&crate::core::state::ChangeMask) -> bool,
+    ) -> bool {
+        affects(cx.global::<TodoStore>().peek_change_mask())
+    }
+
+    /// 首次渲染兜底：列表为空但 Store 已有数据时强制刷新一次
+    pub fn bootstrap_pending_if_needed(
+        pending_refresh: &Cell<bool>,
+        item_rows_empty: bool,
+        has_store_data: bool,
+    ) {
+        if !pending_refresh.get() && item_rows_empty && has_store_data {
+            pending_refresh.set(true);
+        }
+    }
+
+    /// 若有 pending 则清零并返回 true，否则返回 false
+    pub fn take_pending_refresh(pending_refresh: &Cell<bool>) -> bool {
+        if !pending_refresh.get() {
+            return false;
+        }
+        pending_refresh.set(false);
+        true
+    }
+
+    /// 修正 active_index，避免越界
+    pub fn clamp_active_index(&mut self) {
+        if let Some(ix) = self.active_index {
+            if ix >= self.item_rows.len() {
+                self.active_index = if self.item_rows.is_empty() { None } else { Some(0) };
+            }
+        } else if !self.item_rows.is_empty() {
+            self.active_index = Some(0);
+        }
     }
 
     /// 更新项目列表和部分映射

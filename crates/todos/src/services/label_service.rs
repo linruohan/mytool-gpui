@@ -2,22 +2,15 @@
 //!
 //! This module provides business logic for Label operations,
 //! separating it from data access layer.
-#![allow(deprecated)] // 允许使用废弃的 Repository trait（兼容层，待迁移到 BaseRepository）
 
 use std::sync::Arc;
 
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QuerySelect, Set, prelude::Expr,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use crate::{
     entity::{LabelActiveModel, LabelModel, labels, prelude::*},
     error::TodoError,
-    repositories::{
-        ItemLabelRepository, ItemLabelRepositoryImpl, ItemRepository, ItemRepositoryImpl,
-        LabelRepository, LabelRepositoryImpl,
-    },
+    repositories::{BaseRepository, LabelRepositoryImpl},
     services::{EventBus, MetricsCollector},
 };
 
@@ -28,8 +21,6 @@ pub struct LabelService {
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     label_repo: LabelRepositoryImpl,
-    item_label_repo: ItemLabelRepositoryImpl,
-    item_repo: ItemRepositoryImpl,
 }
 
 impl LabelService {
@@ -40,15 +31,7 @@ impl LabelService {
         metrics: Arc<MetricsCollector>,
     ) -> Self {
         let label_repo = LabelRepositoryImpl::new(db.clone());
-        let item_label_repo = ItemLabelRepositoryImpl::new(db.clone());
-        let item_repo = ItemRepositoryImpl::new(db.clone());
-        Self { db, event_bus, metrics, label_repo, item_label_repo, item_repo }
-    }
-
-    /// Get a label by ID
-    pub async fn get_label(&self, id: &str) -> Option<LabelModel> {
-        let result: Result<LabelModel, TodoError> = self.label_repo.find_by_id(id).await;
-        result.ok()
+        Self { db, event_bus, metrics, label_repo }
     }
 
     /// Insert a new label
@@ -94,11 +77,11 @@ impl LabelService {
         let _timer = self.metrics.start_timer("delete_label");
         let id_clone = id.to_string();
 
-        let result = self.label_repo.delete(id).await?;
+        let deleted = BaseRepository::delete(&self.label_repo, id).await?;
         self.event_bus.publish(crate::services::event_bus::Event::LabelDeleted(id_clone));
 
         self.metrics.record_operation("delete_label", 1).await;
-        Ok(result)
+        Ok(if deleted { 1 } else { 0 })
     }
 
     /// Get or create a label by name
@@ -143,129 +126,11 @@ impl LabelService {
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
     }
 
-    /// Get labels by source
-    pub async fn get_labels_by_source(
-        &self,
-        source_id: &str,
-    ) -> Result<Vec<LabelModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_labels_by_source");
-        let labels = self.label_repo.find_by_source(source_id).await?;
-        self.metrics.record_operation("get_labels_by_source", labels.len()).await;
-        Ok(labels)
-    }
-
-    // ==================== Additional Business Logic Methods ====================
-
     /// Get all labels
     pub async fn get_all_labels(&self) -> Result<Vec<LabelModel>, TodoError> {
         let _timer = self.metrics.start_timer("get_all_labels");
-        let labels = self.label_repo.find_all().await?;
+        let labels = BaseRepository::find_all(&self.label_repo).await?;
         self.metrics.record_operation("get_all_labels", labels.len()).await;
         Ok(labels)
     }
-
-    /// Search labels
-    pub async fn search_labels(&self, search_text: &str) -> Result<Vec<LabelModel>, TodoError> {
-        let _timer = self.metrics.start_timer("search_labels");
-        let search_lower = search_text.to_lowercase();
-        let all_labels = self.label_repo.find_all().await?;
-        let labels: Vec<LabelModel> = all_labels
-            .into_iter()
-            .filter(|l| l.name.to_lowercase().contains(&search_lower))
-            .collect();
-        self.metrics.record_operation("search_labels", labels.len()).await;
-        Ok(labels)
-    }
-
-    /// Get labels by item
-    pub async fn get_labels_by_item(&self, item_id: &str) -> Result<Vec<LabelModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_labels_by_item");
-        let labels = self.item_label_repo.get_labels_by_item(item_id).await?;
-        self.metrics.record_operation("get_labels_by_item", labels.len()).await;
-        Ok(labels)
-    }
-
-    /// Add label to item
-    pub async fn add_label_to_item(&self, label_id: &str, item_id: &str) -> Result<(), TodoError> {
-        let _timer = self.metrics.start_timer("add_label_to_item");
-        self.item_label_repo.add_label_to_item(item_id, label_id).await?;
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
-        self.metrics.record_operation("add_label_to_item", 1).await;
-        Ok(())
-    }
-
-    /// Remove label from item
-    pub async fn remove_label_from_item(
-        &self,
-        label_id: &str,
-        item_id: &str,
-    ) -> Result<(), TodoError> {
-        let _timer = self.metrics.start_timer("remove_label_from_item");
-        self.item_label_repo.remove_label_from_item(item_id, label_id).await?;
-        self.event_bus.publish(crate::services::event_bus::Event::ItemUpdated(item_id.to_string()));
-        self.metrics.record_operation("remove_label_from_item", 1).await;
-        Ok(())
-    }
-
-    /// Get label statistics
-    pub async fn get_label_stats(&self, label_id: &str) -> Result<LabelStats, TodoError> {
-        let _timer = self.metrics.start_timer("get_label_stats");
-
-        let item_ids = self.item_label_repo.get_items_by_label(label_id).await?;
-        let total_items = item_ids.len();
-
-        let mut completed_items = 0;
-        let mut pending_items = 0;
-
-        for item_id in &item_ids {
-            if let Ok(item) = self.item_repo.find_by_id(item_id).await {
-                if item.checked {
-                    completed_items += 1;
-                } else {
-                    pending_items += 1;
-                }
-            }
-        }
-
-        let stats = LabelStats {
-            label_id: label_id.to_string(),
-            total_items,
-            completed_items,
-            pending_items,
-        };
-
-        self.metrics.record_operation("get_label_stats", 1).await;
-        Ok(stats)
-    }
-
-    /// Merge labels
-    pub async fn merge_labels(
-        &self,
-        source_label_id: &str,
-        target_label_id: &str,
-    ) -> Result<(), TodoError> {
-        let _timer = self.metrics.start_timer("merge_labels");
-
-        let item_ids = self.item_label_repo.get_items_by_label(source_label_id).await?;
-        for item_id in item_ids {
-            if !self.item_label_repo.has_label(&item_id, target_label_id).await? {
-                self.item_label_repo.add_label_to_item(&item_id, target_label_id).await?;
-            }
-        }
-
-        self.item_label_repo.remove_all_items_from_label(source_label_id).await?;
-        self.delete_label(source_label_id).await?;
-
-        self.metrics.record_operation("merge_labels", 1).await;
-        Ok(())
-    }
-}
-
-/// Label statistics
-#[derive(Debug, Clone)]
-pub struct LabelStats {
-    pub label_id: String,
-    pub total_items: usize,
-    pub completed_items: usize,
-    pub pending_items: usize,
 }

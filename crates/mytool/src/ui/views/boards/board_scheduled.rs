@@ -74,8 +74,10 @@ impl ScheduledBoard {
         self.observer_registered.set(true);
 
         let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
-            this.pending_refresh.set(true);
-            cx.notify();
+            if BoardBase::store_change_affects(cx, |m| m.affects_scheduled()) {
+                this.pending_refresh.set(true);
+                cx.notify();
+            }
         });
     }
 
@@ -87,40 +89,22 @@ impl ScheduledBoard {
 
         if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
             let state_items = cx.global::<TodoStore>().scheduled_items();
-
-            if !state_items.is_empty() {
-                tracing::info!(
-                    "📅 [ScheduledBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
-                    state_items.len()
-                );
-                self.pending_refresh.set(true);
-            } else {
-                tracing::debug!(
-                    "📅 [ScheduledBoard] 首次渲染兜底: TodoStore 也为空 \
-                     (all_items={})，等待数据加载...",
-                    cx.global::<TodoStore>().all_items.len()
-                );
-            }
+            BoardBase::bootstrap_pending_if_needed(
+                &self.pending_refresh,
+                true,
+                !state_items.is_empty(),
+            );
         }
 
-        if !self.pending_refresh.get() {
+        if !BoardBase::take_pending_refresh(&self.pending_refresh) {
             return;
         }
-        self.pending_refresh.set(false);
 
         let state_items = cx.global::<TodoStore>().scheduled_items();
 
         self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
         self.base.update_items(&state_items);
-
-        if let Some(ix) = self.base.active_index {
-            if ix >= self.base.item_rows.len() {
-                self.base.active_index =
-                    if self.base.item_rows.is_empty() { None } else { Some(0) };
-            }
-        } else if !self.base.item_rows.is_empty() {
-            self.base.active_index = Some(0);
-        }
+        self.base.clamp_active_index();
     }
 
     pub(crate) fn get_selected_item(

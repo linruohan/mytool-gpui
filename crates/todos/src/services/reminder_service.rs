@@ -5,15 +5,11 @@
 
 use std::sync::Arc;
 
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QuerySelect, Set, prelude::Expr,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use crate::{
     entity::{ReminderActiveModel, ReminderModel, prelude::*, reminders},
     error::TodoError,
-    repositories::{ReminderRepository, ReminderRepositoryImpl},
     services::{EventBus, MetricsCollector},
 };
 
@@ -23,7 +19,6 @@ pub struct ReminderService {
     db: Arc<DatabaseConnection>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
-    reminder_repo: ReminderRepositoryImpl,
 }
 
 impl ReminderService {
@@ -33,22 +28,7 @@ impl ReminderService {
         event_bus: Arc<EventBus>,
         metrics: Arc<MetricsCollector>,
     ) -> Self {
-        let reminder_repo = ReminderRepositoryImpl::new(db.clone());
-        Self { db, event_bus, metrics, reminder_repo }
-    }
-
-    /// Get a reminder by ID
-    pub async fn get_reminder(&self, id: &str) -> Option<ReminderModel> {
-        let result: Result<ReminderModel, Box<TodoError>> = self.reminder_repo.find_by_id(id).await;
-        result.ok()
-    }
-
-    /// Get all reminders
-    pub async fn get_all_reminders(&self) -> Result<Vec<ReminderModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_all_reminders");
-        let reminders = ReminderEntity::find().all(&*self.db).await?;
-        self.metrics.record_operation("get_all_reminders", reminders.len()).await;
-        Ok(reminders)
+        Self { db, event_bus, metrics }
     }
 
     /// Get reminders by item ID
@@ -81,34 +61,6 @@ impl ReminderService {
         Ok(reminder_model)
     }
 
-    /// Update an existing reminder
-    pub async fn update_reminder(
-        &self,
-        reminder: ReminderModel,
-    ) -> Result<ReminderModel, TodoError> {
-        let _timer = self.metrics.start_timer("update_reminder");
-        let reminder_id = reminder.id.clone();
-
-        // 显式设置需要更新的字段
-        let active_reminder = ReminderActiveModel {
-            id: Set(reminder.id),
-            notify_uid: Set(reminder.notify_uid),
-            item_id: Set(reminder.item_id),
-            service: Set(reminder.service),
-            reminder_type: Set(reminder.reminder_type),
-            due: Set(reminder.due),
-            mm_offset: Set(reminder.mm_offset),
-            is_deleted: Set(reminder.is_deleted),
-        };
-
-        let result = active_reminder.update(&*self.db).await?;
-
-        self.event_bus.publish(crate::services::event_bus::Event::ReminderUpdated(reminder_id));
-
-        self.metrics.record_operation("update_reminder", 1).await;
-        Ok(result)
-    }
-
     /// Delete a reminder
     pub async fn delete_reminder(&self, id: &str) -> Result<u64, TodoError> {
         let _timer = self.metrics.start_timer("delete_reminder");
@@ -119,51 +71,5 @@ impl ReminderService {
 
         self.metrics.record_operation("delete_reminder", 1).await;
         Ok(result.rows_affected)
-    }
-
-    // ==================== Additional Business Logic Methods ====================
-
-    /// Get reminders due before a specific time
-    pub async fn get_reminders_due_before(
-        &self,
-        due_time: &chrono::NaiveDateTime,
-    ) -> Result<Vec<ReminderModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_reminders_due_before");
-        let reminders = ReminderEntity::find()
-            .filter(reminders::Column::Due.eq(due_time.to_string()))
-            .all(&*self.db)
-            .await?;
-        self.metrics.record_operation("get_reminders_due_before", reminders.len()).await;
-        Ok(reminders)
-    }
-
-    /// Get reminders due after a specific time
-    pub async fn get_reminders_due_after(
-        &self,
-        due_time: &chrono::NaiveDateTime,
-    ) -> Result<Vec<ReminderModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_reminders_due_after");
-        let reminders = ReminderEntity::find()
-            .filter(reminders::Column::Due.eq(due_time.to_string()))
-            .all(&*self.db)
-            .await?;
-        self.metrics.record_operation("get_reminders_due_after", reminders.len()).await;
-        Ok(reminders)
-    }
-
-    /// Get reminders in a time range
-    pub async fn get_reminders_in_range(
-        &self,
-        start_time: &chrono::NaiveDateTime,
-        end_time: &chrono::NaiveDateTime,
-    ) -> Result<Vec<ReminderModel>, TodoError> {
-        let _timer = self.metrics.start_timer("get_reminders_in_range");
-        let reminders = ReminderEntity::find()
-            .filter(reminders::Column::Due.eq(start_time.to_string()))
-            .filter(reminders::Column::Due.eq(end_time.to_string()))
-            .all(&*self.db)
-            .await?;
-        self.metrics.record_operation("get_reminders_in_range", reminders.len()).await;
-        Ok(reminders)
     }
 }

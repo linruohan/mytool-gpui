@@ -37,9 +37,6 @@ impl EventEmitter<ItemClickEvent> for InboxBoard {}
 
 pub struct InboxBoard {
     base: BoardBase,
-    /// 观察者 ID（用于细粒度更新）
-    #[allow(dead_code)]
-    observer_id: Option<u64>,
     /// 跟踪当前 item_rows 对应的 item id 列表（用于增量更新）
     item_row_ids: Vec<String>,
     /// 🚀 7.0修复：脏标记（当 TodoStore 数据变化时设为 true）
@@ -56,12 +53,6 @@ impl InboxBoard {
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut base = BoardBase::new(window, cx);
 
-        // 注册观察者（细粒度更新）
-        let observer_id = {
-            let registry = cx.global_mut::<crate::core::state::ObserverRegistry>();
-            Some(registry.register(crate::core::state::ViewType::Inbox))
-        };
-
         // 🚀 7.0修复：不在 new() 中注册 observe_global！
         // 原因：在初始化阶段注册会导致与异步冷加载产生竞争条件 → 主线程冻结
         // 修复：延迟到首次 render() 时通过 lazy_init_observer() 注册
@@ -69,7 +60,6 @@ impl InboxBoard {
 
         Self {
             base,
-            observer_id,
             item_row_ids: Vec::new(),
             pending_refresh: Cell::new(false),
             observer_registered: Cell::new(false),
@@ -86,52 +76,37 @@ impl InboxBoard {
         tracing::info!("📭 [InboxBoard] 注册 TodoStore 观察者 (延迟注册策略)");
 
         let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
-            // 只使用只读访问，避免修改全局状态导致循环触发
-            let _store = cx.global::<TodoStore>();
-
-            tracing::debug!("📭 [InboxBoard] 观察者回调触发: 设置 pending_refresh=true");
-
-            // 设置脏标记，让 render() 处理实际更新
-            this.pending_refresh.set(true);
-            cx.notify();
+            if BoardBase::store_change_affects(cx, |m| m.affects_inbox()) {
+                this.pending_refresh.set(true);
+                cx.notify();
+            }
         });
     }
 
     /// 🚀 7.0修复：在 render() 中执行实际的增量更新
     fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // ✅ 修复1：确保观察者在首次 render 时就注册（打破鸡生蛋死锁）
         self.lazy_init_observer(cx);
 
-        // ✅ 修复2：首次渲染兜底 - 解决"观察者注册晚于数据写入"的时序竞态问题
-        // 场景：TodoStore 在 InboxBoard 创建前就完成了数据加载，导致观察者错过了第一次写入事件
         if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
             let cache = cx.global::<crate::core::state::QueryCache>();
             let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
-
-            if !state_items.is_empty() {
+            BoardBase::bootstrap_pending_if_needed(
+                &self.pending_refresh,
+                true,
+                !state_items.is_empty(),
+            );
+            if self.pending_refresh.get() {
                 tracing::info!(
                     "📭 [InboxBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
                     state_items.len()
                 );
-                self.pending_refresh.set(true);
-            } else {
-                tracing::debug!(
-                    "📭 [InboxBoard] 首次渲染兜底: TodoStore 也为空 \
-                     (all_items={})，等待数据加载...",
-                    cx.global::<TodoStore>().all_items.len()
-                );
             }
         }
 
-        if !self.pending_refresh.get() {
-            tracing::debug!(
-                "📭 [InboxBoard] apply_pending_refresh: pending_refresh=false, 跳过刷新"
-            );
+        if !BoardBase::take_pending_refresh(&self.pending_refresh) {
             return;
         }
-        self.pending_refresh.set(false);
 
-        // 执行实际的刷新逻辑（从原始 observe_global 回调中复制）
         let cache = cx.global::<crate::core::state::QueryCache>();
         let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
 
@@ -141,22 +116,14 @@ impl InboxBoard {
             cx.global::<TodoStore>().all_items.len()
         );
 
-        let filtered_items: Vec<_> =
-            state_items.iter().filter(|item| !item.checked).cloned().collect();
+        // inbox_items 已过滤未完成，直接使用缓存切片
+        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, window, cx);
 
-        tracing::info!(
-            "📭 [InboxBoard] 过滤后: filtered_items={} (未完成任务)",
-            filtered_items.len()
-        );
-
-        self.base.diff_update_item_rows(&filtered_items, &mut self.item_row_ids, window, cx);
-
-        // 重新计算分类数据
         self.base.no_section_items.clear();
         self.base.section_items_map.clear();
         self.base.pinned_items.clear();
 
-        for (i, item) in filtered_items.iter().enumerate() {
+        for (i, item) in state_items.iter().enumerate() {
             if item.pinned {
                 self.base.pinned_items.push((i, item.clone()));
             } else {
@@ -179,15 +146,7 @@ impl InboxBoard {
             self.base.section_items_map.len()
         );
 
-        // 更新活动索引
-        if let Some(ix) = self.base.active_index {
-            if ix >= self.base.item_rows.len() {
-                self.base.active_index =
-                    if self.base.item_rows.is_empty() { None } else { Some(0) };
-            }
-        } else if !self.base.item_rows.is_empty() {
-            self.base.active_index = Some(0);
-        }
+        self.base.clamp_active_index();
     }
 
     pub(crate) fn get_selected_item(

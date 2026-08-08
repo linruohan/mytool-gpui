@@ -74,8 +74,10 @@ impl PinBoard {
         self.observer_registered.set(true);
 
         let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
-            this.pending_refresh.set(true);
-            cx.notify();
+            if BoardBase::store_change_affects(cx, |m| m.affects_pinned()) {
+                this.pending_refresh.set(true);
+                cx.notify();
+            }
         });
     }
 
@@ -87,31 +89,21 @@ impl PinBoard {
 
         if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
             let state_items = cx.global::<TodoStore>().pinned_items();
-
-            if !state_items.is_empty() {
-                tracing::info!(
-                    "📌 [PinBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
-                    state_items.len()
-                );
-                self.pending_refresh.set(true);
-            } else {
-                tracing::debug!(
-                    "📌 [PinBoard] 首次渲染兜底: TodoStore 也为空 (all_items={})，等待数据加载...",
-                    cx.global::<TodoStore>().all_items.len()
-                );
-            }
+            BoardBase::bootstrap_pending_if_needed(
+                &self.pending_refresh,
+                true,
+                !state_items.is_empty(),
+            );
         }
 
-        if !self.pending_refresh.get() {
+        if !BoardBase::take_pending_refresh(&self.pending_refresh) {
             return;
         }
-        self.pending_refresh.set(false);
 
         let state_items = cx.global::<TodoStore>().pinned_items();
 
         self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
 
-        // 清空并重新计算分类数据
         self.base.pinned_items.clear();
         self.base.no_section_items.clear();
         self.base.section_items_map.clear();
@@ -120,15 +112,7 @@ impl PinBoard {
             self.base.pinned_items.push((i, item.clone()));
         }
 
-        // 更新活动索引
-        if let Some(ix) = self.base.active_index {
-            if ix >= self.base.item_rows.len() {
-                self.base.active_index =
-                    if self.base.item_rows.is_empty() { None } else { Some(0) };
-            }
-        } else if !self.base.item_rows.is_empty() {
-            self.base.active_index = Some(0);
-        }
+        self.base.clamp_active_index();
     }
 
     pub(crate) fn get_selected_item(

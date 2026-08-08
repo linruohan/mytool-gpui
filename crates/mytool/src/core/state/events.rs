@@ -3,10 +3,9 @@
 //! 这个模块提供了一个事件总线，用于在数据变化时发送细粒度的通知，
 //! 避免全局观察者导致的不必要重新渲染。
 
-use std::sync::Arc;
+use std::collections::VecDeque;
 
 use gpui::Global;
-use todos::entity::ItemModel;
 
 /// TodoStore 事件类型
 #[derive(Debug, Clone)]
@@ -47,7 +46,7 @@ pub enum SaveStatus {
 /// 用于发布和订阅 TodoStore 的变化事件
 pub struct TodoEventBus {
     /// 事件历史（用于调试和审计）
-    event_history: Vec<TodoStoreEvent>,
+    event_history: VecDeque<TodoStoreEvent>,
     /// 最大历史记录数
     max_history: usize,
 }
@@ -57,34 +56,25 @@ impl Global for TodoEventBus {}
 impl TodoEventBus {
     /// 创建新的事件总线
     pub fn new() -> Self {
-        Self { event_history: Vec::new(), max_history: 100 }
+        Self { event_history: VecDeque::new(), max_history: 100 }
     }
 
     /// 发布事件
     ///
-    /// 🚀 6.6说明：当前实现仅记录事件历史用于调试。
-    /// 实际的 UI 更新已通过 `ChangeMask`（6.4优化）和 `observe_global_in` 实现。
-    /// 若未来需要跨模块事件通知，可在此扩展发布订阅机制。
+    /// 当前实现仅记录事件历史用于调试。
+    /// 实际的 UI 更新已通过 `ChangeMask` 和 `observe_global_in` 实现。
     pub fn publish(&mut self, event: TodoStoreEvent) {
-        // 记录事件历史
-        self.event_history.push(event.clone());
+        self.event_history.push_back(event);
 
-        // 限制历史记录大小
-        if self.event_history.len() > self.max_history {
-            self.event_history.remove(0);
+        while self.event_history.len() > self.max_history {
+            self.event_history.pop_front();
         }
-
-        // 注意：当前 UI 更新主要通过以下机制实现：
-        // 1. `observe_global_in::<TodoStore>` - 全局观察者
-        // 2. `ChangeMask`（6.4优化）- 按域筛选变更
-        // 3. `cx.notify()` - 局部重绘
-        // 若未来需要更细粒度的事件驱动，可在此实现发布订阅。
     }
 
     /// 获取最近的事件
-    pub fn recent_events(&self, count: usize) -> &[TodoStoreEvent] {
+    pub fn recent_events(&self, count: usize) -> impl Iterator<Item = &TodoStoreEvent> {
         let start = self.event_history.len().saturating_sub(count);
-        &self.event_history[start..]
+        self.event_history.iter().skip(start)
     }
 
     /// 清空事件历史
@@ -96,64 +86,6 @@ impl TodoEventBus {
 impl Default for TodoEventBus {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// 批量操作队列
-///
-/// 用于收集和批量处理操作，减少数据库访问次数
-pub struct BatchOperations {
-    /// 待添加的任务
-    pub pending_adds: Vec<Arc<ItemModel>>,
-    /// 待更新的任务
-    pub pending_updates: Vec<Arc<ItemModel>>,
-    /// 待删除的任务 ID
-    pub pending_deletes: Vec<String>,
-    /// 是否有待处理的操作
-    pub has_pending: bool,
-}
-
-impl Global for BatchOperations {}
-impl Default for BatchOperations {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl BatchOperations {
-    /// 创建新的批量操作队列
-    pub fn new() -> Self {
-        Self {
-            pending_adds: Vec::new(),
-            pending_updates: Vec::new(),
-            pending_deletes: Vec::new(),
-            has_pending: false,
-        }
-    }
-
-    /// 添加待添加的任务
-    pub fn add_item(&mut self, item: Arc<ItemModel>) {
-        self.pending_adds.push(item);
-        self.has_pending = true;
-    }
-
-    /// 添加待更新的任务
-    pub fn update_item(&mut self, item: Arc<ItemModel>) {
-        self.pending_updates.push(item);
-        self.has_pending = true;
-    }
-
-    /// 添加待删除的任务
-    pub fn delete_item(&mut self, id: String) {
-        self.pending_deletes.push(id);
-        self.has_pending = true;
-    }
-
-    /// 清空所有待处理的操作
-    pub fn clear(&mut self) {
-        self.pending_adds.clear();
-        self.pending_updates.clear();
-        self.pending_deletes.clear();
-        self.has_pending = false;
     }
 }
 

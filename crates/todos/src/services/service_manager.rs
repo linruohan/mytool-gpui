@@ -1,8 +1,6 @@
 //! Service Manager
 //!
-//! ServiceManager is a central coordinator for all services.
-//! It manages the lifecycle of services and provides access to them.
-//! Services can depend on each other through the ServiceManager.
+//! Central coordinator for all services. Manages lifecycle and dependency wiring.
 #![allow(dead_code)]
 
 use std::sync::Arc;
@@ -10,11 +8,11 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 
 use crate::{
-    app::{PatchManager, TransactionManager},
+    app::PatchManager,
     error::TodoError,
     services::{
-        AttachmentService, DateValidationService, EventBus, EventRecorder, ItemService,
-        LabelService, MetricsCollector, ProjectService, ReminderService, SectionService,
+        AttachmentService, EventBus, ItemService, LabelService, MetricsCollector, ProjectService,
+        ReminderService, SectionService,
     },
 };
 
@@ -22,8 +20,6 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ServiceManager {
     db: Arc<DatabaseConnection>,
-    transaction_manager: Arc<TransactionManager>,
-    event_recorder: Arc<EventRecorder>,
     event_bus: Arc<EventBus>,
     metrics: Arc<MetricsCollector>,
     item_service: Arc<ItemService>,
@@ -32,10 +28,6 @@ pub struct ServiceManager {
     label_service: Arc<LabelService>,
     reminder_service: Arc<ReminderService>,
     attachment_service: Arc<AttachmentService>,
-    date_validation_service: Arc<std::sync::Mutex<Option<Arc<DateValidationService>>>>,
-    // 用于跟踪是否已经应用过补丁
-    #[allow(dead_code)]
-    patches_applied: bool,
 }
 
 impl ServiceManager {
@@ -44,16 +36,10 @@ impl ServiceManager {
         let event_bus = Arc::new(EventBus::new());
         let metrics = Arc::new(MetricsCollector::new());
 
-        let transaction_manager = Arc::new(TransactionManager::new(db.clone()));
-
-        let event_recorder = Arc::new(EventRecorder::new(db.clone()));
-
         // Apply database patches
         let patch_manager = PatchManager::new(db.clone());
         patch_manager.apply_patches().await?;
 
-        // Create services with dependencies
-        // Note: Services are created in order of dependency
         let label_service =
             Arc::new(LabelService::new(db.clone(), event_bus.clone(), metrics.clone()));
 
@@ -86,8 +72,6 @@ impl ServiceManager {
 
         Ok(Self {
             db,
-            transaction_manager,
-            event_recorder,
             event_bus,
             metrics,
             item_service,
@@ -96,81 +80,42 @@ impl ServiceManager {
             label_service,
             reminder_service,
             attachment_service,
-            date_validation_service: Arc::new(std::sync::Mutex::new(None)),
-            patches_applied: false,
         })
     }
 
-    /// Set the date validation service (used to resolve circular dependency)
-    pub fn set_date_validation_service(&self, service: Arc<DateValidationService>) {
-        let mut lock = self.date_validation_service.lock().unwrap();
-        *lock = Some(service);
-    }
-
-    /// Get the database connection
     pub fn db(&self) -> &DatabaseConnection {
         &self.db
     }
 
-    /// Get the event bus
     pub fn event_bus(&self) -> &EventBus {
         &self.event_bus
     }
 
-    /// Get the metrics collector
     pub fn metrics(&self) -> &MetricsCollector {
         &self.metrics
     }
 
-    /// Get the item service
     pub fn item_service(&self) -> &ItemService {
         &self.item_service
     }
 
-    /// Get the project service
     pub fn project_service(&self) -> &ProjectService {
         &self.project_service
     }
 
-    /// Get the section service
     pub fn section_service(&self) -> &SectionService {
         &self.section_service
     }
 
-    /// Get the label service
     pub fn label_service(&self) -> &LabelService {
         &self.label_service
     }
 
-    /// Get the reminder service
     pub fn reminder_service(&self) -> &ReminderService {
         &self.reminder_service
     }
 
-    /// Get the attachment service
     pub fn attachment_service(&self) -> &AttachmentService {
         &self.attachment_service
-    }
-
-    /// Get the date validation service
-    pub fn date_validation_service(&self) -> Arc<DateValidationService> {
-        let lock = self.date_validation_service.lock().unwrap();
-        lock.as_ref().expect("DateValidationService not initialized").clone()
-    }
-
-    /// Get the transaction manager
-    pub fn transaction_manager(&self) -> &TransactionManager {
-        &self.transaction_manager
-    }
-
-    /// Get the patch manager
-    /// Note: PatchManager is not stored in ServiceManager anymore, this method is deprecated
-    pub fn patch_manager(&self) -> &PatchManager {
-        panic!("PatchManager is not stored in ServiceManager anymore")
-    }
-
-    /// Get the event recorder
-    pub fn event_recorder(&self) -> &EventRecorder {
-        &self.event_recorder
     }
 }

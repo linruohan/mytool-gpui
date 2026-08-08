@@ -8,7 +8,7 @@
 
 use std::{collections::HashMap, time::Instant};
 
-use todos::{init_db, services::QueryService};
+use todos::init_db;
 use tokio::runtime::Runtime;
 
 /// 性能基准测试
@@ -59,23 +59,20 @@ async fn test_db_connection(db: &sea_orm::DatabaseConnection) {
 
 /// 测试批量操作性能
 async fn test_batch_operations(db: &sea_orm::DatabaseConnection) {
-    println!("\n2. 测试批量操作性能:");
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use todos::entity::{items, projects};
 
-    // 创建查询服务
-    let query_service = QueryService::new(std::sync::Arc::new(db.clone()));
+    println!("\n2. 测试批量操作性能 (Entity is_in queries):");
 
-    // 准备测试数据
     let ids: Vec<String> = (1..=100).map(|i| format!("test-id-{}", i)).collect();
 
-    // 测试批量加载项目
     let start = Instant::now();
-    let _ = query_service.batch_load_projects(ids.clone()).await;
+    let _ = projects::Entity::find().filter(projects::Column::Id.is_in(ids.clone())).all(db).await;
     let elapsed = start.elapsed();
     println!("   批量加载100个项目耗时: {:?}", elapsed);
 
-    // 测试批量加载任务
     let start = Instant::now();
-    let _ = query_service.batch_load_items(ids.clone()).await;
+    let _ = items::Entity::find().filter(items::Column::Id.is_in(ids)).all(db).await;
     let elapsed = start.elapsed();
     println!("   批量加载100个任务耗时: {:?}", elapsed);
 }

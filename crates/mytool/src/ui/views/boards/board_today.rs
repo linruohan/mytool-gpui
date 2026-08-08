@@ -196,8 +196,10 @@ impl TodayBoard {
         self.observer_registered.set(true);
 
         let _subscription = cx.observe_global::<TodoStore>(move |this, cx| {
-            this.pending_refresh.set(true);
-            cx.notify();
+            if BoardBase::store_change_affects(cx, |m| m.affects_today()) {
+                this.pending_refresh.set(true);
+                cx.notify();
+            }
         });
     }
 
@@ -210,37 +212,28 @@ impl TodayBoard {
         if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
             let cache = cx.global::<crate::core::state::QueryCache>();
             let state_items = cx.global::<TodoStore>().today_items_cached(cache);
-
-            if !state_items.is_empty() {
-                tracing::info!(
-                    "📅 [TodayBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
-                    state_items.len()
-                );
-                self.pending_refresh.set(true);
-            } else {
-                tracing::debug!(
-                    "📅 [TodayBoard] 首次渲染兜底: TodoStore 也为空 \
-                     (all_items={})，等待数据加载...",
-                    cx.global::<TodoStore>().all_items.len()
-                );
-            }
+            BoardBase::bootstrap_pending_if_needed(
+                &self.pending_refresh,
+                true,
+                !state_items.is_empty(),
+            );
         }
 
-        if !self.pending_refresh.get() {
+        if !BoardBase::take_pending_refresh(&self.pending_refresh) {
             return;
         }
-        self.pending_refresh.set(false);
 
-        let state_items = cx
-            .global::<TodoStore>()
-            .all_items
-            .iter()
-            .filter(|item| !item.checked)
-            .cloned()
-            .collect::<Vec<_>>();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        let state_items = cx.global::<TodoStore>().today_items_cached(cache);
 
-        self.base.diff_update_item_rows(&state_items, &mut self.item_row_ids, _window, cx);
-        self.base.update_items(&state_items);
+        self.base.diff_update_item_rows(
+            state_items.as_slice(),
+            &mut self.item_row_ids,
+            _window,
+            cx,
+        );
+        self.base.update_items(state_items.as_slice());
+        self.base.clamp_active_index();
     }
 
     pub(crate) fn get_selected_item(

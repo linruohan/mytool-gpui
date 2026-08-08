@@ -251,35 +251,3 @@ impl ProjectQueryRepository for ProjectRepositoryImpl {
             .map_err(|e| TodoError::DatabaseError(e.to_string()))
     }
 }
-
-/// 旧版兼容接口（已废弃，请使用 BaseRepository）
-#[deprecated(since = "0.2.0", note = "请使用 BaseRepository<ProjectModel> trait")]
-#[async_trait::async_trait]
-pub trait ProjectRepository {
-    async fn find_by_id(&self, id: &str) -> Result<ProjectModel, TodoError>;
-    async fn find_all(&self) -> Result<Vec<ProjectModel>, TodoError>;
-    async fn find_by_source(&self, source_id: &str) -> Result<Vec<ProjectModel>, TodoError>;
-    async fn find_by_parent(&self, parent_id: &str) -> Result<Vec<ProjectModel>, TodoError>;
-}
-
-#[allow(deprecated)]
-#[async_trait::async_trait]
-impl ProjectRepository for ProjectRepositoryImpl {
-    async fn find_by_id(&self, id: &str) -> Result<ProjectModel, TodoError> {
-        BaseRepository::find_by_id(self, id)
-            .await?
-            .ok_or_else(|| TodoError::NotFound(format!("Project {} not found", id)))
-    }
-
-    async fn find_all(&self) -> Result<Vec<ProjectModel>, TodoError> {
-        BaseRepository::find_all(self).await
-    }
-
-    async fn find_by_source(&self, source_id: &str) -> Result<Vec<ProjectModel>, TodoError> {
-        ProjectQueryRepository::find_by_source(self, source_id).await
-    }
-
-    async fn find_by_parent(&self, parent_id: &str) -> Result<Vec<ProjectModel>, TodoError> {
-        ProjectQueryRepository::find_by_parent(self, parent_id).await
-    }
-}

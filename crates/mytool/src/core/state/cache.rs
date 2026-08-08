@@ -5,6 +5,7 @@
 //!
 //! ## 优化特性
 //! - **版本号机制**: 通过版本号判断缓存是否有效
+//! - **Arc 共享**: 命中时只克隆 Arc，不复制整表 Vec
 //! - **缓存统计**: 记录命中率和使用情况
 //! - **选择性失效**: 支持精确失效特定缓存
 
@@ -12,6 +13,8 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use gpui::Global;
 use todos::entity::ItemModel;
+
+type ItemList = Arc<Vec<Arc<ItemModel>>>;
 
 /// 缓存统计信息
 #[derive(Debug, Default, Clone)]
@@ -52,21 +55,21 @@ impl CacheStats {
 /// 缓存常用的查询结果，如收件箱任务、今日任务等
 pub struct QueryCache {
     /// 收件箱任务缓存
-    inbox_cache: RefCell<Option<Vec<Arc<ItemModel>>>>,
+    inbox_cache: RefCell<Option<ItemList>>,
     /// 今日任务缓存
-    today_cache: RefCell<Option<Vec<Arc<ItemModel>>>>,
+    today_cache: RefCell<Option<ItemList>>,
     /// 计划任务缓存
-    scheduled_cache: RefCell<Option<Vec<Arc<ItemModel>>>>,
+    scheduled_cache: RefCell<Option<ItemList>>,
     /// 已完成任务缓存
-    completed_cache: RefCell<Option<Vec<Arc<ItemModel>>>>,
+    completed_cache: RefCell<Option<ItemList>>,
     /// 置顶任务缓存
-    pinned_cache: RefCell<Option<Vec<Arc<ItemModel>>>>,
+    pinned_cache: RefCell<Option<ItemList>>,
     /// 过期任务缓存
-    overdue_cache: RefCell<Option<Vec<Arc<ItemModel>>>>,
+    overdue_cache: RefCell<Option<ItemList>>,
     /// 项目任务缓存（按项目 ID）
-    project_cache: RefCell<HashMap<String, Vec<Arc<ItemModel>>>>,
+    project_cache: RefCell<HashMap<String, ItemList>>,
     /// 分区任务缓存（按分区 ID）
-    section_cache: RefCell<HashMap<String, Vec<Arc<ItemModel>>>>,
+    section_cache: RefCell<HashMap<String, ItemList>>,
 
     /// 缓存版本号（与 TodoStore 的版本号对应）
     cache_version: RefCell<usize>,
@@ -144,147 +147,108 @@ impl QueryCache {
         self.stats.borrow().hit_rate()
     }
 
+    fn record_get<T: Clone>(stats: &RefCell<CacheStats>, value: Option<T>) -> Option<T> {
+        if value.is_some() {
+            stats.borrow_mut().record_hit();
+        } else {
+            stats.borrow_mut().record_miss();
+        }
+        value
+    }
+
     // ==================== 收件箱缓存 ====================
 
-    /// 获取收件箱缓存
-    pub fn get_inbox(&self) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.inbox_cache.borrow().clone();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    /// 获取收件箱缓存（克隆 Arc，不复制 Vec）
+    pub fn get_inbox(&self) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.inbox_cache.borrow().clone())
     }
 
     /// 设置收件箱缓存
-    pub fn set_inbox(&self, items: Vec<Arc<ItemModel>>) {
+    pub fn set_inbox(&self, items: ItemList) {
         *self.inbox_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 今日任务缓存 ====================
 
     /// 获取今日任务缓存
-    pub fn get_today(&self) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.today_cache.borrow().clone();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_today(&self) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.today_cache.borrow().clone())
     }
 
     /// 设置今日任务缓存
-    pub fn set_today(&self, items: Vec<Arc<ItemModel>>) {
+    pub fn set_today(&self, items: ItemList) {
         *self.today_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 计划任务缓存 ====================
 
     /// 获取计划任务缓存
-    pub fn get_scheduled(&self) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.scheduled_cache.borrow().clone();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_scheduled(&self) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.scheduled_cache.borrow().clone())
     }
 
     /// 设置计划任务缓存
-    pub fn set_scheduled(&self, items: Vec<Arc<ItemModel>>) {
+    pub fn set_scheduled(&self, items: ItemList) {
         *self.scheduled_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 已完成任务缓存 ====================
 
     /// 获取已完成任务缓存
-    pub fn get_completed(&self) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.completed_cache.borrow().clone();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_completed(&self) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.completed_cache.borrow().clone())
     }
 
     /// 设置已完成任务缓存
-    pub fn set_completed(&self, items: Vec<Arc<ItemModel>>) {
+    pub fn set_completed(&self, items: ItemList) {
         *self.completed_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 置顶任务缓存 ====================
 
     /// 获取置顶任务缓存
-    pub fn get_pinned(&self) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.pinned_cache.borrow().clone();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_pinned(&self) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.pinned_cache.borrow().clone())
     }
 
     /// 设置置顶任务缓存
-    pub fn set_pinned(&self, items: Vec<Arc<ItemModel>>) {
+    pub fn set_pinned(&self, items: ItemList) {
         *self.pinned_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 过期任务缓存 ====================
 
     /// 获取过期任务缓存
-    pub fn get_overdue(&self) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.overdue_cache.borrow().clone();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_overdue(&self) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.overdue_cache.borrow().clone())
     }
 
     /// 设置过期任务缓存
-    pub fn set_overdue(&self, items: Vec<Arc<ItemModel>>) {
+    pub fn set_overdue(&self, items: ItemList) {
         *self.overdue_cache.borrow_mut() = Some(items);
     }
 
     // ==================== 项目任务缓存 ====================
 
     /// 获取项目任务缓存
-    pub fn get_project(&self, project_id: &str) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.project_cache.borrow().get(project_id).cloned();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_project(&self, project_id: &str) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.project_cache.borrow().get(project_id).cloned())
     }
 
     /// 设置项目任务缓存
-    pub fn set_project(&self, project_id: String, items: Vec<Arc<ItemModel>>) {
+    pub fn set_project(&self, project_id: String, items: ItemList) {
         self.project_cache.borrow_mut().insert(project_id, items);
     }
 
     // ==================== 分区任务缓存 ====================
 
     /// 获取分区任务缓存
-    pub fn get_section(&self, section_id: &str) -> Option<Vec<Arc<ItemModel>>> {
-        let result = self.section_cache.borrow().get(section_id).cloned();
-        if result.is_some() {
-            self.stats.borrow_mut().record_hit();
-        } else {
-            self.stats.borrow_mut().record_miss();
-        }
-        result
+    pub fn get_section(&self, section_id: &str) -> Option<ItemList> {
+        Self::record_get(&self.stats, self.section_cache.borrow().get(section_id).cloned())
     }
 
     /// 设置分区任务缓存
-    pub fn set_section(&self, section_id: String, items: Vec<Arc<ItemModel>>) {
+    pub fn set_section(&self, section_id: String, items: ItemList) {
         self.section_cache.borrow_mut().insert(section_id, items);
     }
 }
@@ -313,15 +277,24 @@ mod tests {
     fn test_invalidate_all() {
         let cache = QueryCache::new();
 
-        // 设置一些缓存
-        cache.set_inbox(vec![]);
-        cache.set_today(vec![]);
+        cache.set_inbox(Arc::new(vec![]));
+        cache.set_today(Arc::new(vec![]));
 
-        // 清空缓存
         cache.invalidate_all();
 
-        // 验证缓存已清空
         assert!(cache.get_inbox().is_none());
         assert!(cache.get_today().is_none());
+    }
+
+    #[test]
+    fn test_arc_hit_shares_allocation() {
+        let cache = QueryCache::new();
+        let items = Arc::new(vec![]);
+        cache.set_inbox(items.clone());
+
+        let a = cache.get_inbox().unwrap();
+        let b = cache.get_inbox().unwrap();
+        assert!(Arc::ptr_eq(&a, &b));
+        assert!(Arc::ptr_eq(&a, &items));
     }
 }
