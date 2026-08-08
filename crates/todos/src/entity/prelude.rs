@@ -2,7 +2,6 @@
 
 pub use super::{
     attachments::Entity as AttachmentEntity, item_labels::Entity as ItemLabelEntity,
-    items::Entity as ItemEntity, labels::Entity as LabelEntity,
-    projects::Entity as ProjectEntity, reminders::Entity as ReminderEntity,
-    sections::Entity as SectionEntity,
+    items::Entity as ItemEntity, labels::Entity as LabelEntity, projects::Entity as ProjectEntity,
+    reminders::Entity as ReminderEntity, sections::Entity as SectionEntity,
 };

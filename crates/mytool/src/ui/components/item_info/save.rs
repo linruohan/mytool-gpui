@@ -1,15 +1,12 @@
 use gpui::Context;
 use tracing::{error, info, warn};
 
+use super::{ItemInfoEvent, ItemInfoState, SaveItemStatus};
 use crate::{
     core::state::TodoStore,
     state_service,
-    todo_actions::{
-        add_item_optimistic, complete_item_optimistic, delete_item_optimistic,
-    },
+    todo_actions::{add_item_optimistic, complete_item_optimistic, delete_item_optimistic},
 };
-
-use super::{ItemInfoEvent, ItemInfoState, SaveItemStatus};
 
 impl ItemInfoState {
     pub fn sync_inputs(&mut self, cx: &mut Context<Self>) -> bool {

@@ -155,7 +155,6 @@ impl InboxBoard {
             show_pin_item_dialog(window, cx, item);
         });
     }
-
 }
 
 crate::impl_board_section_forwards!(InboxBoard);

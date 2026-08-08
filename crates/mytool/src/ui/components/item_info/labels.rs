@@ -4,12 +4,8 @@ use gpui::{Context, Entity, Window};
 use todos::entity::LabelModel;
 use tracing::info;
 
-use crate::{
-    LabelsPopoverEvent, LabelsPopoverList,
-    core::notification::NotificationSystem,
-};
-
 use super::{ItemInfoEvent, ItemInfoState};
+use crate::{LabelsPopoverEvent, LabelsPopoverList, core::notification::NotificationSystem};
 
 impl ItemInfoState {
     pub fn on_labels_event(
@@ -81,12 +77,8 @@ impl ItemInfoState {
             });
         });
 
-        let selected_label_ids = self
-            .selected_labels(cx)
-            .iter()
-            .map(|l| l.id.clone())
-            .collect::<Vec<_>>()
-            .join(";");
+        let selected_label_ids =
+            self.selected_labels(cx).iter().map(|l| l.id.clone()).collect::<Vec<_>>().join(";");
         self.state_manager.update_item(|item| {
             item.labels = Some(selected_label_ids.clone());
         });

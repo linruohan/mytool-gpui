@@ -128,7 +128,6 @@ impl PinBoard {
             show_finish_item_dialog(window, cx, item, FinishItemDialogStyle::Standard);
         });
     }
-
 }
 
 crate::impl_board_section_forwards!(PinBoard);

@@ -158,7 +158,6 @@ impl TodayBoard {
             show_item_delete_dialog(window, cx, item);
         });
     }
-
 }
 
 crate::impl_board_section_forwards!(TodayBoard);

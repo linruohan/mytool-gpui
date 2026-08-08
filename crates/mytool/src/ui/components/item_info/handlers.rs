@@ -4,19 +4,20 @@ use gpui::{Context, Entity, Window};
 use gpui_component::input::{InputEvent, InputState};
 use tracing::info;
 
+use super::{
+    super::{
+        PriorityEvent, PriorityState, ProjectButtonEvent, ProjectButtonState,
+        RecurrencyButtonEvent, RecurrencyButtonState, ReminderButtonEvent, ReminderButtonState,
+        ScheduleButtonEvent, ScheduleButtonState, SectionEvent, SectionState,
+    },
+    ItemInfoEvent, ItemInfoState,
+};
 use crate::{
     core::{
         notification::{NotificationExt as _, NotificationSystem},
         state::TodoStore,
     },
     todo_actions::update_item_optimistic,
-};
-
-use super::{ItemInfoEvent, ItemInfoState};
-use super::super::{
-    PriorityEvent, PriorityState, ProjectButtonEvent, ProjectButtonState, RecurrencyButtonEvent,
-    RecurrencyButtonState, ReminderButtonEvent, ReminderButtonState, ScheduleButtonEvent,
-    ScheduleButtonState, SectionEvent, SectionState,
 };
 
 impl ItemInfoState {

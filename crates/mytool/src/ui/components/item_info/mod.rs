@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce, StyleRefinement,
-    Styled, Subscription, Window, div, prelude::FluentBuilder as _, px,
+    Focusable, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
+    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
     IconName, Sizable, Size, StyledExt as _,
@@ -16,10 +15,7 @@ use gpui_component::{
     theme::ActiveTheme,
     v_flex,
 };
-use todos::{
-    entity::ItemModel,
-    enums::item_priority::ItemPriority,
-};
+use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 use tracing::{info, warn};
 
 use super::{
