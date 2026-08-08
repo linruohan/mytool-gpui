@@ -586,26 +586,9 @@ impl TodoStore {
         self.project_index.get(project_id).cloned().unwrap_or_default()
     }
 
-    /// 获取指定项目的置顶任务（未完成且已置顶）
-    pub fn pinned_items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
-        self.project_index
-            .get(project_id)
-            .map(|items| {
-                items.iter().filter(|item| !item.checked && item.pinned).cloned().collect()
-            })
-            .unwrap_or_default()
-    }
-
     /// 获取指定分区的任务（走 section_index）
     pub fn items_by_section(&self, section_id: &str) -> Vec<Arc<ItemModel>> {
         self.section_index.get(section_id).cloned().unwrap_or_default()
-    }
-
-    /// 获取无分区的任务
-    pub fn no_section_items(&self) -> Vec<Arc<ItemModel>> {
-        self.query_items(|item| {
-            !item.checked && (item.section_id.is_none() || item.section_id.as_deref() == Some(""))
-        })
     }
 
     /// 获取指定标签的任务（label_index + id_map）

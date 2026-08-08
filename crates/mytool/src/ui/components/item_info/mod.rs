@@ -583,24 +583,7 @@ impl Render for ItemInfoState {
                             .child(AttachmentButton::new(&self.attachment_state))
                             .child(self.label_popover_list.clone()) // tags
                             .child(PriorityButton::new(&self.priority_state)) // priority
-                            .child(ReminderButton::new(&self.reminder_state))
-                            .child(
-                                Button::new("item-due")
-                                    .small()
-                                    .ghost()
-                                    .tooltip("Set due date")
-                                    .compact()
-                                    .icon(IconName::DelayLongSmallSymbolic)
-                                    .on_click(move |_event, _window, _cx| {}),
-                            )
-                            .child(
-                                Button::new("item-more")
-                                    .icon(IconName::ViewMoreSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .tooltip("more actions")
-                                    .on_click(move |_event, _window, _cx| {}),
-                            ),
+                            .child(ReminderButton::new(&self.reminder_state)),
                 ),
             )
             .child(Separator::horizontal().p_1())

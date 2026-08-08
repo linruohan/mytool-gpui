@@ -105,11 +105,9 @@ impl ListStory {
                 cx.notify();
             }),
             cx.subscribe(&label_popover_list, |_this, _, ev: &LabelsPopoverEvent, _| match ev {
-                LabelsPopoverEvent::Selected(label) => {
-                    tracing::debug!("label_popover_list select: {:?}", label);
+                LabelsPopoverEvent::LabelsChanged(labels) => {
+                    tracing::debug!("label_popover_list changed: {:?}", labels);
                 },
-                LabelsPopoverEvent::DeSelected(_model) => {},
-                LabelsPopoverEvent::LabelsChanged(_labels) => {},
             }),
             cx.subscribe(&company_list, |_, _, ev: &ListEvent, _| match ev {
                 ListEvent::Select(ix) => {

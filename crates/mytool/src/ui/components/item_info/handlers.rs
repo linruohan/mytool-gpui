@@ -192,30 +192,13 @@ impl ItemInfoState {
         cx: &mut Context<Self>,
     ) {
         match event {
-            ScheduleButtonEvent::DateSelected(_date_str) => {
+            ScheduleButtonEvent::DateSelected(_) | ScheduleButtonEvent::TimeSelected(_) => {
                 let schedule_state = _state.read(cx);
-                // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
 
-                // 如果是新建任务，只更新 state_manager，不保存到数据库
                 if !self.state_manager.is_new_item() {
-                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
                     update_item_optimistic(self.state_manager.item.clone(), cx);
                 }
-                // 只发射事件通知父组件，不再在 handle_item_info_event 中重复保存
-                cx.emit(ItemInfoEvent::Updated());
-            },
-            ScheduleButtonEvent::TimeSelected(_time_str) => {
-                let schedule_state = _state.read(cx);
-                // 使用 state_manager 更新 due date
-                self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-
-                // 如果是新建任务，只更新 state_manager，不保存到数据库
-                if !self.state_manager.is_new_item() {
-                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
-                // 只发射事件通知父组件
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::Cleared => {

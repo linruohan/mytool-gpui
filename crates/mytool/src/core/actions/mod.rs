@@ -5,7 +5,6 @@
 
 mod attachment;
 pub mod batch;
-mod item;
 mod label;
 mod optimistic;
 mod project;
@@ -15,7 +14,6 @@ mod section;
 
 pub use attachment::*;
 pub use batch::*;
-pub use item::*;
 pub use label::*;
 pub use optimistic::*;
 pub use project::*;

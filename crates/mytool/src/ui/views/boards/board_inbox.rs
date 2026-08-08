@@ -138,16 +138,6 @@ impl InboxBoard {
         self.base.clamp_active_index();
     }
 
-    pub fn show_item_dialog(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        is_edit: bool,
-        section_id: Option<String>,
-    ) {
-        self.base.show_item_dialog(window, cx, is_edit, section_id);
-    }
-
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         with_selected_item(self.base.active_index, &self.base, cx, |item, cx| {
             show_item_delete_dialog(window, cx, item);
@@ -166,44 +156,9 @@ impl InboxBoard {
         });
     }
 
-    pub fn show_section_dialog(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        section_id: Option<String>,
-        is_edit: bool,
-    ) {
-        self.base.show_section_dialog(window, cx, section_id, is_edit);
-    }
-
-    pub fn show_section_delete_dialog(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        section_id: String,
-    ) {
-        BoardBase::show_section_delete_dialog(window, cx, section_id);
-    }
-
-    pub fn duplicate_section(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        section_id: String,
-    ) {
-        self.base.duplicate_section(window, cx, section_id);
-    }
-
-    pub fn archive_section(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        section_id: String,
-    ) {
-        self.base.archive_section(window, cx, section_id);
-    }
 }
 
+crate::impl_board_section_forwards!(InboxBoard);
 crate::impl_board_section_actions!(InboxBoard);
 
 impl BoardView for InboxBoard {
@@ -268,9 +223,9 @@ impl Render for InboxBoard {
 
         let view = cx.entity().clone();
         let sections = &cx.global::<TodoStore>().sections;
-        let pinned_items = self.base.pinned_items.clone();
-        let no_section_items = self.base.no_section_items.clone();
-        let section_items_map = self.base.section_items_map.clone();
+        let pinned_items = &self.base.pinned_items;
+        let no_section_items = &self.base.no_section_items;
+        let section_items_map = &self.base.section_items_map;
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;

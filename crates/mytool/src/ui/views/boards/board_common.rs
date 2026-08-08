@@ -237,6 +237,61 @@ pub trait BoardSectionActions: BoardView + Render {
     fn archive_section(&mut self, window: &mut Window, cx: &mut Context<Self>, section_id: String);
 }
 
+/// 为 Board 生成委托给 `BoardBase` 的 section 相关固有方法
+#[macro_export]
+macro_rules! impl_board_section_forwards {
+    ($board:ty) => {
+        impl $board {
+            pub fn show_item_dialog(
+                &mut self,
+                window: &mut gpui::Window,
+                cx: &mut gpui::Context<Self>,
+                is_edit: bool,
+                section_id: Option<String>,
+            ) {
+                self.base.show_item_dialog(window, cx, is_edit, section_id);
+            }
+
+            pub fn show_section_dialog(
+                &mut self,
+                window: &mut gpui::Window,
+                cx: &mut gpui::Context<Self>,
+                section_id: Option<String>,
+                is_edit: bool,
+            ) {
+                self.base.show_section_dialog(window, cx, section_id, is_edit);
+            }
+
+            pub fn show_section_delete_dialog(
+                &mut self,
+                window: &mut gpui::Window,
+                cx: &mut gpui::Context<Self>,
+                section_id: String,
+            ) {
+                $crate::BoardBase::show_section_delete_dialog(window, cx, section_id);
+            }
+
+            pub fn duplicate_section(
+                &mut self,
+                window: &mut gpui::Window,
+                cx: &mut gpui::Context<Self>,
+                section_id: String,
+            ) {
+                self.base.duplicate_section(window, cx, section_id);
+            }
+
+            pub fn archive_section(
+                &mut self,
+                window: &mut gpui::Window,
+                cx: &mut gpui::Context<Self>,
+                section_id: String,
+            ) {
+                self.base.archive_section(window, cx, section_id);
+            }
+        }
+    };
+}
+
 /// 将 Board 已有的同名固有方法委托给 `BoardSectionActions`
 #[macro_export]
 macro_rules! impl_board_section_actions {

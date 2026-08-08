@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, Entity, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
+    App, Context, ElementId, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
     SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder,
 };
 use gpui_component::{
@@ -12,8 +12,6 @@ use gpui_component::{
 };
 use todos::entity::LabelModel;
 use tracing::info;
-
-use crate::LabelsPopoverList;
 
 actions!(label, [SelectedCheckLabel, UnSelectedCheckLabel]);
 pub enum LabelCheckEvent {
@@ -91,28 +89,22 @@ impl RenderOnce for LabelCheckListItem {
 }
 
 pub struct LabelCheckListDelegate {
-    #[allow(dead_code)]
-    parent: Entity<LabelsPopoverList>,
     pub _labels: Vec<Arc<LabelModel>>,
     pub checked_list: Vec<Arc<LabelModel>>,
     pub matched_labels: Vec<Vec<Arc<LabelModel>>>,
-    #[allow(dead_code)]
-    checked: bool,
     selected_index: Option<IndexPath>,
     confirmed_index: Option<IndexPath>,
     query: SharedString,
 }
 
 impl LabelCheckListDelegate {
-    pub fn new(parent: Entity<LabelsPopoverList>) -> Self {
+    pub fn new() -> Self {
         Self {
-            parent,
             _labels: vec![],
             checked_list: vec![],
             matched_labels: vec![],
             selected_index: None,
             confirmed_index: None,
-            checked: false,
             query: "".into(),
         }
     }
@@ -176,26 +168,6 @@ impl LabelCheckListDelegate {
     pub fn selected_label(&self) -> Option<Arc<LabelModel>> {
         let ix = self.selected_index?;
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
-    }
-
-    #[allow(dead_code)]
-    fn confirm(&mut self, _select: bool, _: &mut Window, cx: &mut Context<ListState<Self>>) {
-        if let Some(label) = self.selected_label() {
-            self.checked_list.push(label.clone());
-        }
-        self.parent.update(cx, |this, cx| {
-            this.list_popover_open = false;
-            cx.notify();
-        })
-    }
-
-    #[allow(dead_code)]
-    fn cancel(&mut self, _: &mut Window, cx: &mut Context<ListState<Self>>) {
-        self.parent.update(cx, |this, cx| {
-            this.list_popover_open = false;
-
-            cx.notify();
-        })
     }
 }
 impl ListDelegate for LabelCheckListDelegate {

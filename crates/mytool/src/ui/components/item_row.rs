@@ -80,14 +80,6 @@ impl ItemRowState {
                     this.item = updated_item.clone();
                     this.update_version += 1; // 增加版本号，强制重新渲染
 
-                    // 添加调试日志
-                    use tracing::info;
-                    info!(
-                        "ItemRowState: item updated - id: {}, labels: {:?}, version: {}, \
-                         is_label_update: {}",
-                        updated_item.id, updated_item.labels, this.update_version, is_label_update
-                    );
-
                     // 仅在 item_info 已创建时同步状态
                     if let Some(item_info) = this.item_info.as_ref() {
                         item_info.update(cx, |this_info, cx| {
@@ -159,17 +151,9 @@ impl ItemRowState {
                     state.handle_item_info_event(event, cx);
                 });
                 let latest_item = item_info.read(cx).state_manager.item.clone();
-                let is_label_update = this.item.labels != latest_item.labels;
 
                 this.item = latest_item.clone();
                 this.update_version += 1;
-
-                use tracing::info;
-                info!(
-                    "ItemRowState subscribe: item updated - id: {}, labels: {:?}, version: {}, \
-                     is_label_update: {}",
-                    latest_item.id, latest_item.labels, this.update_version, is_label_update
-                );
 
                 cx.notify();
             }
@@ -179,31 +163,35 @@ impl ItemRowState {
         item_info
     }
 
+    /// 展开详情面板（可选刷新标签选择状态）
+    fn open_detail(&mut self, window: &mut Window, cx: &mut Context<Self>, refresh_labels: bool) {
+        if self.is_open {
+            return;
+        }
+        self.is_open = true;
+        let item_info = self.ensure_item_info(window, cx);
+        item_info.update(cx, |state, cx| {
+            state.focus_name_input(window, cx);
+            if refresh_labels {
+                state.refresh_labels_selection_from_item(cx);
+            }
+        });
+        cx.notify();
+    }
+
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.is_open = !self.is_open;
-
         if self.is_open {
-            let item_info = self.ensure_item_info(window, cx);
-            item_info.update(cx, |state, cx| {
-                state.focus_name_input(window, cx);
-                state.refresh_labels_selection_from_item(cx);
-            });
+            self.is_open = false;
+            cx.notify();
+        } else {
+            self.open_detail(window, cx, true);
         }
-
-        cx.notify();
     }
 
     /// 展开详情面板
     fn expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.is_open {
-            self.is_open = true;
-            let item_info = self.ensure_item_info(window, cx);
-            item_info.update(cx, |state, cx| {
-                state.focus_name_input(window, cx);
-            });
-            cx.notify();
-        }
+        self.open_detail(window, cx, false);
     }
 
     /// 检查点击是否在展开按钮区域

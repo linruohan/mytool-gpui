@@ -510,9 +510,9 @@ impl Focusable for ProjectItemsPanel {
 impl Render for ProjectItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let no_section_items = self.no_section_items.clone();
-        let section_items_map = self.section_items_map.clone();
+        let sections = &cx.global::<TodoStore>().sections;
+        let no_section_items = &self.no_section_items;
+        let section_items_map = &self.section_items_map;
 
         v_flex()
             .track_focus(&self.focus_handle)
@@ -681,8 +681,8 @@ impl Render for ProjectItemsPanel {
                         .when(!self.pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             let view_clone_for_dropdown = view_clone.clone();
-                            let pinned_items = self.pinned_items.clone();
-                            let item_rows = self.item_rows.clone();
+                            let pinned_items = &self.pinned_items;
+                            let item_rows = &self.item_rows;
                             let active_index = self.active_index;
                             let active_border = cx.theme().list_active_border;
 
@@ -690,7 +690,8 @@ impl Render for ProjectItemsPanel {
                             let pinned_items_view = v_flex()
                                 .gap(VisualHierarchy::spacing(2.0))
                                 .w_full()
-                                .children(pinned_items.into_iter().map(move |(i, _item)| {
+                                .children(pinned_items.iter().map(|(i, _item)| {
+                                    let i = *i;
                                     let view = view_clone.clone();
                                     let is_active = active_index == Some(i);
                                     let item_row = item_rows.get(i).cloned();
@@ -762,7 +763,8 @@ impl Render for ProjectItemsPanel {
                                         ),
                                     )
                                     .child(v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(
-                                        no_section_items.into_iter().map(|(i, _item)| {
+                                        no_section_items.iter().map(|(i, _item)| {
+                                            let i = *i;
                                             let view = view_clone.clone();
                                             let is_active = self.active_index == Some(i);
                                             let item_row = self.item_rows.get(i).cloned();

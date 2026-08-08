@@ -25,9 +25,7 @@ use crate::{
 actions!(labels_popover, [CreateNewLabel]);
 
 pub enum LabelsPopoverEvent {
-    Selected(Arc<LabelModel>),
-    DeSelected(Arc<LabelModel>),
-    LabelsChanged(String), // 新增事件，当标签选择改变时发送标签ID字符串
+    LabelsChanged(String),
 }
 
 pub struct LabelsPopoverList {
@@ -45,9 +43,8 @@ impl LabelsPopoverList {
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let parent = cx.entity();
         let label_list = cx.new(|cx| {
-            ListState::new(LabelCheckListDelegate::new(parent), window, cx)
+            ListState::new(LabelCheckListDelegate::new(), window, cx)
                 .searchable(true)
                 .selectable(true)
         });
@@ -126,10 +123,8 @@ impl LabelsPopoverList {
             if (select && !contains) || (!select && contains) {
                 if select {
                     self.selected_labels.push(label.clone());
-                    cx.emit(LabelsPopoverEvent::Selected(label.clone()));
                 } else {
                     self.selected_labels.retain(|l| l.id != label.id);
-                    cx.emit(LabelsPopoverEvent::DeSelected(label.clone()));
                 }
                 // 同步更新 LabelCheckListDelegate 的 checked_list
                 self.label_list.update(cx, |list, cx| {
@@ -230,7 +225,6 @@ impl LabelsPopoverList {
             self.label_list.update(cx, |list, cx| {
                 list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
             });
-            cx.emit(LabelsPopoverEvent::Selected(new_label.clone()));
             self.emit_labels_changed(cx);
         }
 
