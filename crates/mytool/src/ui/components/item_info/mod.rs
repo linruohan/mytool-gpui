@@ -6,11 +6,15 @@ use gpui::{
     StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
-    IconName, Sizable, Size, StyledExt as _,
+    IconName,
+    Sizable,
+    Size,
+    StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     h_flex,
-    input::{Input, InputState},
+    // 🔧 修复：描述输入框需要 auto_grow，只在多行 TextareaState 上可用
+    input::{Input, InputState, Textarea, TextareaState},
     separator::Separator,
     theme::ActiveTheme,
     v_flex,
@@ -51,7 +55,8 @@ pub struct ItemInfoState {
     _subscriptions: Vec<Subscription>,
     // item view
     name_input: Entity<InputState>,
-    desc_input: Entity<InputState>,
+    // 🔧 修复：描述框使用多行 TextareaState（auto_grow 只在该模式下可用）
+    desc_input: Entity<TextareaState>,
     priority_state: Entity<PriorityState>,
     project_state: Entity<ProjectButtonState>,
     section_state: Entity<SectionState>,
@@ -75,7 +80,8 @@ impl ItemInfoState {
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Task name..."));
 
         let desc_input = cx.new(|cx| {
-            InputState::new(window, cx).auto_grow(5, 20).placeholder("Add description...")
+            // 🔧 修复：auto_grow 只在多行 TextareaState 上存在，使用 TextareaState::new()
+            TextareaState::new(window, cx).auto_grow(5, 20).placeholder("Add description...")
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
@@ -102,8 +108,9 @@ impl ItemInfoState {
         let reminder_state = cx.new(|cx| ReminderButtonState::new(item.id.clone(), window, cx));
 
         let _subscriptions = vec![
-            cx.subscribe_in(&name_input, window, Self::on_input_event),
-            cx.subscribe_in(&desc_input, window, Self::on_input_event),
+            // 🔧 修复：名称框（InputState）和描述框（TextareaState）类型不同，使用各自独立的回调
+            cx.subscribe_in(&name_input, window, Self::on_name_input_event),
+            cx.subscribe_in(&desc_input, window, Self::on_desc_input_event),
             cx.subscribe_in(&label_popover_list, window, Self::on_labels_event),
             cx.subscribe_in(&priority_state, window, Self::on_priority_event),
             cx.subscribe_in(&project_state, window, Self::on_project_event),
@@ -515,7 +522,8 @@ impl Render for ItemInfoState {
                     ),
             )
             .child(
-                Input::new(&self.desc_input)
+                // 🔧 修复：TextareaState 对应的渲染组件是 Textarea 而不是 Input
+                Textarea::new(&self.desc_input)
                     .bordered(false)
                     .px(px(6.0))
                     .py(px(4.0))

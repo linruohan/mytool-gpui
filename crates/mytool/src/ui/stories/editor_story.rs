@@ -1,17 +1,26 @@
 use gpui::*;
 use gpui_component::{
-    ActiveTheme, IconName, Sizable,
+    ActiveTheme,
+    IconName,
+    Sizable,
     button::{Button, ButtonVariants as _},
     h_flex,
-    input::{Input, InputState, TabSize},
+    // 改用专用的编辑器类型：Editor（视图）和 EditorState（状态）
+    // 替代原来的普通 Input/InputState，以支持代码编辑器的专属功能
+    input::{Editor, EditorState, TabSize},
     switch::Switch,
     v_flex,
 };
 
 use crate::Mytool;
 
+/// 编辑器示例结构体
+///
+/// 存储编辑器状态实体和各项配置开关。
+/// 使用 EditorState 而非普通 InputState，因为前者提供了代码高亮、
+/// 行号显示、缩进参考线等专属编辑器功能。
 pub struct EditorStory {
-    editor: Entity<InputState>,
+    editor: Entity<EditorState>,
     focus_handle: FocusHandle,
     line_number: bool,
     indent_guides: bool,
@@ -24,10 +33,16 @@ impl EditorStory {
         cx.new(|cx| Self::new(window, cx))
     }
 
+    /// 创建编辑器示例
+    ///
+    /// 使用 EditorState::new 初始化编辑器，
+    /// 通过 .language("rust") 设置语言（旧 API 为 code_editor("rust")），
+    /// 链式配置行号、缩进、Tab 大小、软换行、默认代码等。
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let editor = cx.new(|cx| {
-            InputState::new(window, cx)
-                .code_editor("rust")
+            EditorState::new(window, cx)
+                // 设置语法高亮语言，替代旧版的 .code_editor("rust")
+                .language("rust")
                 .line_number(true)
                 .indent_guides(true)
                 .tab_size(TabSize { tab_size: 4, hard_tabs: false })
@@ -123,6 +138,7 @@ impl Render for EditorStory {
                             .on_click(cx.listener(|this, checked: &bool, window, cx| {
                                 this.line_number = *checked;
                                 this.editor.update(cx, |state, cx| {
+                                    // EditorState 支持 set_line_number 方法
                                     state.set_line_number(this.line_number, window, cx);
                                 });
                                 cx.notify();
@@ -135,6 +151,7 @@ impl Render for EditorStory {
                             .on_click(cx.listener(|this, checked: &bool, window, cx| {
                                 this.indent_guides = *checked;
                                 this.editor.update(cx, |state, cx| {
+                                    // EditorState 支持 set_indent_guides 方法
                                     state.set_indent_guides(this.indent_guides, window, cx);
                                 });
                                 cx.notify();
@@ -147,6 +164,7 @@ impl Render for EditorStory {
                             .on_click(cx.listener(|this, checked: &bool, window, cx| {
                                 this.soft_wrap = *checked;
                                 this.editor.update(cx, |state, cx| {
+                                    // EditorMode 满足 MultiLineMode trait，可使用 set_soft_wrap
                                     state.set_soft_wrap(this.soft_wrap, window, cx);
                                 });
                                 cx.notify();
@@ -174,13 +192,15 @@ impl Render for EditorStory {
                     .border_color(cx.theme().border)
                     .rounded(cx.theme().radius)
                     .child(
-                        Input::new(&self.editor)
+                        // 使用 Editor 组件渲染编辑器，替代原来的 Input 组件
+                        Editor::new(&self.editor)
                             .bordered(false)
                             .p_0()
                             .h_full()
                             .font_family(cx.theme().mono_font_family.clone())
                             .text_size(cx.theme().mono_font_size)
-                            .focus_bordered(false)
+                            // 🔧 新版 gpui-component 已移除 focus_bordered，
+                            // 焦点边框样式由 bordered 和主题样式共同控制
                             .into_any_element(),
                     ),
             )

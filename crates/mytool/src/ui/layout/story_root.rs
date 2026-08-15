@@ -1,10 +1,12 @@
 use gpui::{
     AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement, Render, SharedString, Styled, Window, div,
+    prelude::FluentBuilder as _,
 };
 use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
+use gpui_fps::fps_monitor;
 
-use crate::{AppTitleBar, ShowPanelInfo, ToggleSearch};
+use crate::{AppState, AppTitleBar, ShowPanelInfo, ToggleSearch};
 
 pub struct StoryRoot {
     pub(crate) focus_handle: FocusHandle,
@@ -62,6 +64,7 @@ impl Render for StoryRoot {
         let sheet_layer = Root::render_sheet_layer(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
+        let show_fps = AppState::global(cx).show_fps_monitor;
 
         div()
             .id("story-root")
@@ -77,7 +80,11 @@ impl Render for StoryRoot {
                             .track_focus(&self.focus_handle)
                             .flex_1()
                             .overflow_hidden()
-                            .child(self.view.clone()),
+                            .child(self.view.clone())
+                            // Rendered inside the content area rather than the
+                            // window root so the HUD's top right corner clears
+                            // the title bar's own controls.
+                            .when(show_fps, |this| this.child(fps_monitor(window, cx))),
                     )
                     .children(sheet_layer)
                     .children(dialog_layer)

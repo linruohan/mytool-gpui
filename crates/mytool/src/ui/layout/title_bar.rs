@@ -1,20 +1,27 @@
+use std::rc::Rc;
+
 use gpui::{
-    AppContext, Context, Entity, FocusHandle, InteractiveElement as _, IntoElement, MouseButton,
-    ParentElement as _, Render, SharedString, Styled as _, Subscription, Window, div, px,
+    Anchor, AnyElement, App, AppContext, Context, Entity, FocusHandle, InteractiveElement as _,
+    IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Subscription,
+    Window, div, px,
 };
 use gpui_component::{
     ActiveTheme as _, IconName, Side, Sizable as _, Theme, TitleBar, WindowExt as _,
     badge::Badge,
     button::{Button, ButtonVariants as _},
     menu::{AppMenuBar, DropdownMenu as _},
-    scroll::ScrollbarShow,
+    scroll::ScrollbarMode,
 };
 
-use crate::{SelectFont, SelectRadius, SelectScrollbarShow, ToggleListActiveHighlight, app_menus};
+use crate::{
+    AppState, SelectFont, SelectRadius, SelectScrollbarMode, ToggleFpsMonitor,
+    ToggleListActiveHighlight, app_menus,
+};
 
 pub struct AppTitleBar {
     app_menu_bar: Entity<AppMenuBar>,
     font_size_selector: Entity<FontSizeSelector>,
+    child: Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -27,7 +34,21 @@ impl AppTitleBar {
         let app_menu_bar = app_menus::init(title, cx);
         let font_size_selector = cx.new(|cx| FontSizeSelector::new(window, cx));
 
-        Self { app_menu_bar, font_size_selector, _subscriptions: vec![] }
+        Self {
+            app_menu_bar,
+            font_size_selector,
+            child: Rc::new(|_, _| div().into_any_element()),
+            _subscriptions: vec![],
+        }
+    }
+
+    pub fn child<F, E>(mut self, f: F) -> Self
+    where
+        E: IntoElement,
+        F: Fn(&mut Window, &mut App) -> E + 'static,
+    {
+        self.child = Rc::new(move |window, cx| f(window, cx).into_any_element());
+        self
     }
 }
 
@@ -46,6 +67,7 @@ impl Render for AppTitleBar {
                     .px_2()
                     .gap_2()
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child((self.child.clone())(window, cx))
                     .child(self.font_size_selector.clone())
                     .child(
                         Button::new("github")
@@ -102,13 +124,13 @@ impl FontSizeSelector {
         window.refresh();
     }
 
-    fn on_select_scrollbar_show(
+    fn on_select_scrollbar_mode(
         &mut self,
-        show: &SelectScrollbarShow,
+        show: &SelectScrollbarMode,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        Theme::global_mut(cx).scrollbar_show = show.0;
+        Theme::set_scrollbar_mode(show.0, cx);
         window.refresh();
     }
 
@@ -122,6 +144,17 @@ impl FontSizeSelector {
         theme.list.active_highlight = !theme.list.active_highlight;
         window.refresh();
     }
+
+    fn on_toggle_fps_monitor(
+        &mut self,
+        _: &ToggleFpsMonitor,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let state = AppState::global_mut(cx);
+        state.show_fps_monitor = !state.show_fps_monitor;
+        window.refresh();
+    }
 }
 
 impl Render for FontSizeSelector {
@@ -129,15 +162,17 @@ impl Render for FontSizeSelector {
         let focus_handle = self.focus_handle.clone();
         let font_size = cx.theme().font_size.as_f32() as i32;
         let radius = cx.theme().radius.as_f32() as i32;
-        let scroll_show = cx.theme().scrollbar_show;
+        let scroll_show = cx.theme().scrollbar_mode;
+        let show_fps_monitor = AppState::global(cx).show_fps_monitor;
 
         div()
             .id("font-size-selector")
             .track_focus(&focus_handle)
             .on_action(cx.listener(Self::on_select_font))
             .on_action(cx.listener(Self::on_select_radius))
-            .on_action(cx.listener(Self::on_select_scrollbar_show))
+            .on_action(cx.listener(Self::on_select_scrollbar_mode))
             .on_action(cx.listener(Self::on_toggle_list_active_highlight))
+            .on_action(cx.listener(Self::on_toggle_fps_monitor))
             .child(
                 Button::new("btn")
                     .small()
@@ -169,18 +204,18 @@ impl Render for FontSizeSelector {
                             .label("Scrollbar")
                             .menu_with_check(
                                 "Scrolling to show",
-                                scroll_show == ScrollbarShow::Scrolling,
-                                Box::new(SelectScrollbarShow(ScrollbarShow::Scrolling)),
+                                scroll_show == ScrollbarMode::Scrolling,
+                                Box::new(SelectScrollbarMode(ScrollbarMode::Scrolling)),
                             )
                             .menu_with_check(
                                 "Hover to show",
-                                scroll_show == ScrollbarShow::Hover,
-                                Box::new(SelectScrollbarShow(ScrollbarShow::Hover)),
+                                scroll_show == ScrollbarMode::Hover,
+                                Box::new(SelectScrollbarMode(ScrollbarMode::Hover)),
                             )
                             .menu_with_check(
                                 "Always show",
-                                scroll_show == ScrollbarShow::Always,
-                                Box::new(SelectScrollbarShow(ScrollbarShow::Always)),
+                                scroll_show == ScrollbarMode::Always,
+                                Box::new(SelectScrollbarMode(ScrollbarMode::Always)),
                             )
                             .separator()
                             .menu_with_check(
@@ -188,8 +223,13 @@ impl Render for FontSizeSelector {
                                 cx.theme().list.active_highlight,
                                 Box::new(ToggleListActiveHighlight),
                             )
+                            .menu_with_check(
+                                "FPS Monitor",
+                                show_fps_monitor,
+                                Box::new(ToggleFpsMonitor),
+                            )
                     })
-                    .anchor(gpui::Anchor::TopRight),
+                    .anchor(Anchor::TopRight),
             )
     }
 }

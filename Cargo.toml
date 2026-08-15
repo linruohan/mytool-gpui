@@ -12,8 +12,8 @@ resolver = "2"
 todos = { path = "crates/todos" }     # todos库，提供核心的任务管理功能
 mytool = { path = "crates/mytool" }   # 主工具库，包含核心功能和命令行接口
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
-# gpui - 使用与 gpui-component 相同的 commit 确保兼容性
-gpui = { git = "https://github.com/zed-industries/zed" }
+# gpui - 启用 profiler feature 以导出 FrameTiming/FrameTimingCollector
+gpui = { git = "https://github.com/zed-industries/zed", features = ["profiler"] }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
     "font-kit",
     "x11",
@@ -25,6 +25,8 @@ gpui-component = { git = "https://github.com/linruohan/gpui-component.git", feat
     "tree-sitter-languages",
 ] }
 gpui-component-assets = { git = "https://github.com/linruohan/gpui-component.git" }
+# 修复：使用本地修复后的 gpui-fps（已适配新版 gpui 的 FrameEvent/set_trace_enabled API）
+gpui-fps = { path = "third-party/gpui-fps" }
 # External crates
 anyhow = "1.0.104"
 # rand = "0.8.5"
@@ -148,3 +150,7 @@ lto = false
 incremental = false
 # 禁用调试信息
 debug = 0
+
+# 🔧 修复：用本地适配过新版 gpui API 的 gpui-fps 覆盖 git 来源的版本
+[patch."https://github.com/linruohan/gpui-component.git"]
+gpui-fps = { path = "third-party/gpui-fps" }

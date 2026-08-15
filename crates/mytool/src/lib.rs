@@ -14,7 +14,7 @@ use gpui_component::{
     Root, TitleBar, WindowExt,
     dock::{PanelInfo, register_panel},
     h_flex,
-    scroll::ScrollbarShow,
+    scroll::ScrollbarMode,
     text::markdown,
 };
 use serde::Deserialize;
@@ -54,7 +54,7 @@ rust_i18n::i18n!("locales", fallback = "zh-CN");
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]
-pub struct SelectScrollbarShow(ScrollbarShow);
+pub struct SelectScrollbarMode(ScrollbarMode);
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
 #[action(namespace = mytool, no_json)]
@@ -77,17 +77,21 @@ actions!(mytool, [
     Tab,
     TabPrev,
     ShowPanelInfo,
-    ToggleListActiveHighlight
+    ToggleListActiveHighlight,
+    ToggleFpsMonitor
 ]);
 
 const PANEL_NAME: &str = "StoryContainer";
 
 pub struct AppState {
     pub invisible_panels: Entity<Vec<SharedString>>,
+    /// Whether the window root renders the performance HUD. Toggled from the
+    /// title bar's settings menu, read by [`StoryRoot`].
+    pub show_fps_monitor: bool,
 }
 impl AppState {
     fn init(cx: &mut App) {
-        let state = Self { invisible_panels: cx.new(|_| Vec::new()) };
+        let state = Self { invisible_panels: cx.new(|_| Vec::new()), show_fps_monitor: false };
         cx.set_global::<AppState>(state);
     }
 

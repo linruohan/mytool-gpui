@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gpui::{Context, Entity, Window};
-use gpui_component::input::{InputEvent, InputState};
+use gpui_component::input::{InputEvent, InputState, TextareaState};
 use tracing::info;
 
 use super::{
@@ -21,7 +21,8 @@ use crate::{
 };
 
 impl ItemInfoState {
-    pub(super) fn on_input_event(
+    /// 名称输入框事件处理（单行 InputState）
+    pub(super) fn on_name_input_event(
         &mut self,
         state: &Entity<InputState>,
         event: &InputEvent,
@@ -31,22 +32,40 @@ impl ItemInfoState {
         match event {
             InputEvent::Change => {
                 let text = state.read(cx).value().to_string();
-                if state == &self.name_input {
-                    self.state_manager.set_content(text);
-                } else {
-                    self.state_manager.set_description(Some(text));
-                }
-                // 🚀 关键修复：标记有未保存的修改
+                self.state_manager.set_content(text);
                 self.state_manager.mark_dirty();
-                // 只更新 UI，不触发数据库保存
                 cx.notify();
             },
             InputEvent::PressEnter { secondary, .. } if !*secondary => {
-                // Enter 键不再自动保存，只同步输入
                 self.sync_inputs(cx);
             },
             InputEvent::Blur => {
-                // 失焦时不再自动保存，只同步输入
+                self.sync_inputs(cx);
+            },
+            _ => {},
+        };
+    }
+
+    /// 描述输入框事件处理（多行 TextareaState，支持 auto_grow）
+    pub(super) fn on_desc_input_event(
+        &mut self,
+        state: &Entity<TextareaState>,
+        event: &InputEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            InputEvent::Change => {
+                let text = state.read(cx).value().to_string();
+                self.state_manager.set_description(Some(text));
+                self.state_manager.mark_dirty();
+                cx.notify();
+            },
+            InputEvent::PressEnter { secondary, .. } if !*secondary => {
+                // 多行 Textarea 的 Enter 通常是换行，所以这里不再特殊处理
+                self.sync_inputs(cx);
+            },
+            InputEvent::Blur => {
                 self.sync_inputs(cx);
             },
             _ => {},
