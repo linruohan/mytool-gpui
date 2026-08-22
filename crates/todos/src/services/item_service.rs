@@ -97,7 +97,23 @@ impl ItemService {
 
         let rows_affected = self.execute_item_update(&item, now).await?;
         if rows_affected == 0 {
-            return Err(TodoError::not_found("Item").with_entity("Item", &item_id));
+            // 乐观新增的任务可能尚未 INSERT 完成，或 UI 仍持有尚未同步的 ID。
+            // 回退为插入，避免「保存」直接失败。
+            tracing::warn!("ItemService::update_item - id {} 未找到，回退为 insert", item_id);
+            match self.insert_item(item.clone(), true).await {
+                Ok(inserted) => return Ok(inserted),
+                Err(e) if is_pk_or_unique_conflict(&e) => {
+                    tracing::info!(
+                        "ItemService::update_item - insert 与并发写入冲突，重试 update: {}",
+                        item_id
+                    );
+                    let retry_rows = self.execute_item_update(&item, now).await?;
+                    if retry_rows == 0 {
+                        return Err(e);
+                    }
+                },
+                Err(e) => return Err(e),
+            }
         }
 
         let mut updated_item = item;
@@ -406,5 +422,30 @@ impl ItemService {
         self.item_label_repo.set_item_labels(item_id, label_ids).await?;
 
         Ok(())
+    }
+}
+
+fn is_pk_or_unique_conflict(err: &TodoError) -> bool {
+    let msg = err.to_string().to_lowercase();
+    msg.contains("unique")
+        || msg.contains("constraint failed")
+        || msg.contains("primary key")
+        || msg.contains("2067")
+        || msg.contains("1555")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_sqlite_pk_conflict_messages() {
+        assert!(is_pk_or_unique_conflict(&TodoError::DatabaseError(
+            "UNIQUE constraint failed: items.id".into()
+        )));
+        assert!(is_pk_or_unique_conflict(&TodoError::DatabaseError(
+            "PRIMARY KEY constraint failed".into()
+        )));
+        assert!(!is_pk_or_unique_conflict(&TodoError::not_found("Item")));
     }
 }

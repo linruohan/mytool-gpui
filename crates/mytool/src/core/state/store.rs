@@ -437,6 +437,11 @@ impl TodoStore {
         self.id_mappings.get(temp_id)
     }
 
+    /// 根据真实 ID 反查仍记录着的临时 ID（用于列表行复用）
+    pub fn temp_id_for(&self, real_id: &str) -> Option<&String> {
+        self.id_mappings.iter().find(|(_, mapped)| mapped.as_str() == real_id).map(|(k, _)| k)
+    }
+
     /// 重建所有索引
     /// 当批量更新数据时调用
     ///
@@ -1367,5 +1372,22 @@ mod tests {
         assert!(labels_only.affects_label_list());
         assert!(labels_only.affects_item_editor());
         assert!(!labels_only.affects_project_list());
+    }
+
+    #[test]
+    fn test_temp_id_mapping_roundtrip() {
+        let mut store = TodoStore::new();
+        let mut temp = create_test_item("temp_abc", false, false, None);
+        temp.id = "temp_abc".to_string();
+        store.add_item(Arc::new(temp));
+
+        let mut real = create_test_item("real_abc", false, false, None);
+        real.id = "real_abc".to_string();
+        store.replace_item_id("temp_abc", Arc::new(real));
+
+        assert_eq!(store.get_real_id("temp_abc").map(String::as_str), Some("real_abc"));
+        assert_eq!(store.temp_id_for("real_abc").map(String::as_str), Some("temp_abc"));
+        assert!(store.get_item("temp_abc").is_none());
+        assert!(store.get_item("real_abc").is_some());
     }
 }

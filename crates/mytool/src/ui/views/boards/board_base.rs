@@ -459,7 +459,14 @@ pub fn diff_update_item_rows<V: gpui::Render>(
     let mut new_rows = Vec::with_capacity(new_items.len());
     let mut new_ids = Vec::with_capacity(new_items.len());
     for item in new_items.iter() {
-        if let Some(old_entity) = old_rows_map.remove(&item.id) {
+        let reuse_key = if old_rows_map.contains_key(&item.id) {
+            Some(item.id.clone())
+        } else {
+            cx.global::<TodoStore>().temp_id_for(&item.id).cloned()
+        };
+        if let Some(old_id) = reuse_key
+            && let Some(old_entity) = old_rows_map.remove(&old_id)
+        {
             old_entity.update(cx, |row, cx| {
                 row.sync_item(item.clone(), window, cx);
             });

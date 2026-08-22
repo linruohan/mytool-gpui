@@ -91,6 +91,7 @@ impl ItemStateManager {
         let mut item_data = (*self.item).clone();
         f(&mut item_data);
         self.item = Arc::new(item_data);
+        self.has_unsaved_changes = true;
     }
 
     /// 设置项目 ID

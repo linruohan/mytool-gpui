@@ -34,16 +34,22 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     if let Err(e) = validation::validate_task_content(&item.content) {
         let context = ErrorHandler::handle_with_location(e, "add_item_optimistic");
         error!("{}", context.format_user_message());
+        cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+            notifier.set_error(context.format_user_message());
+        });
         return "".to_string();
     }
 
-    // 1. 生成临时 ID（用于乐观更新 UI）
-    let temp_id = format!("temp_{}", uuid::Uuid::new_v4());
-    let temp_id_clone = temp_id.clone();
+    // 1. 生成稳定 ID：UI 与数据库使用同一主键，避免随后按 temp_ ID UPDATE 失败
+    let item_id = if item.id.is_empty() || item.id.starts_with("temp_") {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        item.id.clone()
+    };
     let mut optimistic_item = (*item).clone();
-    optimistic_item.id = temp_id_clone.clone();
+    optimistic_item.id = item_id.clone();
 
-    info!("Optimistically adding item with temp ID: {}, content: '{}'", temp_id, item.content);
+    info!("Optimistically adding item with ID: {}, content: '{}'", item_id, item.content);
 
     // 2. ⚡ 立即更新 UI（乐观更新，用户无感知延迟）
     cx.update_global::<TodoStore, _>(|store, _| {
@@ -52,16 +58,17 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
 
     // 3. 🔄 异步保存到数据库（增强版：独立 Runtime + 重试机制）
     let db_state = cx.global::<DBState>().clone();
-    let item_clone = item.clone();
-    let item_id_for_error = item.id.clone(); // 保存 item_id 用于错误处理
+    let db_state_for_labels = db_state.clone();
+    let item_for_save = Arc::new(optimistic_item);
+    let item_id_for_error = item_id.clone();
 
-    let temp_id_for_async = temp_id.clone();
+    let item_id_for_async = item_id.clone();
 
     // 使用 cx.spawn + .detach() 执行异步任务
     // .detach() 确保任务不会因为组件销毁而被取消
     cx.spawn(async move |cx| {
         let spawn_start = std::time::Instant::now();
-        info!("🚀 [add_item_optimistic] 异步保存任务启动, temp_id={}", temp_id_for_async);
+        info!("🚀 [add_item_optimistic] 异步保存任务启动, id={}", item_id_for_async);
 
         // 使用 spawn_db_operation 在独立的 Tokio Runtime 中执行 DB 操作
         let save_result = spawn_db_operation(async move {
@@ -76,7 +83,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
             );
 
             let store = db_state.get_store_async().await;
-            let item_for_save = item_clone.clone();
 
             // 🔍 诊断：在插入前检查连接池状态
             if let Some(stats) = get_pool_stats(&db_state) {
@@ -92,7 +98,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
             info!("📊 [add_item_optimistic] 开始执行 insert (带重试)...");
             let insert_start = std::time::Instant::now();
 
-            // 使用重试机制执行插入
+            // 使用重试机制执行插入（与 UI 使用同一 ID）
             let result = retry::retry_async_todo(
                 |_attempt| {
                     let store = store.clone();
@@ -117,21 +123,43 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
 
         match save_result {
             Ok(Ok(saved_item)) => {
-                let real_id = saved_item.id.clone();
-                info!(
-                    "Successfully saved item, replacing temp ID {} with real ID {}",
-                    temp_id_for_async, real_id
-                );
+                info!("Successfully saved item with ID {}", saved_item.id);
 
-                // ✅ 更新 UI：将临时 ID 替换为真实 ID
+                // ID 已在插入前确定；若数据库回写了相同记录，仍同步一次内存态
                 cx.update_global::<TodoStore, _>(|store, _| {
-                    store.replace_item_id(&temp_id_for_async, Arc::new(saved_item.clone()));
+                    store.update_item(Arc::new(saved_item.clone()));
                 });
 
-                // ✅ 标记保存成功
+                let label_ids: Vec<String> = saved_item
+                    .labels
+                    .as_deref()
+                    .unwrap_or("")
+                    .split(';')
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .collect();
+                if !label_ids.is_empty() {
+                    let item_id = saved_item.id.clone();
+                    match spawn_db_operation(async move {
+                        let store = db_state_for_labels.get_store_async().await;
+                        store.set_item_labels(&item_id, &label_ids).await
+                    })
+                    .await
+                    {
+                        Ok(Ok(())) => {
+                            info!("Labels saved for new item {}", saved_item.id);
+                        },
+                        Ok(Err(e)) => {
+                            error!("❌ 新建任务后写入标签失败: {}", e);
+                        },
+                        Err(e) => {
+                            error!("❌ 新建任务标签任务异常: {:?}", e);
+                        },
+                    }
+                }
+
                 cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
-                    results.mark_succeeded(temp_id_for_async.clone());
-                    results.mark_succeeded(real_id);
+                    results.mark_succeeded(saved_item.id);
                 });
             },
             Ok(Err(e)) => {
@@ -142,7 +170,6 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 );
                 error!("❌ 添加任务失败（重试耗尽）: {}", context.format_user_message());
 
-                // ✅ 显示错误通知
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
                     notifier.set_error(format!(
                         "添加任务失败：{}。请稍后重试。",
@@ -151,7 +178,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 });
 
                 cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
-                    results.mark_failed(temp_id_for_async.clone());
+                    results.mark_failed(item_id_for_async.clone());
                 });
             },
             Err(join_err) => {
@@ -165,7 +192,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     })
     .detach();
 
-    temp_id
+    item_id
 }
 
 /// 乐观更新任务

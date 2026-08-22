@@ -104,21 +104,30 @@ impl ItemInfoState {
             .collect();
 
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
-        cx.spawn(async move |_this, _cx| {
-            if !db_state.is_store_ready() {
-                tracing::warn!("Store not ready, skipping set_item_labels");
-                return;
-            }
-            let store = db_state.get_store_async().await;
-            match store.set_item_labels(&item_id, &label_ids_vec).await {
-                Ok(_) => {
+        let item_id_for_log = item_id.clone();
+        let label_ids_for_log = label_ids_vec.clone();
+        cx.spawn(async move |_this, cx| {
+            match crate::core::tokio_runtime::spawn_db_operation(async move {
+                db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
+                let store = db_state.get_store_async().await;
+                store.set_item_labels(&item_id, &label_ids_vec).await
+            })
+            .await
+            {
+                Ok(Ok(_)) => {
                     NotificationSystem::debug(format!(
                         "Labels updated for item {}: {:?}",
-                        item_id, label_ids_vec
+                        item_id_for_log, label_ids_for_log
                     ));
                 },
+                Ok(Err(e)) => {
+                    NotificationSystem::log_error("Failed to set item labels", &e);
+                    cx.update_global::<crate::core::state::ErrorNotifier, _>(|notifier, _| {
+                        notifier.set_error(format!("标签保存失败：{}，请稍后重试", e));
+                    });
+                },
                 Err(e) => {
-                    NotificationSystem::log_error("Failed to set item labels", e);
+                    NotificationSystem::log_error("Label save task panicked", e);
                 },
             }
         })

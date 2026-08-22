@@ -31,7 +31,7 @@ use crate::{
     LabelsPopoverList,
     core::{
         notification::NotificationSystem,
-        state::{DBState, TodoStore},
+        state::{DBState, SaveResults, TodoStore},
     },
     todo_actions::set_item_pinned_optimistic,
     ui::theme::visual_enhancements::SemanticColors,
@@ -118,11 +118,19 @@ impl ItemInfoState {
             cx.subscribe_in(&schedule_button_state, window, Self::on_schedule_event),
             cx.subscribe_in(&recurrency_button_state, window, Self::on_recurrency_event),
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
+            // 异步保存结果写入 SaveResults 时刷新，否则失败不会把状态从 Saving 改成 Failed
+            cx.observe_global::<SaveResults>(|_, cx| {
+                cx.notify();
+            }),
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
                 if this.state_manager.skip_next_update {
-                    info!("ItemInfoState: skipping update due to skip_next_update flag");
+                    info!("ItemInfoState: skipping content update due to skip_next_update flag");
                     this.state_manager.skip_next_update = false;
+                    // 仍要处理 temp_ → 真实 ID，否则后续保存会按临时 ID UPDATE 失败
+                    if this.apply_persisted_id_mapping(cx) {
+                        cx.notify();
+                    }
                     return;
                 }
 
@@ -133,10 +141,10 @@ impl ItemInfoState {
 
                 let mut item_changed = false;
                 if mask.items_changed {
-                    let store = cx.global::<TodoStore>();
-                    let current_id = &this.state_manager.item.id;
+                    let current_id = this.state_manager.item.id.clone();
+                    let updated_item = cx.global::<TodoStore>().get_item(&current_id);
 
-                    if let Some(updated_item) = store.get_item(current_id) {
+                    if let Some(updated_item) = updated_item {
                         if !std::sync::Arc::ptr_eq(&this.state_manager.item, &updated_item)
                             && !this.state_manager.item.display_eq(&updated_item)
                         {
@@ -144,26 +152,7 @@ impl ItemInfoState {
                             item_changed = true;
                         }
                     } else if current_id.starts_with("temp_") {
-                        if let Some(real_id) = store.get_real_id(current_id)
-                            && let Some(real_item) = store.get_item(real_id)
-                        {
-                            tracing::info!(
-                                "ItemInfoState: detected ID change from {} to {} via mapping",
-                                current_id,
-                                real_id
-                            );
-
-                            this.state_manager.item = real_item.clone();
-
-                            let new_item_id = real_item.id.clone();
-                            this.attachment_state.update(cx, |state, cx| {
-                                state.update_item_id(new_item_id.clone(), cx);
-                            });
-                            this.reminder_state.update(cx, |state, cx| {
-                                state.update_item_id(new_item_id, cx);
-                            });
-                            item_changed = true;
-                        }
+                        item_changed = this.apply_persisted_id_mapping(cx);
                     }
                 }
 
@@ -193,6 +182,37 @@ impl ItemInfoState {
         };
         this.set_item(item, window, cx);
         this
+    }
+
+    /// 将仍停留在 temp_ ID 上的编辑器同步到数据库真实 ID
+    fn apply_persisted_id_mapping(&mut self, cx: &mut Context<Self>) -> bool {
+        let current_id = self.state_manager.item.id.clone();
+        if !current_id.starts_with("temp_") {
+            return false;
+        }
+
+        let real_item = {
+            let store = cx.global::<TodoStore>();
+            store.get_real_id(&current_id).and_then(|real_id| store.get_item(real_id))
+        };
+        let Some(real_item) = real_item else {
+            return false;
+        };
+
+        info!(
+            "ItemInfoState: detected ID change from {} to {} via mapping",
+            current_id, real_item.id
+        );
+
+        self.state_manager.item = real_item.clone();
+        let new_item_id = real_item.id.clone();
+        self.attachment_state.update(cx, |state, cx| {
+            state.update_item_id(new_item_id.clone(), cx);
+        });
+        self.reminder_state.update(cx, |state, cx| {
+            state.update_item_id(new_item_id, cx);
+        });
+        true
     }
 
     // set item of item_info

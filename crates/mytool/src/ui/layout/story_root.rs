@@ -1,17 +1,18 @@
 use gpui::{
-    AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, ParentElement, Render, SharedString, Styled, Window, div,
-    prelude::FluentBuilder as _,
+    AnyView, App, AppContext, BorrowAppContext, Context, Entity, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
+    Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
 use gpui_fps::fps_monitor;
 
-use crate::{AppState, AppTitleBar, ShowPanelInfo, ToggleSearch};
+use crate::{AppState, AppTitleBar, ShowPanelInfo, ToggleSearch, core::state::ErrorNotifier};
 
 pub struct StoryRoot {
     pub(crate) focus_handle: FocusHandle,
     pub(crate) title_bar: Entity<AppTitleBar>,
     pub(crate) view: AnyView,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl StoryRoot {
@@ -22,7 +23,19 @@ impl StoryRoot {
         cx: &mut Context<Self>,
     ) -> Self {
         let title_bar = cx.new(|cx| AppTitleBar::new(title, window, cx));
-        Self { focus_handle: cx.focus_handle(), title_bar, view: view.into() }
+        let error_sub = cx.observe_global_in::<ErrorNotifier>(window, |_, window, cx| {
+            let Some(msg) = cx.update_global::<ErrorNotifier, _>(|n, _| n.take_error()) else {
+                return;
+            };
+            struct SaveError;
+            window.push_notification(Notification::new().message(msg).id::<SaveError>(), cx);
+        });
+        Self {
+            focus_handle: cx.focus_handle(),
+            title_bar,
+            view: view.into(),
+            _subscriptions: vec![error_sub],
+        }
     }
 
     fn on_action_panel_info(

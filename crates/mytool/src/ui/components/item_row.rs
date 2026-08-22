@@ -67,6 +67,29 @@ impl ItemRowState {
         if Arc::ptr_eq(&self.item, &item) {
             return;
         }
+
+        if let Some(item_info) = self.item_info.as_ref() {
+            let pending = {
+                let info = item_info.read(cx);
+                info.state_manager.is_dirty()
+                    || info.state_manager.save_status == crate::SaveItemStatus::Saving
+            };
+            if pending {
+                // 编辑器里还有未落盘的改动：不要用 Store 旧数据覆盖，否则随后保存会当成“无修改”
+                let local_id = item_info.read(cx).state_manager.item.id.clone();
+                if local_id != item.id && local_id.starts_with("temp_") {
+                    item_info.update(cx, |info, _cx| {
+                        info.state_manager.update_item(|local| {
+                            local.id = item.id.clone();
+                        });
+                    });
+                }
+                self.item = item_info.read(cx).state_manager.item.clone();
+                cx.notify();
+                return;
+            }
+        }
+
         if self.item.display_eq(&item) {
             self.item = item;
             return;
@@ -147,16 +170,28 @@ impl ItemRowState {
         let item_info = self.ensure_item_info(window, cx);
         item_info.update(cx, |state, cx| {
             state.focus_name_input(window, cx);
-            if refresh_labels {
+            if refresh_labels && !state.state_manager.is_dirty() {
                 state.refresh_labels_selection_from_item(cx);
             }
         });
         cx.notify();
     }
 
+    /// 收起前把输入框内容刷进状态并保存，避免折叠后列表刷新冲掉未保存编辑
+    fn flush_and_save(&mut self, cx: &mut Context<Self>) {
+        if let Some(item_info) = self.item_info.as_ref() {
+            item_info.update(cx, |state, cx| {
+                state.save_all_changes(cx);
+            });
+            self.item = item_info.read(cx).state_manager.item.clone();
+            self.update_version += 1;
+        }
+    }
+
     /// 切换展开/收起状态
     fn toggle_expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_open {
+            self.flush_and_save(cx);
             self.is_open = false;
             cx.notify();
         } else {

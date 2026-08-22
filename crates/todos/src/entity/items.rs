@@ -67,7 +67,16 @@ impl ActiveModelBehavior for ActiveModel {
         let now = chrono::Utc::now().naive_utc();
 
         if insert {
-            this.id = Set(Uuid::new_v4().to_string());
+            // 保留调用方已分配的 ID（乐观更新用同一 ID 插入，避免随后 UPDATE 找不到行）
+            let id_empty = match &this.id {
+                sea_orm::ActiveValue::Set(id) | sea_orm::ActiveValue::Unchanged(id) => {
+                    id.is_empty()
+                },
+                sea_orm::ActiveValue::NotSet => true,
+            };
+            if id_empty {
+                this.id = Set(Uuid::new_v4().to_string());
+            }
             this.added_at = Set(now);
         }
 

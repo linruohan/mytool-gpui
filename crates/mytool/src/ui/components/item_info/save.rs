@@ -63,31 +63,59 @@ impl ItemInfoState {
             return;
         }
 
-        // 根据 item.id 是否为空来决定是添加新任务还是更新现有任务
+        // 根据 item.id 是否为空 / 是否仍是临时 ID 来决定添加还是更新
         if item_id.is_empty() {
+            if labels_changed {
+                self.state_manager.update_item(|item| {
+                    item.labels = Some(new_labels_str.clone());
+                });
+            }
             // 新建任务：使用 add_item_optimistic
             // 🚀 关键修复：设置跳过下一次更新标志，避免 TodoStore 更新触发的观察者回调导致死锁
             self.state_manager.skip_next_update = true;
+            let current_item = self.state_manager.item.clone();
             info!(
                 "Triggering add_item_optimistic for new item with content: '{}'",
                 current_item.content
             );
-            let temp_id = add_item_optimistic(current_item.clone(), cx);
+            let new_id = add_item_optimistic(current_item, cx);
 
-            // 更新原始 item 对象的 ID 为临时 ID
-            if !temp_id.is_empty() {
-                info!("Updating original item ID to temp ID: {}", temp_id);
-                let temp_id_clone = temp_id.clone();
-                self.state_manager.update_item(|item| {
-                    item.id = temp_id_clone.clone();
-                });
+            if new_id.is_empty() {
+                warn!("save_all_changes: add_item_optimistic rejected item (validation)");
+                self.state_manager.save_status = SaveItemStatus::Failed;
+                self.state_manager.mark_dirty();
+                cx.notify();
+                return;
             }
 
-            // 🚀 7.0修复：直接标记已保存，不通过事件触发，避免阻塞
-            // cx.emit(ItemInfoEvent::Added());
+            info!("Updating original item ID to persisted ID: {}", new_id);
+            self.state_manager.update_item(|item| {
+                item.id = new_id;
+            });
+
             info!("save_all_changes: marking clean for new item without event");
             self.state_manager.update_original();
+            self.state_manager.save_status = SaveItemStatus::Saving;
         } else {
+            // 仍持有 temp_ ID 时（旧会话或尚未同步），先解析成真实主键再更新
+            let item_id = if item_id.starts_with("temp_") {
+                let resolved = cx
+                    .global::<TodoStore>()
+                    .get_real_id(&item_id)
+                    .cloned()
+                    .unwrap_or_else(|| item_id.clone());
+                if resolved != item_id {
+                    info!("save_all_changes: resolving temp ID {} -> {}", item_id, resolved);
+                    let resolved_clone = resolved.clone();
+                    self.state_manager.update_item(|item| {
+                        item.id = resolved_clone;
+                    });
+                }
+                resolved
+            } else {
+                item_id
+            };
+
             // 🚀 关键修复：统一保存所有修改，包括标签
             info!(
                 "save_all_changes: item={}, labels_changed={}, old_labels='{}', new_labels='{}'",
@@ -243,7 +271,10 @@ impl ItemInfoState {
             ItemInfoEvent::Updated() => {
                 info!("Handling Updated event for item: {}", self.state_manager.item.id);
                 self.state_manager.skip_next_update = false;
-                self.state_manager.update_original();
+                // 正在异步保存时不要 mark_clean，否则列表刷新会当成无改动并覆盖编辑器
+                if self.state_manager.save_status != SaveItemStatus::Saving {
+                    self.state_manager.update_original();
+                }
             },
             ItemInfoEvent::Deleted() => {
                 delete_item_optimistic(self.state_manager.item.clone(), cx);
