@@ -6,7 +6,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, IconName,
     button::Button,
-    dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
+    dock::{BasePanel, Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
     v_flex,
 };
@@ -160,37 +160,35 @@ impl Render for BoardContainer {
     }
 }
 
-// Implement Panel for BoardContainer so it integrates with the dock system like StoryContainer
-impl Panel for BoardContainer {
+/// BasePanel 实现：BoardContainer 的行为层（名称、可见性、关闭、缩放、回调等）
+impl BasePanel for BoardContainer {
+    /// 面板的唯一标识名称
     fn panel_name(&self) -> &'static str {
         "BoardContainer"
     }
 
-    fn title(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        self.name.clone().into_any_element()
-    }
-
-    fn title_style(&self, cx: &App) -> Option<TitleStyle> {
-        self.title_bg.map(|bg| TitleStyle { background: bg, foreground: cx.theme().foreground })
-    }
-
+    /// 面板是否可关闭
     fn closable(&self, _cx: &App) -> bool {
         self.closable
     }
 
-    fn zoomable(&self, _cx: &App) -> Option<PanelControl> {
-        self.zoomable
+    /// 面板是否支持缩放（返回 bool）
+    fn zoomable(&self, _cx: &App) -> bool {
+        self.zoomable.is_some()
     }
 
+    /// 面板是否可见
     fn visible(&self, cx: &App) -> bool {
         // Mirror StoryContainer: visible when not listed in AppState::invisible_panels
         !crate::AppState::global(cx).invisible_panels.read(cx).contains(&self.name)
     }
 
+    /// 面板缩放状态变更回调
     fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
         tracing::debug!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
+    /// 面板激活状态变更回调
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
         tracing::debug!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active
@@ -200,6 +198,35 @@ impl Panel for BoardContainer {
         }
     }
 
+    /// 序列化面板状态
+    fn dump(&self, _cx: &App) -> PanelState {
+        let mut state = PanelState::new(self.panel_name());
+        // Avoid panic: if board_klass is missing, fall back to ListStory
+        let klass = self.board_klass.clone().unwrap_or_else(|| SharedString::from("ListStory"));
+        let story_state = crate::ui::layout::story_state::StoryState { story_klass: klass };
+        state.info = PanelInfo::panel(story_state.to_value());
+        state
+    }
+}
+
+/// Panel 实现：BoardContainer 的展示层（标题、样式、工具栏、菜单等）
+impl Panel for BoardContainer {
+    /// 面板标题元素
+    fn title(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        self.name.clone().into_any_element()
+    }
+
+    /// 面板标题样式
+    fn title_style(&self, cx: &App) -> Option<TitleStyle> {
+        self.title_bg.map(|bg| TitleStyle { background: bg, foreground: cx.theme().foreground })
+    }
+
+    /// 缩放控件的显示位置（返回 PanelControl）
+    fn zoom_control(&self, _cx: &App) -> Option<PanelControl> {
+        self.zoomable
+    }
+
+    /// 下拉菜单项
     fn dropdown_menu(
         &mut self,
         menu: PopupMenu,
@@ -209,6 +236,7 @@ impl Panel for BoardContainer {
         menu.menu("Info", Box::new(ShowPanelInfo))
     }
 
+    /// 工具栏按钮
     fn toolbar_buttons(
         &mut self,
         _window: &mut Window,
@@ -225,14 +253,5 @@ impl Panel for BoardContainer {
                 cx.dispatch_action(&crate::ToggleSearch);
             }),
         ])
-    }
-
-    fn dump(&self, _cx: &App) -> PanelState {
-        let mut state = PanelState::new(self);
-        // Avoid panic: if board_klass is missing, fall back to ListStory
-        let klass = self.board_klass.clone().unwrap_or_else(|| SharedString::from("ListStory"));
-        let story_state = crate::ui::layout::story_state::StoryState { story_klass: klass };
-        state.info = PanelInfo::panel(story_state.to_value());
-        state
     }
 }

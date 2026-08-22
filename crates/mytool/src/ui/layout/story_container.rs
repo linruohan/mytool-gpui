@@ -6,7 +6,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, IconName, WindowExt,
     button::Button,
-    dock::{Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
+    dock::{BasePanel, Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
     scroll::ScrollableElement,
 };
@@ -78,39 +78,34 @@ impl StoryContainer {
     }
 }
 
-impl Panel for StoryContainer {
+/// BasePanel 实现：面板的行为层（名称、可见性、关闭、缩放、回调等）
+impl BasePanel for StoryContainer {
+    /// 面板的唯一标识名称，用于持久化布局
     fn panel_name(&self) -> &'static str {
         "StoryContainer"
     }
 
-    fn title(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        self.name.clone().into_any_element()
-    }
-
-    fn title_style(&self, cx: &App) -> Option<TitleStyle> {
-        if let Some(bg) = self.title_bg {
-            Some(TitleStyle { background: bg, foreground: cx.theme().foreground })
-        } else {
-            None
-        }
-    }
-
+    /// 面板是否可关闭
     fn closable(&self, _cx: &App) -> bool {
         self.closable
     }
 
-    fn zoomable(&self, _cx: &App) -> Option<PanelControl> {
-        self.zoomable
+    /// 面板是否支持缩放（返回 bool，控制缩放功能是否启用）
+    fn zoomable(&self, _cx: &App) -> bool {
+        self.zoomable.is_some()
     }
 
+    /// 面板是否可见
     fn visible(&self, cx: &App) -> bool {
         !AppState::global(cx).invisible_panels.read(cx).contains(&self.name)
     }
 
+    /// 面板缩放状态变更回调
     fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
         println!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
+    /// 面板激活状态变更回调
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
         println!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
@@ -120,6 +115,37 @@ impl Panel for StoryContainer {
         }
     }
 
+    /// 序列化面板状态，用于持久化布局
+    fn dump(&self, _cx: &App) -> PanelState {
+        let mut state = PanelState::new(self.panel_name());
+        let story_state = StoryState { story_klass: self.story_klass.clone().unwrap() };
+        state.info = PanelInfo::panel(story_state.to_value());
+        state
+    }
+}
+
+/// Panel 实现：面板的展示层（标题、样式、工具栏、菜单等）
+impl Panel for StoryContainer {
+    /// 面板标题元素
+    fn title(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        self.name.clone().into_any_element()
+    }
+
+    /// 面板标题样式（背景色、前景色）
+    fn title_style(&self, cx: &App) -> Option<TitleStyle> {
+        if let Some(bg) = self.title_bg {
+            Some(TitleStyle { background: bg, foreground: cx.theme().foreground })
+        } else {
+            None
+        }
+    }
+
+    /// 缩放控件的显示位置（返回 PanelControl，控制缩放按钮显示在哪里）
+    fn zoom_control(&self, _cx: &App) -> Option<PanelControl> {
+        self.zoomable
+    }
+
+    /// 下拉菜单项
     fn dropdown_menu(
         &mut self,
         menu: PopupMenu,
@@ -129,6 +155,7 @@ impl Panel for StoryContainer {
         menu.menu("Info", Box::new(ShowPanelInfo))
     }
 
+    /// 工具栏按钮
     fn toolbar_buttons(
         &mut self,
         _window: &mut Window,
@@ -142,13 +169,6 @@ impl Panel for StoryContainer {
                 window.push_notification("You have clicked search button", cx);
             }),
         ])
-    }
-
-    fn dump(&self, _cx: &App) -> PanelState {
-        let mut state = PanelState::new(self);
-        let story_state = StoryState { story_klass: self.story_klass.clone().unwrap() };
-        state.info = PanelInfo::panel(story_state.to_value());
-        state
     }
 }
 

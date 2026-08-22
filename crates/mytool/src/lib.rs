@@ -5,6 +5,8 @@ use std::sync::mpsc::Sender;
 /// 由 main.rs 初始化，用于从 GPUI 内部通知主线程执行退出操作。
 pub static mut SHUTDOWN_SENDER: Option<Sender<bool>> = None;
 
+use std::sync::Arc;
+
 use gpui::{
     Action, AnyView, App, AppContext, Bounds, Entity, Focusable, Global, IntoElement, KeyBinding,
     Pixels, SharedString, Size, Styled, Window, WindowBounds, WindowKind, WindowOptions, actions,
@@ -12,7 +14,7 @@ use gpui::{
 };
 use gpui_component::{
     Root, TitleBar, WindowExt,
-    dock::{PanelInfo, register_panel},
+    dock::{BasePanelView, PanelBuildContext, PanelInfo, panel_handle, register_panel},
     h_flex,
     scroll::ScrollbarMode,
     text::markdown,
@@ -288,7 +290,12 @@ pub fn init(cx: &mut App) {
         }
     });
 
-    register_panel(cx, PANEL_NAME, |_, _, info, window, cx| {
+    // 注册 StoryContainer 面板的反序列化构建器
+    // 新 API 签名：闭包接收 3 个参数 (PanelBuildContext, Window, App)
+    // 返回 Arc<dyn BasePanelView>，通过 panel_handle() 包装实体
+    register_panel(cx, PANEL_NAME, |ctx: PanelBuildContext, window, cx| {
+        // 从构建上下文获取 PanelInfo（替代原来的第 3 个参数）
+        let info = ctx.info();
         let story_state = match info {
             PanelInfo::Panel(value) => StoryState::from_value(value.clone()),
             _ => {
@@ -303,18 +310,15 @@ pub fn init(cx: &mut App) {
                 .story(story, story_state.story_klass)
                 .on_active(on_active);
 
-            cx.on_focus_in(&container.focus_handle, window, |this: &mut StoryContainer, _, _| {
-                println!("StoryContainer focus in: {}", this.name);
-            })
-            .detach();
-
             container.name = title.into();
             container.description = description.into();
             container.closable = closable;
             container.zoomable = zoomable;
             container
         });
-        Box::new(view)
+
+        // 返回包装好的 PanelView handle（替代原来的 Box::new(view)）
+        panel_handle(view) as Arc<dyn BasePanelView>
     });
 
     cx.activate(true);

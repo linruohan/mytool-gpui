@@ -27,7 +27,7 @@ async fn init_sqlite_db(db_config: &gconfig::DatabaseConfig) -> Result<DatabaseC
     let mut options = ConnectOptions::new(base_url);
 
     // SQLite 连接池：读取配置并限制在 [2, 8] 范围内（WAL 模式下适度并发即可）
-    let max_connections = db_config.pool_size().min(8).max(2);
+    let max_connections = db_config.pool_size().clamp(2, 8);
     options
         .min_connections(2)
         .max_connections(max_connections)
