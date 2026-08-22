@@ -1,6 +1,6 @@
 //! todo_actions 层职责说明
 //!
-//! 本模块负责处理业务操作：调用 service 层做数据库写入，再更新 TodoStore。
+//! 本模块负责处理业务操作：乐观更新 TodoStore，再异步写入 `todos::Store`。
 //! 乐观更新路径见 `optimistic`；批量操作见 `batch`。
 
 mod attachment;

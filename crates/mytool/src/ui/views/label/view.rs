@@ -42,15 +42,22 @@ impl LabelsPanel {
         let label_list_clone = label_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<TodoStore>(move |_this, cx| {
-                let labels = cx.global::<TodoStore>().labels.clone();
-                let version = cx.global::<TodoStore>().version();
-                tracing::info!("TodoStore changed: version={}, {} labels", version, labels.len());
+                let labels = {
+                    let store = cx.global::<TodoStore>();
+                    if !store.peek_change_mask().affects_label_list() {
+                        return;
+                    }
+                    tracing::debug!(
+                        "TodoStore labels changed: version={}, {} labels",
+                        store.version(),
+                        store.labels.len()
+                    );
+                    store.labels.clone()
+                };
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
-                    tracing::info!("ListState updated with labels");
                     cx.notify();
                 });
-                tracing::info!("LabelsPanel notified to re-render");
                 cx.notify();
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {

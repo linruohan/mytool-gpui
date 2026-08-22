@@ -3,7 +3,7 @@
 //! 显示今天需要完成的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::{cell::Cell, sync::Arc};
+use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, ParentElement,
@@ -37,17 +37,10 @@ impl EventEmitter<BoardItemClickEvent> for TodayBoard {}
 
 pub struct TodayBoard {
     base: BoardBase,
-    /// 跟踪当前 item_rows 对应的 item id 列表，用于增量更新
-    item_row_ids: Vec<String>,
     /// Past Due 分组的 ScheduleButton 状态
     past_due_schedule_button: Entity<ScheduleButtonState>,
     /// ScheduleButton 事件订阅
     _schedule_subscription: Subscription,
-    /// 脏标记：当 TodoStore 数据变化时设为 true，
-    /// 在 render() 中执行实际的增量更新操作（需要 window 参数）
-    pending_refresh: Cell<bool>,
-    /// 延迟注册标记：避免在 new() 时立即注册全局观察者
-    observer_registered: Cell<bool>,
 }
 
 impl TodayBoard {
@@ -64,40 +57,26 @@ impl TodayBoard {
         let schedule_subscription =
             cx.subscribe_in(&past_due_schedule_button, window, |this, _, event, window, cx| {
                 let due_date = this.past_due_schedule_button.read(cx).due_date.clone();
-
-                let store = cx.global::<TodoStore>();
-                let past_due_items: Vec<Arc<todos::entity::ItemModel>> = store
-                    .all_items
-                    .iter()
-                    .filter(|item| !item.checked && item.is_past_due())
-                    .cloned()
-                    .collect();
-
-                if past_due_items.is_empty() {
+                if this.base.past_due_items.is_empty() {
                     return;
                 }
 
+                let mut updated_items: Vec<_> =
+                    this.base.past_due_items.iter().map(|(_, item)| item.clone()).collect();
+
                 match event {
                     ScheduleButtonEvent::DateSelected(_) | ScheduleButtonEvent::TimeSelected(_) => {
-                        let mut updated_items = Vec::new();
-                        for mut item in past_due_items {
-                            let item_mut = Arc::make_mut(&mut item);
-                            item_mut.set_due_date(Some(due_date.clone()));
-                            updated_items.push(Arc::new(item_mut.clone()));
+                        for item in &mut updated_items {
+                            Arc::make_mut(item).set_due_date(Some(due_date.clone()));
                         }
-
                         let count = updated_items.len();
                         batch_update_items(updated_items, cx);
-                        window.push_notification(format!("Rescheduled {} items", count), cx);
+                        window.push_notification(format!("Rescheduled {count} items"), cx);
                     },
                     ScheduleButtonEvent::Cleared => {
-                        let mut updated_items = Vec::new();
-                        for mut item in past_due_items {
-                            let item_mut = Arc::make_mut(&mut item);
-                            item_mut.set_due_date(None);
-                            updated_items.push(Arc::new(item_mut.clone()));
+                        for item in &mut updated_items {
+                            Arc::make_mut(item).set_due_date(None);
                         }
-
                         batch_update_items(updated_items, cx);
                     },
                 }
@@ -105,52 +84,20 @@ impl TodayBoard {
 
         // 延迟注册：在首次 render 时通过 begin_pending_refresh 注册
 
-        Self {
-            base,
-            item_row_ids: Vec::new(),
-            past_due_schedule_button,
-            _schedule_subscription: schedule_subscription,
-            pending_refresh: Cell::new(false),
-            observer_registered: Cell::new(false),
-        }
+        Self { base, past_due_schedule_button, _schedule_subscription: schedule_subscription }
     }
 
-    /// 在 render() 中执行实际的增量更新
-    ///
-    /// 只在 pending_refresh=true 时执行，避免每帧重复操作
-    fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let cache = cx.global::<crate::core::state::QueryCache>();
-            let items = cx.global::<TodoStore>().today_items_cached(cache);
-            !items.is_empty()
-        } else {
-            false
-        };
-
-        if !BoardBase::begin_pending_refresh(
-            &self.observer_registered,
-            &self.pending_refresh,
-            &mut self.base._subscriptions,
-            self.base.item_rows.is_empty(),
-            has_store_data,
+    fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.base.apply_store_refresh(
+            window,
             cx,
             crate::core::state::ChangeMask::affects_today,
-            |this| &this.pending_refresh,
-        ) {
-            return;
-        }
-
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        let state_items = cx.global::<TodoStore>().today_items_cached(cache);
-
-        self.base.diff_update_item_rows(
-            state_items.as_slice(),
-            &mut self.item_row_ids,
-            _window,
-            cx,
+            |this| &this.base.pending_refresh,
+            |cx| {
+                let cache = cx.global::<crate::core::state::QueryCache>();
+                cx.global::<TodoStore>().today_items_cached(cache)
+            },
         );
-        self.base.update_items(state_items.as_slice());
-        self.base.clamp_active_index();
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {

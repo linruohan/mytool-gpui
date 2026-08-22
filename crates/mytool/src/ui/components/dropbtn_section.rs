@@ -71,22 +71,29 @@ impl DropdownButtonStateTrait<String> for SectionState {
     }
 
     fn selected_display_name(&self, cx: &mut Context<Self>) -> String {
-        let sections =
-            self.sections.clone().unwrap_or_else(|| cx.global::<TodoStore>().sections.clone());
-        let selected_id = self.inner.selected.clone();
-        selected_id
-            .as_ref()
-            .and_then(|id| sections.iter().find(|s| s.id == *id))
-            .map(|s| s.name.clone())
-            .unwrap_or_else(|| "No Section".to_string())
+        let Some(id) = self.inner.selected.as_ref() else {
+            return "No Section".to_string();
+        };
+        let name = match &self.sections {
+            Some(sections) => sections.iter().find(|s| s.id == *id).map(|s| s.name.clone()),
+            None => cx.global::<TodoStore>().get_section(id).map(|s| s.name.clone()),
+        };
+        name.unwrap_or_else(|| "No Section".to_string())
     }
 
     fn menu_options(&self, cx: &mut Context<Self>) -> Vec<(String, String)> {
         let mut options = vec![("No Section".to_string(), String::new())];
-        let sections =
-            self.sections.clone().unwrap_or_else(|| cx.global::<TodoStore>().sections.clone());
-        for section in sections.iter() {
-            options.push((section.name.clone(), section.id.clone()));
+        match &self.sections {
+            Some(sections) => {
+                for section in sections {
+                    options.push((section.name.clone(), section.id.clone()));
+                }
+            },
+            None => {
+                for section in cx.global::<TodoStore>().sections.iter() {
+                    options.push((section.name.clone(), section.id.clone()));
+                }
+            },
         }
         options
     }

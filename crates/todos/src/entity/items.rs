@@ -109,6 +109,26 @@ impl Model {
         self.due_datetime().map(|dt| dt.date())
     }
 
+    /// 截止日期的 `YYYY-MM-DD` 分组键（无日期时为 None）
+    pub fn due_date_ymd(&self) -> Option<String> {
+        self.due_date_naive().map(|d| d.format("%Y-%m-%d").to_string())
+    }
+
+    /// 列表/详情是否需要刷新（避免对 extra_data 等 JSON 做全量 PartialEq）
+    pub fn display_eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.updated_at == other.updated_at
+            && self.content == other.content
+            && self.description == other.description
+            && self.checked == other.checked
+            && self.pinned == other.pinned
+            && self.priority == other.priority
+            && self.project_id == other.project_id
+            && self.section_id == other.section_id
+            && self.labels == other.labels
+            && self.due == other.due
+    }
+
     /// 检查是否在指定日期到期
     pub fn is_due_on_date(&self, today: NaiveDate) -> bool {
         self.due_date_naive().is_some_and(|due| due == today)

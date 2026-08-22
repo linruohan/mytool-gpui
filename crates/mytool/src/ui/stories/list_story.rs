@@ -134,7 +134,7 @@ impl ListStory {
             }
             let store = db_state.get_store_async().await;
             // 使用推荐的 with_store API
-            let items_result = crate::state_service::load_items_with_store(store).await;
+            let items_result = store.get_all_items().await;
             let labels = items_result.unwrap_or_default();
             let rc_labels: Vec<Arc<ItemModel>> =
                 labels.iter().map(|label| Arc::new(label.clone())).collect();

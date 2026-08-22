@@ -24,7 +24,7 @@ pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
             cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
         let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
 
-        match crate::state_service::batch_update_items_with_store(items_vec, store).await {
+        match store.batch_update_items(items_vec).await {
             Ok(updated_items) => {
                 info!("Successfully updated {} items in batch", updated_items.len());
                 cx.update_global::<TodoStore, _>(|todo_store, _| {

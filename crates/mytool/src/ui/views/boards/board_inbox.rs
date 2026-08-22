@@ -3,8 +3,6 @@
 //! 显示所有未完成且无项目的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::cell::Cell;
-
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     ParentElement, Render, Styled, Window, prelude::FluentBuilder,
@@ -38,12 +36,6 @@ impl EventEmitter<BoardItemClickEvent> for InboxBoard {}
 
 pub struct InboxBoard {
     base: BoardBase,
-    /// 跟踪当前 item_rows 对应的 item id 列表（用于增量更新）
-    item_row_ids: Vec<String>,
-    /// 🚀 7.0修复：脏标记（当 TodoStore 数据变化时设为 true）
-    pending_refresh: Cell<bool>,
-    /// 🚀 7.0修复：标记观察者是否已注册（避免初始化阶段循环触发）
-    observer_registered: Cell<bool>,
 }
 
 impl InboxBoard {
@@ -52,90 +44,20 @@ impl InboxBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let base = BoardBase::new(window, cx);
-
-        // 🚀 7.0修复：不在 new() 中注册 observe_global！
-        // 原因：在初始化阶段注册会导致与异步冷加载产生竞争条件 → 主线程冻结
-        // 修复：延迟到首次 render() 时通过 begin_pending_refresh 注册
-
-        Self {
-            base,
-            item_row_ids: Vec::new(),
-            pending_refresh: Cell::new(false),
-            observer_registered: Cell::new(false),
-        }
+        Self { base: BoardBase::new(window, cx) }
     }
 
-    /// 🚀 7.0修复：在 render() 中执行实际的增量更新
     fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let cache = cx.global::<crate::core::state::QueryCache>();
-            let items = cx.global::<TodoStore>().inbox_items_cached(cache);
-            let has = !items.is_empty();
-            if has {
-                tracing::info!(
-                    "📭 [InboxBoard] ⚡ 首次渲染兜底: TodoStore 已有 {} 条数据，强制触发刷新！",
-                    items.len()
-                );
-            }
-            has
-        } else {
-            false
-        };
-
-        if !BoardBase::begin_pending_refresh(
-            &self.observer_registered,
-            &self.pending_refresh,
-            &mut self.base._subscriptions,
-            self.base.item_rows.is_empty(),
-            has_store_data,
+        self.base.apply_store_refresh(
+            window,
             cx,
             crate::core::state::ChangeMask::affects_inbox,
-            |this| &this.pending_refresh,
-        ) {
-            return;
-        }
-
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        let state_items = cx.global::<TodoStore>().inbox_items_cached(cache);
-
-        tracing::info!(
-            "📭 [InboxBoard] 刷新数据: state_items={}, TodoStore.all_items={}",
-            state_items.len(),
-            cx.global::<TodoStore>().all_items.len()
+            |this| &this.base.pending_refresh,
+            |cx| {
+                let cache = cx.global::<crate::core::state::QueryCache>();
+                cx.global::<TodoStore>().inbox_items_cached(cache)
+            },
         );
-
-        // inbox_items 已过滤未完成，直接使用缓存切片
-        self.base.diff_update_item_rows(state_items.as_slice(), &mut self.item_row_ids, window, cx);
-
-        self.base.no_section_items.clear();
-        self.base.section_items_map.clear();
-        self.base.pinned_items.clear();
-
-        for (i, item) in state_items.iter().enumerate() {
-            if item.pinned {
-                self.base.pinned_items.push((i, item.clone()));
-            } else {
-                match item.section_id.as_deref() {
-                    None | Some("") => self.base.no_section_items.push((i, item.clone())),
-                    Some(sid) => self
-                        .base
-                        .section_items_map
-                        .entry(sid.to_string())
-                        .or_default()
-                        .push((i, item.clone())),
-                }
-            }
-        }
-
-        tracing::info!(
-            "📭 [InboxBoard] 分类结果: pinned={}, no_section={}, sections={}",
-            self.base.pinned_items.len(),
-            self.base.no_section_items.len(),
-            self.base.section_items_map.len()
-        );
-
-        self.base.clamp_active_index();
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -210,14 +132,6 @@ impl Render for InboxBoard {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
-        // 🚀 7.0修复：在 render 开头处理待执行的刷新操作
-        tracing::debug!(
-            "📭 [InboxBoard] render() 调用: item_rows={}, pinned={}, no_section={}, sections={}",
-            self.base.item_rows.len(),
-            self.base.pinned_items.len(),
-            self.base.no_section_items.len(),
-            self.base.section_items_map.len()
-        );
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();

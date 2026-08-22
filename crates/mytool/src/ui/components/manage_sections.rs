@@ -210,7 +210,13 @@ impl ManageSectionsPanel {
             }),
             // 订阅 TodoStore 变化
             cx.observe_global::<TodoStore>(move |_this, cx| {
-                let sections = cx.global::<TodoStore>().sections.clone();
+                let sections = {
+                    let store = cx.global::<TodoStore>();
+                    if !store.peek_change_mask().affects_section_list() {
+                        return;
+                    }
+                    store.sections.clone()
+                };
                 cx.update_entity(&section_list_for_subscribe, |list, cx| {
                     list.delegate_mut().update_sections(sections);
                     cx.notify();

@@ -58,19 +58,22 @@ impl ChangeMask {
         }
     }
 
-    /// 检查是否影响收件箱视图
+    /// 收件箱 / 今日 / 计划：任务列表或当前项目变化即需刷新
+    #[inline]
+    pub fn affects_item_filter_boards(&self) -> bool {
+        self.items_changed || self.active_project_changed
+    }
+
     pub fn affects_inbox(&self) -> bool {
-        self.items_changed || self.active_project_changed
+        self.affects_item_filter_boards()
     }
 
-    /// 检查是否影响今日视图
     pub fn affects_today(&self) -> bool {
-        self.items_changed || self.active_project_changed
+        self.affects_item_filter_boards()
     }
 
-    /// 检查是否影响计划视图
     pub fn affects_scheduled(&self) -> bool {
-        self.items_changed || self.active_project_changed
+        self.affects_item_filter_boards()
     }
 
     /// 检查是否影响已完成视图
@@ -91,9 +94,33 @@ impl ChangeMask {
             || self.active_project_changed
     }
 
-    /// 检查是否影响标签视图
+    /// 检查是否影响标签看板（任务列表 + 标签集合）
     pub fn affects_labels(&self) -> bool {
         self.items_changed || self.labels_changed
+    }
+
+    /// 侧栏项目列表：仅项目集合变化时重建
+    #[inline]
+    pub fn affects_project_list(&self) -> bool {
+        self.projects_changed
+    }
+
+    /// Section 管理列表：仅分区集合变化时重建
+    #[inline]
+    pub fn affects_section_list(&self) -> bool {
+        self.sections_changed
+    }
+
+    /// 标签管理 / 标签弹出层：仅标签集合变化时重建
+    #[inline]
+    pub fn affects_label_list(&self) -> bool {
+        self.labels_changed
+    }
+
+    /// 展开的任务编辑器：任务本身或下拉选项数据变化
+    #[inline]
+    pub fn affects_item_editor(&self) -> bool {
+        self.items_changed || self.projects_changed || self.sections_changed || self.labels_changed
     }
 
     /// 合并两个掩码
@@ -109,6 +136,25 @@ impl ChangeMask {
     pub fn clear(&mut self) {
         *self = Self::none();
     }
+}
+
+// ==================== 看板成员分类 ====================
+
+#[derive(Clone, Copy)]
+struct BoardMembership {
+    inbox: bool,
+    today: bool,
+    scheduled: bool,
+}
+
+fn board_membership(item: &ItemModel, today: chrono::NaiveDate) -> BoardMembership {
+    if item.checked {
+        return BoardMembership { inbox: false, today: false, scheduled: false };
+    }
+    let due = item.due_date_naive();
+    let due_today = due == Some(today);
+    let no_project = item.project_id.as_deref().is_none_or(|p| p.is_empty());
+    BoardMembership { inbox: no_project && !due_today, today: due_today, scheduled: due.is_some() }
 }
 
 // ==================== 索引操作 Trait ====================
@@ -189,6 +235,16 @@ pub struct TodoStore {
     label_index: HashMap<String, Vec<String>>,
     /// id → item 映射，供索引反查 O(1) 取 Arc
     id_map: HashMap<String, Arc<ItemModel>>,
+    /// 项目 / 分区 / 标签 O(1) 查找（与对应 Vec 同步维护）
+    project_by_id: HashMap<String, Arc<ProjectModel>>,
+    section_by_id: HashMap<String, Arc<SectionModel>>,
+    label_by_id: HashMap<String, Arc<LabelModel>>,
+    /// 看板成员索引：避免每次查询全表扫描并反复反序列化 due
+    inbox_set: HashSet<String>,
+    today_set: HashSet<String>,
+    scheduled_set: HashSet<String>,
+    /// 看板索引对应的本地日期（跨日时回退全表扫描）
+    index_date: chrono::NaiveDate,
 
     /// 临时 ID 到真实 ID 的映射（用于 ID 变化检测）
     id_mappings: HashMap<String, String>,
@@ -201,13 +257,11 @@ pub struct TodoStore {
     /// 视图可通过检查掩码判断是否需要更新，避免惊群效应
     change_mask: ChangeMask,
 
-    /// 🚀 6.9修复：观察者分发深度计数器<br/>用于防止 observe_global 回调中的递归更新导致无限循环
-    /// 当 dispatch_depth > 0 时，表示正在分发观察者通知，此时新的 update 操作只更新数据但不递增
-    /// version
-    dispatch_depth: Cell<usize>,
-
-    /// 🚀 6.9修复：上次 version 递增的时间戳<br/>用于基于时间窗口的自动去重
+    /// 上次 version 递增的时间戳，用于基于时间窗口的自动去重
     last_bump_time: Cell<Instant>,
+
+    /// 任务列表 / 活跃项目变化代数。QueryCache 用它在 50ms 版本合并窗口内仍能失效。
+    query_epoch: u64,
 
     /// 🚀 索引统计（用于性能监控）
     #[cfg(debug_assertions)]
@@ -226,28 +280,6 @@ struct IndexStats {
     last_rebuild_duration_ms: u128,
     /// 平均增量更新耗时（微秒）
     avg_incremental_update_us: u128,
-    /// 最大索引大小记录
-    max_project_index_size: usize,
-    max_section_index_size: usize,
-}
-
-#[cfg(debug_assertions)]
-impl IndexStats {
-    /// 计算总更新次数
-    fn total_updates(&self) -> usize {
-        self.rebuild_count + self.incremental_update_count
-    }
-
-    /// 计算增量更新占比
-    fn incremental_ratio(&self) -> f64 {
-        let total = self.total_updates();
-        if total == 0 { 0.0 } else { self.incremental_update_count as f64 / total as f64 }
-    }
-
-    /// 判断性能是否健康
-    fn is_healthy(&self) -> bool {
-        self.avg_incremental_update_us < 1000 && self.last_rebuild_duration_ms < 100
-    }
 }
 
 impl Global for TodoStore {}
@@ -267,11 +299,18 @@ impl TodoStore {
             pinned_set: HashSet::new(),
             label_index: HashMap::new(),
             id_map: HashMap::new(),
+            project_by_id: HashMap::new(),
+            section_by_id: HashMap::new(),
+            label_by_id: HashMap::new(),
+            inbox_set: HashSet::new(),
+            today_set: HashSet::new(),
+            scheduled_set: HashSet::new(),
+            index_date: chrono::Utc::now().naive_utc().date(),
             id_mappings: HashMap::new(),
             version: 0,
             change_mask: ChangeMask::none(),
-            dispatch_depth: Cell::new(0),
             last_bump_time: Cell::new(Instant::now() - std::time::Duration::from_secs(1)),
+            query_epoch: 0,
             #[cfg(debug_assertions)]
             index_stats: IndexStats::default(),
         }
@@ -284,34 +323,7 @@ impl TodoStore {
         self.version
     }
 
-    /// 🚀 6.9修复：开始分发观察者通知（增加深度）
-    ///
-    /// 调用后，后续的 bump_version 操作不会递增 version，
-    /// 从而防止观察者回调中的递归更新导致无限循环。
-    pub fn begin_dispatch(&self) {
-        let depth = self.dispatch_depth.get();
-        self.dispatch_depth.set(depth + 1);
-        if depth == 0 {
-            tracing::debug!("[ANTI-RECURSION] TodoStore dispatch BEGIN");
-        }
-    }
-
-    /// 🚀 6.9修复：结束分发观察者通知（减少深度）
-    pub fn end_dispatch(&self) {
-        let depth = self.dispatch_depth.get();
-        debug_assert!(depth > 0, "end_dispatch called without matching begin_dispatch");
-        self.dispatch_depth.set(depth - 1);
-        if depth <= 1 {
-            tracing::debug!("[ANTI-RECURSION] TodoStore dispatch END");
-        }
-    }
-
-    /// 🚀 6.9修复：检查是否正在分发观察者通知
-    pub fn is_dispatching(&self) -> bool {
-        self.dispatch_depth.get() > 0
-    }
-
-    /// 🚀 6.9修复：安全地递增版本号（基于时间窗口的防重入）
+    /// 安全地递增版本号（基于时间窗口的防重入）
     ///
     /// 如果距上次 version++ 不足 50ms（同一事件循环/观察者分发窗口），
     /// 则跳过版本递增，掩码继续 OR 合并。真正递增时先清空掩码，
@@ -327,15 +339,95 @@ impl TodoStore {
         }
     }
 
-    /// 🚀 6.4优化：获取并清空变更掩码
-    ///
-    /// 视图在观察者回调中调用此方法，获取本次变更的掩码并清空，
-    /// 用于判断本次变更是否影响当前视图。
-    pub fn take_change_mask(&mut self) -> ChangeMask {
-        std::mem::take(&mut self.change_mask)
+    fn mark_items_changed(&mut self) {
+        self.bump_version();
+        self.change_mask.items_changed = true;
+        self.query_epoch = self.query_epoch.wrapping_add(1);
     }
 
-    /// 🚀 6.4优化：查看当前变更掩码（不清空）
+    fn mark_projects_changed(&mut self) {
+        self.bump_version();
+        self.change_mask.projects_changed = true;
+    }
+
+    fn mark_sections_changed(&mut self) {
+        self.bump_version();
+        self.change_mask.sections_changed = true;
+    }
+
+    fn mark_labels_changed(&mut self) {
+        self.bump_version();
+        self.change_mask.labels_changed = true;
+    }
+
+    fn today_date() -> chrono::NaiveDate {
+        chrono::Utc::now().naive_utc().date()
+    }
+
+    fn board_indexes_current(&self) -> bool {
+        self.index_date == Self::today_date()
+    }
+
+    fn ensure_index_date(&mut self) {
+        let today = Self::today_date();
+        if self.index_date != today {
+            self.rebuild_board_indexes();
+        }
+    }
+
+    fn rebuild_board_indexes(&mut self) {
+        self.inbox_set.clear();
+        self.today_set.clear();
+        self.scheduled_set.clear();
+        self.index_date = Self::today_date();
+        let items = self.all_items.clone();
+        for item in items {
+            self.apply_board_membership(&item, true);
+        }
+    }
+
+    fn apply_board_membership(&mut self, item: &ItemModel, add: bool) {
+        if !add {
+            self.inbox_set.remove(&item.id);
+            self.today_set.remove(&item.id);
+            self.scheduled_set.remove(&item.id);
+            return;
+        }
+        let m = board_membership(item, self.index_date);
+        if m.inbox {
+            self.inbox_set.insert(item.id.clone());
+        } else {
+            self.inbox_set.remove(&item.id);
+        }
+        if m.today {
+            self.today_set.insert(item.id.clone());
+        } else {
+            self.today_set.remove(&item.id);
+        }
+        if m.scheduled {
+            self.scheduled_set.insert(item.id.clone());
+        } else {
+            self.scheduled_set.remove(&item.id);
+        }
+    }
+
+    fn items_from_set(&self, set: &HashSet<String>) -> Vec<Arc<ItemModel>> {
+        if set.is_empty() {
+            return Vec::new();
+        }
+        let mut out = Vec::with_capacity(set.len());
+        for item in &self.all_items {
+            if set.contains(&item.id) {
+                out.push(item.clone());
+                if out.len() == set.len() {
+                    break;
+                }
+            }
+        }
+        out
+    }
+
+    /// 查看当前变更掩码（不清空）
     pub fn peek_change_mask(&self) -> &ChangeMask {
         &self.change_mask
     }
@@ -343,32 +435,6 @@ impl TodoStore {
     /// 获取临时 ID 对应的真实 ID
     pub fn get_real_id(&self, temp_id: &str) -> Option<&String> {
         self.id_mappings.get(temp_id)
-    }
-
-    /// 🚀 获取索引统计信息（仅在 debug 模式下可用）
-    #[cfg(debug_assertions)]
-    pub fn index_stats(&self) -> &IndexStats {
-        &self.index_stats
-    }
-
-    /// 🚀 打印索引统计信息（仅在 debug 模式下可用）
-    #[cfg(debug_assertions)]
-    pub fn print_index_stats(&self) {
-        tracing::info!(
-            "📊 Index Statistics:\n- Total items: {}\n- Rebuild count: {}\n- Incremental update \
-             count: {}\n- Last rebuild duration: {}ms\n- Avg incremental update: {}μs\n- Project \
-             index size: {}\n- Section index size: {}\n- Checked set size: {}\n- Pinned set size: \
-             {}",
-            self.all_items.len(),
-            self.index_stats.rebuild_count,
-            self.index_stats.incremental_update_count,
-            self.index_stats.last_rebuild_duration_ms,
-            self.index_stats.avg_incremental_update_us,
-            self.project_index.len(),
-            self.section_index.len(),
-            self.checked_set.len(),
-            self.pinned_set.len()
-        );
     }
 
     /// 重建所有索引
@@ -419,11 +485,16 @@ impl TodoStore {
         self.pinned_set.clear();
         self.label_index.clear();
         self.id_map.clear();
+        self.inbox_set.clear();
+        self.today_set.clear();
+        self.scheduled_set.clear();
+        self.index_date = Self::today_date();
 
         // 用下标遍历，避免 clone 整表 Vec<Arc<_>>
         for i in 0..self.all_items.len() {
             let item = self.all_items[i].clone();
             self.add_to_all_indexes(&item);
+            self.apply_board_membership(&item, true);
         }
     }
 
@@ -444,11 +515,12 @@ impl TodoStore {
         self.all_items.iter().filter(|item| predicate(item)).cloned().collect()
     }
 
-    /// 获取收件箱任务（未完成且无项目ID的任务）
-    ///
-    /// 使用通用查询方法
+    /// 获取收件箱任务（未完成且无项目ID、且非今日到期）
     pub fn inbox_items(&self) -> Vec<Arc<ItemModel>> {
-        let today = chrono::Utc::now().naive_utc().date();
+        if self.board_indexes_current() {
+            return self.items_from_set(&self.inbox_set);
+        }
+        let today = Self::today_date();
         self.query_items(|item| {
             !item.checked
                 && (item.project_id.is_none() || item.project_id.as_deref() == Some(""))
@@ -456,32 +528,31 @@ impl TodoStore {
         })
     }
 
+    fn cached_query(
+        &self,
+        cache: &crate::core::state::cache::QueryCache,
+        kind: crate::core::state::cache::BoardQuery,
+        compute: impl FnOnce() -> Vec<Arc<ItemModel>>,
+    ) -> Arc<Vec<Arc<ItemModel>>> {
+        cache.get_or_compute(self.version, self.query_epoch, kind, compute)
+    }
+
     /// 获取收件箱任务（带缓存）
-    ///
-    /// 命中时只克隆 Arc，避免整表 Vec 分配。
     pub fn inbox_items_cached(
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version) {
-            if let Some(cached) = cache.get_inbox() {
-                return cached;
-            }
-        } else {
-            cache.invalidate_all();
-        }
-
-        let items = Arc::new(self.inbox_items());
-        cache.set_inbox(items.clone());
-        cache.update_version(self.version);
-        items
+        self.cached_query(cache, crate::core::state::cache::BoardQuery::Inbox, || {
+            self.inbox_items()
+        })
     }
 
     /// 获取今日到期的任务
-    ///
-    /// 使用通用查询方法
     pub fn today_items(&self) -> Vec<Arc<ItemModel>> {
-        let today = chrono::Utc::now().naive_utc().date();
+        if self.board_indexes_current() {
+            return self.items_from_set(&self.today_set);
+        }
+        let today = Self::today_date();
         self.query_items(|item| !item.checked && item.is_due_on_date(today))
     }
 
@@ -490,22 +561,16 @@ impl TodoStore {
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version) {
-            if let Some(cached) = cache.get_today() {
-                return cached;
-            }
-        } else {
-            cache.invalidate_all();
-        }
-
-        let items = Arc::new(self.today_items());
-        cache.set_today(items.clone());
-        cache.update_version(self.version);
-        items
+        self.cached_query(cache, crate::core::state::cache::BoardQuery::Today, || {
+            self.today_items()
+        })
     }
 
     /// 获取计划任务（有截止日期但未完成）
     pub fn scheduled_items(&self) -> Vec<Arc<ItemModel>> {
+        if self.board_indexes_current() {
+            return self.items_from_set(&self.scheduled_set);
+        }
         self.query_items(|item| !item.checked && item.due_date().is_some())
     }
 
@@ -514,23 +579,14 @@ impl TodoStore {
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version) {
-            if let Some(cached) = cache.get_scheduled() {
-                return cached;
-            }
-        } else {
-            cache.invalidate_all();
-        }
-
-        let items = Arc::new(self.scheduled_items());
-        cache.set_scheduled(items.clone());
-        cache.update_version(self.version);
-        items
+        self.cached_query(cache, crate::core::state::cache::BoardQuery::Scheduled, || {
+            self.scheduled_items()
+        })
     }
 
-    /// 获取已完成的任务（走 checked_set + id_map）
+    /// 获取已完成的任务（走 checked_set，保持 all_items 顺序）
     pub fn completed_items(&self) -> Vec<Arc<ItemModel>> {
-        self.checked_set.iter().filter_map(|id| self.id_map.get(id).cloned()).collect()
+        self.items_from_set(&self.checked_set)
     }
 
     /// 获取已完成的任务（带缓存）
@@ -538,18 +594,9 @@ impl TodoStore {
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version) {
-            if let Some(cached) = cache.get_completed() {
-                return cached;
-            }
-        } else {
-            cache.invalidate_all();
-        }
-
-        let items = Arc::new(self.completed_items());
-        cache.set_completed(items.clone());
-        cache.update_version(self.version);
-        items
+        self.cached_query(cache, crate::core::state::cache::BoardQuery::Completed, || {
+            self.completed_items()
+        })
     }
 
     /// 获取置顶任务（未完成且已置顶）
@@ -567,28 +614,19 @@ impl TodoStore {
         &self,
         cache: &crate::core::state::cache::QueryCache,
     ) -> Arc<Vec<Arc<ItemModel>>> {
-        if cache.is_valid(self.version) {
-            if let Some(cached) = cache.get_pinned() {
-                return cached;
-            }
-        } else {
-            cache.invalidate_all();
-        }
-
-        let items = Arc::new(self.pinned_items());
-        cache.set_pinned(items.clone());
-        cache.update_version(self.version);
-        items
+        self.cached_query(cache, crate::core::state::cache::BoardQuery::Pinned, || {
+            self.pinned_items()
+        })
     }
 
-    /// 获取指定项目的任务（走 project_index）
-    pub fn items_by_project(&self, project_id: &str) -> Vec<Arc<ItemModel>> {
-        self.project_index.get(project_id).cloned().unwrap_or_default()
+    /// 获取指定项目的任务（走 project_index，不复制 Vec）
+    pub fn items_by_project(&self, project_id: &str) -> &[Arc<ItemModel>] {
+        self.project_index.get(project_id).map(Vec::as_slice).unwrap_or(&[])
     }
 
-    /// 获取指定分区的任务（走 section_index）
-    pub fn items_by_section(&self, section_id: &str) -> Vec<Arc<ItemModel>> {
-        self.section_index.get(section_id).cloned().unwrap_or_default()
+    /// 获取指定分区的任务（走 section_index，不复制 Vec）
+    pub fn items_by_section(&self, section_id: &str) -> &[Arc<ItemModel>] {
+        self.section_index.get(section_id).map(Vec::as_slice).unwrap_or(&[])
     }
 
     /// 获取指定标签的任务（label_index + id_map）
@@ -608,43 +646,80 @@ impl TodoStore {
     /// 更新所有任务
     pub fn set_items(&mut self, items: Vec<ItemModel>) {
         self.all_items = items.into_iter().map(Arc::new).collect();
-        // 重建索引
         self.rebuild_indexes();
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.items_changed = true;
+        self.mark_items_changed();
+    }
+
+    fn rebuild_id_map<M>(
+        items: &[Arc<M>],
+        map: &mut HashMap<String, Arc<M>>,
+        id_of: impl Fn(&M) -> &str,
+    ) {
+        map.clear();
+        map.extend(items.iter().map(|item| (id_of(item).to_string(), item.clone())));
+    }
+
+    fn upsert_id_map<M>(
+        items: &mut Vec<Arc<M>>,
+        map: &mut HashMap<String, Arc<M>>,
+        item: Arc<M>,
+        id: &str,
+        same_id: impl Fn(&M) -> bool,
+    ) {
+        if let Some(pos) = items.iter().position(|m| same_id(m)) {
+            items[pos] = item.clone();
+        } else {
+            items.push(item.clone());
+        }
+        map.insert(id.to_string(), item);
+    }
+
+    fn insert_id_map<M>(
+        items: &mut Vec<Arc<M>>,
+        map: &mut HashMap<String, Arc<M>>,
+        item: Arc<M>,
+        id: &str,
+    ) {
+        map.insert(id.to_string(), item.clone());
+        items.push(item);
+    }
+
+    /// 指定项目下的分区（过滤时不先 clone 整表）
+    pub fn sections_for_project(&self, project_id: &str) -> Vec<Arc<SectionModel>> {
+        self.sections
+            .iter()
+            .filter(|s| s.project_id.as_deref() == Some(project_id))
+            .cloned()
+            .collect()
     }
 
     /// 更新所有项目
     pub fn set_projects(&mut self, projects: Vec<ProjectModel>) {
         self.projects = projects.into_iter().map(Arc::new).collect();
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.projects_changed = true;
+        Self::rebuild_id_map(&self.projects, &mut self.project_by_id, |p| &p.id);
+        self.mark_projects_changed();
     }
 
     /// 更新所有标签
     pub fn set_labels(&mut self, labels: Vec<LabelModel>) {
         self.labels = labels.into_iter().map(Arc::new).collect();
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.labels_changed = true;
+        Self::rebuild_id_map(&self.labels, &mut self.label_by_id, |l| &l.id);
+        self.mark_labels_changed();
     }
 
     /// 更新所有分区
     pub fn set_sections(&mut self, sections: Vec<SectionModel>) {
         self.sections = sections.into_iter().map(Arc::new).collect();
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.sections_changed = true;
+        Self::rebuild_id_map(&self.sections, &mut self.section_by_id, |s| &s.id);
+        self.mark_sections_changed();
     }
 
     /// 设置活跃项目
     pub fn set_active_project(&mut self, project: Option<Arc<ProjectModel>>) {
         self.active_project = project;
-        // 增加版本号并设置掩码
         self.bump_version();
         self.change_mask.active_project_changed = true;
+        self.query_epoch = self.query_epoch.wrapping_add(1);
     }
 
     // ==================== 增量更新方法 ====================
@@ -653,81 +728,67 @@ impl TodoStore {
     ///
     /// 如果任务已存在则更新，否则添加到列表末尾
     pub fn update_item(&mut self, item: Arc<ItemModel>) {
-        tracing::info!("TodoStore::update_item called - id: {}, due: {:?}", item.id, item.due);
+        self.upsert_item(item);
+        self.mark_items_changed();
+    }
 
-        if let Some(pos) = self.all_items.iter().position(|i| i.id == item.id) {
-            // 先克隆 old_item，避免借用冲突
-            let old_item = self.all_items[pos].clone();
-            // 更新现有任务
-            self.all_items[pos] = item.clone();
+    fn upsert_item(&mut self, item: Arc<ItemModel>) {
+        self.ensure_index_date();
+        tracing::debug!("TodoStore::update_item - id: {}, due: {:?}", item.id, item.due);
 
-            // 更新索引
+        if let Some(old_item) = self.id_map.get(&item.id).cloned() {
+            if let Some(pos) = self.all_items.iter().position(|i| i.id == item.id) {
+                self.all_items[pos] = item.clone();
+            }
             self.update_item_index(&old_item, &item);
         } else {
-            // 添加新任务
             self.all_items.push(item.clone());
-
-            // 添加到索引
             self.add_item_to_index(&item);
         }
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.items_changed = true;
     }
 
     /// 删除单个任务
     pub fn remove_item(&mut self, id: &str) {
-        // 先找到要删除的任务并克隆
-        let item_to_remove = self.all_items.iter().find(|i| i.id == id).cloned();
+        self.remove_item_internal(id);
+        self.mark_items_changed();
+    }
 
-        // 从索引中移除
-        if let Some(item) = item_to_remove {
+    fn remove_item_internal(&mut self, id: &str) {
+        self.ensure_index_date();
+        if let Some(item) = self.id_map.get(id).cloned() {
             self.remove_item_from_index(&item);
+            self.all_items.retain(|i| i.id != id);
         }
-
-        // 从列表中移除
-        self.all_items.retain(|i| i.id != id);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.items_changed = true;
     }
 
     /// 原子地替换任务的 ID（用于临时 ID 变为真实 ID）
-    ///
-    /// 这个方法会在一个操作中完成 ID 替换，避免触发两次通知
     pub fn replace_item_id(&mut self, old_id: &str, new_item: Arc<ItemModel>) {
         let new_id = new_item.id.clone();
+        self.ensure_index_date();
 
-        // 先从索引中移除旧 ID 的 item
-        if let Some(old_item) = self.all_items.iter().find(|i| i.id == old_id).cloned() {
+        if let Some(old_item) = self.id_map.get(old_id).cloned() {
             self.remove_item_from_index(&old_item);
         }
-
-        // 从列表中移除旧 ID 的 item
         self.all_items.retain(|i| i.id != old_id);
 
-        // 添加新 ID 的 item
         self.all_items.push(new_item.clone());
         self.add_item_to_index(&new_item);
-
-        // 记录 ID 映射（临时 ID -> 真实 ID）
         self.id_mappings.insert(old_id.to_string(), new_id);
+        self.mark_items_changed();
 
-        // 只增加一次版本号并设置掩码
-        self.bump_version();
-        self.change_mask.items_changed = true;
-
-        tracing::info!("TodoStore: replaced temp ID {} with real ID {}", old_id, new_item.id);
+        tracing::debug!("TodoStore: replaced temp ID {} with real ID {}", old_id, new_item.id);
     }
 
     /// 添加单个任务
     pub fn add_item(&mut self, item: Arc<ItemModel>) {
+        self.add_item_internal(item);
+        self.mark_items_changed();
+    }
+
+    fn add_item_internal(&mut self, item: Arc<ItemModel>) {
+        self.ensure_index_date();
         self.all_items.push(item.clone());
-        // 添加到索引
         self.add_item_to_index(&item);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.items_changed = true;
     }
 
     /// 根据ID获取单个任务
@@ -737,14 +798,14 @@ impl TodoStore {
 
     /// 增量更新单个项目
     pub fn update_project(&mut self, project: Arc<ProjectModel>) {
-        if let Some(pos) = self.projects.iter().position(|p| p.id == project.id) {
-            self.projects[pos] = project;
-        } else {
-            self.projects.push(project);
+        let id = project.id.clone();
+        if self.active_project.as_ref().is_some_and(|p| p.id == id) {
+            self.active_project = Some(project.clone());
         }
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.projects_changed = true;
+        Self::upsert_id_map(&mut self.projects, &mut self.project_by_id, project, &id, |p| {
+            p.id == id
+        });
+        self.mark_projects_changed();
     }
 
     /// 删除单个项目，并返回下一个应该激活的项目
@@ -760,6 +821,7 @@ impl TodoStore {
 
         // 从列表中移除项目
         self.projects.retain(|p| p.id != id);
+        self.project_by_id.remove(id);
 
         // 检查是否删除的是当前活跃项目
         let is_active_project = self.active_project.as_ref().map(|p| p.id == id).unwrap_or(false);
@@ -790,117 +852,97 @@ impl TodoStore {
             self.active_project = next_project.clone();
         }
 
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.projects_changed = true;
+        self.mark_projects_changed();
 
         next_project
     }
 
     /// 添加单个项目
     pub fn add_project(&mut self, project: Arc<ProjectModel>) {
-        self.projects.push(project);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.projects_changed = true;
+        let id = project.id.clone();
+        Self::insert_id_map(&mut self.projects, &mut self.project_by_id, project, &id);
+        self.mark_projects_changed();
+    }
+
+    /// 将临时项目 ID 替换为落盘后的真实 ID
+    pub fn replace_project_id(&mut self, old_id: &str, project: Arc<ProjectModel>) {
+        if old_id == project.id {
+            self.update_project(project);
+            return;
+        }
+        let was_active = self.active_project.as_ref().is_some_and(|p| p.id == old_id);
+        self.projects.retain(|p| p.id != old_id);
+        self.project_by_id.remove(old_id);
+        if was_active {
+            self.active_project = Some(project.clone());
+        }
+        let id = project.id.clone();
+        Self::insert_id_map(&mut self.projects, &mut self.project_by_id, project, &id);
+        self.mark_projects_changed();
+        if was_active {
+            self.change_mask.active_project_changed = true;
+        }
     }
 
     /// 根据ID获取单个项目
     pub fn get_project(&self, id: &str) -> Option<Arc<ProjectModel>> {
-        self.projects.iter().find(|p| p.id == id).cloned()
+        self.project_by_id.get(id).cloned()
     }
 
     /// 增量更新单个分区
     pub fn update_section(&mut self, section: Arc<SectionModel>) {
-        if let Some(pos) = self.sections.iter().position(|s| s.id == section.id) {
-            self.sections[pos] = section;
-        } else {
-            self.sections.push(section);
-        }
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.sections_changed = true;
+        let id = section.id.clone();
+        Self::upsert_id_map(&mut self.sections, &mut self.section_by_id, section, &id, |s| {
+            s.id == id
+        });
+        self.mark_sections_changed();
     }
 
     /// 删除单个分区
     pub fn remove_section(&mut self, id: &str) {
         self.sections.retain(|s| s.id != id);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.sections_changed = true;
+        self.section_by_id.remove(id);
+        self.mark_sections_changed();
     }
 
     /// 添加单个分区
     pub fn add_section(&mut self, section: Arc<SectionModel>) {
-        self.sections.push(section);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.sections_changed = true;
+        let id = section.id.clone();
+        Self::insert_id_map(&mut self.sections, &mut self.section_by_id, section, &id);
+        self.mark_sections_changed();
     }
 
     /// 根据ID获取单个分区
     pub fn get_section(&self, id: &str) -> Option<Arc<SectionModel>> {
-        self.sections.iter().find(|s| s.id == id).cloned()
+        self.section_by_id.get(id).cloned()
     }
 
     // ==================== Label 增量更新方法 ====================
 
     /// 增量更新单个标签
     pub fn update_label(&mut self, label: Arc<LabelModel>) {
-        if let Some(pos) = self.labels.iter().position(|l| l.id == label.id) {
-            self.labels[pos] = label;
-        } else {
-            self.labels.push(label);
-        }
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.labels_changed = true;
+        let id = label.id.clone();
+        Self::upsert_id_map(&mut self.labels, &mut self.label_by_id, label, &id, |l| l.id == id);
+        self.mark_labels_changed();
     }
 
     /// 删除单个标签
     pub fn remove_label(&mut self, id: &str) {
         self.labels.retain(|l| l.id != id);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.labels_changed = true;
+        self.label_by_id.remove(id);
+        self.mark_labels_changed();
     }
 
     /// 添加单个标签
     pub fn add_label(&mut self, label: Arc<LabelModel>) {
-        self.labels.push(label);
-        // 增加版本号并设置掩码
-        self.bump_version();
-        self.change_mask.labels_changed = true;
+        let id = label.id.clone();
+        Self::insert_id_map(&mut self.labels, &mut self.label_by_id, label, &id);
+        self.mark_labels_changed();
     }
 
     /// 根据ID获取单个标签
     pub fn get_label(&self, id: &str) -> Option<Arc<LabelModel>> {
-        self.labels.iter().find(|l| l.id == id).cloned()
-    }
-
-    /// 批量增量更新
-    ///
-    /// 用于批量操作，如导入数据
-    pub fn apply_changes(
-        &mut self,
-        added: Vec<Arc<ItemModel>>,
-        updated: Vec<Arc<ItemModel>>,
-        deleted: Vec<String>,
-    ) {
-        // 处理新增
-        for item in added {
-            self.add_item(item);
-        }
-
-        // 处理更新
-        for item in updated {
-            self.update_item(item);
-        }
-
-        // 处理删除
-        for id in deleted {
-            self.remove_item(&id);
-        }
+        self.label_by_id.get(id).cloned()
     }
 
     // ==================== 索引管理辅助方法 ====================
@@ -908,10 +950,11 @@ impl TodoStore {
     /// 将任务添加到索引（使用统一的 trait 方法）
     fn add_item_to_index(&mut self, item: &Arc<ItemModel>) {
         self.add_to_all_indexes(item);
+        self.apply_board_membership(item, true);
     }
 
-    /// 从索引中移除任务（使用统一的 trait 方法）
     fn remove_item_from_index(&mut self, item: &Arc<ItemModel>) {
+        self.apply_board_membership(item, false);
         self.remove_from_all_indexes(item);
     }
 
@@ -964,6 +1007,9 @@ impl TodoStore {
             self.update_label_index(old_item, false);
             self.update_label_index(new_item, true);
         }
+
+        self.apply_board_membership(old_item, false);
+        self.apply_board_membership(new_item, true);
 
         #[cfg(debug_assertions)]
         {
@@ -1218,5 +1264,108 @@ mod tests {
         // 再次 set_items 应清空后重建，不应重复
         store.set_items(vec![a]);
         assert_eq!(store.items_by_label("l1").len(), 1);
+    }
+
+    #[test]
+    fn test_incremental_board_indexes_follow_updates() {
+        let mut store = TodoStore::new();
+        let today = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
+        store.set_items(vec![
+            create_test_item("inbox", false, false, None),
+            create_test_item("today", false, false, Some(&today)),
+        ]);
+        assert_eq!(store.inbox_items().len(), 1);
+        assert_eq!(store.today_items().len(), 1);
+        assert_eq!(store.scheduled_items().len(), 1);
+
+        let mut moved = create_test_item("inbox", false, false, Some(&today));
+        moved.id = "inbox".to_string();
+        store.update_item(Arc::new(moved));
+        assert!(store.inbox_items().is_empty());
+        assert_eq!(store.today_items().len(), 2);
+
+        store.remove_item("today");
+        assert_eq!(store.today_items().len(), 1);
+        assert_eq!(store.completed_items().len(), 0);
+    }
+
+    #[test]
+    fn test_cached_query_shares_arc() {
+        let mut store = TodoStore::new();
+        store.set_items(vec![create_test_item("1", false, false, None)]);
+        let cache = crate::core::state::QueryCache::new();
+        let a = store.inbox_items_cached(&cache);
+        let b = store.inbox_items_cached(&cache);
+        assert!(Arc::ptr_eq(&a, &b));
+        assert_eq!(a.len(), 1);
+
+        store.update_item(Arc::new(create_test_item("1", true, false, None)));
+        let c = store.inbox_items_cached(&cache);
+        assert!(!Arc::ptr_eq(&a, &c));
+        assert!(c.is_empty());
+    }
+
+    #[test]
+    fn test_entity_lookups_stay_indexed() {
+        let mut store = TodoStore::new();
+
+        let mut project = ProjectModel::default();
+        project.id = "p1".to_string();
+        project.name = "Alpha".to_string();
+        store.set_projects(vec![project.clone()]);
+        assert_eq!(store.get_project("p1").unwrap().name, "Alpha");
+
+        project.name = "Beta".to_string();
+        store.update_project(Arc::new(project));
+        assert_eq!(store.get_project("p1").unwrap().name, "Beta");
+        assert_eq!(store.projects.len(), 1);
+
+        store.remove_project("p1");
+        assert!(store.get_project("p1").is_none());
+        assert!(store.projects.is_empty());
+
+        let mut temp = ProjectModel::default();
+        temp.id = "temp_p".to_string();
+        temp.name = "Temp".to_string();
+        store.add_project(Arc::new(temp));
+        let mut real = ProjectModel::default();
+        real.id = "real_p".to_string();
+        real.name = "Temp".to_string();
+        store.replace_project_id("temp_p", Arc::new(real));
+        assert!(store.get_project("temp_p").is_none());
+        assert_eq!(store.get_project("real_p").unwrap().name, "Temp");
+
+        let mut section = SectionModel::default();
+        section.id = "s1".to_string();
+        section.project_id = Some("p2".to_string());
+        store.add_section(Arc::new(section));
+        assert!(store.get_section("s1").is_some());
+        assert_eq!(store.sections_for_project("p2").len(), 1);
+        store.remove_section("s1");
+        assert!(store.get_section("s1").is_none());
+
+        let mut label = LabelModel::default();
+        label.id = "l1".to_string();
+        store.add_label(Arc::new(label));
+        assert!(store.get_label("l1").is_some());
+        store.remove_label("l1");
+        assert!(store.get_label("l1").is_none());
+    }
+
+    #[test]
+    fn test_change_mask_list_vs_editor() {
+        let mut items_only = ChangeMask::none();
+        items_only.items_changed = true;
+        assert!(items_only.affects_item_editor());
+        assert!(!items_only.affects_project_list());
+        assert!(!items_only.affects_label_list());
+        assert!(!items_only.affects_section_list());
+
+        let mut labels_only = ChangeMask::none();
+        labels_only.labels_changed = true;
+        assert!(labels_only.affects_label_list());
+        assert!(labels_only.affects_item_editor());
+        assert!(!labels_only.affects_project_list());
     }
 }

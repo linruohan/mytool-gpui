@@ -67,7 +67,13 @@ impl LabelsPopoverList {
 
         let _subscriptions = vec![
             cx.observe_global::<TodoStore>(move |_this, cx| {
-                let labels = cx.global::<TodoStore>().labels.clone();
+                let labels = {
+                    let store = cx.global::<TodoStore>();
+                    if !store.peek_change_mask().affects_label_list() {
+                        return;
+                    }
+                    store.labels.clone()
+                };
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
                     cx.notify();
@@ -96,18 +102,17 @@ impl LabelsPopoverList {
     }
 
     pub fn set_item_checked_label_id_async(&mut self, label_ids: String, cx: &mut Context<Self>) {
-        // 直接从全局 TodoStore 获取所有标签，确保能获取到最新的标签列表
-        let all_labels = cx.global::<TodoStore>().labels.clone();
-        self.selected_labels = label_ids
-            .split(';')
-            .filter_map(|label_id| {
-                let trimmed_id = label_id.trim();
-                if trimmed_id.is_empty() {
-                    return None;
-                }
-                all_labels.iter().find(|label| label.id == trimmed_id).map(Arc::clone)
-            })
-            .collect();
+        let selected = {
+            let store = cx.global::<TodoStore>();
+            label_ids
+                .split(';')
+                .filter_map(|label_id| {
+                    let trimmed_id = label_id.trim();
+                    if trimmed_id.is_empty() { None } else { store.get_label(trimmed_id) }
+                })
+                .collect()
+        };
+        self.selected_labels = selected;
         self.label_list.update(cx, |list, cx| {
             list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
         });

@@ -1,6 +1,6 @@
-use std::{cell::Cell, sync::Arc};
+use std::{cell::Cell, collections::HashMap, sync::Arc};
 
-use gpui::{AppContext, Context, Entity, FocusHandle, Subscription, Window};
+use gpui::{App, AppContext, Context, Entity, FocusHandle, Subscription, Window};
 use gpui_component::{IndexPath, WindowExt};
 use sea_orm::sqlx::types::uuid;
 use todos::entity::SectionModel;
@@ -10,6 +10,82 @@ use crate::{
     todo_actions::{add_section, update_section},
     todo_state::TodoStore,
 };
+
+/// 置顶项与分区的关系。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PinnedLayout {
+    /// 看板：置顶项只出现在置顶区，不再进入分区。
+    Exclusive,
+    /// 项目面板：置顶项同时出现在所属分区里。
+    Inclusive,
+}
+
+/// 按置顶 / 过期 / 今日 / 分区拆好的任务分组。
+#[derive(Default)]
+pub struct GroupedItems {
+    pub pinned: Vec<(usize, Arc<todos::entity::ItemModel>)>,
+    pub past_due: Vec<(usize, Arc<todos::entity::ItemModel>)>,
+    pub due_today: Vec<(usize, Arc<todos::entity::ItemModel>)>,
+    pub no_section: Vec<(usize, Arc<todos::entity::ItemModel>)>,
+    pub sections: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>>,
+}
+
+/// 将任务列表按置顶策略与今日看板规则分组。
+pub fn group_items(
+    items: &[Arc<todos::entity::ItemModel>],
+    pinned: PinnedLayout,
+    today_board: bool,
+) -> GroupedItems {
+    let mut grouped = GroupedItems::default();
+
+    let push_sectioned =
+        |grouped: &mut GroupedItems, i: usize, item_model: Arc<todos::entity::ItemModel>| {
+            match item_model.section_id.as_deref() {
+                None | Some("") => grouped.no_section.push((i, item_model)),
+                Some(sid) => {
+                    grouped.sections.entry(sid.to_string()).or_default().push((i, item_model));
+                },
+            }
+        };
+
+    for (i, item) in items.iter().enumerate() {
+        let item_model = item.clone();
+        match pinned {
+            PinnedLayout::Exclusive => {
+                if item_model.pinned {
+                    grouped.pinned.push((i, item_model));
+                    continue;
+                }
+                if today_board && item_model.is_past_due() {
+                    grouped.past_due.push((i, item_model));
+                } else if today_board && item_model.is_due_today() {
+                    grouped.due_today.push((i, item_model));
+                } else if !today_board || item_model.due_date().is_none() {
+                    push_sectioned(&mut grouped, i, item_model);
+                }
+            },
+            PinnedLayout::Inclusive => {
+                if !item_model.checked && item_model.pinned {
+                    grouped.pinned.push((i, item_model.clone()));
+                }
+                push_sectioned(&mut grouped, i, item_model);
+            },
+        }
+    }
+
+    grouped
+}
+
+/// 修正选中下标，避免越界。
+pub fn clamp_active_index(active_index: &mut Option<usize>, len: usize) {
+    if let Some(ix) = *active_index {
+        if ix >= len {
+            *active_index = if len == 0 { None } else { Some(0) };
+        }
+    } else if len > 0 {
+        *active_index = Some(0);
+    }
+}
 
 /// 所有 Board 类型的基础结构体
 pub struct BoardBase {
@@ -27,8 +103,9 @@ pub struct BoardBase {
     /// 过期任务分组（超过今天但还未完成，仅 Today Board 使用）
     pub past_due_items: Vec<(usize, Arc<todos::entity::ItemModel>)>,
     pub is_today_board: bool,
-    /// 分区列表（用于渲染 Section 分组）
-    pub sections: Vec<Arc<todos::entity::SectionModel>>,
+    pub item_row_ids: Vec<String>,
+    pub pending_refresh: Cell<bool>,
+    pub observer_registered: Cell<bool>,
 }
 
 impl BoardBase {
@@ -42,7 +119,6 @@ impl BoardBase {
         let pinned_items = vec![];
         let due_today_items = vec![];
         let past_due_items = vec![];
-        let sections = vec![];
 
         Self {
             focus_handle: cx.focus_handle(),
@@ -56,7 +132,9 @@ impl BoardBase {
             due_today_items,
             past_due_items,
             is_today_board: false,
-            sections,
+            item_row_ids: Vec::new(),
+            pending_refresh: Cell::new(false),
+            observer_registered: Cell::new(false),
         }
     }
 
@@ -124,11 +202,10 @@ impl BoardBase {
         section_id: Option<String>,
         is_edit: bool,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
         let ori_section = if is_edit {
-            sections
-                .iter()
-                .find(|s| s.id == section_id.clone().unwrap_or_default())
+            section_id
+                .as_deref()
+                .and_then(|id| cx.global::<TodoStore>().get_section(id))
                 .map(|s| s.as_ref().clone())
                 .unwrap_or_default()
         } else {
@@ -174,9 +251,7 @@ impl BoardBase {
         cx: &mut Context<V>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
-        if let Some(section) = section_some {
+        if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             crate::ui::components::show_section_delete_dialog(
                 window,
                 cx,
@@ -195,8 +270,7 @@ impl BoardBase {
         cx: &mut Context<V>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+        if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
             new_section.name = format!("{} (copy)", new_section.name);
@@ -212,8 +286,7 @@ impl BoardBase {
         cx: &mut Context<V>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+        if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
@@ -221,37 +294,50 @@ impl BoardBase {
         }
     }
 
-    /// 从 TodoStore 刷新项目列表（通用方法）
-    ///
-    /// # 参数
-    /// - `items`: 要显示的项目列表
-    /// - `window`: 窗口句柄
-    /// - `cx`: 上下文
-    /// - `filter`: 可选的过滤函数
-    ///
-    /// # 示例
-    /// ```ignore
-    /// let items = store.inbox_items_cached(cache);
-    /// base.refresh_items(items, window, cx, Some(|item| !item.checked));
-    /// ```
-    pub fn refresh_items(
+    /// Diff 更新行实体并按当前 Board 规则分组。
+    pub fn refresh_from_items(
         &mut self,
-        items: Vec<Arc<todos::entity::ItemModel>>,
+        items: &[Arc<todos::entity::ItemModel>],
         window: &mut Window,
         cx: &mut Context<impl gpui::Render>,
-        filter: Option<fn(&Arc<todos::entity::ItemModel>) -> bool>,
     ) {
-        let filtered_items: Vec<_> = match filter {
-            Some(f) => items.into_iter().filter(f).collect(),
-            None => items,
+        diff_update_item_rows(&mut self.item_rows, &mut self.item_row_ids, items, window, cx);
+        self.update_items(items);
+    }
+
+    /// 统一看板刷新：延迟注册观察者、bootstrap、diff + 分组。
+    ///
+    /// 返回本次使用的列表；若无需刷新则 `None`。
+    pub fn apply_store_refresh<V: gpui::Render + 'static>(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<V>,
+        affects: fn(&crate::core::state::ChangeMask) -> bool,
+        pending_of: fn(&V) -> &Cell<bool>,
+        fetch: impl Fn(&App) -> Arc<Vec<Arc<todos::entity::ItemModel>>>,
+    ) -> Option<Arc<Vec<Arc<todos::entity::ItemModel>>>> {
+        let has_store_data = if !self.pending_refresh.get() && self.item_rows.is_empty() {
+            !fetch(cx).is_empty()
+        } else {
+            false
         };
 
-        self.item_rows = filtered_items
-            .iter()
-            .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-            .collect();
+        if !Self::begin_pending_refresh(
+            &self.observer_registered,
+            &self.pending_refresh,
+            &mut self._subscriptions,
+            self.item_rows.is_empty(),
+            has_store_data,
+            cx,
+            affects,
+            pending_of,
+        ) {
+            return None;
+        }
 
-        self.update_items_ordered(&filtered_items);
+        let items = fetch(cx);
+        self.refresh_from_items(items.as_slice(), window, cx);
+        Some(items)
     }
 
     /// 当前 ChangeMask 是否影响指定视图
@@ -315,157 +401,136 @@ impl BoardBase {
 
     /// 修正 active_index，避免越界
     pub fn clamp_active_index(&mut self) {
-        if let Some(ix) = self.active_index {
-            if ix >= self.item_rows.len() {
-                self.active_index = if self.item_rows.is_empty() { None } else { Some(0) };
-            }
-        } else if !self.item_rows.is_empty() {
-            self.active_index = Some(0);
-        }
+        clamp_active_index(&mut self.active_index, self.item_rows.len());
     }
 
     /// 更新项目列表和部分映射
-    pub fn update_items<T>(&mut self, items: &[T])
-    where
-        T: Into<Arc<todos::entity::ItemModel>> + Clone,
-    {
-        self.update_items_ordered(items);
+    pub fn update_items(&mut self, items: &[Arc<todos::entity::ItemModel>]) {
+        let grouped = group_items(items, PinnedLayout::Exclusive, self.is_today_board);
+        self.pinned_items = grouped.pinned;
+        self.past_due_items = grouped.past_due;
+        self.due_today_items = grouped.due_today;
+        self.no_section_items = grouped.no_section;
+        self.section_items_map = grouped.sections;
+        self.clamp_active_index();
     }
 
-    /// 更新项目列表和部分映射，按照正确的顺序组织
-    pub fn update_items_ordered<T>(&mut self, items: &[T])
-    where
-        T: Into<Arc<todos::entity::ItemModel>> + Clone,
-    {
-        self.pinned_items.clear();
-        self.past_due_items.clear();
-        self.due_today_items.clear();
-        self.no_section_items.clear();
-        self.section_items_map.clear();
-        self.sections.clear();
-
-        let mut past_due = vec![];
-        let mut today_items = vec![];
-        let mut non_pinned_non_overdue_no_section = vec![];
-        let mut non_pinned_non_overdue_sections = std::collections::HashMap::new();
-
-        for (i, item) in items.iter().enumerate() {
-            let item_model: Arc<todos::entity::ItemModel> = item.clone().into();
-
-            if item_model.pinned {
-                self.pinned_items.push((i, item_model));
-            } else if self.is_today_board && self.is_past_due(&item_model) {
-                past_due.push((i, item_model));
-            } else if self.is_today_board && item_model.is_due_today() {
-                today_items.push((i, item_model));
-            } else if self.is_today_board && item_model.due_date().is_none() {
-                match item_model.section_id.as_deref() {
-                    None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
-                    Some(sid) => {
-                        non_pinned_non_overdue_sections
-                            .entry(sid.to_string())
-                            .or_insert_with(Vec::new)
-                            .push((i, item_model));
-                    },
-                }
-            } else if !self.is_today_board {
-                match item_model.section_id.as_deref() {
-                    None | Some("") => non_pinned_non_overdue_no_section.push((i, item_model)),
-                    Some(sid) => {
-                        non_pinned_non_overdue_sections
-                            .entry(sid.to_string())
-                            .or_insert_with(Vec::new)
-                            .push((i, item_model));
-                    },
-                }
-            }
-        }
-
-        self.past_due_items = past_due;
-        self.due_today_items = today_items;
-        self.no_section_items = non_pinned_non_overdue_no_section;
-        self.section_items_map = non_pinned_non_overdue_sections;
-
-        if let Some(ix) = self.active_index {
-            if ix >= self.item_rows.len() {
-                self.active_index = if self.item_rows.is_empty() { None } else { Some(0) };
-            }
-        } else if !self.item_rows.is_empty() {
-            self.active_index = Some(0);
-        }
-    }
-
-    /// 检查任务是否为过去日期（超过今天）
-    fn is_past_due(&self, item: &Arc<todos::entity::ItemModel>) -> bool {
-        item.is_past_due()
-    }
-
-    /// 🚀 6.5优化：Diff 更新 item_rows，避免全量重建 Entity
-    ///
-    /// 以 item.id 为 key，保留未变行的 Entity，仅插入/删除/移动变更项。
-    /// 大幅减少大列表下的分配与订阅成本。
-    ///
-    /// 注意：此方法需要与 item_rows 同步维护的 item_id 列表配合使用。
-    /// 调用方需要确保 `item_row_ids` 与 `item_rows` 一一对应。
-    ///
-    /// # 参数
-    /// - `new_items`: 新的任务列表（已按显示顺序排列）
-    /// - `item_row_ids`: 当前 item_rows 对应的 item id 列表（与 item_rows 一一对应）
-    /// - `window`: 窗口句柄
-    /// - `cx`: 上下文
+    /// 以 item.id 为 key 复用行实体，仅插入/删除/同步变更项。
     pub fn diff_update_item_rows(
         &mut self,
         new_items: &[Arc<todos::entity::ItemModel>],
-        item_row_ids: &mut Vec<String>,
         window: &mut Window,
         cx: &mut Context<impl gpui::Render>,
     ) {
-        use std::collections::HashMap;
-
-        // 快速路径：如果当前为空，直接全量创建
-        if self.item_rows.is_empty() {
-            self.item_rows = new_items
-                .iter()
-                .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-                .collect();
-            *item_row_ids = new_items.iter().map(|item| item.id.clone()).collect();
-            return;
-        }
-
-        // 快速路径：如果新列表为空，直接清空
-        if new_items.is_empty() {
-            self.item_rows.clear();
-            item_row_ids.clear();
-            return;
-        }
-
-        // 1. 建立旧 item_rows 的 id -> Entity 映射
-        let mut old_rows_map: HashMap<String, Entity<ItemRowState>> = HashMap::new();
-        for (id, row) in item_row_ids.drain(..).zip(self.item_rows.drain(..)) {
-            old_rows_map.insert(id, row);
-        }
-
-        // 2. 按新列表顺序重建 item_rows，复用已存在的 Entity
-        let mut new_rows = Vec::with_capacity(new_items.len());
-        let mut new_ids = Vec::with_capacity(new_items.len());
-        for item in new_items.iter() {
-            if let Some(old_entity) = old_rows_map.remove(&item.id) {
-                // 复用旧 Entity（保留订阅和状态）
-                new_rows.push(old_entity);
-            } else {
-                // 创建新 Entity
-                new_rows.push(cx.new(|cx| ItemRowState::new(item.clone(), window, cx)));
-            }
-            new_ids.push(item.id.clone());
-        }
-
-        // 3. 剩余的 old_rows_map 中的 Entity 将被丢弃（自动释放）
-        self.item_rows = new_rows;
-        *item_row_ids = new_ids;
+        diff_update_item_rows(&mut self.item_rows, &mut self.item_row_ids, new_items, window, cx);
     }
+}
+
+/// 以 item.id 为 key，保留未变行的 Entity，并向复用行推送最新数据。
+pub fn diff_update_item_rows<V: gpui::Render>(
+    item_rows: &mut Vec<Entity<ItemRowState>>,
+    item_row_ids: &mut Vec<String>,
+    new_items: &[Arc<todos::entity::ItemModel>],
+    window: &mut Window,
+    cx: &mut Context<V>,
+) {
+    use std::collections::HashMap;
+
+    if item_rows.is_empty() {
+        *item_rows = new_items
+            .iter()
+            .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
+            .collect();
+        *item_row_ids = new_items.iter().map(|item| item.id.clone()).collect();
+        return;
+    }
+
+    if new_items.is_empty() {
+        item_rows.clear();
+        item_row_ids.clear();
+        return;
+    }
+
+    let mut old_rows_map: HashMap<String, Entity<ItemRowState>> = HashMap::new();
+    for (id, row) in item_row_ids.drain(..).zip(item_rows.drain(..)) {
+        old_rows_map.insert(id, row);
+    }
+
+    let mut new_rows = Vec::with_capacity(new_items.len());
+    let mut new_ids = Vec::with_capacity(new_items.len());
+    for item in new_items.iter() {
+        if let Some(old_entity) = old_rows_map.remove(&item.id) {
+            old_entity.update(cx, |row, cx| {
+                row.sync_item(item.clone(), window, cx);
+            });
+            new_rows.push(old_entity);
+        } else {
+            new_rows.push(cx.new(|cx| ItemRowState::new(item.clone(), window, cx)));
+        }
+        new_ids.push(item.id.clone());
+    }
+
+    *item_rows = new_rows;
+    *item_row_ids = new_ids;
 }
 
 /// 用于通用渲染的 Board 视图 trait（可设置当前选中项索引）
 pub trait BoardView: gpui::Render {
     fn set_active_index(&mut self, index: Option<usize>);
+}
+
+#[cfg(test)]
+mod tests {
+    use todos::entity::ItemModel;
+
+    use super::*;
+
+    fn item(id: &str, pinned: bool, checked: bool, section: Option<&str>) -> Arc<ItemModel> {
+        let mut model = ItemModel::default();
+        model.id = id.to_string();
+        model.pinned = pinned;
+        model.checked = checked;
+        model.section_id = section.map(str::to_string);
+        Arc::new(model)
+    }
+
+    #[test]
+    fn exclusive_pinned_stays_out_of_sections() {
+        let items = vec![
+            item("p", true, false, Some("s1")),
+            item("s", false, false, Some("s1")),
+            item("n", false, false, None),
+        ];
+        let grouped = group_items(&items, PinnedLayout::Exclusive, false);
+        assert_eq!(grouped.pinned.len(), 1);
+        assert_eq!(grouped.pinned[0].1.id, "p");
+        assert_eq!(grouped.no_section.len(), 1);
+        assert_eq!(grouped.sections.get("s1").map(|v| v.len()), Some(1));
+        assert_eq!(grouped.sections.get("s1").unwrap()[0].1.id, "s");
+    }
+
+    #[test]
+    fn inclusive_pinned_also_appears_in_section() {
+        let items = vec![item("p", true, false, Some("s1")), item("done", true, true, Some("s1"))];
+        let grouped = group_items(&items, PinnedLayout::Inclusive, false);
+        assert_eq!(grouped.pinned.len(), 1);
+        assert_eq!(grouped.pinned[0].1.id, "p");
+        let section = grouped.sections.get("s1").expect("section s1");
+        assert_eq!(section.len(), 2);
+    }
+
+    #[test]
+    fn clamp_active_index_handles_empty_and_overflow() {
+        let mut idx = Some(3);
+        clamp_active_index(&mut idx, 0);
+        assert_eq!(idx, None);
+
+        idx = Some(5);
+        clamp_active_index(&mut idx, 2);
+        assert_eq!(idx, Some(0));
+
+        idx = None;
+        clamp_active_index(&mut idx, 2);
+        assert_eq!(idx, Some(0));
+    }
 }

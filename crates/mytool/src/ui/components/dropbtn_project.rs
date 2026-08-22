@@ -67,19 +67,18 @@ impl DropdownButtonStateTrait<String> for ProjectButtonState {
     }
 
     fn selected_display_name(&self, cx: &mut Context<Self>) -> String {
-        let selected_id = self.inner.selected.clone();
-        selected_id
-            .as_ref()
-            .and_then(|id| cx.global::<TodoStore>().projects.iter().find(|p| p.id == *id))
+        let Some(id) = self.inner.selected.as_ref() else {
+            return "Inbox".to_string();
+        };
+        cx.global::<TodoStore>()
+            .get_project(id)
             .map(|p| p.name.clone())
             .unwrap_or_else(|| "Inbox".to_string())
     }
 
     fn menu_options(&self, cx: &mut Context<Self>) -> Vec<(String, String)> {
         let mut options = vec![("Inbox".to_string(), String::new())];
-        let todo_store = cx.global::<TodoStore>();
-        let projects = todo_store.projects.clone();
-        for project in projects.iter() {
+        for project in cx.global::<TodoStore>().projects.iter() {
             options.push((project.name.clone(), project.id.clone()));
         }
         options

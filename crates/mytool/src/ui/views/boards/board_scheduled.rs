@@ -3,7 +3,7 @@
 //! 显示计划中任务，在其他时间去执行的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::{cell::Cell, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
@@ -38,13 +38,8 @@ impl EventEmitter<BoardItemClickEvent> for ScheduledBoard {}
 
 pub struct ScheduledBoard {
     base: BoardBase,
-    /// 跟踪当前 item_rows 对应的 item id 列表，用于增量更新
-    item_row_ids: Vec<String>,
-    /// 脏标记：当 TodoStore 数据变化时设为 true，
-    /// 在 render() 中执行实际的增量更新操作（需要 window 参数）
-    pending_refresh: Cell<bool>,
-    /// 延迟注册标记：避免在 new() 时立即注册全局观察者
-    observer_registered: Cell<bool>,
+    /// 按日期分组的缓存（在 refresh 时构建，render 只读）
+    grouped_by_date: Vec<(String, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
 }
 
 impl ScheduledBoard {
@@ -53,54 +48,22 @@ impl ScheduledBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let base = BoardBase::new(window, cx);
-
-        // 延迟注册：在首次 render 时通过 begin_pending_refresh 注册
-
-        Self {
-            base,
-            item_row_ids: Vec::new(),
-            pending_refresh: Cell::new(false),
-            observer_registered: Cell::new(false),
-        }
+        Self { base: BoardBase::new(window, cx), grouped_by_date: Vec::new() }
     }
 
-    /// 在 render() 中执行实际的增量更新
-    ///
-    /// 只在 pending_refresh=true 时执行，避免每帧重复操作
-    fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let cache = cx.global::<crate::core::state::QueryCache>();
-            let items = cx.global::<TodoStore>().scheduled_items_cached(cache);
-            !items.is_empty()
-        } else {
-            false
-        };
-
-        if !BoardBase::begin_pending_refresh(
-            &self.observer_registered,
-            &self.pending_refresh,
-            &mut self.base._subscriptions,
-            self.base.item_rows.is_empty(),
-            has_store_data,
+    fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(state_items) = self.base.apply_store_refresh(
+            window,
             cx,
             crate::core::state::ChangeMask::affects_scheduled,
-            |this| &this.pending_refresh,
+            |this| &this.base.pending_refresh,
+            |cx| {
+                let cache = cx.global::<crate::core::state::QueryCache>();
+                cx.global::<TodoStore>().scheduled_items_cached(cache)
+            },
         ) {
-            return;
+            self.grouped_by_date = group_scheduled_by_date(state_items.as_slice());
         }
-
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        let state_items = cx.global::<TodoStore>().scheduled_items_cached(cache);
-
-        self.base.diff_update_item_rows(
-            state_items.as_slice(),
-            &mut self.item_row_ids,
-            _window,
-            cx,
-        );
-        self.base.update_items(state_items.as_slice());
-        self.base.clamp_active_index();
     }
 
     pub fn show_item_dialog(
@@ -149,6 +112,20 @@ impl ScheduledBoard {
     ) {
         BoardBase::show_section_delete_dialog(window, cx, section_id);
     }
+}
+
+fn group_scheduled_by_date(
+    items: &[Arc<todos::entity::ItemModel>],
+) -> Vec<(String, Vec<(usize, Arc<todos::entity::ItemModel>)>)> {
+    let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
+        HashMap::new();
+    for (i, item) in items.iter().enumerate() {
+        let date_key = item.due_date_ymd().unwrap_or_else(|| "无日期".to_string());
+        items_by_date.entry(date_key).or_default().push((i, item.clone()));
+    }
+    let mut grouped: Vec<_> = items_by_date.into_iter().collect();
+    grouped.sort_by(|a, b| a.0.cmp(&b.0));
+    grouped
 }
 
 impl BoardView for ScheduledBoard {
@@ -210,30 +187,7 @@ impl Render for ScheduledBoard {
         let active_index = self.base.active_index;
 
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        let all_scheduled = cx.global::<TodoStore>().scheduled_items_cached(cache);
-
-        let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
-            HashMap::new();
-
-        for (i, item) in all_scheduled.iter().enumerate() {
-            let date_key = item
-                .due_date()
-                .and_then(|d| {
-                    let date_str = &d.date;
-                    if date_str.contains('T') {
-                        date_str.split('T').next().map(String::from)
-                    } else {
-                        date_str.split(' ').next().map(String::from)
-                    }
-                })
-                .unwrap_or_else(|| "无日期".to_string());
-            items_by_date.entry(date_key).or_default().push((i, item.clone()));
-        }
-
-        let mut sorted_dates: Vec<_> = items_by_date.into_keys().collect();
-        sorted_dates.sort();
-
+        let grouped_by_date = &self.grouped_by_date;
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
 
         v_flex()
@@ -266,33 +220,13 @@ impl Render for ScheduledBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
-                        .children(sorted_dates.into_iter().filter_map(|date| {
-                            let items = all_scheduled
-                                .iter()
-                                .enumerate()
-                                .filter(|(_, item)| {
-                                    let item_date = item
-                                        .due_date()
-                                        .and_then(|d| {
-                                            let date_str = &d.date;
-                                            if date_str.contains('T') {
-                                                date_str.split('T').next().map(String::from)
-                                            } else {
-                                                date_str.split(' ').next().map(String::from)
-                                            }
-                                        })
-                                        .unwrap_or_else(|| "无日期".to_string());
-                                    item_date == date
-                                })
-                                .map(|(i, item)| (i, item.clone()))
-                                .collect::<Vec<_>>();
-
+                        .children(grouped_by_date.iter().filter_map(|(date, items)| {
                             if items.is_empty() {
                                 return None;
                             }
 
                             let view_clone = view.clone();
-                            let is_today = date == today;
+                            let is_today = date.as_str() == today;
 
                             let title_color =
                                 if is_today { orange_color } else { cx.theme().foreground };
@@ -326,7 +260,7 @@ impl Render for ScheduledBoard {
                                 )
                                 .child(
                                     board_renderer::render_item_list(
-                                        &items,
+                                        items,
                                         item_rows,
                                         active_index,
                                         active_border,

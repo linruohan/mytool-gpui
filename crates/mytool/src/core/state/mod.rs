@@ -93,10 +93,10 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         // 并行冷加载：items / projects / sections / labels
         tracing::info!("Loading items, projects, sections, labels in parallel...");
         let (items_r, projects_r, sections_r, labels_r) = tokio::join!(
-            crate::state_service::load_items_with_store(store.clone()),
-            crate::state_service::load_projects_with_store(store.clone()),
-            crate::state_service::load_sections_with_store(store.clone()),
-            crate::state_service::load_labels_with_store(store.clone()),
+            store.get_all_items(),
+            store.get_all_projects(),
+            store.get_all_sections(),
+            store.get_all_labels(),
         );
 
         if let Ok(ref items) = items_r {
@@ -114,19 +114,19 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
         let mut load_failures: Vec<String> = Vec::new();
         if let Err(ref e) = items_r {
-            error!(error = %e, "load_items_with_store failed during startup");
+            error!(error = %e, "get_all_items failed during startup");
             load_failures.push(format!("任务加载失败: {e}"));
         }
         if let Err(ref e) = projects_r {
-            error!(error = %e, "load_projects_with_store failed during startup");
+            error!(error = %e, "get_all_projects failed during startup");
             load_failures.push(format!("项目加载失败: {e}"));
         }
         if let Err(ref e) = sections_r {
-            error!(error = %e, "load_sections_with_store failed during startup");
+            error!(error = %e, "get_all_sections failed during startup");
             load_failures.push(format!("分区加载失败: {e}"));
         }
         if let Err(ref e) = labels_r {
-            error!(error = %e, "load_labels_with_store failed during startup");
+            error!(error = %e, "get_all_labels failed during startup");
             load_failures.push(format!("标签加载失败: {e}"));
         }
 

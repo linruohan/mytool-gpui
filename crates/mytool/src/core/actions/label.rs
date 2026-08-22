@@ -20,7 +20,7 @@ pub fn add_label(label: Arc<LabelModel>, cx: &mut App) {
 
     let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::add_label_with_store(label.clone(), store).await {
+        match store.insert_label(label.as_ref().clone()).await {
             Ok(new_label) => {
                 info!("Successfully added label: {}", new_label.id);
                 // 增量更新 TodoStore
@@ -53,7 +53,7 @@ pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
 
     let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_label_with_store(label.clone(), store).await {
+        match store.update_label(label.as_ref().clone()).await {
             Ok(new_label) => {
                 info!("Successfully updated label: {} (name: {})", new_label.id, new_label.name);
                 // 增量更新 TodoStore
@@ -78,26 +78,21 @@ pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
 // 删除 label
 pub fn delete_label(label: Arc<LabelModel>, cx: &mut App) {
     let store = get_store(cx);
-    let label_id = label.id.clone();
-
-    cx.spawn(async move |cx| {
-        match crate::state_service::del_label_with_store(label.clone(), store).await {
-            Ok(_) => {
-                info!("Successfully deleted label: {}", label_id);
-                // 增量更新 TodoStore
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.remove_label(&label_id);
-                });
-            },
-            Err(e) => {
-                let context = ErrorHandler::handle_with_resource(
-                    AppError::Database(Box::new(e)),
-                    "delete_label",
-                    &label_id,
-                );
-                error!("{}", context.format_user_message());
-            },
-        }
+    cx.spawn(async move |cx| match store.delete_label(&label.id).await {
+        Ok(_) => {
+            info!("Successfully deleted label: {}", label.id);
+            cx.update_global::<TodoStore, _>(|todo_store, _| {
+                todo_store.remove_label(&label.id);
+            });
+        },
+        Err(e) => {
+            let context = ErrorHandler::handle_with_resource(
+                AppError::Database(Box::new(e)),
+                "delete_label",
+                &label.id,
+            );
+            error!("{}", context.format_user_message());
+        },
     })
     .detach();
 }

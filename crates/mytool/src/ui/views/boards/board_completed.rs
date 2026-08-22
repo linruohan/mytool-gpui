@@ -3,8 +3,6 @@
 //! 显示已完成的任务。
 //! 使用 TodoStore 作为数据源，通过内存过滤获取数据。
 
-use std::cell::Cell;
-
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     ParentElement, Render, Styled, Window,
@@ -35,13 +33,6 @@ impl EventEmitter<BoardItemClickEvent> for CompletedBoard {}
 
 pub struct CompletedBoard {
     base: BoardBase,
-    /// 跟踪当前 item_rows 对应的 item id 列表，用于增量更新
-    item_row_ids: Vec<String>,
-    /// 脏标记：当 TodoStore 数据变化时设为 true，
-    /// 在 render() 中执行实际的增量更新操作（需要 window 参数）
-    pending_refresh: Cell<bool>,
-    /// 延迟注册标记：避免在 new() 时立即注册全局观察者
-    observer_registered: Cell<bool>,
 }
 
 impl CompletedBoard {
@@ -50,54 +41,20 @@ impl CompletedBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let base = BoardBase::new(window, cx);
-
-        // 延迟注册：在首次 render 时通过 begin_pending_refresh 注册
-
-        Self {
-            base,
-            item_row_ids: Vec::new(),
-            pending_refresh: Cell::new(false),
-            observer_registered: Cell::new(false),
-        }
+        Self { base: BoardBase::new(window, cx) }
     }
 
-    /// 在 render() 中执行实际的增量更新
-    ///
-    /// 只在 pending_refresh=true 时执行，避免每帧重复操作
-    fn apply_pending_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        let has_store_data = if !self.pending_refresh.get() && self.base.item_rows.is_empty() {
-            let cache = cx.global::<crate::core::state::QueryCache>();
-            let items = cx.global::<TodoStore>().completed_items_cached(cache);
-            !items.is_empty()
-        } else {
-            false
-        };
-
-        if !BoardBase::begin_pending_refresh(
-            &self.observer_registered,
-            &self.pending_refresh,
-            &mut self.base._subscriptions,
-            self.base.item_rows.is_empty(),
-            has_store_data,
+    fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.base.apply_store_refresh(
+            window,
             cx,
             crate::core::state::ChangeMask::affects_completed,
-            |this| &this.pending_refresh,
-        ) {
-            return;
-        }
-
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        let state_items = cx.global::<TodoStore>().completed_items_cached(cache);
-
-        self.base.diff_update_item_rows(
-            state_items.as_slice(),
-            &mut self.item_row_ids,
-            _window,
-            cx,
+            |this| &this.base.pending_refresh,
+            |cx| {
+                let cache = cx.global::<crate::core::state::QueryCache>();
+                cx.global::<TodoStore>().completed_items_cached(cache)
+            },
         );
-        self.base.update_items(state_items.as_slice());
-        self.base.clamp_active_index();
     }
 
     pub fn show_item_dialog(

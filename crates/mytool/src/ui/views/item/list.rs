@@ -168,12 +168,6 @@ impl ItemListDelegate {
         }
     }
 
-    #[allow(unused)]
-    fn get_label_by_id(&mut self, id: &str, _window: &mut Window, cx: &mut App) -> Option<String> {
-        let labels = cx.global::<TodoStore>().labels.clone();
-        labels.iter().find(|label| label.id == id).cloned().map(|label| label.name.clone())
-    }
-
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
         let items: Vec<Arc<ItemModel>> = self

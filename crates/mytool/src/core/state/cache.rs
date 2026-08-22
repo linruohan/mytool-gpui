@@ -1,173 +1,118 @@
 //! 缓存层 - 避免重复计算
 //!
-//! 这个模块提供了一个缓存层，用于缓存常用的查询结果，
-//! 避免每次都重新过滤和计算。
-//!
-//! ## 优化特性
-//! - **版本号机制**: 通过版本号判断缓存是否有效
-//! - **Arc 共享**: 命中时只克隆 Arc，不复制整表 Vec
-//! - **选择性失效**: 支持精确失效特定缓存
+//! 看板查询结果按 `BoardQuery` 分槽缓存，命中时只克隆 Arc。
 
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{cell::RefCell, sync::Arc};
 
 use gpui::Global;
 use todos::entity::ItemModel;
 
 type ItemList = Arc<Vec<Arc<ItemModel>>>;
 
-/// 查询结果缓存
-///
-/// 缓存常用的查询结果，如收件箱任务、今日任务等
-pub struct QueryCache {
-    /// 收件箱任务缓存
-    inbox_cache: RefCell<Option<ItemList>>,
-    /// 今日任务缓存
-    today_cache: RefCell<Option<ItemList>>,
-    /// 计划任务缓存
-    scheduled_cache: RefCell<Option<ItemList>>,
-    /// 已完成任务缓存
-    completed_cache: RefCell<Option<ItemList>>,
-    /// 置顶任务缓存
-    pinned_cache: RefCell<Option<ItemList>>,
-    /// 项目任务缓存（按项目 ID）
-    project_cache: RefCell<HashMap<String, ItemList>>,
-    /// 分区任务缓存（按分区 ID）
-    section_cache: RefCell<HashMap<String, ItemList>>,
+const SLOT_COUNT: usize = 5;
 
-    /// 缓存版本号（与 TodoStore 的版本号对应）
+/// 看板查询槽位（与 `QueryCache` 数组下标对应）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(usize)]
+pub enum BoardQuery {
+    Inbox = 0,
+    Today = 1,
+    Scheduled = 2,
+    Completed = 3,
+    Pinned = 4,
+}
+
+/// 查询结果缓存
+pub struct QueryCache {
+    slots: [RefCell<Option<ItemList>>; SLOT_COUNT],
     cache_version: RefCell<usize>,
+    query_epoch: RefCell<u64>,
 }
 
 impl Global for QueryCache {}
 
 impl QueryCache {
-    /// 创建新的查询缓存
     pub fn new() -> Self {
         Self {
-            inbox_cache: RefCell::new(None),
-            today_cache: RefCell::new(None),
-            scheduled_cache: RefCell::new(None),
-            completed_cache: RefCell::new(None),
-            pinned_cache: RefCell::new(None),
-            project_cache: RefCell::new(HashMap::new()),
-            section_cache: RefCell::new(HashMap::new()),
+            slots: std::array::from_fn(|_| RefCell::new(None)),
             cache_version: RefCell::new(0),
+            query_epoch: RefCell::new(0),
         }
     }
 
-    /// 检查缓存是否有效
     pub fn is_valid(&self, store_version: usize) -> bool {
         *self.cache_version.borrow() == store_version
     }
 
-    /// 更新缓存版本号
     pub fn update_version(&self, store_version: usize) {
         *self.cache_version.borrow_mut() = store_version;
     }
 
-    /// 清空所有缓存
     pub fn invalidate_all(&self) {
-        *self.inbox_cache.borrow_mut() = None;
-        *self.today_cache.borrow_mut() = None;
-        *self.scheduled_cache.borrow_mut() = None;
-        *self.completed_cache.borrow_mut() = None;
-        *self.pinned_cache.borrow_mut() = None;
-        self.project_cache.borrow_mut().clear();
-        self.section_cache.borrow_mut().clear();
+        for slot in &self.slots {
+            *slot.borrow_mut() = None;
+        }
     }
 
-    /// 清空特定项目的缓存
-    pub fn invalidate_project(&self, project_id: &str) {
-        self.project_cache.borrow_mut().remove(project_id);
+    fn slot(&self, kind: BoardQuery) -> &RefCell<Option<ItemList>> {
+        &self.slots[kind as usize]
     }
 
-    /// 清空特定分区的缓存
-    pub fn invalidate_section(&self, section_id: &str) {
-        self.section_cache.borrow_mut().remove(section_id);
+    pub fn get(&self, kind: BoardQuery) -> Option<ItemList> {
+        self.slot(kind).borrow().clone()
     }
 
-    // ==================== 收件箱缓存 ====================
+    pub fn set(&self, kind: BoardQuery, items: ItemList) {
+        *self.slot(kind).borrow_mut() = Some(items);
+    }
 
-    /// 获取收件箱缓存（克隆 Arc，不复制 Vec）
+    /// 版本或任务代数变化时刷新槽位；仅 version 变（如改标签）则保留任务列表缓存。
+    pub fn get_or_compute(
+        &self,
+        store_version: usize,
+        query_epoch: u64,
+        kind: BoardQuery,
+        compute: impl FnOnce() -> Vec<Arc<ItemModel>>,
+    ) -> ItemList {
+        if *self.query_epoch.borrow() != query_epoch {
+            self.invalidate_all();
+            *self.query_epoch.borrow_mut() = query_epoch;
+        }
+        if *self.cache_version.borrow() != store_version {
+            *self.cache_version.borrow_mut() = store_version;
+        }
+
+        if let Some(cached) = self.get(kind) {
+            return cached;
+        }
+
+        let items = Arc::new(compute());
+        self.set(kind, items.clone());
+        items
+    }
+
     pub fn get_inbox(&self) -> Option<ItemList> {
-        self.inbox_cache.borrow().clone()
+        self.get(BoardQuery::Inbox)
     }
 
-    /// 设置收件箱缓存
     pub fn set_inbox(&self, items: ItemList) {
-        *self.inbox_cache.borrow_mut() = Some(items);
+        self.set(BoardQuery::Inbox, items);
     }
 
-    // ==================== 今日任务缓存 ====================
-
-    /// 获取今日任务缓存
     pub fn get_today(&self) -> Option<ItemList> {
-        self.today_cache.borrow().clone()
+        self.get(BoardQuery::Today)
     }
 
-    /// 设置今日任务缓存
-    pub fn set_today(&self, items: ItemList) {
-        *self.today_cache.borrow_mut() = Some(items);
-    }
-
-    // ==================== 计划任务缓存 ====================
-
-    /// 获取计划任务缓存
     pub fn get_scheduled(&self) -> Option<ItemList> {
-        self.scheduled_cache.borrow().clone()
+        self.get(BoardQuery::Scheduled)
     }
 
-    /// 设置计划任务缓存
-    pub fn set_scheduled(&self, items: ItemList) {
-        *self.scheduled_cache.borrow_mut() = Some(items);
-    }
-
-    // ==================== 已完成任务缓存 ====================
-
-    /// 获取已完成任务缓存
     pub fn get_completed(&self) -> Option<ItemList> {
-        self.completed_cache.borrow().clone()
+        self.get(BoardQuery::Completed)
     }
 
-    /// 设置已完成任务缓存
-    pub fn set_completed(&self, items: ItemList) {
-        *self.completed_cache.borrow_mut() = Some(items);
-    }
-
-    // ==================== 置顶任务缓存 ====================
-
-    /// 获取置顶任务缓存
     pub fn get_pinned(&self) -> Option<ItemList> {
-        self.pinned_cache.borrow().clone()
-    }
-
-    /// 设置置顶任务缓存
-    pub fn set_pinned(&self, items: ItemList) {
-        *self.pinned_cache.borrow_mut() = Some(items);
-    }
-
-    // ==================== 项目任务缓存 ====================
-
-    /// 获取项目任务缓存
-    pub fn get_project(&self, project_id: &str) -> Option<ItemList> {
-        self.project_cache.borrow().get(project_id).cloned()
-    }
-
-    /// 设置项目任务缓存
-    pub fn set_project(&self, project_id: String, items: ItemList) {
-        self.project_cache.borrow_mut().insert(project_id, items);
-    }
-
-    // ==================== 分区任务缓存 ====================
-
-    /// 获取分区任务缓存
-    pub fn get_section(&self, section_id: &str) -> Option<ItemList> {
-        self.section_cache.borrow().get(section_id).cloned()
-    }
-
-    /// 设置分区任务缓存
-    pub fn set_section(&self, section_id: String, items: ItemList) {
-        self.section_cache.borrow_mut().insert(section_id, items);
+        self.get(BoardQuery::Pinned)
     }
 }
 
@@ -196,7 +141,7 @@ mod tests {
         let cache = QueryCache::new();
 
         cache.set_inbox(Arc::new(vec![]));
-        cache.set_today(Arc::new(vec![]));
+        cache.set(BoardQuery::Today, Arc::new(vec![]));
 
         cache.invalidate_all();
 
@@ -214,5 +159,30 @@ mod tests {
         let b = cache.get_inbox().unwrap();
         assert!(Arc::ptr_eq(&a, &b));
         assert!(Arc::ptr_eq(&a, &items));
+    }
+
+    #[test]
+    fn test_get_or_compute_fills_one_slot() {
+        let cache = QueryCache::new();
+        let a = cache.get_or_compute(1, 1, BoardQuery::Inbox, || vec![]);
+        let b = cache.get_or_compute(1, 1, BoardQuery::Inbox, || panic!("should hit"));
+        assert!(Arc::ptr_eq(&a, &b));
+        assert!(cache.get_today().is_none());
+    }
+
+    #[test]
+    fn test_label_only_change_keeps_item_slots() {
+        let cache = QueryCache::new();
+        cache.get_or_compute(1, 1, BoardQuery::Inbox, || vec![]);
+        let kept = cache.get_or_compute(2, 1, BoardQuery::Inbox, || panic!("should keep"));
+        assert!(kept.is_empty());
+    }
+
+    #[test]
+    fn test_same_version_new_epoch_invalidates() {
+        let cache = QueryCache::new();
+        let first = cache.get_or_compute(1, 1, BoardQuery::Inbox, || vec![]);
+        let second = cache.get_or_compute(1, 2, BoardQuery::Inbox, || vec![]);
+        assert!(!Arc::ptr_eq(&first, &second));
     }
 }

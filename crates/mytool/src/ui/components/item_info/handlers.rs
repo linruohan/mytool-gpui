@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use gpui::{Context, Entity, Window};
 use gpui_component::input::{InputEvent, InputState, TextareaState};
 use tracing::info;
@@ -125,29 +123,20 @@ impl ItemInfoState {
                     // 使用 state_manager 更新 project_id
                     self.state_manager.set_project_id(new_project_id.clone());
 
-                    // 🚀 性能优化：一次性获取所有需要的数据，克隆后立即释放借用
-                    let (projects, all_sections) = {
-                        let todo_store = cx.global::<TodoStore>();
-                        (todo_store.projects.clone(), todo_store.sections.clone())
+                    let filtered = if project_id.is_empty() {
+                        None
+                    } else {
+                        let store = cx.global::<TodoStore>();
+                        store
+                            .get_project(project_id)
+                            .map(|_| store.sections_for_project(project_id))
                     };
 
-                    // 根据project_id更新section_state的sections
                     self.section_state.update(cx, |section_state, cx| {
                         if project_id.is_empty() {
-                            // 如果是Inbox，使用全局的SectionState
                             section_state.set_sections(None, window, cx);
-                        } else {
-                            // 根据project_id获取对应的sections
-                            if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
-                                // 获取该project的sections
-                                let filtered_sections: Vec<Arc<todos::entity::SectionModel>> =
-                                    all_sections
-                                        .iter()
-                                        .filter(|s| s.project_id.as_ref() == Some(&project.id))
-                                        .cloned()
-                                        .collect();
-                                section_state.set_sections(Some(filtered_sections), window, cx);
-                            }
+                        } else if let Some(filtered_sections) = filtered {
+                            section_state.set_sections(Some(filtered_sections), window, cx);
                         }
                     });
 

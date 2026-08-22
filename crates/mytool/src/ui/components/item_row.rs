@@ -35,8 +35,7 @@ pub struct ItemRowState {
     is_focused: bool,          // 焦点状态
     focus_handle: FocusHandle, // 焦点句柄
     _subscriptions: Vec<Subscription>,
-    update_version: usize,       // 用于强制重新渲染 ItemListItem
-    cached_store_version: usize, // 缓存的 TodoStore 版本号，用于优化性能
+    update_version: usize, // 用于强制重新渲染 ItemListItem
 }
 
 impl EventEmitter<ItemRowEvent> for ItemRowState {}
@@ -48,55 +47,8 @@ impl Focusable for ItemRowState {
 }
 
 impl ItemRowState {
-    pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let item_id = item.id.clone();
+    pub fn new(item: Arc<ItemModel>, _window: &mut Window, cx: &mut Context<Self>) -> Self {
         let focus_handle = cx.focus_handle();
-
-        let _subscriptions =
-            vec![cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let store = cx.global::<TodoStore>();
-
-                // 性能优化：检查版本号，只在数据变化时更新
-                if this.cached_store_version == store.version() {
-                    return;
-                }
-                this.cached_store_version = store.version();
-
-                // 性能优化：非 items 域变更时跳过（如仅项目/标签变化）
-                if !store.peek_change_mask().items_changed {
-                    return;
-                }
-
-                if let Some(updated_item) = store.get_item(&item_id) {
-                    // 检查 item 是否真的发生了变化
-                    if this.item == updated_item {
-                        // item 没有变化，跳过更新
-                        return;
-                    }
-
-                    // 检查是否是标签更新（通过比较 labels 字段）
-                    let is_label_update = this.item.labels != updated_item.labels;
-
-                    this.item = updated_item.clone();
-                    this.update_version += 1; // 增加版本号，强制重新渲染
-
-                    // 仅在 item_info 已创建时同步状态
-                    if let Some(item_info) = this.item_info.as_ref() {
-                        item_info.update(cx, |this_info, cx| {
-                            this_info.state_manager.item = updated_item.clone();
-                            this_info.update_item_without_reloading_labels(
-                                updated_item.clone(),
-                                window,
-                                cx,
-                            );
-                            if is_label_update {
-                                this_info.refresh_labels_selection_from_item(cx);
-                            }
-                        });
-                    }
-                    cx.notify();
-                }
-            })];
 
         Self {
             item,
@@ -105,10 +57,33 @@ impl ItemRowState {
             is_hovered: false,
             is_focused: false,
             focus_handle,
-            _subscriptions,
+            _subscriptions: Vec::new(),
             update_version: 0,
-            cached_store_version: 0,
         }
+    }
+
+    /// 由父列表在 diff 复用 Entity 时推送最新数据，避免每行订阅全局 Store。
+    pub fn sync_item(&mut self, item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
+        if Arc::ptr_eq(&self.item, &item) {
+            return;
+        }
+        if self.item.display_eq(&item) {
+            self.item = item;
+            return;
+        }
+        let is_label_update = self.item.labels != item.labels;
+        self.item = item.clone();
+        self.update_version += 1;
+        if let Some(item_info) = self.item_info.as_ref() {
+            item_info.update(cx, |this_info, cx| {
+                this_info.state_manager.item = item.clone();
+                this_info.update_item_without_reloading_labels(item.clone(), window, cx);
+                if is_label_update {
+                    this_info.refresh_labels_selection_from_item(cx);
+                }
+            });
+        }
+        cx.notify();
     }
 
     /// 首次展开/编辑时懒创建 ItemInfoState 并订阅其事件

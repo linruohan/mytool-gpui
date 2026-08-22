@@ -27,6 +27,7 @@ use crate::{
         update_project, update_project_item, update_section,
     },
     todo_state::TodoStore,
+    ui::views::boards::{PinnedLayout, clamp_active_index, diff_update_item_rows, group_items},
 };
 
 pub enum ProjectItemEvent {
@@ -54,6 +55,7 @@ pub struct ProjectItemsPanel {
     color: Entity<ColorGroupState>,
     selected_color: Option<Hsla>,
     project_due: Option<String>,
+    item_row_ids: Vec<String>,
 }
 
 impl ProjectItemsPanel {
@@ -68,51 +70,42 @@ impl ProjectItemsPanel {
 
         let _subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let todo_store = cx.global::<TodoStore>();
-
-                if this.cached_version == todo_store.version() {
-                    return;
-                }
-                this.cached_version = todo_store.version();
+                let (version, should_refresh, state_items) = {
+                    let todo_store = cx.global::<TodoStore>();
+                    if this.cached_version == todo_store.version() {
+                        return;
+                    }
+                    let should_refresh = todo_store.peek_change_mask().affects_project();
+                    let items = if this.project.id.is_empty() || !should_refresh {
+                        Vec::new()
+                    } else {
+                        todo_store.items_by_project(&this.project.id).to_vec()
+                    };
+                    (todo_store.version(), should_refresh, items)
+                };
+                this.cached_version = version;
 
                 if this.project.id.is_empty() {
                     tracing::debug!("ProjectItemsPanel: project.id 为空,跳过加载 items");
                     return;
                 }
-
-                let state_items = todo_store.items_by_project(&this.project.id);
-                this.item_rows = state_items
-                    .iter()
-                    .map(|item| cx.new(|cx| ItemRowState::new(item.clone(), window, cx)))
-                    .collect();
-
-                this.pinned_items.clear();
-                this.no_section_items.clear();
-                this.section_items_map.clear();
-
-                for (i, item) in state_items.iter().enumerate() {
-                    if !item.checked && item.pinned {
-                        this.pinned_items.push((i, item.clone()));
-                    }
-
-                    match item.section_id.as_deref() {
-                        None | Some("") => this.no_section_items.push((i, item.clone())),
-                        Some(sid) => {
-                            this.section_items_map
-                                .entry(sid.to_string())
-                                .or_default()
-                                .push((i, item.clone()));
-                        },
-                    }
+                if !should_refresh {
+                    return;
                 }
 
-                if let Some(ix) = this.active_index {
-                    if ix >= this.item_rows.len() {
-                        this.active_index = this.item_rows.is_empty().then_some(0).or(None);
-                    }
-                } else if !this.item_rows.is_empty() {
-                    this.active_index = Some(0);
-                }
+                diff_update_item_rows(
+                    &mut this.item_rows,
+                    &mut this.item_row_ids,
+                    &state_items,
+                    window,
+                    cx,
+                );
+
+                let grouped = group_items(&state_items, PinnedLayout::Inclusive, false);
+                this.pinned_items = grouped.pinned;
+                this.no_section_items = grouped.no_section;
+                this.section_items_map = grouped.sections;
+                clamp_active_index(&mut this.active_index, this.item_rows.len());
 
                 tracing::debug!("ProjectItemsPanel 已更新, items 数量: {}", this.item_rows.len());
                 cx.notify();
@@ -138,6 +131,7 @@ impl ProjectItemsPanel {
             color,
             selected_color: None,
             project_due: None,
+            item_row_ids: Vec::new(),
         }
     }
 
@@ -292,11 +286,10 @@ impl ProjectItemsPanel {
         section_id: Option<String>,
         is_edit: bool,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
         let ori_section = if is_edit {
-            sections
-                .iter()
-                .find(|s| s.id == section_id.clone().unwrap_or_default())
+            section_id
+                .as_deref()
+                .and_then(|id| cx.global::<TodoStore>().get_section(id))
                 .map(|s| s.as_ref().clone())
                 .unwrap_or_default()
         } else {
@@ -349,9 +342,7 @@ impl ProjectItemsPanel {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        let section_some = sections.iter().find(|s| s.id == section_id).cloned();
-        if let Some(section) = section_some {
+        if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let view = cx.entity().clone();
             crate::ui::components::show_section_delete_dialog(
                 window,
@@ -373,8 +364,7 @@ impl ProjectItemsPanel {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+        if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
             new_section.name = format!("{} (copy)", new_section.name);
@@ -389,8 +379,7 @@ impl ProjectItemsPanel {
         cx: &mut Context<Self>,
         section_id: String,
     ) {
-        let sections = cx.global::<TodoStore>().sections.clone();
-        if let Some(section) = sections.iter().find(|s| s.id == section_id) {
+        if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
@@ -598,17 +587,14 @@ impl Render for ProjectItemsPanel {
                                         let view = view.clone();
                                         let project_id = self.project.id.clone();
                                         move |mut this, window, cx| {
-                                            // 获取当前 project 的所有 sections
-                                            let sections = cx.global::<TodoStore>().sections.clone();
-                                            let project_sections: Vec<_> = sections
+                                            let project_sections: Vec<(String, String)> = cx
+                                                .global::<TodoStore>()
+                                                .sections
                                                 .iter()
                                                 .filter(|s| s.project_id.as_deref() == Some(&project_id))
+                                                .map(|s| (s.name.clone(), s.id.clone()))
                                                 .collect();
-
-                                            // 为每个 section 添加菜单项
-                                            for section in project_sections {
-                                                let section_id = section.id.clone();
-                                                let section_name = section.name.clone();
+                                            for (section_name, section_id) in project_sections {
                                                 this = this.item(
                                                     PopupMenuItem::new(section_name).on_click(
                                                         window.listener_for(&view, move |this, _, window, cx| {

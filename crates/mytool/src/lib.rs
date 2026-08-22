@@ -30,10 +30,7 @@ mod ui;
 mod utils;
 
 // 重新导出核心模块
-pub use core::{
-    actions as todo_actions, error_handler::*, services as state_service, shortcuts::*,
-    state as todo_state,
-};
+pub use core::{actions as todo_actions, error_handler::*, shortcuts::*, state as todo_state};
 
 // 重新导出 UI 模块
 pub use ui::app_menus;
@@ -195,31 +192,6 @@ pub fn init(cx: &mut App) {
         )
         .with(env_filter)
         .init();
-    // Try to initialize tracing subscriber, but ignore if already initialized
-    #[cfg(not(target_family = "wasm"))]
-    {
-        use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
-        let _ = tracing_subscriber::registry()
-            .with(tracing_subscriber::fmt::layer())
-            .with(
-                tracing_subscriber::EnvFilter::from_default_env()
-                    .add_directive("gpui_component=trace".parse().unwrap()),
-            )
-            .try_init();
-    }
-
-    // For WASM, use a subscriber without time support
-    #[cfg(target_family = "wasm")]
-    {
-        use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
-        let _ = tracing_subscriber::registry()
-            .with(tracing_subscriber::fmt::layer().without_time())
-            .with(
-                tracing_subscriber::EnvFilter::from_default_env()
-                    .add_directive("gpui_component=trace".parse().unwrap()),
-            )
-            .try_init();
-    }
     rust_i18n::extend!(gpui_component);
     gpui_component::init(cx);
     AppState::init(cx);

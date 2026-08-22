@@ -19,7 +19,6 @@ use crate::{
         tokio_runtime::spawn_db_operation,
         utils::retry::{self, RetryConfig},
     },
-    state_service,
     todo_state::DBState,
 };
 
@@ -98,7 +97,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 |_attempt| {
                     let store = store.clone();
                     let item = item_for_save.clone();
-                    async move { state_service::add_item_with_store(item, store).await }
+                    async move { store.insert_item(item.as_ref().clone(), true).await }
                 },
                 RetryConfig::for_db_operation(),
             )
@@ -198,7 +197,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
             return;
         }
         let store = db_state.get_store_async().await;
-        let result = state_service::mod_item_with_store(item_for_db.clone(), store).await;
+        let result = store.update_item(item_for_db.as_ref().clone(), "").await;
         match result {
             Ok(updated_item) => {
                 info!(
@@ -238,10 +237,9 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
     let item_for_recovery = item.clone();
     let store = get_store(cx);
-    let item_clone = item.clone();
 
     cx.spawn(async move |cx| {
-        let result = state_service::del_item_with_store(item_clone.clone(), store).await;
+        let result = store.delete_item(&item_id).await;
 
         match result {
             Ok(_) => {
@@ -342,16 +340,9 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     });
 
     let store = get_store(cx);
-    let item_clone = item.clone();
 
     cx.spawn(async move |cx| {
-        let result = state_service::finish_item_with_store(
-            item_clone.clone(),
-            checked,
-            false,
-            store.clone(),
-        )
-        .await;
+        let result = store.complete_item(&item_id, checked, false).await;
 
         match result {
             Ok(()) => {

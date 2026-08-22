@@ -47,7 +47,6 @@ sea-orm = { version = "1.1.20", features = [
     "with-chrono",
     "with-json",
     "with-uuid",
-    "debug-print",
     "sqlx-sqlite",
     "runtime-tokio",
 ] }

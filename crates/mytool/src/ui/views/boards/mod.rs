@@ -10,7 +10,9 @@ pub mod board_today;
 pub mod container_board;
 pub mod view;
 
-pub use board_base::{BoardBase, BoardView};
+pub use board_base::{
+    BoardBase, BoardView, PinnedLayout, clamp_active_index, diff_update_item_rows, group_items,
+};
 pub use board_common::{BoardItemClickEvent, BoardSectionActions, FinishItemDialogStyle};
 #[allow(unused_imports)]
 pub use board_renderer::{

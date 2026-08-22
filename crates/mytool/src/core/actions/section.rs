@@ -9,7 +9,7 @@ use crate::core::state::{TodoStore, get_store};
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
     let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::add_section_with_store(section.clone(), store).await {
+        match store.insert_section(section.as_ref().clone()).await {
             Ok(new_section) => {
                 // 增量更新：只添加新分区到 TodoStore
                 let arc_section = Arc::new(new_section);
@@ -27,7 +27,7 @@ pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
 pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
     let store = get_store(cx);
     cx.spawn(async move |cx| {
-        match crate::state_service::mod_section_with_store(section.clone(), store).await {
+        match store.update_section(section.as_ref().clone()).await {
             Ok(updated_section) => {
                 // 增量更新：只更新修改的分区
                 let arc_section = Arc::new(updated_section);
@@ -44,17 +44,13 @@ pub fn update_section(section: Arc<SectionModel>, cx: &mut App) {
 // 删除 section（使用增量更新和全局 Store）
 pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
     let store = get_store(cx);
-    let section_id = section.id.clone();
-    cx.spawn(async move |cx| {
-        match crate::state_service::del_section_with_store(section.clone(), store).await {
-            Ok(_) => {
-                // 增量更新：只删除指定的分区
-                cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.remove_section(&section_id);
-                });
-            },
-            Err(e) => tracing::error!("delete_section failed: {:?}", e),
-        }
+    cx.spawn(async move |cx| match store.delete_section(&section.id).await {
+        Ok(_) => {
+            cx.update_global::<TodoStore, _>(|todo_store, _| {
+                todo_store.remove_section(&section.id);
+            });
+        },
+        Err(e) => tracing::error!("delete_section failed: {:?}", e),
     })
     .detach();
 }

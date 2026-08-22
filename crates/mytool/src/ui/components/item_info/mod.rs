@@ -120,53 +120,59 @@ impl ItemInfoState {
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
-                // 🚀 关键修复：检查是否需要跳过更新（避免保存时的死锁）
                 if this.state_manager.skip_next_update {
                     info!("ItemInfoState: skipping update due to skip_next_update flag");
                     this.state_manager.skip_next_update = false;
                     return;
                 }
 
-                let store = cx.global::<TodoStore>();
-                let current_id = &this.state_manager.item.id;
+                let mask = *cx.global::<TodoStore>().peek_change_mask();
+                if !mask.affects_item_editor() {
+                    return;
+                }
 
-                // 先尝试用当前 ID 查找
-                if let Some(updated_item) = store.get_item(current_id) {
-                    // 只有当 item 确实发生变化时才更新，避免不必要的渲染
-                    if this.state_manager.item != updated_item {
-                        // 如果找到且发生变化，更新状态
-                        this.state_manager.item = updated_item;
-                        // 触发重新渲染
-                        cx.notify();
+                let mut item_changed = false;
+                if mask.items_changed {
+                    let store = cx.global::<TodoStore>();
+                    let current_id = &this.state_manager.item.id;
+
+                    if let Some(updated_item) = store.get_item(current_id) {
+                        if !std::sync::Arc::ptr_eq(&this.state_manager.item, &updated_item)
+                            && !this.state_manager.item.display_eq(&updated_item)
+                        {
+                            this.state_manager.item = updated_item;
+                            item_changed = true;
+                        }
+                    } else if current_id.starts_with("temp_") {
+                        if let Some(real_id) = store.get_real_id(current_id)
+                            && let Some(real_item) = store.get_item(real_id)
+                        {
+                            tracing::info!(
+                                "ItemInfoState: detected ID change from {} to {} via mapping",
+                                current_id,
+                                real_id
+                            );
+
+                            this.state_manager.item = real_item.clone();
+
+                            let new_item_id = real_item.id.clone();
+                            this.attachment_state.update(cx, |state, cx| {
+                                state.update_item_id(new_item_id.clone(), cx);
+                            });
+                            this.reminder_state.update(cx, |state, cx| {
+                                state.update_item_id(new_item_id, cx);
+                            });
+                            item_changed = true;
+                        }
                     }
-                } else if current_id.starts_with("temp_") {
-                    // 如果当前是临时 ID 且找不到，检查 ID 映射
-                    if let Some(real_id) = store.get_real_id(current_id)
-                        && let Some(real_item) = store.get_item(real_id)
-                    {
-                        tracing::info!(
-                            "ItemInfoState: detected ID change from {} to {} via mapping",
-                            current_id,
-                            real_id
-                        );
+                }
 
-                        // 更新 state_manager 中的 item
-                        this.state_manager.item = real_item.clone();
-
-                        // 更新 AttachmentButtonState 的 item_id
-                        let new_item_id = real_item.id.clone();
-                        this.attachment_state.update(cx, |state, cx| {
-                            state.update_item_id(new_item_id.clone(), cx);
-                        });
-
-                        // 更新 ReminderButtonState 的 item_id
-                        this.reminder_state.update(cx, |state, cx| {
-                            state.update_item_id(new_item_id, cx);
-                        });
-
-                        // 触发重新渲染
-                        cx.notify();
-                    }
+                if item_changed
+                    || mask.projects_changed
+                    || mask.sections_changed
+                    || mask.labels_changed
+                {
+                    cx.notify();
                 }
             }),
         ];
@@ -227,58 +233,49 @@ impl ItemInfoState {
             }
         });
 
-        // 🚀 性能优化：一次性获取所有需要的数据，克隆后立即释放借用
-        let (projects, all_sections) = {
-            let todo_store = cx.global::<TodoStore>();
-            (todo_store.projects.clone(), todo_store.sections.clone())
+        // 根据当前项目解析分区列表，避免整表 clone
+        let item_section_id = item.section_id.clone();
+        let (project_ok, filtered_sections, section_in_store) = {
+            let store = cx.global::<TodoStore>();
+            let project_ok =
+                item.project_id.as_ref().is_some_and(|id| store.get_project(id).is_some());
+            let filtered_sections = item
+                .project_id
+                .as_ref()
+                .filter(|_| project_ok)
+                .map(|id| store.sections_for_project(id));
+            let section_in_store =
+                item_section_id.as_ref().and_then(|id| store.get_section(id)).is_some();
+            (project_ok, filtered_sections, section_in_store)
         };
 
         self.project_state.update(cx, |this, cx| {
-            if let Some(project_id) = &item.project_id
-                && let Some(project) = projects.iter().find(|p| &p.id == project_id)
-            {
-                this.set_project(Some(project.id.clone()), window, cx);
+            if project_ok {
+                this.set_project(item.project_id.clone(), window, cx);
             }
         });
 
-        // 根据project_id更新section_state的sections
-        let item_section_id = item.section_id.clone();
         self.section_state.update(cx, |section_state, cx| {
-            if let Some(project_id) = &item.project_id {
-                // 根据project_id获取对应的sections
-                if let Some(project) = projects.iter().find(|p| &p.id == project_id) {
-                    // 获取该project的sections
-                    let filtered_sections: Vec<Arc<todos::entity::SectionModel>> = all_sections
-                        .iter()
-                        .filter(|s| s.project_id.as_ref() == Some(&project.id))
-                        .cloned()
-                        .collect();
-
-                    // 确保section_id属于当前project，在移动之前检查
+            if item.project_id.is_some() {
+                if let Some(filtered) = filtered_sections {
                     if let Some(section_id) = &item_section_id
-                        && !filtered_sections.iter().any(|s| &s.id == section_id)
+                        && !filtered.iter().any(|s| &s.id == section_id)
                     {
-                        // 使用 state_manager 更新 section_id
                         self.state_manager.set_section_id(None);
                     }
-
-                    section_state.set_sections(Some(filtered_sections), window, cx);
+                    section_state.set_sections(Some(filtered), window, cx);
                 }
             } else {
-                // 如果是Inbox，使用全局的SectionState
                 section_state.set_sections(None, window, cx);
             }
 
-            // 设置section
             if let Some(section_id) = &item_section_id {
-                // 🚀 性能优化：使用已有的 sections 引用，避免再次访问全局状态
-                let sections = if let Some(sections) = &section_state.sections {
-                    sections
-                } else {
-                    &all_sections
+                let valid = match &section_state.sections {
+                    Some(ss) => ss.iter().any(|s| &s.id == section_id),
+                    None => section_in_store,
                 };
-                if let Some(section) = sections.iter().find(|s| &s.id == section_id) {
-                    section_state.set_section(Some(section.id.clone()), window, cx);
+                if valid {
+                    section_state.set_section(Some(section_id.clone()), window, cx);
                 }
             } else {
                 section_state.set_section(None, window, cx);
@@ -375,9 +372,13 @@ impl ItemInfoState {
             let store = db_state.get_store_async().await;
 
             // 加载附件
-            let attachments =
-                crate::state_service::load_attachments_by_item_with_store(&item_id, store.clone())
-                    .await;
+            let attachments = match store.get_attachments_by_item(&item_id).await {
+                Ok(attachments) => attachments,
+                Err(e) => {
+                    tracing::error!("Failed to load attachments for item {}: {:?}", item_id, e);
+                    vec![]
+                },
+            };
             let rc_attachments =
                 attachments.iter().map(|a| Arc::new(a.clone())).collect::<Vec<_>>();
             cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
@@ -385,8 +386,7 @@ impl ItemInfoState {
             });
 
             // 加载提醒
-            let reminders =
-                crate::state_service::load_reminders_by_item_with_store(&item_id, store).await;
+            let reminders = store.get_reminders_by_item(&item_id).await.unwrap_or_default();
             let rc_reminders = reminders.iter().map(|r| Arc::new(r.clone())).collect::<Vec<_>>();
             cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
                 state.set_reminders(rc_reminders, cx);

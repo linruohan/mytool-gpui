@@ -4,7 +4,6 @@ use tracing::{error, info, warn};
 use super::{ItemInfoEvent, ItemInfoState, SaveItemStatus};
 use crate::{
     core::state::TodoStore,
-    state_service,
     todo_actions::{add_item_optimistic, complete_item_optimistic, delete_item_optimistic},
 };
 
@@ -175,7 +174,7 @@ impl ItemInfoState {
                         move |_attempt| {
                             let store = store.clone();
                             let item = item_for_save.clone();
-                            async move { state_service::mod_item_with_store(item, store).await }
+                            async move { store.update_item(item.as_ref().clone(), "").await }
                         },
                         crate::core::utils::retry::RetryConfig::for_db_operation(),
                     )
