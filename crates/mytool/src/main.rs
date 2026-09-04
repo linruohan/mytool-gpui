@@ -4,7 +4,7 @@
 // #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 use std::{process, sync::mpsc::channel, thread};
 
-use gpui_component_assets::Assets;
+use gpui_kit::assets::Assets;
 use mytool::{Gallery, todo_state::get_todo_conn};
 
 #[tokio::main]

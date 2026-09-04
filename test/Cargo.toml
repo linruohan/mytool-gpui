@@ -1,5 +1,5 @@
 [package]
-name = "my_test"
+name = "my-test"
 version = "0.1.0"
 edition = "2024"
 
@@ -22,4 +22,8 @@ features = [
     "sqlx-sqlite",
     "runtime-tokio",
 ]
+
+# 继承工作区统一的 clippy lint 配置
+[lints]
+workspace = true
 
