@@ -125,6 +125,10 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
 }
 
 /// 渲染带分区的 Section 区块（标题 + 工具栏 + 任务列表）
+///
+/// 参数较多是 GPUI 渲染函数的固有特点：需同时聚合视图实体、任务数据、
+/// 高亮样式与交互回调等不同关注点，强行合并为参数对象反而降低可读性。
+#[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_section_block<V: BoardSectionActions>(
     section_name: String,
     section_id: String,
@@ -356,6 +360,7 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
 }
 
 /// 渲染带前置工具栏元素的 Section 区块（如 Calendar Schedule 按钮 + Add + More）
+#[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_section_block_with_leading<V: BoardSectionActions>(
     section_name: String,
     section_id: String,

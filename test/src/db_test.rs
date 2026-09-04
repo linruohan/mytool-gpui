@@ -1,21 +1,26 @@
-use gconfig::{DatabaseConfig, get};
+use gconfig::get;
 use sea_orm::{Database, DbErr};
 
-#[tokio::main]
+// 注意：这里不能加 #[tokio::main]——本函数由 main.rs 通过 runtime.block_on() 调用，
+// 加上该宏会被改写成同步函数，导致调用处的 .await 报错（Result is not a future）
 pub(crate) async fn main() -> Result<(), DbErr> {
     println!("=== 测试数据库连接 ===");
 
     // 1. 检查配置加载
     println!("1. 加载配置...");
-    let config = get().read().unwrap();
-    let db_config = config.database();
-
-    println!("   数据库类型: {}", db_config.db_type());
-    println!("   SQLite 路径: {}", db_config.sqlite_path());
+    // 注意：RwLockReadGuard 不能跨 .await 持有（clippy::await_holding_lock），
+    // 因此用一个小块把所需配置拷贝出来后立即释放读锁
+    let sqlite_path = {
+        let config = get().read().unwrap();
+        let db_config = config.database();
+        println!("   数据库类型: {}", db_config.db_type());
+        println!("   SQLite 路径: {}", db_config.sqlite_path());
+        db_config.sqlite_path().to_string()
+    };
 
     // 2. 检查路径解析
     println!("2. 解析数据库路径...");
-    let resolved_path = resolve_db_path(db_config.sqlite_path());
+    let resolved_path = resolve_db_path(&sqlite_path);
     println!("   解析后的路径: {}", resolved_path);
 
     // 3. 检查目录是否存在

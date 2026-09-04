@@ -28,10 +28,9 @@ rfd.workspace = true
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource.workspace = true
-winresource.workspace = true
 
 [lints]
 workspace = true
 
 [package.metadata.cargo-machete]
-ignored = ["embed-resource", "winresource", "naga"]
+ignored = ["embed-resource", "naga"]

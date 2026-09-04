@@ -1,6 +1,3 @@
-[workspace.package]
-publish = false
-edition = "2024"
 [workspace]
 members = ["crates/mytool", "crates/todos", "crates/gconfig", "test"]
 
@@ -10,7 +7,6 @@ resolver = "2"
 [workspace.dependencies]
 # inner crates
 todos = { path = "crates/todos" }     # todos库，提供核心的任务管理功能
-mytool = { path = "crates/mytool" }   # 主工具库，包含核心功能和命令行接口
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui - 与 gpui-component 保持一致，使用 crates.io 上的 gpui-pre（zed gpui 快照）
 # 启用 profiler feature 以导出 FrameTiming/FrameTimingCollector
@@ -21,7 +17,6 @@ gpui_platform = { package = "gpui-pre-platform", version = "0.3.3", features = [
     "wayland",
     "runtime_shaders",
 ] }
-gpui_macros = { package = "gpui-pre-macros", version = "0.3.3" }
 gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = [
     "tree-sitter-languages",
 ] }
@@ -41,8 +36,6 @@ tokio = { version = "1.53.1", features = [
 ] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1"
-serde_repr = "0.1"
-paste = "1.0.15"
 rust-i18n = "4"
 sea-orm = { version = "1.1.20", features = [
     "with-chrono",
@@ -51,35 +44,20 @@ sea-orm = { version = "1.1.20", features = [
     "sqlx-sqlite",
     "runtime-tokio",
 ] }
-winresource = "0.1.31"
 rodio = "0.21.1"
 tracing = { version = "0.1.44", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "chrono"] }
 chrono = { version = "0.4.45", features = ["serde"] }
-smallvec = { version = "1.15", features = ["union"] }
 rfd = "0.14"
 # Additional dependencies used by multiple crates
 thiserror = "2.0.19"
 async-trait = "0.1.91"
-# futures = "0.3.31"
-# 精简特性，减少编译时间和体积
-futures = { version = "0.3.33", default-features = false, features = [
-    "std",
-    "async-await",
-    "executor",
-] }
-strum = { version = "0.27.2", features = ["derive"] }
 uuid = { version = "1.24.0", features = [
     "v4",
     "fast-rng",
     "macro-diagnostics",
 ] }
 itertools = "0.14.0"
-toml = "0.8.23"
-base64 = "0.22.1"
-pbkdf2 = { version = "0.12.2", features = ["simple"] }
-aes-gcm = "0.10.3"
-password-hash = "0.5.0"
 embed-resource = "3.0.11"
 
 [workspace.lints.clippy]
@@ -122,9 +100,10 @@ resvg = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }
 taffy = { opt-level = 3 }
 ttf-parser = { opt-level = 3 }
-gpui = { opt-level = 3 }
-gpui_platform = { opt-level = 3 }
-gpui_macros = { opt-level = 3 }
+# 注意：profile package spec 使用真实 crate 包名（gpui-pre 系列），而非 lib 名
+gpui-pre = { opt-level = 3 }
+gpui-pre-platform = { opt-level = 3 }
+gpui-pre-macros = { opt-level = 3 }
 tree-sitter = { opt-level = 3 }
 
 [profile.release]

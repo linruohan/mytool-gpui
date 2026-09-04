@@ -123,10 +123,7 @@ impl DateTime {
 
     pub fn is_overdue(&self, date: &NaiveDateTime) -> bool {
         // date在今天之前，说明是过期了
-        if date < &Local::now().naive_local() {
-            return true;
-        }
-        false
+        date < &Local::now().naive_local()
     }
 
     pub fn get_calendar_icon(&self, date: &NaiveDateTime) -> &str {
@@ -229,20 +226,14 @@ impl DateTime {
             current_date - Duration::days(current_date.weekday().num_days_from_monday() as i64);
         let end_of_week = start_of_week + Duration::days(6);
 
-        if date >= self.format_date(start_of_week) && date <= self.format_date(end_of_week) {
-            return true;
-        }
-        false
+        date >= self.format_date(start_of_week) && date <= self.format_date(end_of_week)
     }
 
     pub fn is_next_x_week(&self, date: NaiveDateTime, days: i64) -> bool {
         let current_date = Local::now().naive_local();
         let end_date = current_date + Duration::days(days);
 
-        if date >= current_date && date <= end_date {
-            return true;
-        }
-        false
+        date >= current_date && date <= end_date
     }
 
     pub fn is_this_month(&self, date: NaiveDateTime) -> bool {

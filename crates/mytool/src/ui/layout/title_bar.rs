@@ -42,6 +42,9 @@ impl AppTitleBar {
         }
     }
 
+    /// 预留的 builder 扩展点：向标题栏右侧区域注入自定义内容。
+    /// 字段在 render 中始终被调用（默认渲染空元素），当前暂无外部调用方，故允许 dead_code。
+    #[allow(dead_code, reason = "标题栏自定义内容的预留 builder 扩展点")]
     pub fn child<F, E>(mut self, f: F) -> Self
     where
         E: IntoElement,

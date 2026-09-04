@@ -1,6 +1,6 @@
 use sea_orm::{ConnectionTrait, Database, DbErr, Statement};
 
-#[tokio::main]
+// 同 db_test：本函数由 main.rs 通过 block_on 调用，不能使用 #[tokio::main]
 pub(crate) async fn main() -> Result<(), DbErr> {
     println!("=== 检查数据库内容 ===");
 
@@ -22,7 +22,7 @@ pub(crate) async fn main() -> Result<(), DbErr> {
     } else {
         println!("   找到 {} 个表:", tables.len());
         for table in &tables {
-            let name: String = table.try_get(0)?;
+            let name: String = table.try_get_by_index(0)?;
             println!("   - {}", name);
         }
     }
@@ -30,7 +30,7 @@ pub(crate) async fn main() -> Result<(), DbErr> {
     // 检查每个表的记录数
     println!("\n2. 检查每个表的记录数:");
     for table in &tables {
-        let name: String = table.try_get(0)?;
+        let name: String = table.try_get_by_index(0)?;
         let count = db
             .query_one(Statement::from_string(
                 sea_orm::DbBackend::Sqlite,
@@ -39,7 +39,7 @@ pub(crate) async fn main() -> Result<(), DbErr> {
             .await?;
 
         if let Some(row) = count {
-            let count: i64 = row.try_get(0)?;
+            let count: i64 = row.try_get_by_index(0)?;
             println!("   {}: {} 条记录", name, count);
         }
     }
@@ -55,7 +55,7 @@ pub(crate) async fn main() -> Result<(), DbErr> {
 
     match version {
         Ok(Some(row)) => {
-            let version: i32 = row.try_get(0)?;
+            let version: i32 = row.try_get_by_index(0)?;
             println!("   当前数据库版本: {}", version);
         },
         Ok(None) => {
@@ -82,10 +82,10 @@ pub(crate) async fn main() -> Result<(), DbErr> {
             } else {
                 println!("   items表前5条记录:");
                 for row in &rows {
-                    let id: String = row.try_get(0)?;
-                    let title: String = row.try_get(1)?;
-                    let status: String = row.try_get(2)?;
-                    println!("   -: (status:)");
+                    let id: String = row.try_get_by_index(0)?;
+                    let title: String = row.try_get_by_index(1)?;
+                    let status: String = row.try_get_by_index(2)?;
+                    println!("   - {}: {} ({})", id, title, status);
                 }
             }
         },
