@@ -59,7 +59,7 @@ impl ActiveModelBehavior for ActiveModel {
         let now = chrono::Utc::now().naive_utc();
 
         if insert {
-            this.id = Set(Uuid::new_v4().to_string());
+            super::assign_id_if_empty(&mut this.id);
             this.added_at = Set(now);
         }
 

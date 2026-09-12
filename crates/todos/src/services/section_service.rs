@@ -30,7 +30,15 @@ impl SectionService {
     }
 
     /// Insert a new section
-    pub async fn insert_section(&self, section: SectionModel) -> Result<SectionModel, TodoError> {
+    pub async fn insert_section(&self, mut section: SectionModel) -> Result<SectionModel, TodoError> {
+        if let Some(project_id) = section.project_id.as_deref() {
+            if project_id.is_empty() {
+                section.project_id = None;
+            } else {
+                crate::utils::wait_for_project(&self.db, project_id).await?;
+            }
+        }
+
         let active_section: SectionActiveModel = section.into();
         let section_model = active_section.insert(&*self.db).await?;
 

@@ -59,6 +59,17 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     let item_for_save = Arc::new(optimistic_item);
     let item_id_for_error = item_id.clone();
     let item_id_for_async = item_id.clone();
+    let label_models: Vec<todos::entity::LabelModel> = {
+        let store = cx.global::<TodoStore>();
+        item_for_save
+            .labels
+            .as_deref()
+            .unwrap_or("")
+            .split(';')
+            .filter(|s| !s.is_empty())
+            .filter_map(|id| store.get_label(id).map(|l| l.as_ref().clone()))
+            .collect()
+    };
 
     cx.spawn(async move |cx| {
         let spawn_start = std::time::Instant::now();
@@ -91,19 +102,11 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     store.update_item(Arc::new(saved_item.clone()));
                 });
 
-                let label_ids: Vec<String> = saved_item
-                    .labels
-                    .as_deref()
-                    .unwrap_or("")
-                    .split(';')
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_string)
-                    .collect();
-                if !label_ids.is_empty() {
+                if !label_models.is_empty() {
                     let item_id = saved_item.id.clone();
                     match db_state_for_labels
                         .spawn_store_op(move |store| async move {
-                            store.set_item_labels(&item_id, &label_ids).await
+                            store.set_item_labels_from_models(&item_id, &label_models).await
                         })
                         .await
                     {

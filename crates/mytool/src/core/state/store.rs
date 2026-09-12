@@ -913,7 +913,9 @@ impl TodoStore {
     /// 添加单个分区
     pub fn add_section(&mut self, section: Arc<SectionModel>) {
         let id = section.id.clone();
-        Self::insert_id_map(&mut self.sections, &mut self.section_by_id, section, &id);
+        Self::upsert_id_map(&mut self.sections, &mut self.section_by_id, section, &id, |s| {
+            s.id == id
+        });
         self.mark_sections_changed();
     }
 
@@ -938,10 +940,10 @@ impl TodoStore {
         self.mark_labels_changed();
     }
 
-    /// 添加单个标签
+    /// 添加单个标签（已存在则覆盖，避免乐观插入重复）
     pub fn add_label(&mut self, label: Arc<LabelModel>) {
         let id = label.id.clone();
-        Self::insert_id_map(&mut self.labels, &mut self.label_by_id, label, &id);
+        Self::upsert_id_map(&mut self.labels, &mut self.label_by_id, label, &id, |l| l.id == id);
         self.mark_labels_changed();
     }
 

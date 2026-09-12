@@ -125,6 +125,14 @@ impl Store {
         self.item_service.set_item_labels(item_id, label_ids).await
     }
 
+    pub async fn set_item_labels_from_models(
+        &self,
+        item_id: &str,
+        labels: &[LabelModel],
+    ) -> Result<(), TodoError> {
+        self.item_service.set_item_labels_from_models(item_id, labels).await
+    }
+
     pub async fn get_labels_by_item(&self, item_id: &str) -> Result<Vec<LabelModel>, TodoError> {
         self.item_service.get_labels_by_item(item_id).await
     }

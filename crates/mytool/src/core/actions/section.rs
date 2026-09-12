@@ -1,27 +1,54 @@
 use std::sync::Arc;
 
-use gpui::App;
+use gpui::{App, BorrowAppContext};
 use todos::entity::SectionModel;
 
 use crate::{core::state::TodoStore, todo_state::DBState};
 
 pub fn add_section(section: Arc<SectionModel>, cx: &mut App) {
+    let mut section = section.as_ref().clone();
+    if section.id.is_empty() {
+        section.id = uuid::Uuid::new_v4().to_string();
+    }
+    if section.project_id.as_deref().is_some_and(|id| id.is_empty() || id.starts_with("temp_")) {
+        section.project_id = None;
+    }
+
+    let persist_section = Arc::new(section);
+    let section_id = persist_section.id.clone();
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        todo_store.add_section(persist_section.clone());
+    });
+
     let db_state = cx.global::<DBState>().clone();
     cx.spawn(async move |cx| {
         match db_state
-            .spawn_store_op(move |store| async move {
-                store.insert_section(section.as_ref().clone()).await
+            .spawn_store_op({
+                let persist_section = persist_section.clone();
+                move |store| async move {
+                    store.insert_section(persist_section.as_ref().clone()).await
+                }
             })
             .await
         {
             Ok(Ok(new_section)) => {
                 let arc_section = Arc::new(new_section);
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.add_section(arc_section);
+                    todo_store.update_section(arc_section);
                 });
             },
-            Ok(Err(e)) => tracing::error!("add_section failed: {:?}", e),
-            Err(join_err) => tracing::error!("add_section task panicked: {:?}", join_err),
+            Ok(Err(e)) => {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.remove_section(&section_id);
+                });
+                tracing::error!("add_section failed: {:?}", e);
+            },
+            Err(join_err) => {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.remove_section(&section_id);
+                });
+                tracing::error!("add_section task panicked: {:?}", join_err);
+            },
         }
     })
     .detach();

@@ -203,7 +203,7 @@ impl LabelsPopoverList {
 
         // 创建新标签模型
         let new_label = Arc::new(LabelModel {
-            id: format!("label_{}_{}", timestamp, label_name.trim().replace(" ", "_")),
+            id: uuid::Uuid::new_v4().to_string(),
             name: label_name.trim().to_string(),
             color,
             item_order: 0,
@@ -213,27 +213,52 @@ impl LabelsPopoverList {
             source_id: None,
         });
 
-        // 将新标签添加到全局标签状态
-        cx.update_global::<TodoStore, _>(|store, _cx| {
+        cx.update_global::<TodoStore, _>(|store, _| {
             store.add_label(new_label.clone());
         });
 
-        // 清空输入框
         self.new_label_input.update(cx, |input, cx| {
             input.set_value("".to_string(), window, cx);
         });
 
-        // 自动选中新创建的标签
         if !self.selected_labels.iter().any(|l| l.id == new_label.id) {
             self.selected_labels.push(new_label.clone());
-            // 同步更新 LabelCheckListDelegate 的 checked_list
             self.label_list.update(cx, |list, cx| {
                 list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
             });
-            self.emit_labels_changed(cx);
         }
 
-        // 移除cx.notify()调用，避免创建新标签后popover关闭
+        let db_state = cx.global::<crate::todo_state::DBState>().clone();
+        let label_for_db = new_label.as_ref().clone();
+        let label_id = new_label.id.clone();
+        cx.spawn(async move |this, cx| {
+            match db_state
+                .spawn_store_op(move |store| async move { store.insert_label(label_for_db).await })
+                .await
+            {
+                Ok(Ok(_)) => {
+                    this.update(cx, |this, cx| {
+                        this.emit_labels_changed(cx);
+                    })
+                    .ok();
+                },
+                Ok(Err(e)) => {
+                    tracing::error!("insert_label failed: {:?}", e);
+                    this.update(cx, |this, cx| {
+                        this.selected_labels.retain(|l| l.id != label_id);
+                        cx.update_global::<TodoStore, _>(|store, _| {
+                            store.remove_label(&label_id);
+                        });
+                        cx.notify();
+                    })
+                    .ok();
+                },
+                Err(join_err) => {
+                    tracing::error!("insert_label task panicked: {:?}", join_err);
+                },
+            }
+        })
+        .detach();
     }
 
     // 发送标签变更事件

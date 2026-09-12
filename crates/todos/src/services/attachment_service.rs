@@ -41,6 +41,7 @@ impl AttachmentService {
         &self,
         attachment: AttachmentModel,
     ) -> Result<AttachmentModel, TodoError> {
+        crate::utils::wait_for_item(&self.db, &attachment.item_id).await?;
         let active_attachment: AttachmentActiveModel = attachment.into();
         active_attachment.insert(&*self.db).await.map_err(TodoError::from)
     }

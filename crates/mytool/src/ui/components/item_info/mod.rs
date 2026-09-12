@@ -541,7 +541,17 @@ impl Render for ItemInfoState {
                                     .items_center()
                                     .min_w_0()
                                     .child(ScheduleButton::new(&self.schedule_button_state))
-                                    .child(RecurrencyButton::new(&self.recurrency_button_state)),
+                                    .child(RecurrencyButton::new(&self.recurrency_button_state))
+                                    .child(
+                                        ProjectButton::new(&self.project_state)
+                                            .w(px(148.))
+                                            .flex_shrink_0(),
+                                    )
+                                    .child(
+                                        SectionButton::new(&self.section_state)
+                                            .w(px(120.))
+                                            .flex_shrink_0(),
+                                    ),
                             )
                             .child(
                                 h_flex()
@@ -553,15 +563,6 @@ impl Render for ItemInfoState {
                                     .child(PriorityButton::new(&self.priority_state))
                                     .child(ReminderButton::new(&self.reminder_state)),
                             ),
-                    )
-                    .child(
-                        h_flex()
-                            .w_full()
-                            .items_center()
-                            .gap_2()
-                            .pl(px(28.))
-                            .child(ProjectButton::new(&self.project_state).w(px(168.)).flex_shrink_0())
-                            .child(SectionButton::new(&self.section_state).w(px(140.)).flex_shrink_0()),
                     ),
             )
     }

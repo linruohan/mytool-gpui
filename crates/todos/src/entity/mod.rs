@@ -4,6 +4,7 @@ pub mod prelude;
 
 pub mod attachments;
 pub mod cur_temp_ids;
+mod ids;
 pub mod item_labels;
 pub mod items;
 pub mod labels;
@@ -13,6 +14,8 @@ pub mod queue;
 pub mod reminders;
 pub mod sections;
 pub mod sources;
+
+pub(crate) use ids::assign_id_if_empty;
 
 // Active domain models
 pub use attachments::{ActiveModel as AttachmentActiveModel, Model as AttachmentModel};

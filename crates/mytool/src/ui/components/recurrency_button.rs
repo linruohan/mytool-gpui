@@ -637,6 +637,16 @@ impl Render for RecurrencyButtonState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let display_text = self.get_display_text();
         let form = self.form.clone();
+        let is_recurring = self.due_date.is_recurring;
+        let mut trigger = Button::new(("recurrency-btn", cx.entity_id()))
+            .small()
+            .ghost()
+            .compact()
+            .icon(IconName::RefreshCw)
+            .tooltip("重复");
+        if is_recurring {
+            trigger = trigger.label(SharedString::from(display_text));
+        }
 
         v_flex().child(
             Popover::new("recurrency-popover")
@@ -647,15 +657,7 @@ impl Render for RecurrencyButtonState {
                     this.popover_open = *open;
                     cx.notify();
                 }))
-                .trigger(
-                    Button::new(("recurrency-btn", cx.entity_id()))
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::RefreshCw)
-                        .tooltip("重复")
-                        .label(SharedString::from(display_text)),
-                )
+                .trigger(trigger)
                 .track_focus(&form.focus_handle(cx))
                 .child(form.clone()),
         )

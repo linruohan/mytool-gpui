@@ -12,7 +12,7 @@ use crate::{
     todo_state::DBState,
 };
 
-/// 乐观添加项目：先写入内存，落盘成功后替换为真实 ID。
+/// 乐观添加项目：先写入内存并使用稳定 UUID，落盘时保留同一主键。
 pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
     if let Err(e) = validation::validate_project_name(&project.name) {
         let context = ErrorHandler::handle_with_location(e, "add_project");
@@ -20,18 +20,23 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
         return;
     }
 
-    let temp_id = format!("temp_project_{}", uuid::Uuid::new_v4());
-    let temp_project = Arc::new(ProjectModel { id: temp_id.clone(), ..project.as_ref().clone() });
+    let project_id = if project.id.is_empty() || project.id.starts_with("temp_") {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        project.id.clone()
+    };
+    let persist_project =
+        Arc::new(ProjectModel { id: project_id.clone(), ..project.as_ref().clone() });
     cx.update_global::<TodoStore, _>(|todo_store, _| {
-        todo_store.add_project(temp_project);
+        todo_store.add_project(persist_project.clone());
     });
 
     let db_state = cx.global::<DBState>().clone();
-    let project_id = project.id.clone();
     cx.spawn(async move |cx| {
         match db_state
-            .spawn_store_op(move |store| async move {
-                store.insert_project(project.as_ref().clone()).await
+            .spawn_store_op({
+                let persist_project = persist_project.clone();
+                move |store| async move { store.insert_project(persist_project.as_ref().clone()).await }
             })
             .await
         {
@@ -39,12 +44,12 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
                 debug!("Successfully added project: {}", new_project.id);
                 let arc_project = Arc::new(new_project);
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.replace_project_id(&temp_id, arc_project);
+                    todo_store.update_project(arc_project);
                 });
             },
             Ok(Err(e)) => {
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.remove_project(&temp_id);
+                    todo_store.remove_project(&project_id);
                 });
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
@@ -55,7 +60,7 @@ pub fn add_project(project: Arc<ProjectModel>, cx: &mut App) {
             },
             Err(join_err) => {
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
-                    todo_store.remove_project(&temp_id);
+                    todo_store.remove_project(&project_id);
                 });
                 error!("add_project task panicked: {:?}", join_err);
             },

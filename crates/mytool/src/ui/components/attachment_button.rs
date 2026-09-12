@@ -170,7 +170,7 @@ impl AttachmentButtonState {
 
     fn try_add_attachment(&mut self, cx: &mut Context<Self>) {
         let item_id = self.item_id.clone();
-        let is_temp_id = item_id.starts_with("temp_");
+        let is_temp_id = item_id.is_empty() || item_id.starts_with("temp_");
         let view = cx.entity();
 
         cx.spawn(async move |_this, cx| {

@@ -49,7 +49,7 @@ impl ActiveModelBehavior for ActiveModel {
     {
         let mut this = self;
         if insert {
-            this.id = Set(Uuid::new_v4().to_string());
+            super::assign_id_if_empty(&mut this.id);
         }
         // 设置默认值
         if this.file_size.is_not_set() {

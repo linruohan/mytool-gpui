@@ -52,13 +52,21 @@ impl ItemInfoState {
             .map(|s| s.to_string())
             .collect();
 
+        let selected_labels: Vec<todos::entity::LabelModel> = {
+            let store = cx.global::<crate::todo_state::TodoStore>();
+            label_ids_vec
+                .iter()
+                .filter_map(|id| store.get_label(id).map(|l| l.as_ref().clone()))
+                .collect()
+        };
+
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
         let item_id_for_log = item_id.clone();
         let label_ids_for_log = label_ids_vec.clone();
         cx.spawn(async move |_this, cx| {
             match db_state
                 .spawn_store_op(move |store| async move {
-                    store.set_item_labels(&item_id, &label_ids_vec).await
+                    store.set_item_labels_from_models(&item_id, &selected_labels).await
                 })
                 .await
             {

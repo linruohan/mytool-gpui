@@ -85,6 +85,21 @@ impl LabelService {
         self.insert_label(new_label).await
     }
 
+    /// 确保标签已在数据库中：优先按 id，否则按名称创建或复用
+    pub async fn ensure_label(&self, label: &LabelModel) -> Result<LabelModel, TodoError> {
+        if !label.id.is_empty()
+            && let Some(existing) = LabelEntity::find_by_id(label.id.clone()).one(&*self.db).await?
+        {
+            return Ok(existing);
+        }
+
+        if !label.name.trim().is_empty() {
+            return self.get_or_create_label(&label.name, label.source_id.as_deref().unwrap_or("")).await;
+        }
+
+        Err(TodoError::ValidationError("标签名称不能为空".into()))
+    }
+
     /// Get all labels
     pub async fn get_all_labels(&self) -> Result<Vec<LabelModel>, TodoError> {
         let labels =

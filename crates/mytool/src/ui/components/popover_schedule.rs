@@ -345,6 +345,16 @@ impl Render for ScheduleButtonState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let display_text = self.get_display_text();
         let form = self.form.clone();
+        let has_date = !self.due_date.date.is_empty();
+        let mut trigger = Button::new(("item-schedule", cx.entity_id()))
+            .small()
+            .ghost()
+            .compact()
+            .tooltip("设置日期")
+            .icon(IconName::Calendar);
+        if has_date {
+            trigger = trigger.label(SharedString::from(display_text));
+        }
 
         v_flex().track_focus(&self.focus_handle).child(
             Popover::new("schedule-popover")
@@ -355,15 +365,7 @@ impl Render for ScheduleButtonState {
                     this.popover_open = *open;
                     cx.notify();
                 }))
-                .trigger(
-                    Button::new(("item-schedule", cx.entity_id()))
-                        .small()
-                        .ghost()
-                        .compact()
-                        .tooltip("设置日期")
-                        .icon(IconName::Calendar)
-                        .label(SharedString::from(display_text)),
-                )
+                .trigger(trigger)
                 .child(form.clone()),
         )
     }

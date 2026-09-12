@@ -413,14 +413,51 @@ impl ItemService {
 
     /// Set labels for item
     ///
-    /// 批量设置 Item 的 Labels（替换原有 Labels）
+    /// 批量设置 Item 的 Labels（替换原有 Labels）。
+    /// 会先确保标签存在（按 id 或名称），避免 item_labels 外键失败。
     pub async fn set_item_labels(
         &self,
         item_id: &str,
         label_ids: &[String],
     ) -> Result<(), TodoError> {
-        self.item_label_repo.set_item_labels(item_id, label_ids).await?;
+        crate::utils::wait_for_item(&self.db, item_id).await?;
 
+        let mut resolved_ids = Vec::with_capacity(label_ids.len());
+        for label_id in label_ids {
+            if label_id.is_empty() {
+                continue;
+            }
+            if let Some(existing) =
+                crate::entity::prelude::LabelEntity::find_by_id(label_id.clone())
+                    .one(&*self.db)
+                    .await?
+            {
+                resolved_ids.push(existing.id);
+                continue;
+            }
+            tracing::warn!(
+                "set_item_labels: label_id {} 不在 labels 表中，已跳过",
+                label_id
+            );
+        }
+
+        self.item_label_repo.set_item_labels(item_id, &resolved_ids).await?;
+        Ok(())
+    }
+
+    pub async fn set_item_labels_from_models(
+        &self,
+        item_id: &str,
+        labels: &[crate::entity::LabelModel],
+    ) -> Result<(), TodoError> {
+        crate::utils::wait_for_item(&self.db, item_id).await?;
+
+        let mut resolved_ids = Vec::with_capacity(labels.len());
+        for label in labels {
+            let saved = self.label_service.ensure_label(label).await?;
+            resolved_ids.push(saved.id);
+        }
+        self.item_label_repo.set_item_labels(item_id, &resolved_ids).await?;
         Ok(())
     }
 }

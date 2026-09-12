@@ -191,7 +191,7 @@ impl ReminderForm {
 
         // 从父组件获取 item_id
         let item_id = self.parent.read(cx).item_id.clone();
-        let is_temp_id = item_id.starts_with("temp_");
+        let is_temp_id = item_id.is_empty() || item_id.starts_with("temp_");
 
         let due_str = format!("{} {}:00", self.current_date, self.current_time);
 

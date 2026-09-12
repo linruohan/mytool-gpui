@@ -41,6 +41,9 @@ impl ReminderService {
         &self,
         reminder: ReminderModel,
     ) -> Result<ReminderModel, TodoError> {
+        if let Some(item_id) = reminder.item_id.as_deref() {
+            crate::utils::wait_for_item(&self.db, item_id).await?;
+        }
         let active_reminder: ReminderActiveModel = reminder.into();
         active_reminder.insert(&*self.db).await.map_err(TodoError::from)
     }
