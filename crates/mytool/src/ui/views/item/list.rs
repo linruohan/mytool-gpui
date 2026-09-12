@@ -17,7 +17,8 @@ use gpui_component::{
 use todos::{entity::ItemModel, utils::datetime::DateTime};
 
 use crate::{
-    SemanticColors, label_chip, todo_actions::complete_item_optimistic, todo_state::TodoStore,
+    SemanticColors, label_color, label_color_dot, todo_actions::complete_item_optimistic,
+    todo_state::TodoStore,
 };
 
 actions!(item, [SelectedItem]);
@@ -73,18 +74,16 @@ impl RenderOnce for ItemListItem {
             colors.status_scheduled
         };
 
-        let item_label_chips: Vec<_> = self
+        let item_label_dots: Vec<_> = self
             .item
             .labels
             .as_deref()
             .unwrap_or("")
             .split(';')
             .filter(|id| !id.is_empty())
-            .filter_map(|id| {
-                cx.global::<TodoStore>()
-                    .get_label(id)
-                    .map(|label| label_chip(label.name.clone(), &label.color))
-            })
+            .filter_map(|id| cx.global::<TodoStore>().get_label(id))
+            .take(4)
+            .map(|label| label_color_dot(label_color(&label.color)))
             .collect();
 
         let item_for_check = self.item.clone();
@@ -119,8 +118,8 @@ impl RenderOnce for ItemListItem {
                             }),
                     ),
                 )
-                .when(!item_label_chips.is_empty(), |this| {
-                    this.child(h_flex().gap_1().flex_shrink_0().children(item_label_chips))
+                .when(!item_label_dots.is_empty(), |this| {
+                    this.child(h_flex().gap_1().flex_shrink_0().items_center().children(item_label_dots))
                 })
                 .when_some(due_label, |this, due_label| {
                     this.child(

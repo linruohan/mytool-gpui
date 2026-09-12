@@ -33,7 +33,7 @@ impl Render for ProjectButtonState {
         self.sync_items(window, cx);
         Select::new(&self.select)
             .small()
-            .appearance(true)
+            .appearance(false)
             .placeholder("收件箱")
             .search_placeholder("搜索项目")
             .w_full()

@@ -13,7 +13,7 @@ use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 use tracing::info;
 
-use crate::label_color_dot;
+use crate::{label_color, label_color_dot};
 
 actions!(label, [SelectedCheckLabel, UnSelectedCheckLabel]);
 pub enum LabelCheckEvent {
@@ -75,7 +75,7 @@ impl RenderOnce for LabelCheckListItem {
                 .py_1()
                 .rounded(cx.theme().radius)
                 .bg(fill)
-                .child(label_color_dot(&self.label.color))
+                .child(label_color_dot(label_color(&self.label.color)))
                 .child(
                     div()
                         .flex_1()
@@ -119,12 +119,19 @@ impl LabelCheckListDelegate {
 
     fn visible_labels(&self) -> Vec<Arc<LabelModel>> {
         let query = self.query.to_lowercase();
-        self._labels
+        let mut labels: Vec<Arc<LabelModel>> = self
+            ._labels
             .iter()
             .filter(|label| !label.is_deleted)
             .filter(|label| query.is_empty() || label.name.to_lowercase().contains(&query))
             .cloned()
-            .collect()
+            .collect();
+        labels.sort_by(|a, b| {
+            let a_checked = self.checked_list.iter().any(|l| l.id == a.id);
+            let b_checked = self.checked_list.iter().any(|l| l.id == b.id);
+            b_checked.cmp(&a_checked).then_with(|| a.name.cmp(&b.name))
+        });
+        labels
     }
 
     fn set_matched(&mut self, labels: Vec<Arc<LabelModel>>) {
@@ -161,6 +168,7 @@ impl LabelCheckListDelegate {
         cx: &mut Context<ListState<Self>>,
     ) {
         self.checked_list = labels.clone();
+        self.set_matched(self.visible_labels());
         cx.notify();
     }
 

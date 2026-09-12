@@ -37,7 +37,7 @@ impl Render for SectionState {
         self.sync_items(window, cx);
         Select::new(&self.select)
             .small()
-            .appearance(true)
+            .appearance(false)
             .placeholder("无分区")
             .search_placeholder("搜索分区")
             .w_full()

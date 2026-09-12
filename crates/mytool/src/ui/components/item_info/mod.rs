@@ -412,6 +412,12 @@ impl ItemInfoState {
 impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let selected_labels = self.selected_labels(cx);
+        let has_sections = self
+            .section_state
+            .read(cx)
+            .sections
+            .as_ref()
+            .is_some_and(|sections| !sections.is_empty());
 
         let colors = SemanticColors::from_theme(cx);
         let pinned_color = if self.state_manager.item.pinned {
@@ -544,14 +550,16 @@ impl Render for ItemInfoState {
                                     .child(RecurrencyButton::new(&self.recurrency_button_state))
                                     .child(
                                         ProjectButton::new(&self.project_state)
-                                            .w(px(148.))
-                                            .flex_shrink_0(),
-                                    )
-                                    .child(
-                                        SectionButton::new(&self.section_state)
                                             .w(px(120.))
                                             .flex_shrink_0(),
-                                    ),
+                                    )
+                                    .when(has_sections, |this| {
+                                        this.child(
+                                            SectionButton::new(&self.section_state)
+                                                .w(px(108.))
+                                                .flex_shrink_0(),
+                                        )
+                                    }),
                             )
                             .child(
                                 h_flex()

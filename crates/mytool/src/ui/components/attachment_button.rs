@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ParentElement, Render,
-    Styled, Window,
+    Styled, Window, px,
 };
 use gpui_component::{
     Sizable,
@@ -271,7 +271,7 @@ impl Render for AttachmentButtonState {
                 v_flex()
                     .gap_2()
                     .p_2()
-                    .w_96()
+                    .w(px(260.))
                     .child(
                         Input::new(&search_input).flex_1().suffix(
                             Button::new("add-attachment-dialog")

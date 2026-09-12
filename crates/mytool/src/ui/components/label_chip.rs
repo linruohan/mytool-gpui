@@ -7,8 +7,8 @@ pub fn label_color(color_hex: &str) -> Hsla {
 }
 
 /// Small color swatch used in pickers.
-pub fn label_color_dot(color_hex: &str) -> impl IntoElement {
-    div().size(px(10.)).rounded_full().flex_shrink_0().bg(label_color(color_hex))
+pub fn label_color_dot(color: Hsla) -> impl IntoElement {
+    div().size(px(10.)).rounded_full().flex_shrink_0().bg(color)
 }
 
 /// Label chip backed by `gpui_component::tag::Tag`.

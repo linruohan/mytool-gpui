@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, Styled, Window, prelude::FluentBuilder,
+    IntoElement, ParentElement, Render, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     IndexPath, Sizable,
@@ -434,12 +434,12 @@ impl Render for ReminderButtonState {
                 v_flex()
                     .gap_2()
                     .p_2()
-                    .w_96()
+                    .w(px(260.))
                     // 顶部添加按钮
                     .child(
                         Button::new("add-reminder-trigger")
                             .small()
-                            .primary()
+                            .ghost()
                             .label("添加提醒")
                             .icon(IconName::Plus)
                             .on_click({

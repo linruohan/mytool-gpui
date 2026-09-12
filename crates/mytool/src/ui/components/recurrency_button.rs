@@ -473,9 +473,9 @@ impl Render for RecurrencyForm {
         );
 
         v_flex()
-            .gap_3()
-            .p_3()
-            .w(px(300.))
+            .gap_2()
+            .p_2()
+            .w(px(260.))
             .child(radio_group)
             .when(is_custom, |this| this.child(self.render_custom_panel(cx)))
             .child(Separator::horizontal())

@@ -229,9 +229,9 @@ impl Render for ScheduleForm {
                 }));
 
         v_flex()
-            .gap_3()
-            .p_3()
-            .w(px(280.))
+            .gap_2()
+            .p_2()
+            .w(px(240.))
             .child(radio_group)
             .when(is_custom, move |this| {
                 this.child(DatePicker::new(&date_picker).cleanable(true).w_full())
