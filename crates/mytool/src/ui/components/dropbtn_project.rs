@@ -1,6 +1,6 @@
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, ParentElement, Render, Styled,
-    Subscription, Window, px,
+    Subscription, Window,
 };
 use gpui_component::{
     IndexPath, Sizable,
@@ -36,7 +36,7 @@ impl Render for ProjectButtonState {
             .appearance(true)
             .placeholder("收件箱")
             .search_placeholder("搜索项目")
-            .w(px(150.))
+            .w_full()
     }
 }
 

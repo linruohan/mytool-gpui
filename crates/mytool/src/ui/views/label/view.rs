@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Hsla, IntoElement, ParentElement, Render,
-    Styled, Subscription, Window, px,
+    Styled, Subscription, Window,
 };
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
@@ -216,7 +216,7 @@ impl LabelsPanel {
                     dialog
                         .overlay(true)
                         .overlay_closable(true)
-                        .child("Are you sure to delete the label?")
+                        .child("确定删除这个标签吗？")
                         .on_ok({
                             let view = view.clone();
                             let label = label.clone();
@@ -227,12 +227,12 @@ impl LabelsPanel {
                                     cx.emit(LabelEvent::Deleted(label));
                                     cx.notify();
                                 });
-                                window.push_notification("You have delete ok.", cx);
+                                window.push_notification("已删除标签。", cx);
                                 true
                             }
                         })
                         .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("You have canceled delete.", cx);
+                            window.push_notification("已取消。", cx);
                             true
                         })
                 });
@@ -242,13 +242,11 @@ impl LabelsPanel {
 }
 
 impl Render for LabelsPanel {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         List::new(&self.label_list)
-            .p(px(2.))
+            .px_4()
+            .py_1()
             .flex_1()
             .w_full()
-            .border_1()
-            .border_color(cx.theme().border)
-            .rounded(cx.theme().radius)
     }
 }

@@ -259,7 +259,8 @@ impl Render for AttachmentButtonState {
                     .small()
                     .ghost()
                     .compact()
-                    .icon(IconName::MailAttachmentSymbolic);
+                    .icon(IconName::MailAttachmentSymbolic)
+                    .tooltip("附件");
                 if !filtered_attachments.is_empty() {
                     button = button.label(format!("{}", filtered_attachments.len()));
                 }

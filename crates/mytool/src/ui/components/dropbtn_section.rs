@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, ParentElement, Render, Styled,
-    Subscription, Window, px,
+    Subscription, Window,
 };
 use gpui_component::{
     IndexPath, Sizable,
@@ -40,7 +40,7 @@ impl Render for SectionState {
             .appearance(true)
             .placeholder("无分区")
             .search_placeholder("搜索分区")
-            .w(px(150.))
+            .w_full()
     }
 }
 

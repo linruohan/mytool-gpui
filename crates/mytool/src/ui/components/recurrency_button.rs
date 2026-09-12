@@ -6,7 +6,6 @@ use gpui_component::{
     Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    form::{field, v_form},
     input::{InputEvent, InputState, NumberInput},
     popover::Popover,
     radio::{Radio, RadioGroup},
@@ -476,7 +475,7 @@ impl Render for RecurrencyForm {
         v_flex()
             .gap_3()
             .p_3()
-            .w(px(280.))
+            .w(px(300.))
             .child(radio_group)
             .when(is_custom, |this| this.child(self.render_custom_panel(cx)))
             .child(Separator::horizontal())
@@ -493,10 +492,14 @@ impl RecurrencyForm {
         let unit_index = self.custom_unit.index();
         let end_index = self.end_type.index();
 
-        v_form()
+        v_flex()
+            .gap_3()
+            .w_full()
             .child(
-                field().label("重复间隔").child(
-                    NumberInput::new(&interval_input).small().suffix(
+                v_flex()
+                    .gap_1()
+                    .child(gpui::div().text_xs().child("重复间隔"))
+                    .child(
                         RadioGroup::horizontal("recurrency-unit")
                             .selected_index(Some(unit_index))
                             .on_click(cx.listener(|this, index, _, cx| {
@@ -508,37 +511,32 @@ impl RecurrencyForm {
                             .children(RecurrencyUnit::all().into_iter().map(|unit| {
                                 Radio::new(format!("unit-{:?}", unit)).label(unit.to_label())
                             })),
-                    ),
-                ),
+                    )
+                    .child(NumberInput::new(&interval_input).small().w_full()),
             )
             .child(
-                field().label("结束").child(
-                    RadioGroup::horizontal("recurrency-end")
-                        .selected_index(Some(end_index))
-                        .on_click(cx.listener(|this, index, _, cx| {
-                            if let Some(&option) = RecurrencyEndOption::all().get(*index) {
-                                this.end_type = option;
-                                cx.notify();
-                            }
-                        }))
-                        .children(RecurrencyEndOption::all().into_iter().map(|option| {
-                            Radio::new(format!("end-{:?}", option)).label(option.to_label())
-                        })),
-                ),
+                v_flex()
+                    .gap_1()
+                    .child(gpui::div().text_xs().child("结束"))
+                    .child(
+                        RadioGroup::horizontal("recurrency-end")
+                            .selected_index(Some(end_index))
+                            .on_click(cx.listener(|this, index, _, cx| {
+                                if let Some(&option) = RecurrencyEndOption::all().get(*index) {
+                                    this.end_type = option;
+                                    cx.notify();
+                                }
+                            }))
+                            .children(RecurrencyEndOption::all().into_iter().map(|option| {
+                                Radio::new(format!("end-{:?}", option)).label(option.to_label())
+                            })),
+                    ),
             )
             .when(end_type == RecurrencyEndOption::OnDate, move |this| {
-                this.child(
-                    field()
-                        .label("指定日期")
-                        .child(DatePicker::new(&end_date_picker).cleanable(true).w(px(200.))),
-                )
+                this.child(DatePicker::new(&end_date_picker).cleanable(true).w_full())
             })
             .when(end_type == RecurrencyEndOption::After, move |this| {
-                this.child(
-                    field()
-                        .label("次数")
-                        .child(NumberInput::new(&count_input).small().suffix("次")),
-                )
+                this.child(NumberInput::new(&count_input).small().suffix("次").w_full())
             })
     }
 }

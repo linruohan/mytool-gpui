@@ -67,12 +67,11 @@ impl RenderOnce for LabelListItem {
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
         self.base
-            .p(VisualHierarchy::spacing(2.0))
+            .px_2()
+            .py_1()
             .overflow_x_hidden()
-            .border_1()
             .rounded(cx.theme().radius)
-            .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
-            .rounded(cx.theme().radius)
+            .when(self.selected, |this| this.bg(cx.theme().list_active).border_color(cx.theme().list_active_border))
             .child(
                 h_flex()
                     .items_center()
@@ -85,8 +84,7 @@ impl RenderOnce for LabelListItem {
                             .items_center()
                             .justify_end()
                             .child(label_chip(self.label.name.clone(), &self.label.color)),
-                    )
-                    .child(h_flex().gap(VisualHierarchy::spacing(1.0))),
+                    ),
             )
     }
 }

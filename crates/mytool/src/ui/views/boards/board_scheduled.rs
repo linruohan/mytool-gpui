@@ -5,6 +5,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use chrono::Datelike;
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     MouseButton, ParentElement, Render, Styled, Window, div,
@@ -14,8 +15,6 @@ use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
-    h_flex,
-    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
@@ -113,6 +112,31 @@ impl ScheduledBoard {
         section_id: String,
     ) {
         BoardBase::show_section_delete_dialog(window, cx, section_id);
+    }
+}
+
+fn format_schedule_heading(date_key: &str, today: &str) -> String {
+    if date_key == "无日期" {
+        return "无日期".to_string();
+    }
+
+    let Ok(date) = chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d") else {
+        return date_key.to_string();
+    };
+    let weekday = ["日", "一", "二", "三", "四", "五", "六"]
+        [date.weekday().num_days_from_sunday() as usize];
+    let today_date = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d").ok();
+
+    if Some(date) == today_date {
+        format!("今天 · 周{weekday}")
+    } else if today_date.and_then(|d| d.succ_opt()) == Some(date) {
+        format!("明天 · 周{weekday}")
+    } else if today_date.and_then(|d| d.pred_opt()) == Some(date) {
+        format!("昨天 · 周{weekday}")
+    } else if date.year() == chrono::Local::now().year() {
+        format!("周{weekday} · {}月{}日", date.month(), date.day())
+    } else {
+        format!("{}年{}月{}日", date.year(), date.month(), date.day())
     }
 }
 
@@ -244,38 +268,16 @@ impl Render for ScheduledBoard {
                                 return None;
                             }
 
-                            let view_clone = view.clone();
+                            let heading = format_schedule_heading(date, &today);
                             let is_today = date.as_str() == today;
+                            let view_clone = view.clone();
 
                             let title_color =
                                 if is_today { orange_color } else { cx.theme().foreground };
 
                             Some(
-                                section_with_title(div().flex().items_center().gap_2().child(
-                                    div().text_base().text_color(title_color).child(date.clone()),
-                                ))
-                                .sub_title(
-                                    h_flex().gap_1().child(
-                                        Button::new(format!("more-date-{}", date))
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::EllipsisVertical)
-                                            .dropdown_menu({
-                                                let view = view_clone.clone();
-                                                move |this, window, _cx| {
-                                                    this.item(
-                                                        PopupMenuItem::new("显示已完成任务")
-                                                            .on_click(window.listener_for(
-                                                                &view,
-                                                                |_this, _, _window, cx| {
-                                                                    cx.notify();
-                                                                },
-                                                            )),
-                                                    )
-                                                }
-                                            }),
-                                    ),
+                                section_with_title(
+                                    div().text_base().text_color(title_color).child(heading),
                                 )
                                 .child(
                                     board_renderer::render_item_list(

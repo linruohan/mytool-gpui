@@ -529,34 +529,26 @@ impl Render for ItemInfoState {
                     .child(
                         h_flex()
                             .w_full()
+                            .flex_wrap()
                             .items_center()
-                            .justify_between()
                             .gap_2()
                             .pl(px(28.))
-                            .child(
-                                h_flex()
-                                    .gap_1()
-                                    .child(ScheduleButton::new(&self.schedule_button_state))
-                                    .child(RecurrencyButton::new(&self.recurrency_button_state)),
-                            )
-                            .child(
-                                h_flex()
-                                    .gap_1()
-                                    .items_center()
-                                    .child(AttachmentButton::new(&self.attachment_state))
-                                    .child(self.label_popover_list.clone())
-                                    .child(PriorityButton::new(&self.priority_state))
-                                    .child(ReminderButton::new(&self.reminder_state)),
-                            ),
+                            .child(ScheduleButton::new(&self.schedule_button_state))
+                            .child(RecurrencyButton::new(&self.recurrency_button_state))
+                            .child(AttachmentButton::new(&self.attachment_state))
+                            .child(self.label_popover_list.clone())
+                            .child(PriorityButton::new(&self.priority_state))
+                            .child(ReminderButton::new(&self.reminder_state)),
                     )
                     .child(
                         h_flex()
                             .w_full()
+                            .flex_wrap()
                             .items_center()
                             .gap_2()
                             .pl(px(28.))
-                            .child(ProjectButton::new(&self.project_state))
-                            .child(SectionButton::new(&self.section_state)),
+                            .child(ProjectButton::new(&self.project_state).flex_1().min_w(px(120.)))
+                            .child(SectionButton::new(&self.section_state).flex_1().min_w(px(120.))),
                     ),
             )
     }

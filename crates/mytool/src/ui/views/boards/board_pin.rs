@@ -12,8 +12,6 @@ use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
-    h_flex,
-    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
@@ -196,39 +194,13 @@ impl Render for PinBoard {
                         .when(!pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
-                                board_section("置顶")
-                                    .sub_title(
-                                        h_flex().gap_1().child(
-                                            Button::new("more-pinned")
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::EllipsisVertical)
-                                                .dropdown_menu({
-                                                    let view = view_clone.clone();
-                                                    move |this, window, _cx| {
-                                                        this.item(
-                                                            PopupMenuItem::new(
-                                                                "显示已完成任务",
-                                                            )
-                                                            .on_click(window.listener_for(
-                                                                &view,
-                                                                |_this, _, _window, cx| {
-                                                                    cx.notify();
-                                                                },
-                                                            )),
-                                                        )
-                                                    }
-                                                }),
-                                        ),
-                                    )
-                                    .child(board_renderer::render_item_list(
-                                        &pinned_items,
-                                        item_rows,
-                                        active_index,
-                                        active_border,
-                                        view_clone,
-                                    )),
+                                board_section("置顶").child(board_renderer::render_item_list(
+                                    &pinned_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view_clone,
+                                )),
                             )
                         })
                         .when(!no_section_items.is_empty(), |this| {

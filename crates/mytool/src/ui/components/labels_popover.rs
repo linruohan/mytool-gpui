@@ -286,9 +286,9 @@ impl Render for LabelsPopoverList {
                             .ghost()
                             .compact()
                             .tooltip(if selected_count > 0 {
-                                format!("{} labels selected", selected_count)
+                                format!("已选 {} 个标签", selected_count)
                             } else {
-                                "Set Labels".to_string()
+                                "设置标签".to_string()
                             })
                             .icon(IconName::TagOutlineSymbolic);
                         if selected_count > 0 {

@@ -234,7 +234,7 @@ impl Render for ScheduleForm {
             .w(px(280.))
             .child(radio_group)
             .when(is_custom, move |this| {
-                this.child(DatePicker::new(&date_picker).cleanable(true).w(px(240.)))
+                this.child(DatePicker::new(&date_picker).cleanable(true).w_full())
             })
             .child(Separator::horizontal())
             .child(v_form().child(

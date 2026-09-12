@@ -112,7 +112,7 @@ impl ListDelegate for ManageSectionListDelegate {
                             )
                             .child(section.name.clone())
                             .when(is_archived, |this| {
-                                this.child(Tag::secondary().small().child("Archived"))
+                                this.child(Tag::secondary().small().child("已归档"))
                             }),
                     )
                     .child(

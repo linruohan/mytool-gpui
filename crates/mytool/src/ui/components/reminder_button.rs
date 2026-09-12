@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, Styled, Window, prelude::FluentBuilder, px,
+    IntoElement, ParentElement, Render, Styled, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
     IndexPath, Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    form::{field, h_form},
+    h_flex,
     select::{Select, SelectEvent, SelectState},
     v_flex,
 };
@@ -254,28 +254,27 @@ impl Render for ReminderForm {
         let date_picker = self.date_picker.clone();
         let time_select = self.time_select.clone();
 
-        h_form()
-            .label_width(px(40.))
+        v_flex()
+            .gap_2()
+            .w_full()
+            .child(DatePicker::new(&date_picker).cleanable(true).w_full())
             .child(
-                field()
-                    .label("日期")
-                    .child(DatePicker::new(&date_picker).cleanable(true).w(px(140.))),
+                h_flex()
+                    .w_full()
+                    .gap_2()
+                    .items_center()
+                    .child(Select::new(&time_select).small().placeholder("09:00").flex_1())
+                    .child(
+                        Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
+                            let view = cx.entity();
+                            move |_event, _window, cx| {
+                                cx.update_entity(&view, |this, cx| {
+                                    this.on_add_reminder(cx);
+                                });
+                            }
+                        }),
+                    ),
             )
-            .child(
-                field()
-                    .label("时间")
-                    .child(Select::new(&time_select).small().placeholder("09:00").w(px(100.))),
-            )
-            .child(field().child(
-                Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
-                    let view = cx.entity();
-                    move |_event, _window, cx| {
-                        cx.update_entity(&view, |this, cx| {
-                            this.on_add_reminder(cx);
-                        });
-                    }
-                }),
-            ))
     }
 }
 
@@ -423,7 +422,8 @@ impl Render for ReminderButtonState {
                     .small()
                     .ghost()
                     .compact()
-                    .icon(IconName::AlarmSymbolic);
+                    .icon(IconName::AlarmSymbolic)
+                    .tooltip("提醒");
                 if !reminders.is_empty() {
                     button = button.label(format!("{}", reminders.len()));
                 }

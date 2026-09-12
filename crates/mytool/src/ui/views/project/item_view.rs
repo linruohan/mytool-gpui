@@ -686,7 +686,6 @@ impl Render for ProjectItemsPanel {
                         })
                         .when(!self.pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
-                            let view_clone_for_dropdown = view_clone.clone();
                             let pinned_items = &self.pinned_items;
                             let item_rows = &self.item_rows;
                             let active_index = self.active_index;
@@ -720,30 +719,7 @@ impl Render for ProjectItemsPanel {
                                 }));
 
                             this.child(
-                                board_section("置顶")
-                                    .sub_title(
-                                        h_flex().gap(VisualHierarchy::spacing(1.0)).child(
-                                            Button::new("more-pinned")
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::EllipsisVertical)
-                                                .dropdown_menu({
-                                                    let view = view_clone_for_dropdown.clone();
-                                                    move |this, window, _cx| {
-                                                        this.item(
-                                                            PopupMenuItem::new("显示已完成任务")
-                                                                .on_click(
-                                                                    window.listener_for(&view, |_this, _, _window, cx| {
-                                                                        cx.notify();
-                                                                    }),
-                                                                ),
-                                                        )
-                                                    }
-                                                }),
-                                        ),
-                                    )
-                                    .child(pinned_items_view),
+                                board_section("置顶").child(pinned_items_view),
                             )
                         })
                         // 2. No Section 分组

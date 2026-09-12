@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, ClickEvent, Context, ElementId, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Render, Styled, Window, px,
+    ParentElement, Render, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, Sizable, StyledExt, WindowExt,
@@ -422,7 +422,7 @@ pub fn render_board_header(
     icon: impl IntoElement,
     title: impl IntoElement,
     description: impl IntoElement,
-    _count: usize,
+    count: usize,
     actions: impl IntoElement,
 ) -> impl IntoElement {
     h_flex()
@@ -438,6 +438,14 @@ pub fn render_board_header(
                 .items_baseline()
                 .child(icon)
                 .child(gpui::div().text_xl().font_semibold().child(title))
+                .when(count > 0, |this| {
+                    this.child(
+                        gpui::div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(count.to_string()),
+                    )
+                })
                 .child(
                     gpui::div()
                         .text_sm()

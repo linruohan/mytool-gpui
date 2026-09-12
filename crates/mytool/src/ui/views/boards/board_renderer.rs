@@ -250,7 +250,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
     active_index: Option<usize>,
     active_border: Hsla,
     view: Entity<V>,
-    compact_toolbar: bool,
+    _compact_toolbar: bool,
 ) -> impl IntoElement {
     let view_clone = view.clone();
 
@@ -270,41 +270,9 @@ pub fn render_no_section_block<V: BoardSectionActions>(
             }
         });
 
-    let more_button = Button::new("more-no-section")
-        .small()
-        .ghost()
-        .compact()
-        .icon(IconName::EllipsisVertical)
-        .dropdown_menu({
-            let view = view_clone.clone();
-            move |this, window, _cx| {
-                this.item(PopupMenuItem::new("添加任务").on_click(window.listener_for(
-                    &view,
-                    |this, _, window, cx| {
-                        this.show_item_dialog(window, cx, false, None);
-                        cx.notify();
-                    },
-                )))
-                .separator()
-                .item(PopupMenuItem::new("显示已完成任务").on_click(
-                    window.listener_for(&view, |_this, _, _window, cx| {
-                        cx.notify();
-                    }),
-                ))
-            }
-        });
-
-    let mut block = board_section("未分组");
-
-    if compact_toolbar {
-        block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
-    } else {
-        block = block
-            .sub_title(h_flex().gap_1().child(add_button))
-            .sub_title(h_flex().gap_1().child(more_button));
-    }
-
-    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
+    board_section("未分组")
+        .sub_title(h_flex().gap_1().child(add_button))
+        .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }
 
 /// 渲染简单分组（标题 + 可选更多菜单 + 任务列表），用于 Pinned / Today 等虚拟分组
@@ -315,34 +283,9 @@ pub fn render_simple_group_block<V: BoardView + Render>(
     active_index: Option<usize>,
     active_border: Hsla,
     view: Entity<V>,
-    show_more_menu: bool,
+    _show_more_menu: bool,
 ) -> impl IntoElement {
-    let view_clone = view.clone();
-    let mut block = board_section(title);
-
-    if show_more_menu {
-        block = block.sub_title(
-            h_flex().gap_1().child(
-                Button::new(format!("more-{}", title.to_lowercase().replace(' ', "-")))
-                    .small()
-                    .ghost()
-                    .compact()
-                    .icon(IconName::EllipsisVertical)
-                    .dropdown_menu({
-                        let view = view_clone.clone();
-                        move |this, window, _cx| {
-                            this.item(PopupMenuItem::new("显示已完成任务").on_click(
-                                window.listener_for(&view, |_this, _, _window, cx| {
-                                    cx.notify();
-                                }),
-                            ))
-                        }
-                    }),
-            ),
-        );
-    }
-
-    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
+    board_section(title).child(render_item_list(items, item_rows, active_index, active_border, view))
 }
 
 /// 渲染带 Schedule 按钮的简单分组，用于 Past Due 等
@@ -358,28 +301,7 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
     let view_clone = view.clone();
 
     board_section(title)
-        .sub_title(
-            h_flex()
-                .gap_1()
-                .child(crate::ui::components::ScheduleButton::new(schedule_button))
-                .child(
-                    Button::new(format!("more-{}", title.to_lowercase().replace(' ', "-")))
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::EllipsisVertical)
-                        .dropdown_menu({
-                            let view = view_clone.clone();
-                            move |this, window, _cx| {
-                                this.item(PopupMenuItem::new("显示已完成任务").on_click(
-                                    window.listener_for(&view, |_this, _, _window, cx| {
-                                        cx.notify();
-                                    }),
-                                ))
-                            }
-                        }),
-                ),
-        )
+        .sub_title(crate::ui::components::ScheduleButton::new(schedule_button))
         .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }
 
