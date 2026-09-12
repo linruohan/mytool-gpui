@@ -1,19 +1,18 @@
 use chrono::Local;
 use gpui::{
-    Action, App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
+    App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Window,
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    Sizable,
+    IndexPath, Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     form::{field, v_form},
     group_box::{GroupBox, GroupBoxVariants},
-    input::InputState,
-    menu::DropdownMenu,
     popover::Popover,
     radio::{Radio, RadioGroup},
+    select::{Select, SelectState},
     separator::Separator,
     v_flex,
 };
@@ -28,31 +27,6 @@ pub enum ScheduleButtonEvent {
     DateSelected(String),
     TimeSelected(String),
     Cleared,
-}
-
-#[derive(Clone)]
-struct TimeSelected(String);
-
-impl Action for TimeSelected {
-    fn boxed_clone(&self) -> Box<dyn Action> {
-        Box::new(self.clone())
-    }
-
-    fn partial_eq(&self, _other: &dyn Action) -> bool {
-        false
-    }
-
-    fn name(&self) -> &'static str {
-        "TimeSelected"
-    }
-
-    fn name_for_type() -> &'static str {
-        "TimeSelected"
-    }
-
-    fn build(_: serde_json::Value) -> Result<Box<dyn Action>, anyhow::Error> {
-        Err(anyhow::anyhow!("Cannot build TimeSelected from JSON"))
-    }
 }
 
 #[derive(Clone, PartialEq, Debug, Copy)]
@@ -83,12 +57,22 @@ pub struct ScheduleForm {
     selected_preset_index: usize,
     date_picker_state: Entity<DatePickerState>,
     custom_date: Option<chrono::NaiveDate>,
-    time_input: Entity<InputState>,
-    selected_time: String,
+    time_select: Entity<SelectState<Vec<SharedString>>>,
     _subscriptions: Vec<gpui::Subscription>,
 }
 
 const TIME_OPTIONS: [&str; 5] = ["9:00", "12:00", "14:00", "17:00", "20:00"];
+
+fn time_items(extra: Option<&str>) -> Vec<SharedString> {
+    let mut items: Vec<SharedString> =
+        TIME_OPTIONS.iter().map(|t| SharedString::from(*t)).collect();
+    if let Some(time) = extra
+        && !items.iter().any(|item| item.as_ref() == time)
+    {
+        items.push(SharedString::from(time.to_string()));
+    }
+    items
+}
 
 impl ScheduleForm {
     pub fn new(
@@ -97,9 +81,14 @@ impl ScheduleForm {
         cx: &mut Context<Self>,
     ) -> Self {
         let date_picker_state = cx.new(|cx| DatePickerState::new(window, cx));
-        let time_input = cx.new(|cx| InputState::new(window, cx).placeholder("17:00"));
-        time_input.update(cx, |input, cx| {
-            input.set_value("17:00", window, cx);
+        let time_index = TIME_OPTIONS.iter().position(|t| *t == "17:00").unwrap_or(3);
+        let time_select = cx.new(|cx| {
+            SelectState::new(
+                time_items(None),
+                Some(IndexPath::default().row(time_index)),
+                window,
+                cx,
+            )
         });
         let _subscriptions = vec![cx.subscribe_in(&date_picker_state, window, Self::on_date_event)];
 
@@ -108,8 +97,7 @@ impl ScheduleForm {
             selected_preset_index: 0,
             date_picker_state,
             custom_date: None,
-            time_input,
-            selected_time: "17:00".to_string(),
+            time_select,
             _subscriptions,
         }
     }
@@ -138,14 +126,11 @@ impl ScheduleForm {
                 self.date_picker_state.update(cx, |picker, cx| picker.set_date(date, window, cx));
             }
 
-            self.selected_time = time_str.clone();
-            self.time_input.update(cx, |input, cx| {
-                input.set_value(&time_str, window, cx);
-            });
+            self.set_time(&time_str, window, cx);
         } else {
             self.selected_preset_index = 0;
             self.custom_date = None;
-            self.selected_time = "17:00".to_string();
+            self.set_time("17:00", window, cx);
         }
 
         cx.notify();
@@ -194,8 +179,21 @@ impl ScheduleForm {
         }
     }
 
-    fn resolve_time_str(&mut self, cx: &mut Context<Self>) -> String {
-        self.time_input.update(cx, |input, _| input.value().clone()).to_string()
+    fn set_time(&mut self, time: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let value = SharedString::from(time.to_string());
+        self.time_select.update(cx, |select, cx| {
+            select.set_items(time_items(Some(time)), window, cx);
+            select.set_selected_value(&value, window, cx);
+        });
+    }
+
+    fn resolve_time_str(&self, cx: &App) -> String {
+        self.time_select
+            .read(cx)
+            .selected_value()
+            .cloned()
+            .unwrap_or_else(|| SharedString::from("17:00"))
+            .to_string()
     }
 
     fn get_selected_preset(&self) -> SchedulePreset {
@@ -218,7 +216,7 @@ impl Render for ScheduleForm {
         let selected_index = self.selected_preset_index;
         let presets = SchedulePreset::all_presets();
         let date_picker = self.date_picker_state.clone();
-        let selected_time = self.selected_time.clone();
+        let time_select = self.time_select.clone();
 
         let radio_group =
             RadioGroup::vertical("schedule-preset-group")
@@ -231,36 +229,18 @@ impl Render for ScheduleForm {
                     Radio::new(format!("preset-{:?}", preset)).label(preset.to_label())
                 }));
 
-        let time_dropdown = Button::new("time-dropdown")
-            .small()
-            .outline()
-            .label(selected_time)
-            .tooltip("Select time")
-            .dropdown_menu_with_anchor(
-                gpui::Anchor::TopLeft,
-                move |menu: gpui_component::menu::PopupMenu, _, _| {
-                    let mut menu = menu.scrollable(true).max_h(px(200.)).min_w(px(100.));
-                    for time in TIME_OPTIONS {
-                        menu = menu.menu(
-                            SharedString::from(time),
-                            Box::new(TimeSelected(time.to_string())),
-                        );
-                    }
-                    menu
-                },
-            );
-
         v_flex()
             .gap_3()
             .p_3()
             .w(px(280.))
-            .on_action(cx.listener(Self::on_time_selected))
             .child(GroupBox::new().outline().child(radio_group))
             .when(is_custom, move |this| {
                 this.child(DatePicker::new(&date_picker).cleanable(true).w(px(240.)))
             })
             .child(Separator::horizontal())
-            .child(v_form().child(field().label("Time").child(time_dropdown)))
+            .child(v_form().child(
+                field().label("Time").child(Select::new(&time_select).small().placeholder("17:00")),
+            ))
             .child(Separator::horizontal())
             .child(Button::new("apply-btn").w_full().primary().label("Apply").on_click(
                 cx.listener(move |this, _, _window, cx| {
@@ -273,21 +253,6 @@ impl Render for ScheduleForm {
                     cx.emit(DismissEvent);
                 }),
             ))
-    }
-}
-
-impl ScheduleForm {
-    fn on_time_selected(
-        &mut self,
-        action: &TimeSelected,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.selected_time = action.0.clone();
-        self.time_input.update(cx, |input, cx| {
-            input.set_value(&action.0, window, cx);
-        });
-        cx.notify();
     }
 }
 

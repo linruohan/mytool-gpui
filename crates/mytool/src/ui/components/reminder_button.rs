@@ -2,15 +2,15 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, SharedString, Styled, Window, prelude::FluentBuilder, px,
+    IntoElement, ParentElement, Render, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    Sizable,
+    IndexPath, Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     form::{field, h_form},
     group_box::{GroupBox, GroupBoxVariants},
-    menu::{DropdownMenu, PopupMenuItem},
+    select::{Select, SelectEvent, SelectState},
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -59,6 +59,8 @@ pub struct ReminderForm {
     focus_handle: FocusHandle,
     /// 日期选择器
     date_picker: Entity<DatePickerState>,
+    /// 时间选择
+    time_select: Entity<SelectState<Vec<&'static str>>>,
     /// 当前选中的日期字符串
     current_date: String,
     /// 当前选中的时间
@@ -75,19 +77,29 @@ impl ReminderForm {
         cx: &mut Context<Self>,
     ) -> Self {
         let date_picker = cx.new(|cx| DatePickerState::new(window, cx));
+        let current_time = "09:00";
+        let time_index = Self::time_options().iter().position(|t| *t == current_time).unwrap_or(0);
+        let time_select = cx.new(|cx| {
+            SelectState::new(
+                Self::time_options(),
+                Some(IndexPath::default().row(time_index)),
+                window,
+                cx,
+            )
+        });
 
-        // 设置默认时间为 09:00
-        let current_time = "09:00".to_string();
-
-        let _subscriptions =
-            vec![cx.subscribe_in(&date_picker, window, Self::on_date_picker_event)];
+        let _subscriptions = vec![
+            cx.subscribe_in(&date_picker, window, Self::on_date_picker_event),
+            cx.subscribe_in(&time_select, window, Self::on_time_select_event),
+        ];
 
         Self {
             parent,
             focus_handle: cx.focus_handle(),
             date_picker,
+            time_select,
             current_date: String::new(),
-            current_time,
+            current_time: current_time.to_string(),
             _subscriptions,
         }
     }
@@ -101,6 +113,14 @@ impl ReminderForm {
     ) {
         self.current_date = parent.current_date.clone();
         self.current_time = parent.current_time.clone();
+        if !self.current_time.is_empty() {
+            let time = self.current_time.as_str();
+            if let Some(option) = Self::time_options().into_iter().find(|t| *t == time) {
+                self.time_select.update(cx, |select, cx| {
+                    select.set_selected_value(&option, window, cx);
+                });
+            }
+        }
 
         // 如果有日期，同步到日期选择器
         if !self.current_date.is_empty()
@@ -133,19 +153,27 @@ impl ReminderForm {
         });
     }
 
-    /// 选择时间
-    fn select_time(&mut self, time: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.current_time = time.to_string();
-        // 选择时间后，延迟设置焦点到表单，防止 popover 关闭
-        let focus_handle = self.focus_handle.clone();
-        window.defer(cx, move |window, cx| {
-            focus_handle.focus(window, cx);
-        });
-        cx.notify();
+    fn on_time_select_event(
+        &mut self,
+        _state: &Entity<SelectState<Vec<&'static str>>>,
+        event: &SelectEvent<Vec<&'static str>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let SelectEvent::Confirm(Some(time)) = event {
+            self.current_time = time.to_string();
+            self.parent.update(cx, |parent, _| {
+                parent.current_time = time.to_string();
+            });
+            let focus_handle = self.focus_handle.clone();
+            window.defer(cx, move |window, cx| {
+                focus_handle.focus(window, cx);
+            });
+            cx.notify();
+        }
     }
 
-    /// 获取时间选项列表
-    fn get_time_options() -> Vec<&'static str> {
+    fn time_options() -> Vec<&'static str> {
         vec!["09:00", "12:00", "17:30", "20:00"]
     }
 
@@ -225,7 +253,7 @@ impl EventEmitter<ReminderButtonEvent> for ReminderForm {}
 impl Render for ReminderForm {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let date_picker = self.date_picker.clone();
-        let current_time = self.current_time.clone();
+        let time_select = self.time_select.clone();
 
         GroupBox::new().outline().child(
             h_form()
@@ -236,35 +264,9 @@ impl Render for ReminderForm {
                         .child(DatePicker::new(&date_picker).cleanable(true).w(px(140.))),
                 )
                 .child(
-                    field().label("Time").child(
-                        Button::new("time-dropdown")
-                            .small()
-                            .outline()
-                            .label(&current_time)
-                            .dropdown_menu({
-                                let view = cx.entity();
-                                move |this, window, _cx| {
-                                    let view_for_fold = view.clone();
-                                    Self::get_time_options().into_iter().fold(
-                                        this,
-                                        move |this, time| {
-                                            let time = time.to_string();
-                                            this.item(
-                                                PopupMenuItem::new(SharedString::from(
-                                                    time.clone(),
-                                                ))
-                                                .on_click(window.listener_for(
-                                                    &view_for_fold,
-                                                    move |this, _event, window, cx| {
-                                                        this.select_time(&time, window, cx);
-                                                    },
-                                                )),
-                                            )
-                                        },
-                                    )
-                                }
-                            }),
-                    ),
+                    field()
+                        .label("Time")
+                        .child(Select::new(&time_select).small().placeholder("09:00").w(px(100.))),
                 )
                 .child(field().child(
                     Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
