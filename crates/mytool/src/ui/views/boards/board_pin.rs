@@ -138,10 +138,7 @@ impl Render for PinBoard {
 
         let view = cx.entity().clone();
         let board_count = PinBoard::count(cx);
-        let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = &self.base.pinned_items;
-        let no_section_items = &self.base.no_section_items;
-        let section_items_map = &self.base.section_items_map;
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
@@ -204,33 +201,7 @@ impl Render for PinBoard {
                                 active_border,
                                 view.clone(),
                             ))
-                        })
-                        .when(!no_section_items.is_empty(), |this| {
-                            this.child(board_renderer::render_no_section_block(
-                                &no_section_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                                true,
-                            ))
-                        })
-                        .children(sections.iter().filter_map(|sec| {
-                            let items = section_items_map.get(&sec.id)?;
-                            if items.is_empty() {
-                                return None;
-                            }
-
-                            Some(board_renderer::render_section_block(
-                                sec.name.clone(),
-                                sec.id.clone(),
-                                items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                            ))
-                        })),
+                        }),
                 ),
             )
             .child(crate::ui::views::boards::board_common::render_add_task_fab(

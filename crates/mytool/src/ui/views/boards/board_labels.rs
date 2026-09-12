@@ -6,7 +6,9 @@ use gpui_component::{
     Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
-    h_flex, v_flex,
+    h_flex,
+    menu::{DropdownMenu, PopupMenuItem},
+    v_flex,
 };
 use gpui_kit::assets::IconName;
 
@@ -121,35 +123,33 @@ impl Render for LabelsBoard {
                     )
                     .when(has_selected_label, |this| {
                         this.child(
-                            Button::new("edit-label")
+                            Button::new("label-more")
                                 .small()
                                 .ghost()
                                 .compact()
-                                .icon(IconName::EditSymbolic)
-                                .tooltip("编辑标签")
-                                .on_click({
+                                .icon(IconName::EllipsisVertical)
+                                .tooltip("更多")
+                                .dropdown_menu({
                                     let labels_panel = labels_panel.clone();
-                                    move |_event, window, cx| {
-                                        labels_panel.update(cx, |labels_panel, cx| {
-                                            labels_panel.show_label_dialog(window, cx, true);
-                                            cx.notify();
-                                        })
-                                    }
-                                }),
-                        )
-                        .child(
-                            Button::new("delete-label")
-                                .small()
-                                .ghost()
-                                .icon(IconName::UserTrashSymbolic)
-                                .tooltip("删除标签")
-                                .on_click({
-                                    let labels_panel = labels_panel.clone();
-                                    move |_event, window, cx| {
-                                        labels_panel.update(cx, |labels_panel, cx| {
-                                            labels_panel.show_label_delete_dialog(window, cx);
-                                            cx.notify();
-                                        })
+                                    move |this, window, _cx| {
+                                        let labels_panel = labels_panel.clone();
+                                        this.item(
+                                            PopupMenuItem::new("编辑标签").on_click(
+                                                window.listener_for(&labels_panel, |this, _, window, cx| {
+                                                    this.show_label_dialog(window, cx, true);
+                                                    cx.notify();
+                                                }),
+                                            ),
+                                        )
+                                        .separator()
+                                        .item(
+                                            PopupMenuItem::new("删除标签").on_click(
+                                                window.listener_for(&labels_panel, |this, _, window, cx| {
+                                                    this.show_label_delete_dialog(window, cx);
+                                                    cx.notify();
+                                                }),
+                                            ),
+                                        )
                                     }
                                 }),
                         )

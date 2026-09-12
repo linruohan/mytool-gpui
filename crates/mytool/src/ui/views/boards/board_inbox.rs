@@ -138,7 +138,19 @@ impl Render for InboxBoard {
 
         let view = cx.entity().clone();
         let board_count = InboxBoard::count(cx);
-        let sections = &cx.global::<TodoStore>().sections;
+        let inbox_sections: Vec<_> = cx
+            .global::<TodoStore>()
+            .sections
+            .iter()
+            .filter(|s| {
+                !s.is_archived
+                    && !s.is_deleted
+                    && !s.hidded
+                    && s.project_id.as_deref().unwrap_or("").is_empty()
+            })
+            .cloned()
+            .collect();
+        let has_inbox_sections = !inbox_sections.is_empty();
         let pinned_items = &self.base.pinned_items;
         let no_section_items = &self.base.no_section_items;
         let section_items_map = &self.base.section_items_map;
@@ -247,22 +259,31 @@ impl Render for InboxBoard {
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
-                            this.child(board_renderer::render_no_section_block(
-                                &no_section_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                                false,
-                            ))
-                        })
-                        .children(sections.iter().filter_map(|sec| {
-                            let items = section_items_map.get(&sec.id)?;
-                            if items.is_empty() {
-                                return None;
+                            if has_inbox_sections {
+                                this.child(board_renderer::render_no_section_block(
+                                    &no_section_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                    false,
+                                ))
+                            } else {
+                                this.child(board_renderer::render_item_list(
+                                    &no_section_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                ))
                             }
-
-                            Some(board_renderer::render_section_block(
+                        })
+                        .children(inbox_sections.iter().map(|sec| {
+                            let items = section_items_map
+                                .get(&sec.id)
+                                .map(|v| v.as_slice())
+                                .unwrap_or(&[]);
+                            board_renderer::render_section_block(
                                 sec.name.clone(),
                                 sec.id.clone(),
                                 items,
@@ -270,7 +291,7 @@ impl Render for InboxBoard {
                                 active_index,
                                 active_border,
                                 view.clone(),
-                            ))
+                            )
                         })),
                 ),
             )

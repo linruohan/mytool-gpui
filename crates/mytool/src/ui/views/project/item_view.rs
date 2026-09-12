@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, MouseButton, ParentElement, Render, StatefulInteractiveElement as _,
+    InteractiveElement as _, MouseButton, ParentElement, Render,
     Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
@@ -23,7 +23,7 @@ use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, VisualHierarchy, board_section,
+    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRowState, VisualHierarchy, board_section,
     todo_actions::{
         add_section, delete_project, delete_project_item, delete_section, load_project_items,
         update_project, update_project_item, update_section,
@@ -31,8 +31,8 @@ use crate::{
     todo_color_picker,
     todo_state::TodoStore,
     ui::views::boards::{
-        PinnedLayout, board_common, board_renderer, clamp_active_index, diff_update_item_rows,
-        group_items,
+        BoardView, PinnedLayout, board_common, board_renderer, clamp_active_index,
+        diff_update_item_rows, group_items,
     },
 };
 
@@ -504,14 +504,29 @@ impl Focusable for ProjectItemsPanel {
     }
 }
 
+impl BoardView for ProjectItemsPanel {
+    fn set_active_index(&mut self, index: Option<usize>) {
+        self.active_index = index;
+    }
+}
+
+crate::impl_board_section_actions!(ProjectItemsPanel);
+
 impl Render for ProjectItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let sections = &cx.global::<TodoStore>().sections;
-        let has_project_sections =
-            sections.iter().any(|s| s.project_id.as_deref() == Some(&self.project.id));
+        let project_sections: Vec<_> = cx
+            .global::<TodoStore>()
+            .sections_for_project(&self.project.id)
+            .into_iter()
+            .filter(|s| !s.is_archived && !s.is_deleted && !s.hidded)
+            .collect();
+        let has_project_sections = !project_sections.is_empty();
         let no_section_items = &self.no_section_items;
         let section_items_map = &self.section_items_map;
+        let item_rows = &self.item_rows;
+        let active_index = self.active_index;
+        let active_border = cx.theme().list_active_border;
 
         v_flex()
             .id("project-items")
@@ -606,36 +621,33 @@ impl Render for ProjectItemsPanel {
                                     }),
                             )
                             .child(
-                                Button::new("edit-project")
+                                Button::new("project-more")
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .tooltip("编辑项目")
-                                    .on_click({
+                                    .icon(IconName::EllipsisVertical)
+                                    .tooltip("更多")
+                                    .dropdown_menu({
                                         let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_project_edit_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete-project")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .tooltip("删除项目")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_project_delete_dialog(window, cx);
-                                                cx.notify();
-                                            })
+                                        move |this, window, _cx| {
+                                            let view = view.clone();
+                                            this.item(
+                                                PopupMenuItem::new("编辑项目").on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_project_edit_dialog(window, cx);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
+                                            .separator()
+                                            .item(
+                                                PopupMenuItem::new("删除项目").on_click(
+                                                    window.listener_for(&view, |this, _, window, cx| {
+                                                        this.show_project_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                            )
                                         }
                                     }),
                             ),
@@ -645,9 +657,10 @@ impl Render for ProjectItemsPanel {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(2.0))
+                        .px_4()
+                        .pt_1()
                         .pb(board_common::FAB_BOTTOM_PAD)
-                        // 1. Pinned 分组
-                        .when(self.item_rows.is_empty(), |this| {
+                        .when(item_rows.is_empty() && !has_project_sections, |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
                                 IconName::FolderOpen,
@@ -656,220 +669,49 @@ impl Render for ProjectItemsPanel {
                             ))
                         })
                         .when(!self.pinned_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            let pinned_items = &self.pinned_items;
-                            let item_rows = &self.item_rows;
-                            let active_index = self.active_index;
-                            let active_border = cx.theme().list_active_border;
-
-                            // 渲染 pinned items 列表
-                            let pinned_items_view = v_flex()
-                                .gap(VisualHierarchy::spacing(2.0))
-                                .w_full()
-                                .children(pinned_items.iter().map(|(i, _item)| {
-                                    let i = *i;
-                                    let view = view_clone.clone();
-                                    let is_active = active_index == Some(i);
-                                    let item_row = item_rows.get(i).cloned();
-                                    div()
-                                        .id(("pinned-item", i))
-                                        .on_click(move |_, _, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.active_index = if this.active_index == Some(i) {
-                                                    None
-                                                } else {
-                                                    Some(i)
-                                                };
-                                                cx.notify();
-                                            });
-                                        })
-                                        .when(is_active, |this| {
-                                            this.border_color(active_border)
-                                        })
-                                        .children(item_row.map(|row| ItemRow::new(&row)))
-                                }));
-
                             this.child(
-                                board_section("置顶").child(pinned_items_view),
+                                board_section("置顶").child(board_renderer::render_item_list(
+                                    &self.pinned_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                )),
                             )
                         })
-                        // 2. No Section 分组
                         .when(!no_section_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(
-                                board_section("未分组")
-                                    .sub_title(
-                                        h_flex().gap(VisualHierarchy::spacing(1.0)).child(
-                                            Button::new("add-item-to-no-section")
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::PlusLargeSymbolic)
-                                                .tooltip("添加任务")
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    move |_, window, cx| {
-                                                        view.update(cx, |this, cx| {
-                                                            this.show_item_dialog(
-                                                                window, cx, false, None,
-                                                            );
-                                                            cx.notify();
-                                                        })
-                                                    }
-                                                }),
-                                        ),
-                                    )
-                                    .child(v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(
-                                        no_section_items.iter().map(|(i, _item)| {
-                                            let i = *i;
-                                            let view = view_clone.clone();
-                                            let is_active = self.active_index == Some(i);
-                                            let item_row = self.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.active_index =
-                                                            if this.active_index == Some(i) {
-                                                                None
-                                                            } else {
-                                                                Some(i)
-                                                            };
-                                                        cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        }),
-                                    )),
-                            )
-                        })
-                        .children(sections.iter().filter_map(|sec| {
-                            let items = section_items_map.get(&sec.id)?;
-                            if items.is_empty() {
-                                return None;
+                            if has_project_sections {
+                                this.child(board_renderer::render_no_section_block(
+                                    no_section_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                    true,
+                                ))
+                            } else {
+                                this.child(board_renderer::render_item_list(
+                                    no_section_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                ))
                             }
-
-                            let view_clone = view.clone();
-                            let section_id = sec.id.clone();
-
-                            Some(
-                                board_section(sec.name.clone())
-                                    .sub_title(
-                                        h_flex()
-                                            .gap_1()
-                                            .child(
-                                                Button::new(format!(
-                                                    "add-item-to-section-{}",
-                                                    section_id
-                                                ))
-                                                .small()
-                                                .ghost()
-                                                .compact()
-                                                .icon(IconName::PlusLargeSymbolic)
-                                                .tooltip("添加任务")
-                                                .on_click({
-                                                    let view = view_clone.clone();
-                                                    let section_id = section_id.clone();
-                                                    move |_, window, cx| {
-                                                        view.update(cx, |this, cx| {
-                                                            this.show_item_dialog(
-                                                                window,
-                                                                cx,
-                                                                false,
-                                                                Some(section_id.clone()),
-                                                            );
-                                                            cx.notify();
-                                                        })
-                                                    }
-                                                }),
-                                            )
-                                            .child(
-                                                Button::new(format!("more-section-{}", section_id))
-                                                    .small()
-                                                    .ghost()
-                                                    .compact()
-                                                    .icon(IconName::EllipsisVertical)
-                                                    .dropdown_menu({
-                                                        let view = view_clone.clone();
-                                                        let section_id = section_id.clone();
-                                                        move |this, window, _cx| {
-                                                            let view = view.clone();
-                                                            let section_id = section_id.clone();
-                                                            this.item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("编辑分区").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.show_section_dialog(window, cx, Some(section_id.clone()), true);
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("复制分区").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.duplicate_section(window, cx, section_id.clone());
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("归档分区").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.archive_section(window, cx, section_id.clone());
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                                .separator()
-                                                                .item({
-                                                                    let view = view.clone();
-                                                                    let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("删除分区").on_click(
-                                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                                            this.show_section_delete_dialog(window, cx, section_id.clone());
-                                                                            cx.notify();
-                                                                        })
-                                                                    )
-                                                                })
-                                                        }
-                                                    }),
-                                            ),
-                                    )
-                                    .child(v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(items.iter().map(
-                                        |(i, _item)| {
-                                            let view = view_clone.clone();
-                                            let i = *i;
-                                            let is_active = self.active_index == Some(i);
-                                            let item_row = self.item_rows.get(i).cloned();
-                                            div()
-                                                .id(("item", i))
-                                                .on_click(move |_, _, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.active_index =
-                                                            if this.active_index == Some(i) {
-                                                                None
-                                                            } else {
-                                                                Some(i)
-                                                            };
-                                                        cx.notify();
-                                                    });
-                                                })
-                                                .when(is_active, |this| {
-                                                    this.border_color(cx.theme().list_active_border)
-                                                })
-                                                .children(item_row.map(|row| ItemRow::new(&row)))
-                                        },
-                                    ))),
+                        })
+                        .children(project_sections.iter().map(|sec| {
+                            let items = section_items_map
+                                .get(&sec.id)
+                                .map(|v| v.as_slice())
+                                .unwrap_or(&[]);
+                            board_renderer::render_section_block(
+                                sec.name.clone(),
+                                sec.id.clone(),
+                                items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
                             )
                         })),
                 ),

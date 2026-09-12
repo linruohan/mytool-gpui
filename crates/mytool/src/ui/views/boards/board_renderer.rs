@@ -179,6 +179,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::EllipsisVertical)
+        .tooltip("更多")
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
     let mut block = board_section(section_name);
@@ -285,6 +286,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::EllipsisVertical)
+        .tooltip("更多")
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
     board_section(section_name)

@@ -201,6 +201,7 @@ impl Render for TodayBoard {
         let due_today_items = &self.base.due_today_items;
         let no_section_items = &self.base.no_section_items;
         let section_items_map = &self.base.section_items_map;
+        let has_named_sections = section_items_map.values().any(|items| !items.is_empty());
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
@@ -329,14 +330,24 @@ impl Render for TodayBoard {
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
-                            this.child(board_renderer::render_no_section_block(
-                                &no_section_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                                true,
-                            ))
+                            if has_named_sections {
+                                this.child(board_renderer::render_no_section_block(
+                                    &no_section_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                    true,
+                                ))
+                            } else {
+                                this.child(board_renderer::render_item_list(
+                                    &no_section_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                ))
+                            }
                         })
                         .children(sections.iter().filter_map(|sec| {
                             let items = section_items_map.get(&sec.id)?;

@@ -324,6 +324,7 @@ impl Render for TodoStory {
                                             .flex_1()
                                             .min_w_0()
                                             .overflow_x_hidden()
+                                            .whitespace_nowrap()
                                             .child(project.name.clone()),
                                     )
                                     .when(count > 0, |this| {
