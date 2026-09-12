@@ -150,6 +150,7 @@ impl Render for PinBoard {
         v_flex()
             .id("pin-board")
             .track_focus(&self.base.focus_handle)
+            .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
                 this.base.collapse_open_rows(cx);
@@ -166,6 +167,7 @@ impl Render for PinBoard {
                     .ghost()
                     .compact()
                     .icon(IconName::PinSymbolic)
+                    .tooltip("取消置顶")
                     .on_click({
                         let view = view.clone();
                         move |_event, window, cx| {

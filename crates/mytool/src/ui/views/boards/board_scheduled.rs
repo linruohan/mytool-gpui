@@ -196,6 +196,7 @@ impl Render for ScheduledBoard {
         v_flex()
             .id("scheduled-board")
             .track_focus(&self.base.focus_handle)
+            .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
                 this.base.collapse_open_rows(cx);
@@ -212,7 +213,7 @@ impl Render for ScheduledBoard {
                     .ghost()
                     .compact()
                     .icon(IconName::PlusLargeSymbolic)
-                    .label("分区")
+                    .tooltip("新建分区")
                     .on_click({
                         let view = view.clone();
                         move |_event, window, cx| {

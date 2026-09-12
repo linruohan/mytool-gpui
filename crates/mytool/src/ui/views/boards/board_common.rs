@@ -456,16 +456,15 @@ pub fn render_board_header(
         )
 }
 
-/// 右下角新建任务按钮
+/// 右下角新建任务按钮（叠在内容之上，不挤占列表高度）
 pub fn render_add_task_fab(
     id: impl Into<ElementId>,
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
-    h_flex()
-        .w_full()
-        .justify_end()
-        .px_6()
-        .pb_6()
+    gpui::div()
+        .absolute()
+        .bottom(px(24.))
+        .right(px(24.))
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .child(
             Button::new(id)
@@ -473,6 +472,7 @@ pub fn render_add_task_fab(
                 .primary()
                 .large()
                 .rounded(px(28.))
+                .tooltip("新建任务")
                 .on_click(on_click),
         )
 }

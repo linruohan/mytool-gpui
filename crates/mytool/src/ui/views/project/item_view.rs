@@ -513,6 +513,7 @@ impl Render for ProjectItemsPanel {
         v_flex()
             .id("project-items")
             .track_focus(&self.focus_handle)
+            .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
                 for row in this.item_rows.clone() {
@@ -547,6 +548,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::EditSymbolic)
+                                    .tooltip("编辑项目")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -563,6 +565,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::UserTrashSymbolic)
+                                    .tooltip("删除项目")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -582,29 +585,12 @@ impl Render for ProjectItemsPanel {
                             .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
-                                Button::new("add-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .label("添加任务")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, false, None);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
                                 Button::new("add-item-to-section")
                                     .small()
                                     .ghost()
                                     .compact()
                                     .icon(IconName::FolderOpen)
-                                    .label("添加到分区")
+                                    .tooltip("添加到分区")
                                     .dropdown_menu({
                                         let view = view.clone();
                                         let project_id = self.project.id.clone();
@@ -637,6 +623,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::EditSymbolic)
+                                    .tooltip("编辑任务")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -652,6 +639,7 @@ impl Render for ProjectItemsPanel {
                                     .icon(IconName::UserTrashSymbolic)
                                     .small()
                                     .ghost()
+                                    .tooltip("删除任务")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -668,7 +656,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .label("分区")
+                                    .tooltip("新建分区")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -768,7 +756,7 @@ impl Render for ProjectItemsPanel {
                                                 .ghost()
                                                 .compact()
                                                 .icon(IconName::PlusLargeSymbolic)
-                                                .label("添加任务")
+                                                .tooltip("添加任务")
                                                 .on_click({
                                                     let view = view_clone.clone();
                                                     move |_, window, cx| {
@@ -830,7 +818,7 @@ impl Render for ProjectItemsPanel {
                                             .ghost()
                                             .compact()
                                             .icon(IconName::PlusLargeSymbolic)
-                                            .label("添加任务")
+                                            .tooltip("添加任务")
                                             .on_click({
                                                 let view = view_clone.clone();
                                                 let section_id = section_id.clone();

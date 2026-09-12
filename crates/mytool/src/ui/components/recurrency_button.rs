@@ -624,7 +624,7 @@ impl RecurrencyButtonState {
     /// 获取显示文本
     fn get_display_text(&self) -> String {
         if !self.due_date.is_recurring {
-            return "Repeat".to_string();
+            return "重复".to_string();
         }
 
         let preset = RecurrencyPreset::from_recurrency_type(
@@ -655,6 +655,7 @@ impl Render for RecurrencyButtonState {
                         .ghost()
                         .compact()
                         .icon(IconName::RefreshCw)
+                        .tooltip("重复")
                         .label(SharedString::from(display_text)),
                 )
                 .track_focus(&form.focus_handle(cx))

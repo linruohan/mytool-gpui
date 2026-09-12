@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::{Datelike, Local};
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Window,
@@ -319,7 +319,7 @@ impl ScheduleButtonState {
 
     fn get_display_text(&self) -> String {
         if self.due_date.date.is_empty() {
-            "Schedule".to_string()
+            "日期".to_string()
         } else {
             let today = Local::now().naive_local().date();
             if let Some(dt) = self.due_date.datetime() {
@@ -328,14 +328,14 @@ impl ScheduleButtonState {
                 let time_str = time.format("%H:%M").to_string();
 
                 if date == today {
-                    format!("Today at {}", time_str)
+                    format!("今天 {}", time_str)
                 } else if date == today.succ_opt().unwrap_or(today) {
-                    format!("Tomorrow at {}", time_str)
+                    format!("明天 {}", time_str)
                 } else {
-                    format!("{} at {}", date.format("%b %d"), time_str)
+                    format!("{}月{}日 {}", date.month(), date.day(), time_str)
                 }
             } else {
-                "Schedule".to_string()
+                "日期".to_string()
             }
         }
     }

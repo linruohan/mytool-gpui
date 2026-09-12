@@ -177,7 +177,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .label("添加任务")
+        .tooltip("添加任务")
         .on_click({
             let view = view_clone.clone();
             let section_id = section_id.clone();
@@ -267,7 +267,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .label("添加任务")
+        .tooltip("添加任务")
         .on_click({
             let view = view_clone.clone();
             move |_, window, cx| {
@@ -410,7 +410,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .label("添加任务")
+        .tooltip("添加任务")
         .on_click({
             let view = view_clone.clone();
             let section_id = section_id.clone();

@@ -154,28 +154,28 @@ impl Board for TodayBoard {
 fn create_header_button<F>(
     id: String,
     icon: IconName,
-    label: Option<&'static str>,
+    tooltip: &'static str,
     view: Entity<TodayBoard>,
     action: F,
 ) -> impl gpui::IntoElement
 where
     F: Fn(&mut TodayBoard, &mut Window, &mut Context<TodayBoard>) + 'static + Clone,
 {
-    let mut button = Button::new(id).small().ghost().compact().icon(icon);
-
-    if let Some(label_text) = label {
-        button = button.label(label_text);
-    }
-
-    button.on_click({
-        let view = view.clone();
-        move |_event, window, cx| {
-            view.update(cx, |this, cx| {
-                action(this, window, cx);
-                cx.notify();
-            })
-        }
-    })
+    Button::new(id)
+        .small()
+        .ghost()
+        .compact()
+        .icon(icon)
+        .tooltip(tooltip)
+        .on_click({
+            let view = view.clone();
+            move |_event, window, cx| {
+                view.update(cx, |this, cx| {
+                    action(this, window, cx);
+                    cx.notify();
+                })
+            }
+        })
 }
 
 impl Focusable for TodayBoard {
@@ -217,6 +217,7 @@ impl Render for TodayBoard {
         v_flex()
             .id("today-board")
             .track_focus(&self.base.focus_handle)
+            .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
                 this.base.collapse_open_rows(cx);
@@ -242,18 +243,6 @@ impl Render for TodayBoard {
                                 move |this, window, _cx| {
                                     let view = view.clone();
                                     this.item(
-                                        PopupMenuItem::new("添加任务")
-                                            .icon(IconName::PlusLargeSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_dialog(window, cx, false, None);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                    .separator()
-                                    .item(
                                         PopupMenuItem::new("编辑任务")
                                             .icon(IconName::EditSymbolic)
                                             .on_click(window.listener_for(
@@ -282,7 +271,7 @@ impl Render for TodayBoard {
                     .child(create_header_button(
                         "section-actions".to_string(),
                         IconName::PlusLargeSymbolic,
-                        Some("分区"),
+                        "新建分区",
                         view.clone(),
                         |this, window, cx| this.show_section_dialog(window, cx, None, false),
                     )),

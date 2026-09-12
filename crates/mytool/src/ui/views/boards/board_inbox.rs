@@ -149,6 +149,7 @@ impl Render for InboxBoard {
         v_flex()
             .id("inbox-board")
             .track_focus(&self.base.focus_handle)
+            .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
                 this.base.collapse_open_rows(cx);
@@ -174,18 +175,6 @@ impl Render for InboxBoard {
                                 move |this, window, _cx| {
                                     let view = view.clone();
                                     this.item(
-                                        PopupMenuItem::new("添加任务")
-                                            .icon(IconName::PlusLargeSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_dialog(window, cx, false, None);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                    .separator()
-                                    .item(
                                         PopupMenuItem::new("编辑任务")
                                             .icon(IconName::EditSymbolic)
                                             .on_click(window.listener_for(
@@ -217,7 +206,6 @@ impl Render for InboxBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::PlusLargeSymbolic)
-                            .label("分区")
                             .tooltip("新建分区")
                             .on_click({
                                 let view = view.clone();
