@@ -9,7 +9,6 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     form::{field, h_form},
-    group_box::{GroupBox, GroupBoxVariants},
     select::{Select, SelectEvent, SelectState},
     v_flex,
 };
@@ -255,30 +254,28 @@ impl Render for ReminderForm {
         let date_picker = self.date_picker.clone();
         let time_select = self.time_select.clone();
 
-        GroupBox::new().outline().child(
-            h_form()
-                .label_width(px(40.))
-                .child(
-                    field()
-                        .label("Date")
-                        .child(DatePicker::new(&date_picker).cleanable(true).w(px(140.))),
-                )
-                .child(
-                    field()
-                        .label("Time")
-                        .child(Select::new(&time_select).small().placeholder("09:00").w(px(100.))),
-                )
-                .child(field().child(
-                    Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
-                        let view = cx.entity();
-                        move |_event, _window, cx| {
-                            cx.update_entity(&view, |this, cx| {
-                                this.on_add_reminder(cx);
-                            });
-                        }
-                    }),
-                )),
-        )
+        h_form()
+            .label_width(px(40.))
+            .child(
+                field()
+                    .label("Date")
+                    .child(DatePicker::new(&date_picker).cleanable(true).w(px(140.))),
+            )
+            .child(
+                field()
+                    .label("Time")
+                    .child(Select::new(&time_select).small().placeholder("09:00").w(px(100.))),
+            )
+            .child(field().child(
+                Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
+                    let view = cx.entity();
+                    move |_event, _window, cx| {
+                        cx.update_entity(&view, |this, cx| {
+                            this.on_add_reminder(cx);
+                        });
+                    }
+                }),
+            ))
     }
 }
 

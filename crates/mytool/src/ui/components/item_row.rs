@@ -348,8 +348,8 @@ impl Render for ItemRowState {
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
             .rounded(px(6.0))
-            .p(px(6.0))
-            .my(px(2.0))
+            .p(px(3.0))
+            .my(px(1.0))
             .border_l(left_border_width)
             .border_color(priority_color)
             .bg(colors.priority_background_tint(priority, cx.theme().background))
@@ -371,9 +371,7 @@ impl Render for ItemRowState {
                     cx.notify();
                 }),
             )
-            .hover(|style: gpui::StyleRefinement| {
-                style.bg(colors.hover_overlay).shadow_md().cursor_pointer()
-            })
+            .hover(|style: gpui::StyleRefinement| style.cursor_pointer())
             .when_some(status_indicator, |this: gpui::Stateful<gpui::Div>, color| {
                 this.border_t_2().border_color(color)
             })
@@ -390,7 +388,7 @@ impl Render for ItemRowState {
                         h_flex()
                             .items_center()
                             .justify_start()
-                            .gap(px(6.0))
+                            .gap(px(4.0))
                             .text_color(text_color)
                             .child(ItemListItem::new(
                                 format!("{}-{}", item_id, version),
@@ -418,9 +416,9 @@ impl Render for ItemRowState {
                     .when_some(item_info_entity.filter(|_| is_open), |collapsible, item_info| {
                         collapsible.content(
                             v_flex()
-                                .gap(px(6.0))
-                                .p(px(6.0))
-                                .mt(px(6.0))
+                                .gap(px(2.0))
+                                .p(px(2.0))
+                                .mt(px(2.0))
                                 .bg(cx.theme().background.opacity(0.5))
                                 .rounded(px(4.0))
                                 .border_1()

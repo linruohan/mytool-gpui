@@ -7,7 +7,6 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     form::{field, v_form},
-    group_box::{GroupBox, GroupBoxVariants},
     input::{InputEvent, InputState, NumberInput},
     popover::Popover,
     radio::{Radio, RadioGroup},
@@ -478,7 +477,7 @@ impl Render for RecurrencyForm {
             .gap_3()
             .p_3()
             .w(px(280.))
-            .child(GroupBox::new().outline().child(radio_group))
+            .child(radio_group)
             .when(is_custom, |this| this.child(self.render_custom_panel(cx)))
             .child(Separator::horizontal())
             .child(done_button)
@@ -494,55 +493,53 @@ impl RecurrencyForm {
         let unit_index = self.custom_unit.index();
         let end_index = self.end_type.index();
 
-        GroupBox::new().outline().child(
-            v_form()
-                .child(
-                    field().label("Repeat every").child(
-                        NumberInput::new(&interval_input).small().suffix(
-                            RadioGroup::horizontal("recurrency-unit")
-                                .selected_index(Some(unit_index))
-                                .on_click(cx.listener(|this, index, _, cx| {
-                                    if let Some(&unit) = RecurrencyUnit::all().get(*index) {
-                                        this.custom_unit = unit;
-                                        cx.notify();
-                                    }
-                                }))
-                                .children(RecurrencyUnit::all().into_iter().map(|unit| {
-                                    Radio::new(format!("unit-{:?}", unit)).label(unit.to_label())
-                                })),
-                        ),
-                    ),
-                )
-                .child(
-                    field().label("End").child(
-                        RadioGroup::horizontal("recurrency-end")
-                            .selected_index(Some(end_index))
+        v_form()
+            .child(
+                field().label("Repeat every").child(
+                    NumberInput::new(&interval_input).small().suffix(
+                        RadioGroup::horizontal("recurrency-unit")
+                            .selected_index(Some(unit_index))
                             .on_click(cx.listener(|this, index, _, cx| {
-                                if let Some(&option) = RecurrencyEndOption::all().get(*index) {
-                                    this.end_type = option;
+                                if let Some(&unit) = RecurrencyUnit::all().get(*index) {
+                                    this.custom_unit = unit;
                                     cx.notify();
                                 }
                             }))
-                            .children(RecurrencyEndOption::all().into_iter().map(|option| {
-                                Radio::new(format!("end-{:?}", option)).label(option.to_label())
+                            .children(RecurrencyUnit::all().into_iter().map(|unit| {
+                                Radio::new(format!("unit-{:?}", unit)).label(unit.to_label())
                             })),
                     ),
+                ),
+            )
+            .child(
+                field().label("End").child(
+                    RadioGroup::horizontal("recurrency-end")
+                        .selected_index(Some(end_index))
+                        .on_click(cx.listener(|this, index, _, cx| {
+                            if let Some(&option) = RecurrencyEndOption::all().get(*index) {
+                                this.end_type = option;
+                                cx.notify();
+                            }
+                        }))
+                        .children(RecurrencyEndOption::all().into_iter().map(|option| {
+                            Radio::new(format!("end-{:?}", option)).label(option.to_label())
+                        })),
+                ),
+            )
+            .when(end_type == RecurrencyEndOption::OnDate, move |this| {
+                this.child(
+                    field()
+                        .label("On date")
+                        .child(DatePicker::new(&end_date_picker).cleanable(true).w(px(200.))),
                 )
-                .when(end_type == RecurrencyEndOption::OnDate, move |this| {
-                    this.child(
-                        field()
-                            .label("On date")
-                            .child(DatePicker::new(&end_date_picker).cleanable(true).w(px(200.))),
-                    )
-                })
-                .when(end_type == RecurrencyEndOption::After, move |this| {
-                    this.child(
-                        field()
-                            .label("After")
-                            .child(NumberInput::new(&count_input).small().suffix("times")),
-                    )
-                }),
-        )
+            })
+            .when(end_type == RecurrencyEndOption::After, move |this| {
+                this.child(
+                    field()
+                        .label("After")
+                        .child(NumberInput::new(&count_input).small().suffix("times")),
+                )
+            })
     }
 }
 
@@ -654,6 +651,7 @@ impl Render for RecurrencyButtonState {
                 }))
                 .trigger(
                     Button::new(("recurrency-btn", cx.entity_id()))
+                        .small()
                         .outline()
                         .icon(IconName::RefreshCw)
                         .label(SharedString::from(display_text)),

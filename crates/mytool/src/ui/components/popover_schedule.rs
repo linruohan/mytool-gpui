@@ -9,7 +9,6 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     form::{field, v_form},
-    group_box::{GroupBox, GroupBoxVariants},
     popover::Popover,
     radio::{Radio, RadioGroup},
     select::{Select, SelectState},
@@ -233,7 +232,7 @@ impl Render for ScheduleForm {
             .gap_3()
             .p_3()
             .w(px(280.))
-            .child(GroupBox::new().outline().child(radio_group))
+            .child(radio_group)
             .when(is_custom, move |this| {
                 this.child(DatePicker::new(&date_picker).cleanable(true).w(px(240.)))
             })
@@ -358,6 +357,7 @@ impl Render for ScheduleButtonState {
                 }))
                 .trigger(
                     Button::new(("item-schedule", cx.entity_id()))
+                        .small()
                         .outline()
                         .tooltip("set schedule")
                         .icon(IconName::Calendar)

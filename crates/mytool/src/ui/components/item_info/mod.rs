@@ -3,7 +3,7 @@ use std::sync::Arc;
 use gpui::{
     App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _, px,
+    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_component::{
     Sizable,
@@ -84,7 +84,7 @@ impl ItemInfoState {
 
         let desc_input = cx.new(|cx| {
             // 🔧 修复：auto_grow 只在多行 TextareaState 上存在，使用 TextareaState::new()
-            TextareaState::new(window, cx).auto_grow(5, 20).placeholder("Add description...")
+            TextareaState::new(window, cx).auto_grow(2, 12).placeholder("Add description...")
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
@@ -470,10 +470,12 @@ impl Render for ItemInfoState {
             .child(
                 GroupBox::new()
                     .outline()
+                    .gap_1()
+                    .content_style(StyleRefinement::default().p_1().gap_1())
                     .child(
                         h_flex()
                             .gap_1()
-                            .p(px(6.0))
+                            .px_1()
                             .child(
                                 Checkbox::new("item-checked")
                                     .checked(self.state_manager.item.checked)
@@ -517,13 +519,12 @@ impl Render for ItemInfoState {
                     .child(
                         Textarea::new(&self.desc_input)
                             .bordered(false)
-                            .px(px(6.0))
-                            .py(px(4.0))
+                            .px_1()
                             .bg(cx.theme().background.opacity(0.5)),
                     )
                     .when(!selected_labels.is_empty(), |this| {
                         this.child(
-                            h_flex().gap_1().px(px(6.0)).flex_wrap().children(
+                            h_flex().gap_1().px_1().flex_wrap().children(
                                 selected_labels
                                     .iter()
                                     .map(|label| label_chip(label.name.clone(), &label.color)),
@@ -535,7 +536,7 @@ impl Render for ItemInfoState {
                             .items_center()
                             .justify_between()
                             .gap_1()
-                            .p(px(6.0))
+                            .px_1()
                             .bg(cx.theme().background.opacity(0.3))
                             .border_t_1()
                             .border_color(cx.theme().border.opacity(0.5))
@@ -562,9 +563,9 @@ impl Render for ItemInfoState {
                             .child(ReminderButton::new(&self.reminder_state)),
                             ),
                     )
-                    .child(Separator::horizontal().p_1())
+                    .child(Separator::horizontal())
                     .child(
-                        h_flex().items_center().justify_between().gap_1().child(
+                        h_flex().items_center().justify_between().gap_1().px_1().child(
                             h_flex().gap_1().child(
                                 h_flex()
                                     .gap_1()
