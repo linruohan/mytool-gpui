@@ -7,7 +7,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -193,8 +194,12 @@ impl Render for ScheduledBoard {
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
 
         v_flex()
+            .id("scheduled-board")
             .track_focus(&self.base.focus_handle)
             .size_full()
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                this.base.collapse_open_rows(cx);
+            }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,
@@ -226,8 +231,8 @@ impl Render for ScheduledBoard {
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 ScheduledBoard::icon(),
-                                "Nothing scheduled",
-                                "Tasks with due dates will be grouped here.",
+                                "没有计划中的任务",
+                                "设置了日期的任务会按天分组显示。",
                             ))
                         })
                         .children(grouped_by_date.iter().filter_map(|(date, items)| {

@@ -399,6 +399,15 @@ impl BoardBase {
         Self::take_pending_refresh(pending_refresh)
     }
 
+    /// 点击看板空白处时保存并收起所有已展开的任务
+    pub fn collapse_open_rows<V: gpui::Render>(&self, cx: &mut Context<V>) {
+        for row in &self.item_rows {
+            row.update(cx, |row, cx| {
+                row.collapse_if_open(cx);
+            });
+        }
+    }
+
     /// 修正 active_index，避免越界
     pub fn clamp_active_index(&mut self) {
         clamp_active_index(&mut self.active_index, self.item_rows.len());

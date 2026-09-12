@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use gpui::{
-    Entity, Hsla, InteractiveElement, IntoElement, ParentElement, Render,
+    Entity, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
@@ -52,7 +52,9 @@ where
     div()
         .id(("item", i))
         .rounded_md()
+        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_click(move |_, _, cx| {
+            cx.stop_propagation();
             view.update(cx, |this, cx| {
                 this.set_active_index(Some(i));
                 cx.notify();

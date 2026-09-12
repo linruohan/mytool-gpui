@@ -28,7 +28,10 @@ impl ItemInfoState {
                 let text = state.read(cx).value().to_string();
                 self.state_manager.set_content(text);
                 self.state_manager.mark_dirty();
-                cx.notify();
+                if self.state_manager.save_status != super::SaveItemStatus::Idle {
+                    self.state_manager.save_status = super::SaveItemStatus::Idle;
+                    cx.notify();
+                }
             },
             InputEvent::PressEnter { secondary, .. } if !*secondary => {
                 self.sync_inputs(cx);
@@ -53,7 +56,10 @@ impl ItemInfoState {
                 let text = state.read(cx).value().to_string();
                 self.state_manager.set_description(Some(text));
                 self.state_manager.mark_dirty();
-                cx.notify();
+                if self.state_manager.save_status != super::SaveItemStatus::Idle {
+                    self.state_manager.save_status = super::SaveItemStatus::Idle;
+                    cx.notify();
+                }
             },
             InputEvent::PressEnter { secondary, .. } if !*secondary => {
                 // 多行 Textarea 的 Enter 通常是换行，所以这里不再特殊处理

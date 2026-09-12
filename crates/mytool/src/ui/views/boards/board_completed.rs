@@ -5,7 +5,8 @@
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -141,8 +142,12 @@ impl Render for CompletedBoard {
         let active_index = self.base.active_index;
 
         v_flex()
+            .id("completed-board")
             .track_focus(&self.base.focus_handle)
             .size_full()
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                this.base.collapse_open_rows(cx);
+            }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,
@@ -173,8 +178,8 @@ impl Render for CompletedBoard {
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 CompletedBoard::icon(),
-                                "No completed tasks",
-                                "Finished tasks will appear here.",
+                                "没有已完成的任务",
+                                "完成的任务会出现在这里。",
                             ))
                         })
                         .children(item_rows.iter().enumerate().map(move |(i, item_row)| {

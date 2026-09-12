@@ -257,7 +257,8 @@ impl Render for AttachmentButtonState {
             .trigger({
                 let mut button = Button::new("open-attachment-dialog")
                     .small()
-                    .outline()
+                    .ghost()
+                    .compact()
                     .icon(IconName::MailAttachmentSymbolic);
                 if !filtered_attachments.is_empty() {
                     button = button.label(format!("{}", filtered_attachments.len()));

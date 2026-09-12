@@ -421,7 +421,8 @@ impl Render for ReminderButtonState {
             .trigger({
                 let mut button = Button::new("open-reminder-dialog")
                     .small()
-                    .outline()
+                    .ghost()
+                    .compact()
                     .icon(IconName::AlarmSymbolic);
                 if !reminders.is_empty() {
                     button = button.label(format!("{}", reminders.len()));

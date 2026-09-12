@@ -6,8 +6,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, ParentElement,
-    Render, Styled, Subscription, Window, prelude::FluentBuilder,
+    App, AppContext, Context, Entity, EventEmitter, Focusable, InteractiveElement, MouseButton,
+    ParentElement, Render, Styled, Subscription, Window,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable, WindowExt,
@@ -206,8 +207,12 @@ impl Render for TodayBoard {
         let past_due_schedule_button = self.past_due_schedule_button.clone();
 
         v_flex()
+            .id("today-board")
             .track_focus(&self.base.focus_handle)
             .size_full()
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                this.base.collapse_open_rows(cx);
+            }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,
@@ -222,14 +227,14 @@ impl Render for TodayBoard {
                             .small()
                             .ghost()
                             .compact()
-                            .tooltip("Item Operation")
+                            .tooltip("任务操作")
                             .icon(IconName::CheckSquare)
                             .dropdown_menu({
                                 let view = view.clone();
                                 move |this, window, _cx| {
                                     let view = view.clone();
                                     this.item(
-                                        PopupMenuItem::new("Add Item")
+                                        PopupMenuItem::new("添加任务")
                                             .icon(IconName::PlusLargeSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -241,7 +246,7 @@ impl Render for TodayBoard {
                                     )
                                     .separator()
                                     .item(
-                                        PopupMenuItem::new("Edit Item")
+                                        PopupMenuItem::new("编辑任务")
                                             .icon(IconName::EditSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -253,7 +258,7 @@ impl Render for TodayBoard {
                                     )
                                     .separator()
                                     .item(
-                                        PopupMenuItem::new("Delete Item")
+                                        PopupMenuItem::new("删除任务")
                                             .icon(IconName::UserTrashSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -293,8 +298,8 @@ impl Render for TodayBoard {
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 TodayBoard::icon(),
-                                "Nothing due today",
-                                "Tasks due today will show up here.",
+                                "今天没有到期任务",
+                                "今天到期的任务会出现在这里。",
                             ))
                         })
                         .when(!past_due_items.is_empty(), |this| {

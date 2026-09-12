@@ -358,8 +358,9 @@ impl Render for ScheduleButtonState {
                 .trigger(
                     Button::new(("item-schedule", cx.entity_id()))
                         .small()
-                        .outline()
-                        .tooltip("set schedule")
+                        .ghost()
+                        .compact()
+                        .tooltip("设置日期")
                         .icon(IconName::Calendar)
                         .label(SharedString::from(display_text)),
                 )

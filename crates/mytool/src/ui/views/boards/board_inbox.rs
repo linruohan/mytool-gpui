@@ -5,7 +5,8 @@
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -146,8 +147,12 @@ impl Render for InboxBoard {
         let active_index = self.base.active_index;
 
         v_flex()
+            .id("inbox-board")
             .track_focus(&self.base.focus_handle)
             .size_full()
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                this.base.collapse_open_rows(cx);
+            }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,
@@ -162,14 +167,14 @@ impl Render for InboxBoard {
                             .small()
                             .ghost()
                             .compact()
-                            .tooltip("Item Operation")
+                            .tooltip("任务操作")
                             .icon(IconName::CheckSquare)
                             .dropdown_menu({
                                 let view = view.clone();
                                 move |this, window, _cx| {
                                     let view = view.clone();
                                     this.item(
-                                        PopupMenuItem::new("Add Item")
+                                        PopupMenuItem::new("添加任务")
                                             .icon(IconName::PlusLargeSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -181,7 +186,7 @@ impl Render for InboxBoard {
                                     )
                                     .separator()
                                     .item(
-                                        PopupMenuItem::new("Edit Item")
+                                        PopupMenuItem::new("编辑任务")
                                             .icon(IconName::EditSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -193,7 +198,7 @@ impl Render for InboxBoard {
                                     )
                                     .separator()
                                     .item(
-                                        PopupMenuItem::new("Delete Item")
+                                        PopupMenuItem::new("删除任务")
                                             .icon(IconName::UserTrashSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -212,8 +217,8 @@ impl Render for InboxBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::PlusLargeSymbolic)
-                            .label("Section")
-                            .tooltip("Section Operation")
+                            .label("分区")
+                            .tooltip("新建分区")
                             .on_click({
                                 let view = view.clone();
                                 move |_event, window, cx| {
@@ -242,8 +247,8 @@ impl Render for InboxBoard {
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 InboxBoard::icon(),
-                                "Inbox is empty",
-                                "Add a task to get started.",
+                                "收件箱是空的",
+                                "添加一个任务开始吧。",
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {

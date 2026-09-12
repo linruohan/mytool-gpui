@@ -34,8 +34,8 @@ impl Render for ProjectButtonState {
         Select::new(&self.select)
             .small()
             .appearance(true)
-            .placeholder("Inbox")
-            .search_placeholder("Search project")
+            .placeholder("收件箱")
+            .search_placeholder("搜索项目")
             .w(px(150.))
     }
 }
@@ -65,7 +65,7 @@ impl ProjectButtonState {
     }
 
     fn options(cx: &App) -> Vec<NamedOption> {
-        let mut options = vec![NamedOption::new(String::new(), "Inbox")];
+        let mut options = vec![NamedOption::new(String::new(), "收件箱")];
         for project in cx.global::<TodoStore>().projects.iter() {
             options.push(NamedOption::new(project.id.clone(), project.name.clone()));
         }

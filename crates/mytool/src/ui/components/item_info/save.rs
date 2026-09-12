@@ -129,6 +129,7 @@ impl ItemInfoState {
                 info!("Handling Cancelled event for item: {}", self.state_manager.item.id);
                 self.cancel_edit(cx);
             },
+            ItemInfoEvent::Collapse() => {},
             ItemInfoEvent::SaveSucceeded() => {
                 info!(
                     "Handling SaveSucceeded event, marking clean: {}",

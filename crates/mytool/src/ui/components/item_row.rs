@@ -7,7 +7,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, Sizable, Size, StyledExt as _, collapsible::Collapsible, h_flex, v_flex,
+    ActiveTheme, Icon, Sizable, Size, StyledExt as _, collapsible::Collapsible, h_flex,
 };
 use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
@@ -131,6 +131,12 @@ impl ItemRowState {
                     cx.notify();
                     return;
                 },
+                ItemInfoEvent::Collapse() => {
+                    this.flush_and_save(cx);
+                    this.is_open = false;
+                    cx.notify();
+                    return;
+                },
                 ItemInfoEvent::Deleted() => {
                     cx.update_global::<TodoStore, _>(|store, _| {
                         store.remove_item(&this.item.id);
@@ -184,6 +190,16 @@ impl ItemRowState {
             self.item = item_info.read(cx).state_manager.item.clone();
             self.update_version += 1;
         }
+    }
+
+    /// 若已展开则保存并收起（点击空白处时由看板调用）
+    pub fn collapse_if_open(&mut self, cx: &mut Context<Self>) {
+        if !self.is_open {
+            return;
+        }
+        self.flush_and_save(cx);
+        self.is_open = false;
+        cx.notify();
     }
 
     /// 切换展开/收起状态
@@ -317,7 +333,6 @@ impl Render for ItemRowState {
 
         let colors = SemanticColors::from_theme(cx);
         let hover_bg = colors.hover_overlay;
-        let active_bg = colors.active_overlay;
         let priority = item.priority.unwrap_or(4);
         let priority_color = gpui::rgb(ItemPriority::from_i32(priority).get_color());
         let completed_opacity = if item.checked { 0.65 } else { 1.0 };
@@ -327,27 +342,36 @@ impl Render for ItemRowState {
             3 => px(2.0),
             _ => px(1.0),
         };
-        let row_bg = if is_open || is_focused {
-            active_bg
-        } else {
-            colors.priority_background_tint(priority, cx.theme().background)
-        };
-
+        let row_bg = colors.priority_background_tint(priority, cx.theme().background);
         let item_info_entity = self.item_info.clone();
+        let card_bg = cx.theme().background;
+        let card_border = cx.theme().border;
 
         div()
             .id(item_id.clone())
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
-            .rounded(px(6.0))
-            .p(px(4.0))
-            .my(px(2.0))
             .border_l(left_border_width)
             .border_color(priority_color)
-            .bg(row_bg)
-            .opacity(completed_opacity)
-            .when(is_focused, |this| this.shadow_sm())
-            .hover(move |style: StyleRefinement| style.bg(hover_bg).cursor_pointer())
+            .when(is_open, |this| {
+                this.rounded(px(8.0))
+                    .p(px(10.0))
+                    .my(px(6.0))
+                    .bg(card_bg)
+                    .border_1()
+                    .border_color(card_border)
+            })
+            .when(!is_open, |this| {
+                this.rounded(px(6.0))
+                    .p(px(4.0))
+                    .my(px(2.0))
+                    .bg(row_bg)
+                    .opacity(completed_opacity)
+                    .hover(move |style: StyleRefinement| style.bg(hover_bg).cursor_pointer())
+            })
+            .when(is_focused && !is_open, |this| this.shadow_sm())
+            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .on_click(|_, _, cx| cx.stop_propagation())
             .on_key_down(cx.listener(|this, event, window, cx| {
                 if this.handle_key_event(event, window, cx) {
                     cx.stop_propagation();
@@ -357,7 +381,9 @@ impl Render for ItemRowState {
                 Collapsible::new()
                     .gap_1()
                     .open(is_open)
-                    .child(
+                    .child(if is_open {
+                        div().id("item-title-bar").h(px(0.)).into_any_element()
+                    } else {
                         h_flex()
                             .id("item-title-bar")
                             .w_full()
@@ -370,35 +396,20 @@ impl Render for ItemRowState {
                                 this.toggle_expand(window, cx);
                                 this.focus_handle.focus(window, cx);
                             }))
-                            .when(!is_open, |this| {
-                                this.child(ItemListItem::new(
-                                    format!("{}-{}", item_id, version),
-                                    item.clone(),
-                                    is_focused,
-                                ))
-                            })
+                            .child(ItemListItem::new(
+                                format!("{}-{}", item_id, version),
+                                item.clone(),
+                                is_focused,
+                            ))
                             .child(
-                                Icon::new(if is_open {
-                                    IconName::ChevronUp
-                                } else {
-                                    IconName::ChevronDown
-                                })
-                                .small()
-                                .text_color(cx.theme().muted_foreground),
-                            ),
-                    )
+                                Icon::new(IconName::ChevronDown)
+                                    .small()
+                                    .text_color(cx.theme().muted_foreground),
+                            )
+                            .into_any_element()
+                    })
                     .when_some(item_info_entity.filter(|_| is_open), |collapsible, item_info| {
-                        collapsible.content(
-                            v_flex()
-                                .gap(px(2.0))
-                                .p(px(2.0))
-                                .mt(px(2.0))
-                                .bg(cx.theme().background.opacity(0.5))
-                                .rounded(px(4.0))
-                                .border_1()
-                                .border_color(cx.theme().border.opacity(0.5))
-                                .child(ItemInfo::new(&item_info)),
-                        )
+                        collapsible.content(ItemInfo::new(&item_info))
                     }),
             )
     }

@@ -6,6 +6,7 @@ pub enum ItemInfoEvent {
     UnFinished(),    // 状态改为未完成
     Deleted(),       // 删除任务
     Cancelled(),     // 取消编辑（不保存）
+    Collapse(),      // 收起编辑区（保存）
     SaveSucceeded(), // 🚀 7.0: 异步保存成功
     SaveFailed(),    // 🚀 7.0: 异步保存失败
 }

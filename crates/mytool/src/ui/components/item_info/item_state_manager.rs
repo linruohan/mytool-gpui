@@ -124,6 +124,9 @@ impl ItemStateManager {
 
     /// 设置内容
     pub fn set_content(&mut self, content: String) {
+        if self.item.content == content {
+            return;
+        }
         self.update_item(|item| {
             item.content = content;
         });
@@ -131,6 +134,9 @@ impl ItemStateManager {
 
     /// 设置描述
     pub fn set_description(&mut self, description: Option<String>) {
+        if self.item.description == description {
+            return;
+        }
         self.update_item(|item| {
             item.description = description;
         });

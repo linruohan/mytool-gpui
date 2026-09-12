@@ -5,7 +5,8 @@
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -147,8 +148,12 @@ impl Render for PinBoard {
         let active_index = self.base.active_index;
 
         v_flex()
+            .id("pin-board")
             .track_focus(&self.base.focus_handle)
             .size_full()
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                this.base.collapse_open_rows(cx);
+            }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,
@@ -179,8 +184,8 @@ impl Render for PinBoard {
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 PinBoard::icon(),
-                                "No pinned tasks",
-                                "Pin important tasks to keep them here.",
+                                "没有置顶任务",
+                                "把重要任务钉在这里，方便随时看到。",
                             ))
                         })
                         .when(!pinned_items.is_empty(), |this| {

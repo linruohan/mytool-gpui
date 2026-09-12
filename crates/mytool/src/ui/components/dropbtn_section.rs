@@ -38,8 +38,8 @@ impl Render for SectionState {
         Select::new(&self.select)
             .small()
             .appearance(true)
-            .placeholder("No Section")
-            .search_placeholder("Search section")
+            .placeholder("无分区")
+            .search_placeholder("搜索分区")
             .w(px(150.))
     }
 }
@@ -69,7 +69,7 @@ impl SectionState {
     }
 
     fn options(sections: Option<&[Arc<SectionModel>]>, cx: &App) -> Vec<NamedOption> {
-        let mut options = vec![NamedOption::new(String::new(), "No Section")];
+        let mut options = vec![NamedOption::new(String::new(), "无分区")];
         match sections {
             Some(sections) => {
                 for section in sections {

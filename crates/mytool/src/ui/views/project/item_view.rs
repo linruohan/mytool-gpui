@@ -512,8 +512,14 @@ impl Render for ProjectItemsPanel {
         let section_items_map = &self.section_items_map;
 
         v_flex()
+            .id("project-items")
             .track_focus(&self.focus_handle)
             .size_full()
+            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
+                for row in this.item_rows.clone() {
+                    row.update(cx, |row, cx| row.collapse_if_open(cx));
+                }
+            }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(
                 h_flex()

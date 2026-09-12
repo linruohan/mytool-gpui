@@ -652,7 +652,8 @@ impl Render for RecurrencyButtonState {
                 .trigger(
                     Button::new(("recurrency-btn", cx.entity_id()))
                         .small()
-                        .outline()
+                        .ghost()
+                        .compact()
                         .icon(IconName::RefreshCw)
                         .label(SharedString::from(display_text)),
                 )

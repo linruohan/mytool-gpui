@@ -4,19 +4,14 @@ use gpui::{
     App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
     StatefulInteractiveElement, StyleRefinement, Styled, Subscription, Window, div,
-    prelude::FluentBuilder as _,
+    prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
-    Sizable,
-    Size,
-    StyledExt as _,
+    Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
-    group_box::{GroupBox, GroupBoxVariants},
-    h_flex,
-    // 🔧 修复：描述输入框需要 auto_grow，只在多行 TextareaState 上可用
+    h_flex, v_flex,
     input::{Input, InputState, Textarea, TextareaState},
-    separator::Separator,
     spinner::Spinner,
     tag::Tag,
     theme::ActiveTheme,
@@ -82,7 +77,7 @@ impl ItemInfoState {
 
         let desc_input = cx.new(|cx| {
             // 🔧 修复：auto_grow 只在多行 TextareaState 上存在，使用 TextareaState::new()
-            TextareaState::new(window, cx).auto_grow(2, 12).placeholder("Add description...")
+            TextareaState::new(window, cx).auto_grow(1, 8).placeholder("Add description...")
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
@@ -424,126 +419,144 @@ impl Render for ItemInfoState {
         } else {
             cx.theme().muted_foreground
         };
+        let muted = cx.theme().muted_foreground;
 
         div()
             .id("item-info-body")
+            .w_full()
             .on_mouse_down(gpui::MouseButton::Left, |_event, _window, cx| {
                 cx.stop_propagation();
             })
             .on_click(|_, _, cx| cx.stop_propagation())
             .child(
-                GroupBox::new()
-                    .outline()
-                    .gap_1()
-                    .content_style(StyleRefinement::default().p_1().gap_1())
+                v_flex()
+                    .w_full()
+                    .gap_2()
                     .child(
                         h_flex()
-                            .gap_1()
-                            .px_1()
+                            .w_full()
+                            .items_start()
+                            .gap_2()
                             .child(
                                 Checkbox::new("item-checked")
                                     .checked(self.state_manager.item.checked)
                                     .on_click(cx.listener(Self::toggle_finished)),
                             )
-                            .child(Input::new(&self.name_input).focus_bordered(false))
                             .child(
-                                Button::new("item-pin")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PinSymbolic)
-                                    .text_color(pinned_color)
-                                    .tooltip(if self.state_manager.item.pinned {
-                                        "取消置顶"
-                                    } else {
-                                        "置顶任务"
-                                    })
-                                    .on_click({
-                                        let item = self.state_manager.item.clone();
-                                        move |_event, _window, cx| {
-                                            set_item_pinned_optimistic(
-                                                item.clone(),
-                                                !item.pinned,
-                                                cx,
-                                            );
-                                        }
+                                v_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .gap_1()
+                                    .child(
+                                        h_flex()
+                                            .w_full()
+                                            .items_center()
+                                            .gap_1()
+                                            .child(
+                                                Input::new(&self.name_input)
+                                                    .appearance(false)
+                                                    .focus_bordered(false),
+                                            )
+                                            .child(
+                                                Button::new("item-pin")
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::PinSymbolic)
+                                                    .text_color(pinned_color)
+                                                    .tooltip(if self.state_manager.item.pinned {
+                                                        "取消置顶"
+                                                    } else {
+                                                        "置顶任务"
+                                                    })
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        let item =
+                                                            this.state_manager.item.clone();
+                                                        let pinned = item.pinned;
+                                                        set_item_pinned_optimistic(
+                                                            item, !pinned, cx,
+                                                        );
+                                                    })),
+                                            )
+                                            .when(
+                                                self.state_manager.save_status
+                                                    != SaveItemStatus::Idle,
+                                                |this| match self.state_manager.save_status {
+                                                    SaveItemStatus::Saving => this.child(
+                                                        Spinner::new()
+                                                            .small()
+                                                            .color(cx.theme().warning),
+                                                    ),
+                                                    SaveItemStatus::Succeeded => this.child(
+                                                        Tag::success().small().child("已保存"),
+                                                    ),
+                                                    SaveItemStatus::Failed => this.child(
+                                                        Tag::danger().small().child("保存失败"),
+                                                    ),
+                                                    _ => this,
+                                                },
+                                            )
+                                            .child(
+                                                Button::new("collapse-item")
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(IconName::ChevronUp)
+                                                    .tooltip("收起 (Enter)")
+                                                    .on_click(cx.listener(|_, _, _, cx| {
+                                                        cx.emit(ItemInfoEvent::Collapse());
+                                                    })),
+                                            ),
+                                    )
+                                    .child(
+                                        Textarea::new(&self.desc_input)
+                                            .appearance(false)
+                                            .bordered(false)
+                                            .text_sm()
+                                            .text_color(muted),
+                                    )
+                                    .when(!selected_labels.is_empty(), |this| {
+                                        this.child(
+                                            h_flex().gap_1().flex_wrap().children(
+                                                selected_labels.iter().map(|label| {
+                                                    label_chip(label.name.clone(), &label.color)
+                                                }),
+                                            ),
+                                        )
                                     }),
-                            )
-                            .when(self.state_manager.save_status != SaveItemStatus::Idle, |this| {
-                                match self.state_manager.save_status {
-                                    SaveItemStatus::Saving => {
-                                        this.child(Spinner::new().small().color(cx.theme().warning))
-                                    },
-                                    SaveItemStatus::Succeeded => {
-                                        this.child(Tag::success().small().child("Saved"))
-                                    },
-                                    SaveItemStatus::Failed => {
-                                        this.child(Tag::danger().small().child("Failed"))
-                                    },
-                                    _ => this,
-                                }
-                            }),
-                    )
-                    .child(
-                        Textarea::new(&self.desc_input)
-                            .bordered(false)
-                            .px_1()
-                            .bg(cx.theme().background.opacity(0.5)),
-                    )
-                    .when(!selected_labels.is_empty(), |this| {
-                        this.child(
-                            h_flex().gap_1().px_1().flex_wrap().children(
-                                selected_labels
-                                    .iter()
-                                    .map(|label| label_chip(label.name.clone(), &label.color)),
                             ),
-                        )
-                    })
+                    )
                     .child(
                         h_flex()
+                            .w_full()
                             .items_center()
                             .justify_between()
-                            .gap_1()
-                            .px_1()
-                            .bg(cx.theme().background.opacity(0.3))
-                            .border_t_1()
-                            .border_color(cx.theme().border.opacity(0.5))
+                            .gap_2()
+                            .pl(px(28.))
                             .child(
-                                h_flex().gap_1().child(
-                                    h_flex()
-                                        .gap_1()
-                                        .overflow_x_hidden()
-                                        .flex_nowrap()
-                                        .child(ScheduleButton::new(&self.schedule_button_state))
-                                        .child(RecurrencyButton::new(
-                                            &self.recurrency_button_state,
-                                        )),
-                                ),
+                                h_flex()
+                                    .gap_1()
+                                    .child(ScheduleButton::new(&self.schedule_button_state))
+                                    .child(RecurrencyButton::new(&self.recurrency_button_state)),
                             )
                             .child(
                                 h_flex()
-                            .gap_1()
-                            .items_center()
-                            .justify_end()
-                            .child(AttachmentButton::new(&self.attachment_state))
-                            .child(self.label_popover_list.clone()) // tags
-                            .child(PriorityButton::new(&self.priority_state)) // priority
-                            .child(ReminderButton::new(&self.reminder_state)),
+                                    .gap_1()
+                                    .items_center()
+                                    .child(AttachmentButton::new(&self.attachment_state))
+                                    .child(self.label_popover_list.clone())
+                                    .child(PriorityButton::new(&self.priority_state))
+                                    .child(ReminderButton::new(&self.reminder_state)),
                             ),
                     )
-                    .child(Separator::horizontal())
                     .child(
-                        h_flex().items_center().justify_between().gap_1().px_1().child(
-                            h_flex().gap_1().child(
-                                h_flex()
-                                    .gap_1()
-                                    .overflow_x_hidden()
-                                    .flex_nowrap()
-                                    .child(ProjectButton::new(&self.project_state))
-                                    .child(Separator::vertical().h_4())
-                                    .child(SectionButton::new(&self.section_state)),
-                            ),
-                        ),
+                        h_flex()
+                            .w_full()
+                            .items_center()
+                            .gap_2()
+                            .pl(px(28.))
+                            .child(ProjectButton::new(&self.project_state))
+                            .child(SectionButton::new(&self.section_state)),
                     ),
             )
     }
