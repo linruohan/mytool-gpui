@@ -270,6 +270,16 @@ impl Render for TodoStory {
                                             })),
                                     ),
                             )
+                            .when(project_list.is_empty(), |this| {
+                                this.child(
+                                    div()
+                                        .px_2()
+                                        .py_1()
+                                        .text_xs()
+                                        .text_color(cx.theme().muted_foreground)
+                                        .child("还没有项目"),
+                                )
+                            })
                             .children(project_list.iter().enumerate().map(|(ix, project)| {
                                 let count = cx
                                     .global::<TodoStore>()

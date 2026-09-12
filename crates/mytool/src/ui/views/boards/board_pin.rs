@@ -12,13 +12,14 @@ use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
+    h_flex,
     scroll::ScrollableElement,
     v_flex,
 };
 use gpui_kit::assets::IconName;
 
 use crate::{
-    BoardBase, VisualHierarchy, board_section,
+    BoardBase, VisualHierarchy,
     todo_state::TodoStore,
     ui::views::boards::{
         BoardView,
@@ -27,7 +28,7 @@ use crate::{
             show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
             with_selected_item,
         },
-        board_renderer::{self, SectionBlockOptions},
+        board_renderer,
         container_board::Board,
     },
 };
@@ -160,26 +161,30 @@ impl Render for PinBoard {
                 <PinBoard as Board>::title(),
                 <PinBoard as Board>::description(),
                 board_count,
-                Button::new("unpin-item")
-                    .small()
-                    .ghost()
-                    .compact()
-                    .icon(IconName::PinSymbolic)
-                    .tooltip("取消置顶")
-                    .on_click({
-                        let view = view.clone();
-                        move |_event, window, cx| {
-                            view.update(cx, |this, cx| {
-                                this.show_unpin_item_dialog(window, cx);
-                                cx.notify();
-                            })
-                        }
-                    }),
+                h_flex().when(active_index.is_some(), |this| {
+                    this.child(
+                        Button::new("unpin-item")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::PinSymbolic)
+                            .tooltip("取消置顶")
+                            .on_click({
+                                let view = view.clone();
+                                move |_event, window, cx| {
+                                    view.update(cx, |this, cx| {
+                                        this.show_unpin_item_dialog(window, cx);
+                                        cx.notify();
+                                    })
+                                }
+                            }),
+                    )
+                }),
             ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .gap(VisualHierarchy::spacing(4.0))
+                        .gap(VisualHierarchy::spacing(2.0))
                         .px_4()
                         .pt_1()
                         .pb(FAB_BOTTOM_PAD)
@@ -192,16 +197,13 @@ impl Render for PinBoard {
                             ))
                         })
                         .when(!pinned_items.is_empty(), |this| {
-                            let view_clone = view.clone();
-                            this.child(
-                                board_section("置顶").child(board_renderer::render_item_list(
-                                    &pinned_items,
-                                    item_rows,
-                                    active_index,
-                                    active_border,
-                                    view_clone,
-                                )),
-                            )
+                            this.child(board_renderer::render_item_list(
+                                &pinned_items,
+                                item_rows,
+                                active_index,
+                                active_border,
+                                view.clone(),
+                            ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
                             this.child(board_renderer::render_no_section_block(
@@ -227,7 +229,6 @@ impl Render for PinBoard {
                                 active_index,
                                 active_border,
                                 view.clone(),
-                                SectionBlockOptions { show_inline_edit_delete: false },
                             ))
                         })),
                 ),

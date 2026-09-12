@@ -97,13 +97,7 @@ where
     }))
 }
 
-/// Section 区块渲染选项
-pub struct SectionBlockOptions {
-    /// 是否在工具栏显示独立的 Edit / Delete 按钮（Inbox 为 true，Pin 为 false）
-    pub show_inline_edit_delete: bool,
-}
-
-/// 构建 Section 更多操作下拉菜单（Add / Edit / Duplicate / Archive / Delete）
+/// 构建 Section 更多操作下拉菜单（编辑 / 复制 / 归档 / 删除）
 pub fn build_section_more_menu<V: BoardSectionActions>(
     view: Entity<V>,
     section_id: String,
@@ -161,7 +155,6 @@ pub fn render_section_block<V: BoardSectionActions>(
     active_index: Option<usize>,
     active_border: Hsla,
     view: Entity<V>,
-    options: SectionBlockOptions,
 ) -> impl IntoElement {
     let view_clone = view.clone();
     let add_button = Button::new(format!("add-item-to-section-{}", section_id))
@@ -189,56 +182,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
     let mut block = board_section(section_name);
-
-    if options.show_inline_edit_delete {
-        block = block.sub_title(h_flex().gap_1().child(add_button));
-        block = block.sub_title(
-            h_flex()
-                .gap_1()
-                .child(
-                    Button::new(format!("edit-section-{}", section_id))
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::EditSymbolic)
-                        .on_click({
-                            let view = view_clone.clone();
-                            let section_id = section_id.clone();
-                            move |_, window, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.show_section_dialog(
-                                        window,
-                                        cx,
-                                        Some(section_id.clone()),
-                                        true,
-                                    );
-                                    cx.notify();
-                                })
-                            }
-                        }),
-                )
-                .child(
-                    Button::new(format!("delete-section-{}", section_id))
-                        .small()
-                        .ghost()
-                        .compact()
-                        .icon(IconName::UserTrashSymbolic)
-                        .on_click({
-                            let view = view_clone.clone();
-                            let section_id = section_id.clone();
-                            move |_, window, cx| {
-                                view.update(cx, |this, cx| {
-                                    this.show_section_delete_dialog(window, cx, section_id.clone());
-                                    cx.notify();
-                                })
-                            }
-                        }),
-                )
-                .child(more_button),
-        );
-    } else {
-        block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
-    }
+    block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
 
     block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }

@@ -29,7 +29,7 @@ use crate::{
             show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
             with_selected_item,
         },
-        board_renderer::{self, SectionBlockOptions},
+        board_renderer,
         container_board::Board,
     },
 };
@@ -225,7 +225,7 @@ impl Render for InboxBoard {
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .gap(VisualHierarchy::spacing(4.0))
+                        .gap(VisualHierarchy::spacing(2.0))
                         .px_4()
                         .pt_1()
                         .pb(FAB_BOTTOM_PAD)
@@ -270,7 +270,6 @@ impl Render for InboxBoard {
                                 active_index,
                                 active_border,
                                 view.clone(),
-                                SectionBlockOptions { show_inline_edit_delete: true },
                             ))
                         })),
                 ),

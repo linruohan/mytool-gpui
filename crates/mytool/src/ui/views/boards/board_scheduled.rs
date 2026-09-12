@@ -251,7 +251,7 @@ impl Render for ScheduledBoard {
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .gap(VisualHierarchy::spacing(4.0))
+                        .gap(VisualHierarchy::spacing(2.0))
                         .px_4()
                         .pt_1()
                         .pb(FAB_BOTTOM_PAD)

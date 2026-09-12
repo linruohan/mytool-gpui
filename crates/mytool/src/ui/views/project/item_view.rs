@@ -508,6 +508,8 @@ impl Render for ProjectItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
         let sections = &cx.global::<TodoStore>().sections;
+        let has_project_sections =
+            sections.iter().any(|s| s.project_id.as_deref() == Some(&self.project.id));
         let no_section_items = &self.no_section_items;
         let section_items_map = &self.section_items_map;
 
@@ -551,39 +553,41 @@ impl Render for ProjectItemsPanel {
                             .justify_end()
                             .gap(VisualHierarchy::spacing(2.0))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("add-item-to-section")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::FolderOpen)
-                                    .tooltip("添加到分区")
-                                    .dropdown_menu({
-                                        let view = view.clone();
-                                        let project_id = self.project.id.clone();
-                                        move |mut this, window, cx| {
-                                            let project_sections: Vec<(String, String)> = cx
-                                                .global::<TodoStore>()
-                                                .sections
-                                                .iter()
-                                                .filter(|s| s.project_id.as_deref() == Some(&project_id))
-                                                .map(|s| (s.name.clone(), s.id.clone()))
-                                                .collect();
-                                            for (section_name, section_id) in project_sections {
-                                                this = this.item(
-                                                    PopupMenuItem::new(section_name).on_click(
-                                                        window.listener_for(&view, move |this, _, window, cx| {
-                                                            this.show_item_dialog(window, cx, false, Some(section_id.clone()));
-                                                            cx.notify();
-                                                        }),
-                                                    ),
-                                                );
-                                            }
+                            .when(has_project_sections, |this| {
+                                this.child(
+                                    Button::new("add-item-to-section")
+                                        .small()
+                                        .ghost()
+                                        .compact()
+                                        .icon(IconName::FolderOpen)
+                                        .tooltip("添加到分区")
+                                        .dropdown_menu({
+                                            let view = view.clone();
+                                            let project_id = self.project.id.clone();
+                                            move |mut this, window, cx| {
+                                                let project_sections: Vec<(String, String)> = cx
+                                                    .global::<TodoStore>()
+                                                    .sections
+                                                    .iter()
+                                                    .filter(|s| s.project_id.as_deref() == Some(&project_id))
+                                                    .map(|s| (s.name.clone(), s.id.clone()))
+                                                    .collect();
+                                                for (section_name, section_id) in project_sections {
+                                                    this = this.item(
+                                                        PopupMenuItem::new(section_name).on_click(
+                                                            window.listener_for(&view, move |this, _, window, cx| {
+                                                                this.show_item_dialog(window, cx, false, Some(section_id.clone()));
+                                                                cx.notify();
+                                                            }),
+                                                        ),
+                                                    );
+                                                }
 
-                                            this
-                                        }
-                                    }),
-                            )
+                                                this
+                                            }
+                                        }),
+                                )
+                            })
                             .child(
                                 Button::new("section-actions")
                                     .small()
@@ -640,7 +644,7 @@ impl Render for ProjectItemsPanel {
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .gap(VisualHierarchy::spacing(4.0))
+                        .gap(VisualHierarchy::spacing(2.0))
                         .pb(board_common::FAB_BOTTOM_PAD)
                         // 1. Pinned 分组
                         .when(self.item_rows.is_empty(), |this| {
@@ -754,67 +758,33 @@ impl Render for ProjectItemsPanel {
                             Some(
                                 board_section(sec.name.clone())
                                     .sub_title(
-                                        h_flex().gap(VisualHierarchy::spacing(1.0)).child(
-                                            Button::new(format!(
-                                                "add-item-to-section-{}",
-                                                section_id
-                                            ))
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::PlusLargeSymbolic)
-                                            .tooltip("添加任务")
-                                            .on_click({
-                                                let view = view_clone.clone();
-                                                let section_id = section_id.clone();
-                                                move |_, window, cx| {
-                                                    view.update(cx, |this, cx| {
-                                                        this.show_item_dialog(window, cx, false, Some(section_id.clone()));
-                                                        cx.notify();
-                                                    })
-                                                }
-                                            }),
-                                        ),
-                                    )
-                                    .sub_title(
                                         h_flex()
-                                            .gap(VisualHierarchy::spacing(1.0))
-                                            .child(
-                                                Button::new(format!("edit-section-{}", section_id))
-                                                    .small()
-                                                    .ghost()
-                                                    .compact()
-                                                    .icon(IconName::EditSymbolic)
-                                                    .on_click({
-                                                        let view = view_clone.clone();
-                                                        let section_id = section_id.clone();
-                                                        move |_, window, cx| {
-                                                            view.update(cx, |this, cx| {
-                                                                this.show_section_dialog(window, cx, Some(section_id.clone()), true);
-                                                                cx.notify();
-                                                            })
-                                                        }
-                                                    }),
-                                            )
+                                            .gap_1()
                                             .child(
                                                 Button::new(format!(
-                                                    "delete-section-{}",
+                                                    "add-item-to-section-{}",
                                                     section_id
                                                 ))
-                                                    .small()
-                                                    .ghost()
-                                                    .compact()
-                                                    .icon(IconName::UserTrashSymbolic)
-                                                    .on_click({
-                                                        let view = view_clone.clone();
-                                                        let section_id = section_id.clone();
-                                                        move |_, window, cx| {
-                                                            view.update(cx, |this, cx| {
-                                                                this.show_section_delete_dialog(window, cx, section_id.clone());
-                                                                cx.notify();
-                                                            })
-                                                        }
-                                                    }),
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::PlusLargeSymbolic)
+                                                .tooltip("添加任务")
+                                                .on_click({
+                                                    let view = view_clone.clone();
+                                                    let section_id = section_id.clone();
+                                                    move |_, window, cx| {
+                                                        view.update(cx, |this, cx| {
+                                                            this.show_item_dialog(
+                                                                window,
+                                                                cx,
+                                                                false,
+                                                                Some(section_id.clone()),
+                                                            );
+                                                            cx.notify();
+                                                        })
+                                                    }
+                                                }),
                                             )
                                             .child(
                                                 Button::new(format!("more-section-{}", section_id))

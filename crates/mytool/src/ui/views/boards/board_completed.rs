@@ -12,6 +12,7 @@ use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
+    h_flex,
     scroll::ScrollableElement,
     v_flex,
 };
@@ -155,21 +156,25 @@ impl Render for CompletedBoard {
                 <CompletedBoard as Board>::title(),
                 <CompletedBoard as Board>::description(),
                 board_count,
-                Button::new("unfinish-item")
-                    .small()
-                    .ghost()
-                    .compact()
-                    .icon(IconName::Undo)
-                    .tooltip("恢复为未完成")
-                    .on_click({
-                        let view = view.clone();
-                        move |_event, window, cx| {
-                            view.update(cx, |this, cx| {
-                                this.show_item_unfinish_dialog(window, cx);
-                                cx.notify();
-                            })
-                        }
-                    }),
+                h_flex().when(active_index.is_some(), |this| {
+                    this.child(
+                        Button::new("unfinish-item")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::Undo)
+                            .tooltip("恢复为未完成")
+                            .on_click({
+                                let view = view.clone();
+                                move |_event, window, cx| {
+                                    view.update(cx, |this, cx| {
+                                        this.show_item_unfinish_dialog(window, cx);
+                                        cx.notify();
+                                    })
+                                }
+                            }),
+                    )
+                }),
             ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
