@@ -1,5 +1,5 @@
 use gpui::Context;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 use super::{ItemInfoEvent, ItemInfoState, SaveItemStatus};
 use crate::{
@@ -22,62 +22,46 @@ impl ItemInfoState {
         changed
     }
 
-    /// 保存所有修改到数据库
-    pub fn save_all_changes(&mut self, cx: &mut Context<Self>) {
-        // 🚨 添加明显的日志标记，方便调试
-        tracing::debug!("save_all_changes START - item_id: {}", self.state_manager.item.id);
-        info!("🔔🔔🔔 save_all_changes START - item_id: {}", self.state_manager.item.id);
+    /// 已有任务：先挡住 TodoStore 回写，再走统一乐观更新。
+    pub(super) fn persist_existing_item(&mut self, cx: &mut Context<Self>) {
+        if self.state_manager.is_new_item() {
+            return;
+        }
+        self.state_manager.skip_next_update = true;
+        crate::todo_actions::update_item_optimistic(self.state_manager.item.clone(), cx);
+        self.state_manager.save_status = SaveItemStatus::Saving;
+    }
 
-        // 同步输入框内容
+    /// 保存所有修改：新建走 add_item_optimistic，已有任务走 update_item_optimistic。
+    pub fn save_all_changes(&mut self, cx: &mut Context<Self>) {
+        tracing::debug!("save_all_changes START - item_id: {}", self.state_manager.item.id);
+
         let has_input_changes = self.sync_inputs(cx);
 
-        // 先克隆需要的数据，避免借用冲突
         let current_item = self.state_manager.item.clone();
         let item_id = current_item.id.clone();
         let item_labels_str = current_item.labels.clone().unwrap_or_default();
 
-        // 获取当前选中的标签
         let selected_label_ids: Vec<String> =
             self.selected_labels(cx).iter().map(|l| l.id.clone()).collect();
         let new_labels_str = selected_label_ids.join(";");
-
         let labels_changed = item_labels_str != new_labels_str;
-
-        // 🚀 关键修复：检查是否有未保存的修改（使用 dirty 标志）
         let has_unsaved_changes = self.state_manager.is_dirty();
 
-        // 🚀 关键修复：根据任务是否有 ID 来决定是添加还是更新
-        info!(
-            "save_all_changes called for item: {}, has_input_changes: {}, has_unsaved_changes: \
-             {}, content: '{}', labels_changed: {}",
-            item_id, has_input_changes, has_unsaved_changes, current_item.content, labels_changed
-        );
-
-        // 如果没有修改，直接跳过保存（但新任务除外）
-        // 🔧 修复：新任务（item_id 为空）即使没有检测到修改也应该保存
         if !has_input_changes && !labels_changed && !has_unsaved_changes && !item_id.is_empty() {
-            info!(
-                "save_all_changes: No changes detected for item {}, skipping database update",
-                item_id
-            );
+            tracing::debug!("save_all_changes: no changes for item {}, skip", item_id);
             return;
         }
 
-        // 根据 item.id 是否为空 / 是否仍是临时 ID 来决定添加还是更新
+        if labels_changed {
+            self.state_manager.update_item(|item| {
+                item.labels = Some(new_labels_str.clone());
+            });
+        }
+
         if item_id.is_empty() {
-            if labels_changed {
-                self.state_manager.update_item(|item| {
-                    item.labels = Some(new_labels_str.clone());
-                });
-            }
-            // 新建任务：使用 add_item_optimistic
-            // 🚀 关键修复：设置跳过下一次更新标志，避免 TodoStore 更新触发的观察者回调导致死锁
             self.state_manager.skip_next_update = true;
             let current_item = self.state_manager.item.clone();
-            info!(
-                "Triggering add_item_optimistic for new item with content: '{}'",
-                current_item.content
-            );
             let new_id = add_item_optimistic(current_item, cx);
 
             if new_id.is_empty() {
@@ -88,175 +72,34 @@ impl ItemInfoState {
                 return;
             }
 
-            info!("Updating original item ID to persisted ID: {}", new_id);
             self.state_manager.update_item(|item| {
                 item.id = new_id;
             });
-
-            info!("save_all_changes: marking clean for new item without event");
             self.state_manager.update_original();
             self.state_manager.save_status = SaveItemStatus::Saving;
-        } else {
-            // 仍持有 temp_ ID 时（旧会话或尚未同步），先解析成真实主键再更新
-            let item_id = if item_id.starts_with("temp_") {
-                let resolved = cx
-                    .global::<TodoStore>()
-                    .get_real_id(&item_id)
-                    .cloned()
-                    .unwrap_or_else(|| item_id.clone());
-                if resolved != item_id {
-                    info!("save_all_changes: resolving temp ID {} -> {}", item_id, resolved);
-                    let resolved_clone = resolved.clone();
-                    self.state_manager.update_item(|item| {
-                        item.id = resolved_clone;
-                    });
-                }
-                resolved
-            } else {
-                item_id
-            };
-
-            // 🚀 关键修复：统一保存所有修改，包括标签
-            info!(
-                "save_all_changes: item={}, labels_changed={}, old_labels='{}', new_labels='{}'",
-                item_id, labels_changed, item_labels_str, new_labels_str
-            );
-
-            // 如果标签发生变化，使用异步保存标签（不阻塞UI）
-            if labels_changed {
-                info!("save_all_changes: saving labels for item {}", item_id);
-                let label_ids_to_save = selected_label_ids.clone();
-                let item_id_for_labels = item_id.clone();
-
-                // 🚀 关键优化：先更新本地状态（乐观更新），UI立即响应
-                self.state_manager.update_item(|item| {
-                    item.labels = Some(new_labels_str.clone());
-                });
-
-                // 获取db_state用于异步任务
-                let db_state = cx.global::<crate::todo_state::DBState>().clone();
-
-                // ✅ 修复：使用 cx.spawn 异步保存标签，不阻塞UI线程
-                cx.spawn(async move |_this, cx| {
-                    let item_id_for_log = item_id_for_labels.clone(); // 用于日志
-                    tracing::debug!("Executing async label save for item: {}", item_id_for_labels);
-                    match crate::core::tokio_runtime::spawn_db_operation(async move {
-                        // 🚀 7.0修复：等待 Store 就绪，而非静默跳过
-                        db_state
-                            .wait_for_store_ready(Some(std::time::Duration::from_secs(5)))
-                            .await?;
-                        let store = db_state.get_store_async().await;
-                        store.set_item_labels(&item_id_for_labels, &label_ids_to_save).await
-                    })
-                    .await
-                    {
-                        Ok(result) => match result {
-                            Ok(_) => {
-                                info!(
-                                    "save_all_changes: labels saved successfully for item {}",
-                                    item_id_for_log
-                                );
-                            },
-                            Err(e) => {
-                                error!(
-                                    "save_all_changes: failed to save labels for item {}: {:?}",
-                                    item_id_for_log, e
-                                );
-                                cx.update_global::<crate::core::state::ErrorNotifier, _>(
-                                    |notifier, _| {
-                                        notifier.set_error(format!(
-                                            "标签保存失败：{}，请检查网络连接后重试",
-                                            e
-                                        ));
-                                    },
-                                );
-                            },
-                        },
-                        Err(e) => {
-                            error!("save_all_changes: label save task panicked: {:?}", e);
-                        },
-                    }
-                })
-                .detach();
-
-                tracing::debug!("Label save dispatched asynchronously for item: {}", item_id);
-            }
-
-            tracing::debug!("Preparing async item save for item: {}", item_id);
-            let db_state = cx.global::<crate::todo_state::DBState>().clone();
-            let item_for_save = self.state_manager.item.clone();
-            let item_id_for_save = item_id.clone();
-
-            // ✅ 修复：使用 cx.spawn 异步保存item内容，不阻塞UI线程
-            cx.spawn(async move |_this, cx| {
-                let item_id_for_log = item_id_for_save.clone(); // 用于日志和事件
-                let item_for_update = item_for_save.clone(); // 用于更新TodoStore
-                tracing::debug!("Executing async database save for item: {}", item_id_for_save);
-                let save_result = crate::core::tokio_runtime::spawn_db_operation(async move {
-                    // 🚀 7.0修复：等待 Store 就绪，而非静默跳过
-                    db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
-                    let store = db_state.get_store_async().await;
-
-                    // 🚀 7.0新增：使用重试机制，自动处理临时性错误
-                    crate::core::utils::retry::retry_async_todo(
-                        move |_attempt| {
-                            let store = store.clone();
-                            let item = item_for_save.clone();
-                            async move { store.update_item(item.as_ref().clone(), "").await }
-                        },
-                        crate::core::utils::retry::RetryConfig::for_db_operation(),
-                    )
-                    .await
-                })
-                .await;
-
-                match save_result {
-                    Ok(result) => match result {
-                        Ok(_updated_item) => {
-                            tracing::info!("Item saved successfully: {}", item_id_for_log);
-                            // 仅在成功时更新 TodoStore 和发布事件
-                            cx.update_global::<TodoStore, _>(|store, _| {
-                                store.update_item(item_for_update.clone());
-                            });
-                            // 🚀 7.0修复：记录保存成功结果，让主线程后续处理
-                            cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
-                                results.mark_succeeded(item_id_for_log.clone());
-                            });
-                        },
-                        Err(e) => {
-                            tracing::error!("Failed to save item {}: {:?}", item_id_for_log, e);
-                            // 🚀 7.0修复：失败时通知用户并记录失败结果
-                            cx.update_global::<crate::core::state::ErrorNotifier, _>(
-                                |notifier, _| {
-                                    notifier
-                                        .set_error(format!("任务保存失败：{}，请检查后重试", e));
-                                },
-                            );
-                            // 🚀 7.0修复：记录保存失败结果
-                            cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
-                                results.mark_failed(item_id_for_log.clone());
-                            });
-                        },
-                    },
-                    Err(e) => {
-                        tracing::error!("Item save task panicked: {:?}", e);
-                    },
-                }
-            })
-            .detach();
-
-            tracing::debug!("Async database save dispatched for item: {}", item_id);
-
-            // UI立即响应：发布事件（但不立即 mark_clean）
-            self.state_manager.save_status = SaveItemStatus::Saving;
-            cx.emit(ItemInfoEvent::Updated());
-            // 🚀 7.0修复：不再立即 mark_clean()
-            // 改为等待异步任务完成后，通过 SaveResults 机制处理
-            info!(
-                "save_all_changes: async save dispatched for item {}, waiting for result",
-                item_id
-            );
+            return;
         }
+
+        if item_id.starts_with("temp_") {
+            let resolved = cx
+                .global::<TodoStore>()
+                .get_real_id(&item_id)
+                .cloned()
+                .unwrap_or_else(|| item_id.clone());
+            if resolved != item_id {
+                tracing::debug!("save_all_changes: resolving temp ID {} -> {}", item_id, resolved);
+                self.state_manager.update_item(|item| {
+                    item.id = resolved;
+                });
+            }
+        }
+
+        if labels_changed {
+            self.persist_item_labels(&new_labels_str, cx);
+        }
+
+        self.persist_existing_item(cx);
+        cx.emit(ItemInfoEvent::Updated());
     }
 
     pub fn handle_item_info_event(&mut self, event: &ItemInfoEvent, cx: &mut Context<Self>) {
@@ -269,10 +112,10 @@ impl ItemInfoState {
                 self.state_manager.update_original();
             },
             ItemInfoEvent::Updated() => {
-                info!("Handling Updated event for item: {}", self.state_manager.item.id);
-                self.state_manager.skip_next_update = false;
-                // 正在异步保存时不要 mark_clean，否则列表刷新会当成无改动并覆盖编辑器
+                tracing::debug!("Handling Updated event for item: {}", self.state_manager.item.id);
+                // 正在写入 TodoStore 时保持 skip，避免观察者立刻用库里的旧快照盖掉编辑器
                 if self.state_manager.save_status != SaveItemStatus::Saving {
+                    self.state_manager.skip_next_update = false;
                     self.state_manager.update_original();
                 }
             },
@@ -286,7 +129,6 @@ impl ItemInfoState {
                 info!("Handling Cancelled event for item: {}", self.state_manager.item.id);
                 self.cancel_edit(cx);
             },
-            // 🚀 7.0修复：异步保存成功后才标记为已保存
             ItemInfoEvent::SaveSucceeded() => {
                 info!(
                     "Handling SaveSucceeded event, marking clean: {}",
@@ -295,7 +137,6 @@ impl ItemInfoState {
                 self.state_manager.mark_clean();
                 self.state_manager.update_original();
             },
-            // 🚀 7.0修复：异步保存失败时恢复脏标记，允许重新保存
             ItemInfoEvent::SaveFailed() => {
                 warn!("Handling SaveFailed event, keeping dirty: {}", self.state_manager.item.id);
                 self.state_manager.mark_dirty();
@@ -308,10 +149,8 @@ impl ItemInfoState {
     pub fn cancel_edit(&mut self, cx: &mut Context<Self>) {
         let was_new = self.state_manager.is_new_item();
 
-        // 恢复到原始数据
         self.state_manager.revert_to_original();
 
-        // 如果是新建任务，通知父组件删除这个临时项
         if was_new {
             cx.emit(ItemInfoEvent::Deleted());
         }

@@ -128,7 +128,7 @@ impl ItemInfoState {
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
                 if this.state_manager.skip_next_update {
-                    info!("ItemInfoState: skipping content update due to skip_next_update flag");
+                    tracing::debug!("ItemInfoState: skip TodoStore overwrite while saving");
                     this.state_manager.skip_next_update = false;
                     // 仍要处理 temp_ → 真实 ID，否则后续保存会按临时 ID UPDATE 失败
                     if this.apply_persisted_id_mapping(cx) {
@@ -441,12 +441,14 @@ impl Render for ItemInfoState {
 
             if let Some(save_success) = save_result {
                 if save_success {
-                    info!("render: received save success for {}, marking clean", item_id);
+                    tracing::debug!("render: save succeeded for {}", item_id);
+                    self.state_manager.skip_next_update = false;
                     self.state_manager.mark_clean();
                     self.state_manager.update_original();
                     self.state_manager.save_status = SaveItemStatus::Succeeded;
                 } else {
-                    warn!("render: received save failure for {}, keeping dirty", item_id);
+                    warn!("render: save failed for {}, keeping dirty", item_id);
+                    self.state_manager.skip_next_update = false;
                     self.state_manager.mark_dirty();
                     self.state_manager.save_status = SaveItemStatus::Failed;
                 }

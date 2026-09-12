@@ -93,7 +93,7 @@ impl ItemInfoState {
         cx.notify();
     }
 
-    fn persist_item_labels(&self, selected_label_ids: &str, cx: &mut Context<Self>) {
+    pub(super) fn persist_item_labels(&self, selected_label_ids: &str, cx: &mut Context<Self>) {
         let item_id = self.state_manager.item.id.clone();
         if item_id.is_empty() || item_id.starts_with("temp_") {
             return;

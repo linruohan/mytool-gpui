@@ -1,6 +1,5 @@
 use gpui::{Context, Entity, Window};
 use gpui_component::input::{InputEvent, InputState, TextareaState};
-use tracing::info;
 
 use super::{
     super::{
@@ -10,12 +9,9 @@ use super::{
     },
     ItemInfoEvent, ItemInfoState,
 };
-use crate::{
-    core::{
-        notification::{NotificationExt as _, NotificationSystem},
-        state::TodoStore,
-    },
-    todo_actions::update_item_optimistic,
+use crate::core::{
+    notification::{NotificationExt as _, NotificationSystem},
+    state::TodoStore,
 };
 
 impl ItemInfoState {
@@ -86,18 +82,8 @@ impl ItemInfoState {
     ) {
         match event {
             PriorityEvent::Selected(priority) => {
-                let new_priority = priority.clone() as i32;
-                info!("Priority changed to: {}", new_priority);
-
-                self.set_priority(new_priority);
-
-                // 如果是新建任务，只更新 state_manager，不保存到数据库
-                if self.state_manager.is_new_item() {
-                    info!("New item, skipping update_item_optimistic");
-                } else {
-                    // 🚀 立即进行乐观更新（更新 UI 和数据库）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
+                self.set_priority(priority.clone() as i32);
+                self.persist_existing_item(cx);
             },
         }
         cx.emit(ItemInfoEvent::Updated());
@@ -146,13 +132,7 @@ impl ItemInfoState {
                         section_state.set_section(None, window, cx);
                     });
 
-                    // 如果是新建任务，只更新 state_manager，不保存到数据库
-                    if !self.state_manager.is_new_item() {
-                        // 🚀 使用乐观更新（立即更新 UI）
-                        update_item_optimistic(self.state_manager.item.clone(), cx);
-                        // 设置标志以避免在 handle_item_info_event 中重复更新
-                        self.state_manager.skip_next_update = true;
-                    }
+                    self.persist_existing_item(cx);
                 }
             },
         }
@@ -177,14 +157,7 @@ impl ItemInfoState {
                 if current_item.section_id != new_section_id {
                     self.state_manager.set_section_id(new_section_id);
 
-                    // 如果是新建任务，只更新 state_manager，不保存到数据库
-                    if !self.state_manager.is_new_item() {
-                        // 🚀 使用乐观更新（立即更新 UI）
-                        update_item_optimistic(self.state_manager.item.clone(), cx);
-                        // 设置标志以避免在 handle_item_info_event 中重复更新
-                        self.state_manager.skip_next_update = true;
-                    }
-                    // 立即通知UI更新
+                    self.persist_existing_item(cx);
                     cx.notify();
                 }
                 cx.emit(ItemInfoEvent::Updated());
@@ -204,26 +177,15 @@ impl ItemInfoState {
             ScheduleButtonEvent::DateSelected(_) | ScheduleButtonEvent::TimeSelected(_) => {
                 let schedule_state = _state.read(cx);
                 self.state_manager.set_due_date(Some(schedule_state.due_date.clone()));
-
-                if !self.state_manager.is_new_item() {
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
+                self.persist_existing_item(cx);
                 cx.emit(ItemInfoEvent::Updated());
             },
             ScheduleButtonEvent::Cleared => {
-                // 使用 state_manager 清除 due date
                 self.state_manager.set_due_date(None);
-                // 同步更新 schedule button 状态
                 self.schedule_button_state.update(cx, |state, cx| {
                     state.set_due_date(todos::DueDate::default(), window, cx);
                 });
-
-                // 如果是新建任务，只更新 state_manager，不保存到数据库
-                if !self.state_manager.is_new_item() {
-                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
-                // 只发射事件通知父组件
+                self.persist_existing_item(cx);
                 cx.emit(ItemInfoEvent::Updated());
             },
         }
@@ -241,19 +203,11 @@ impl ItemInfoState {
     ) {
         match event {
             RecurrencyButtonEvent::RecurrencyChanged(due_date) => {
-                // 使用 state_manager 更新 due date
                 self.state_manager.set_due_date(Some(due_date.clone()));
-
-                // 如果是新建任务，只更新 state_manager，不保存到数据库
-                if !self.state_manager.is_new_item() {
-                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
-                // 只发射事件通知父组件
+                self.persist_existing_item(cx);
                 cx.emit(ItemInfoEvent::Updated());
             },
             RecurrencyButtonEvent::Cleared => {
-                // 清除重复设置，但保留原有的 due_date
                 let current_due_date = self.state_manager.item.due_date();
                 if let Some(mut due_date) = current_due_date {
                     due_date.recurrency_type = todos::enums::RecurrencyType::NONE;
@@ -265,13 +219,7 @@ impl ItemInfoState {
                     due_date.recurrency_weeks = "".to_string();
                     self.state_manager.set_due_date(Some(due_date));
                 }
-
-                // 如果是新建任务，只更新 state_manager，不保存到数据库
-                if !self.state_manager.is_new_item() {
-                    // 🚀 使用乐观更新（立即更新 UI 和数据库）
-                    update_item_optimistic(self.state_manager.item.clone(), cx);
-                }
-                // 只发射事件通知父组件
+                self.persist_existing_item(cx);
                 cx.emit(ItemInfoEvent::Updated());
             },
         }

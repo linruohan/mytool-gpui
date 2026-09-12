@@ -195,11 +195,14 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     item_id
 }
 
-/// 乐观更新任务
+/// 乐观更新任务：先写 TodoStore，再在 DB runtime 中落盘。
 pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     if let Err(e) = validation::validate_task_content(&item.content) {
         let context = ErrorHandler::handle_with_location(e, "update_item_optimistic");
         error!("{}", context.format_user_message());
+        cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+            notifier.set_error(context.format_user_message());
+        });
         return;
     }
 
@@ -207,33 +210,37 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         store.update_item(item.clone());
     });
 
-    // 为了避免在 Store 未初始化时 panic，异步等待 Store 准备后再执行数据库更新。
     let item_id = item.id.clone();
     let item_for_db = item.clone();
     let db_state = cx.global::<DBState>().clone();
 
     cx.spawn(async move |cx| {
-        // 等待 Store 初始化，最长 10 秒
-        if let Err(e) =
-            db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await
-        {
-            error!("❌ 等待 Store 就绪超时: {}", e);
-            cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                notifier.set_error("更新任务失败：Store 未就绪，请稍后重试。".to_string());
-            });
-            return;
-        }
-        let store = db_state.get_store_async().await;
-        let result = store.update_item(item_for_db.as_ref().clone(), "").await;
-        match result {
-            Ok(updated_item) => {
+        let save_result = spawn_db_operation(async move {
+            db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await?;
+            let store = db_state.get_store_async().await;
+            retry::retry_async_todo(
+                |_attempt| {
+                    let store = store.clone();
+                    let item = item_for_db.clone();
+                    async move { store.update_item(item.as_ref().clone(), "").await }
+                },
+                RetryConfig::for_db_operation(),
+            )
+            .await
+        })
+        .await;
+
+        match save_result {
+            Ok(Ok(updated_item)) => {
                 info!(
-                    "Successfully saved item update: {} with priority: {:?}, content: '{}', \
-                     due={:?}",
-                    item_id, updated_item.priority, updated_item.content, updated_item.due
+                    "Successfully saved item update: {} with priority: {:?}, content: '{}'",
+                    item_id, updated_item.priority, updated_item.content
                 );
+                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                    results.mark_succeeded(item_id);
+                });
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "update_item_optimistic",
@@ -245,6 +252,15 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                         "更新任务失败：{}。您的更改已保存到本地，稍后会自动重试。",
                         context.format_user_message()
                     ));
+                });
+                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                    results.mark_failed(item_id);
+                });
+            },
+            Err(join_err) => {
+                error!("Item update task panicked: {:?}", join_err);
+                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
+                    results.mark_failed(item_id);
                 });
             },
         }
