@@ -1,22 +1,16 @@
 use gpui::App;
 use todos::entity::AttachmentModel;
 
-use crate::core::state::DBState;
+use crate::todo_state::DBState;
 
 pub fn add_attachment(attachment: AttachmentModel, cx: &mut App) {
-    cx.spawn(async move |cx| {
-        let db_state = cx.update_global::<DBState, _>(|db_state, _| db_state.clone());
-        let store = db_state.get_store_async().await;
-        let _ = store.insert_attachment(attachment).await;
-    })
-    .detach();
+    let db_state = cx.global::<DBState>().clone();
+    let _ = db_state
+        .spawn_store_op(move |store| async move { store.insert_attachment(attachment).await });
 }
 
 pub fn delete_attachment(attachment_id: String, cx: &mut App) {
-    cx.spawn(async move |cx| {
-        let db_state = cx.update_global::<DBState, _>(|db_state, _| db_state.clone());
-        let store = db_state.get_store_async().await;
-        let _ = store.delete_attachment(&attachment_id).await;
-    })
-    .detach();
+    let db_state = cx.global::<DBState>().clone();
+    let _ = db_state
+        .spawn_store_op(move |store| async move { store.delete_attachment(&attachment_id).await });
 }

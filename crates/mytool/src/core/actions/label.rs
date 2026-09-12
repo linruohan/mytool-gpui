@@ -2,97 +2,122 @@ use std::sync::Arc;
 
 use gpui::App;
 use todos::entity::LabelModel;
-use tracing::{error, info};
+use tracing::{debug, error};
 
-use crate::core::{
-    error_handler::{AppError, ErrorHandler, validation},
-    state::{TodoStore, get_store},
+use crate::{
+    core::{
+        error_handler::{AppError, ErrorHandler, validation},
+        state::TodoStore,
+    },
+    todo_state::DBState,
 };
 
-// 添加 label
 pub fn add_label(label: Arc<LabelModel>, cx: &mut App) {
-    // 验证输入
     if let Err(e) = validation::validate_label_name(&label.name) {
         let context = ErrorHandler::handle_with_location(e, "add_label");
         error!("{}", context.format_user_message());
         return;
     }
 
-    let store = get_store(cx);
+    let db_state = cx.global::<DBState>().clone();
+    let label_id = label.id.clone();
     cx.spawn(async move |cx| {
-        match store.insert_label(label.as_ref().clone()).await {
-            Ok(new_label) => {
-                info!("Successfully added label: {}", new_label.id);
-                // 增量更新 TodoStore
+        match db_state
+            .spawn_store_op(
+                move |store| async move { store.insert_label(label.as_ref().clone()).await },
+            )
+            .await
+        {
+            Ok(Ok(new_label)) => {
+                debug!("Successfully added label: {}", new_label.id);
                 let arc_label = Arc::new(new_label);
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
                     todo_store.add_label(arc_label);
                 });
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "add_label",
-                    &label.id,
+                    &label_id,
                 );
                 error!("{}", context.format_user_message());
+            },
+            Err(join_err) => {
+                error!("add_label task panicked: {:?}", join_err);
             },
         }
     })
     .detach();
 }
 
-// 修改 label
 pub fn update_label(label: Arc<LabelModel>, cx: &mut App) {
-    // 验证输入
     if let Err(e) = validation::validate_label_name(&label.name) {
         let context = ErrorHandler::handle_with_location(e, "update_label");
         error!("{}", context.format_user_message());
         return;
     }
 
-    let store = get_store(cx);
+    let db_state = cx.global::<DBState>().clone();
+    let label_id = label.id.clone();
     cx.spawn(async move |cx| {
-        match store.update_label(label.as_ref().clone()).await {
-            Ok(new_label) => {
-                info!("Successfully updated label: {} (name: {})", new_label.id, new_label.name);
-                // 增量更新 TodoStore
+        match db_state
+            .spawn_store_op(
+                move |store| async move { store.update_label(label.as_ref().clone()).await },
+            )
+            .await
+        {
+            Ok(Ok(new_label)) => {
+                debug!("Successfully updated label: {} (name: {})", new_label.id, new_label.name);
                 let arc_label = Arc::new(new_label);
                 cx.update_global::<TodoStore, _>(|todo_store, _cx| {
                     todo_store.update_label(arc_label.clone());
                 });
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "update_label",
-                    &label.id,
+                    &label_id,
                 );
                 error!("{}", context.format_user_message());
+            },
+            Err(join_err) => {
+                error!("update_label task panicked: {:?}", join_err);
             },
         }
     })
     .detach();
 }
 
-// 删除 label
 pub fn delete_label(label: Arc<LabelModel>, cx: &mut App) {
-    let store = get_store(cx);
-    cx.spawn(async move |cx| match store.delete_label(&label.id).await {
-        Ok(_) => {
-            info!("Successfully deleted label: {}", label.id);
-            cx.update_global::<TodoStore, _>(|todo_store, _| {
-                todo_store.remove_label(&label.id);
-            });
-        },
-        Err(e) => {
-            let context = ErrorHandler::handle_with_resource(
-                AppError::Database(Box::new(e)),
-                "delete_label",
-                &label.id,
-            );
-            error!("{}", context.format_user_message());
-        },
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        match db_state
+            .spawn_store_op({
+                let label_id = label.id.clone();
+                move |store| async move { store.delete_label(&label_id).await }
+            })
+            .await
+        {
+            Ok(Ok(_)) => {
+                debug!("Successfully deleted label: {}", label.id);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.remove_label(&label.id);
+                });
+            },
+            Ok(Err(e)) => {
+                let context = ErrorHandler::handle_with_resource(
+                    AppError::Database(Box::new(e)),
+                    "delete_label",
+                    &label.id,
+                );
+                error!("{}", context.format_user_message());
+            },
+            Err(join_err) => {
+                error!("delete_label task panicked: {:?}", join_err);
+            },
+        }
     })
     .detach();
 }

@@ -171,6 +171,21 @@ impl DBState {
         info!("DBState shutdown complete (connection refs: {})", Arc::strong_count(&self.conn));
     }
 
+    /// 在 DB runtime 中等待 Store 就绪后执行 SeaORM 操作。
+    pub fn spawn_store_op<F, Fut, T>(&self, f: F) -> tokio::task::JoinHandle<Result<T, TodoError>>
+    where
+        F: FnOnce(Arc<Store>) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = Result<T, TodoError>> + Send + 'static,
+        T: Send + 'static,
+    {
+        let db_state = self.clone();
+        crate::core::tokio_runtime::spawn_db_operation(async move {
+            db_state.wait_for_store_ready(Some(Duration::from_secs(10))).await?;
+            let store = db_state.get_store_async().await;
+            f(store).await
+        })
+    }
+
     /// 在后台执行异步任务
     ///
     /// 这个方法确保任务在组件销毁后仍能继续执行，

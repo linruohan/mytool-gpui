@@ -6,9 +6,9 @@ use std::sync::Arc;
 
 use gpui::App;
 use todos::entity::ItemModel;
-use tracing::{error, info};
+use tracing::{debug, error};
 
-use crate::core::state::TodoStore;
+use crate::{core::state::TodoStore, todo_state::DBState};
 
 /// 批量更新任务
 pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
@@ -17,24 +17,30 @@ pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
     }
 
     let item_count = items.len();
-    info!("Batch updating {} items", item_count);
+    debug!("Batch updating {} items", item_count);
 
+    let db_state = cx.global::<DBState>().clone();
     cx.spawn(async move |cx| {
-        let store =
-            cx.update_global::<crate::core::state::DBState, _>(|state, _| state.get_store());
-        let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
-
-        match store.batch_update_items(items_vec).await {
-            Ok(updated_items) => {
-                info!("Successfully updated {} items in batch", updated_items.len());
+        match db_state
+            .spawn_store_op(move |store| async move {
+                let items_vec: Vec<ItemModel> = items.iter().map(|item| (**item).clone()).collect();
+                store.batch_update_items(items_vec).await
+            })
+            .await
+        {
+            Ok(Ok(updated_items)) => {
+                debug!("Successfully updated {} items in batch", updated_items.len());
                 cx.update_global::<TodoStore, _>(|todo_store, _| {
                     for item in updated_items {
                         todo_store.update_item(Arc::new(item));
                     }
                 });
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("Batch update items failed: {:?}", e);
+            },
+            Err(join_err) => {
+                error!("Batch update task panicked: {:?}", join_err);
             },
         }
     })

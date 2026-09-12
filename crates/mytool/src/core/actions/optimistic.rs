@@ -15,8 +15,7 @@ use tracing::{debug, error};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{ErrorNotifier, TodoStore, get_store},
-        tokio_runtime::spawn_db_operation,
+        state::{ErrorNotifier, TodoStore},
         utils::retry::{self, RetryConfig},
     },
     todo_state::DBState,
@@ -63,20 +62,19 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
 
     cx.spawn(async move |cx| {
         let spawn_start = std::time::Instant::now();
-        let save_result = spawn_db_operation(async move {
-            db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await?;
-            let store = db_state.get_store_async().await;
-            retry::retry_async_todo(
-                |_attempt| {
-                    let store = store.clone();
-                    let item = item_for_save.clone();
-                    async move { store.insert_item(item.as_ref().clone(), true).await }
-                },
-                RetryConfig::for_db_operation(),
-            )
-            .await
-        })
-        .await;
+        let save_result = db_state
+            .spawn_store_op(move |store| async move {
+                retry::retry_async_todo(
+                    |_attempt| {
+                        let store = store.clone();
+                        let item = item_for_save.clone();
+                        async move { store.insert_item(item.as_ref().clone(), true).await }
+                    },
+                    RetryConfig::for_db_operation(),
+                )
+                .await
+            })
+            .await;
 
         debug!(
             "add_item_optimistic finished id={} elapsed_ms={}",
@@ -103,11 +101,11 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     .collect();
                 if !label_ids.is_empty() {
                     let item_id = saved_item.id.clone();
-                    match spawn_db_operation(async move {
-                        let store = db_state_for_labels.get_store_async().await;
-                        store.set_item_labels(&item_id, &label_ids).await
-                    })
-                    .await
+                    match db_state_for_labels
+                        .spawn_store_op(move |store| async move {
+                            store.set_item_labels(&item_id, &label_ids).await
+                        })
+                        .await
                     {
                         Ok(Ok(())) => {
                             debug!("Labels saved for new item {}", saved_item.id);
@@ -178,20 +176,19 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let db_state = cx.global::<DBState>().clone();
 
     cx.spawn(async move |cx| {
-        let save_result = spawn_db_operation(async move {
-            db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await?;
-            let store = db_state.get_store_async().await;
-            retry::retry_async_todo(
-                |_attempt| {
-                    let store = store.clone();
-                    let item = item_for_db.clone();
-                    async move { store.update_item(item.as_ref().clone(), "").await }
-                },
-                RetryConfig::for_db_operation(),
-            )
-            .await
-        })
-        .await;
+        let save_result = db_state
+            .spawn_store_op(move |store| async move {
+                retry::retry_async_todo(
+                    |_attempt| {
+                        let store = store.clone();
+                        let item = item_for_db.clone();
+                        async move { store.update_item(item.as_ref().clone(), "").await }
+                    },
+                    RetryConfig::for_db_operation(),
+                )
+                .await
+            })
+            .await;
 
         match save_result {
             Ok(Ok(updated_item)) => {
@@ -242,16 +239,18 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     });
 
     let item_for_recovery = item.clone();
-    let store = get_store(cx);
+    let db_state = cx.global::<DBState>().clone();
+    let item_id_for_db = item_id.clone();
 
     cx.spawn(async move |cx| {
-        let result = store.delete_item(&item_id).await;
-
-        match result {
-            Ok(_) => {
+        match db_state
+            .spawn_store_op(move |store| async move { store.delete_item(&item_id_for_db).await })
+            .await
+        {
+            Ok(Ok(_)) => {
                 debug!("Successfully deleted item from database: {}", item_id);
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "delete_item_optimistic",
@@ -269,6 +268,9 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                         context.format_user_message()
                     ));
                 });
+            },
+            Err(join_err) => {
+                error!("Item delete task panicked: {:?}", join_err);
             },
         }
     })
@@ -289,17 +291,20 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
         store.update_item(Arc::new(updated_item.clone()));
     });
 
-    let store = get_store(cx);
+    let db_state = cx.global::<DBState>().clone();
     let item_id_clone = item_id.clone();
 
     cx.spawn(async move |cx| {
-        let result = store.update_item_pin(&item_id_clone, pinned).await;
-
-        match result {
-            Ok(_) => {
+        match db_state
+            .spawn_store_op(move |store| async move {
+                store.update_item_pin(&item_id_clone, pinned).await
+            })
+            .await
+        {
+            Ok(Ok(_)) => {
                 debug!("Successfully saved pinned status: {}", item_id);
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "set_item_pinned_optimistic",
@@ -320,6 +325,9 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
                         context.format_user_message()
                     ));
                 });
+            },
+            Err(join_err) => {
+                error!("Item pin task panicked: {:?}", join_err);
             },
         }
     })
@@ -345,21 +353,26 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         store.update_item(Arc::new(updated_item.clone()));
     });
 
-    let store = get_store(cx);
+    let db_state = cx.global::<DBState>().clone();
+    let item_id_for_db = item_id.clone();
 
     cx.spawn(async move |cx| {
-        let result = store.complete_item(&item_id, checked, false).await;
-
-        match result {
-            Ok(()) => {
+        match db_state
+            .spawn_store_op(move |store| async move {
+                store.complete_item(&item_id_for_db, checked, false).await?;
+                Ok(store.get_item(&item_id_for_db).await)
+            })
+            .await
+        {
+            Ok(Ok(fresh)) => {
                 debug!("Successfully saved completion status: {}", item_id);
-                if let Some(fresh) = store.get_item(&item_id).await {
+                if let Some(fresh) = fresh {
                     cx.update_global::<TodoStore, _>(|todo_store, _| {
                         todo_store.update_item(Arc::new(fresh));
                     });
                 }
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 let context = ErrorHandler::handle_with_resource(
                     AppError::Database(Box::new(e)),
                     "complete_item_optimistic",
@@ -382,6 +395,9 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
                         context.format_user_message()
                     ));
                 });
+            },
+            Err(join_err) => {
+                error!("Item complete task panicked: {:?}", join_err);
             },
         }
     })

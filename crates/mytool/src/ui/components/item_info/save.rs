@@ -28,8 +28,8 @@ impl ItemInfoState {
             return;
         }
         self.state_manager.skip_next_update = true;
-        crate::todo_actions::update_item_optimistic(self.state_manager.item.clone(), cx);
         self.state_manager.save_status = SaveItemStatus::Saving;
+        crate::todo_actions::update_item_optimistic(self.state_manager.item.clone(), cx);
     }
 
     /// 保存所有修改：新建走 add_item_optimistic，已有任务走 update_item_optimistic。

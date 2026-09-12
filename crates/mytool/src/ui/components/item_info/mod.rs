@@ -131,7 +131,9 @@ impl ItemInfoState {
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
                 if this.state_manager.skip_next_update {
                     tracing::debug!("ItemInfoState: skip TodoStore overwrite while saving");
-                    this.state_manager.skip_next_update = false;
+                    if this.state_manager.save_status != SaveItemStatus::Saving {
+                        this.state_manager.skip_next_update = false;
+                    }
                     // 仍要处理 temp_ → 真实 ID，否则后续保存会按临时 ID UPDATE 失败
                     if this.apply_persisted_id_mapping(cx) {
                         cx.notify();

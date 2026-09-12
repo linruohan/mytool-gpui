@@ -109,12 +109,11 @@ impl ItemInfoState {
         let item_id_for_log = item_id.clone();
         let label_ids_for_log = label_ids_vec.clone();
         cx.spawn(async move |_this, cx| {
-            match crate::core::tokio_runtime::spawn_db_operation(async move {
-                db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(5))).await?;
-                let store = db_state.get_store_async().await;
-                store.set_item_labels(&item_id, &label_ids_vec).await
-            })
-            .await
+            match db_state
+                .spawn_store_op(move |store| async move {
+                    store.set_item_labels(&item_id, &label_ids_vec).await
+                })
+                .await
             {
                 Ok(Ok(_)) => {
                     NotificationSystem::debug(format!(
