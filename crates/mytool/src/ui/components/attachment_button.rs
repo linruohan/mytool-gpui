@@ -103,7 +103,7 @@ impl AttachmentButtonState {
     pub fn update_item_id(&mut self, new_item_id: String, cx: &mut Context<Self>) {
         if self.item_id != new_item_id {
             let old_id = self.item_id.clone();
-            tracing::info!(
+            tracing::debug!(
                 "AttachmentButtonState: updating item_id from {} to {}",
                 old_id,
                 new_item_id
@@ -112,7 +112,7 @@ impl AttachmentButtonState {
 
             // 如果有待保存的附件，现在保存它们
             if !self.pending_attachments.is_empty() {
-                tracing::info!(
+                tracing::debug!(
                     "Saving {} pending attachments with new item_id: {}",
                     self.pending_attachments.len(),
                     new_item_id
@@ -160,7 +160,7 @@ impl AttachmentButtonState {
         }
     }
 
-    fn get_filtered_attachments(&self) -> Vec<Arc<AttachmentModel>> {
+    fn get_filtered_attachments(&self) -> std::borrow::Cow<'_, [Arc<AttachmentModel>]> {
         self.items.get_filtered(&self.search.search_query)
     }
 
@@ -212,14 +212,14 @@ impl AttachmentButtonState {
 
                 if is_temp_id {
                     // 如果是临时 ID，将附件添加到待保存列表
-                    tracing::info!(
+                    tracing::debug!(
                         "Item ID is temporary ({}), deferring attachment save",
                         attachment.item_id
                     );
                     this.pending_attachments.push(attachment);
                 } else {
                     // 如果是真实 ID，立即保存到数据库
-                    tracing::info!(
+                    tracing::debug!(
                         "Item ID is real ({}), saving attachment immediately",
                         attachment.item_id
                     );

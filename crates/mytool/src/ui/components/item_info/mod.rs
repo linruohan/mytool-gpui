@@ -22,7 +22,7 @@ use gpui_component::{
 };
 use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
-use tracing::{info, warn};
+use tracing::warn;
 
 use super::{
     AttachmentButton, AttachmentButtonState, PriorityButton, PriorityState, ProjectButton,
@@ -122,8 +122,10 @@ impl ItemInfoState {
             cx.subscribe_in(&recurrency_button_state, window, Self::on_recurrency_event),
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
             // 异步保存结果写入 SaveResults 时刷新，否则失败不会把状态从 Saving 改成 Failed
-            cx.observe_global::<SaveResults>(|_, cx| {
-                cx.notify();
+            cx.observe_global::<SaveResults>(|this, cx| {
+                if this.apply_save_results(cx) {
+                    cx.notify();
+                }
             }),
             // 订阅 TodoStore 的变化，确保 pinned 状态和其他状态变化时能够更新界面
             cx.observe_global_in::<TodoStore>(window, move |this, _window, cx| {
@@ -202,9 +204,10 @@ impl ItemInfoState {
             return false;
         };
 
-        info!(
+        tracing::debug!(
             "ItemInfoState: detected ID change from {} to {} via mapping",
-            current_id, real_item.id
+            current_id,
+            real_item.id
         );
 
         self.state_manager.item = real_item.clone();
@@ -215,6 +218,33 @@ impl ItemInfoState {
         self.reminder_state.update(cx, |state, cx| {
             state.update_item_id(new_item_id, cx);
         });
+        true
+    }
+
+    /// 消费异步保存结果，避免在 render 里改状态。
+    fn apply_save_results(&mut self, cx: &mut Context<Self>) -> bool {
+        let item_id = self.state_manager.item.id.clone();
+        if item_id.is_empty() {
+            return false;
+        }
+
+        let save_result =
+            cx.update_global::<SaveResults, _>(|results, _| results.take_result(&item_id));
+        let Some(save_success) = save_result else {
+            return false;
+        };
+
+        self.state_manager.skip_next_update = false;
+        if save_success {
+            tracing::debug!("save succeeded for {}", item_id);
+            self.state_manager.mark_clean();
+            self.state_manager.update_original();
+            self.state_manager.save_status = SaveItemStatus::Succeeded;
+        } else {
+            warn!("save failed for {}, keeping dirty", item_id);
+            self.state_manager.mark_dirty();
+            self.state_manager.save_status = SaveItemStatus::Failed;
+        }
         true
     }
 
@@ -421,41 +451,6 @@ impl ItemInfoState {
 
 impl Render for ItemInfoState {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        // 🚀 7.0修复：检查异步保存结果，实现延迟 mark_clean
-        let item_id = self.state_manager.item.id.clone();
-        if !item_id.is_empty() {
-            // 检查保存结果（包括临时 ID 和真实 ID）
-            let save_result =
-                cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
-                    // 先检查当前 ID，再检查临时 ID
-                    let result = results.take_result(&item_id);
-                    if result.is_some() {
-                        result
-                    } else if item_id.starts_with("temp_") {
-                        // 如果是临时 ID，也检查有没有相关的保存结果
-                        results.take_result(&item_id)
-                    } else {
-                        None
-                    }
-                });
-
-            if let Some(save_success) = save_result {
-                if save_success {
-                    tracing::debug!("render: save succeeded for {}", item_id);
-                    self.state_manager.skip_next_update = false;
-                    self.state_manager.mark_clean();
-                    self.state_manager.update_original();
-                    self.state_manager.save_status = SaveItemStatus::Succeeded;
-                } else {
-                    warn!("render: save failed for {}, keeping dirty", item_id);
-                    self.state_manager.skip_next_update = false;
-                    self.state_manager.mark_dirty();
-                    self.state_manager.save_status = SaveItemStatus::Failed;
-                }
-                cx.notify();
-            }
-        }
-
         let selected_labels = self.selected_labels(cx);
 
         let colors = SemanticColors::from_theme(cx);

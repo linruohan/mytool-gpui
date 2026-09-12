@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use gpui::{App, BorrowAppContext};
 use todos::entity::ItemModel;
-use tracing::{error, info, warn};
+use tracing::{debug, error};
 
 use crate::{
     core::{
@@ -49,57 +49,24 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     let mut optimistic_item = (*item).clone();
     optimistic_item.id = item_id.clone();
 
-    info!("Optimistically adding item with ID: {}, content: '{}'", item_id, item.content);
+    debug!("Optimistically adding item with ID: {}, content: '{}'", item_id, item.content);
 
-    // 2. ⚡ 立即更新 UI（乐观更新，用户无感知延迟）
     cx.update_global::<TodoStore, _>(|store, _| {
         store.add_item(Arc::new(optimistic_item.clone()));
     });
 
-    // 3. 🔄 异步保存到数据库（增强版：独立 Runtime + 重试机制）
     let db_state = cx.global::<DBState>().clone();
     let db_state_for_labels = db_state.clone();
     let item_for_save = Arc::new(optimistic_item);
     let item_id_for_error = item_id.clone();
-
     let item_id_for_async = item_id.clone();
 
-    // 使用 cx.spawn + .detach() 执行异步任务
-    // .detach() 确保任务不会因为组件销毁而被取消
     cx.spawn(async move |cx| {
         let spawn_start = std::time::Instant::now();
-        info!("🚀 [add_item_optimistic] 异步保存任务启动, id={}", item_id_for_async);
-
-        // 使用 spawn_db_operation 在独立的 Tokio Runtime 中执行 DB 操作
         let save_result = spawn_db_operation(async move {
-            info!("📊 [add_item_optimistic] 进入 DB Runtime, 准备获取 Store...");
-            let store_ready_start = std::time::Instant::now();
-
-            // 等待 Store 初始化完成（最多 10 秒）
             db_state.wait_for_store_ready(Some(std::time::Duration::from_secs(10))).await?;
-            info!(
-                "📊 [add_item_optimistic] Store 就绪, 耗时={}ms",
-                store_ready_start.elapsed().as_millis()
-            );
-
             let store = db_state.get_store_async().await;
-
-            // 🔍 诊断：在插入前检查连接池状态
-            if let Some(stats) = get_pool_stats(&db_state) {
-                info!(
-                    "📊 [add_item_optimistic] 连接池状态: idle={}, used={}, max={}",
-                    stats.idle, stats.used, stats.max
-                );
-                if stats.used >= stats.max {
-                    warn!("⚠️ [add_item_optimistic] 连接池已满！可能需要等待其他操作释放连接");
-                }
-            }
-
-            info!("📊 [add_item_optimistic] 开始执行 insert (带重试)...");
-            let insert_start = std::time::Instant::now();
-
-            // 使用重试机制执行插入（与 UI 使用同一 ID）
-            let result = retry::retry_async_todo(
+            retry::retry_async_todo(
                 |_attempt| {
                     let store = store.clone();
                     let item = item_for_save.clone();
@@ -107,23 +74,19 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 },
                 RetryConfig::for_db_operation(),
             )
-            .await;
-
-            info!(
-                "📊 [add_item_optimistic] insert 完成 (含重试), 耗时={}ms, 结果={}",
-                insert_start.elapsed().as_millis(),
-                if result.is_ok() { "✅" } else { "❌" }
-            );
-
-            result
+            .await
         })
         .await;
 
-        info!("🏁 [add_item_optimistic] 异步任务总耗时={}ms", spawn_start.elapsed().as_millis());
+        debug!(
+            "add_item_optimistic finished id={} elapsed_ms={}",
+            item_id_for_async,
+            spawn_start.elapsed().as_millis()
+        );
 
         match save_result {
             Ok(Ok(saved_item)) => {
-                info!("Successfully saved item with ID {}", saved_item.id);
+                debug!("Successfully saved item with ID {}", saved_item.id);
 
                 // ID 已在插入前确定；若数据库回写了相同记录，仍同步一次内存态
                 cx.update_global::<TodoStore, _>(|store, _| {
@@ -147,7 +110,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                     .await
                     {
                         Ok(Ok(())) => {
-                            info!("Labels saved for new item {}", saved_item.id);
+                            debug!("Labels saved for new item {}", saved_item.id);
                         },
                         Ok(Err(e)) => {
                             error!("❌ 新建任务后写入标签失败: {}", e);
@@ -232,7 +195,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
         match save_result {
             Ok(Ok(updated_item)) => {
-                info!(
+                debug!(
                     "Successfully saved item update: {} with priority: {:?}, content: '{}'",
                     item_id, updated_item.priority, updated_item.content
                 );
@@ -272,7 +235,7 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
     let item_id = item.id.clone();
 
-    info!("Optimistically deleting item: {}", item_id);
+    debug!("Optimistically deleting item: {}", item_id);
 
     cx.update_global::<TodoStore, _>(|store, _| {
         store.remove_item(&item_id);
@@ -286,7 +249,7 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
         match result {
             Ok(_) => {
-                info!("Successfully deleted item from database: {}", item_id);
+                debug!("Successfully deleted item from database: {}", item_id);
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
@@ -317,7 +280,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
     let item_id = item.id.clone();
     let old_pinned = item.pinned;
 
-    info!("Optimistically {} item: {}", if pinned { "pinning" } else { "unpinning" }, item_id);
+    debug!("Optimistically {} item: {}", if pinned { "pinning" } else { "unpinning" }, item_id);
 
     let mut updated_item = (*item).clone();
     updated_item.pinned = pinned;
@@ -334,7 +297,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 
         match result {
             Ok(_) => {
-                info!("Successfully saved pinned status: {}", item_id);
+                debug!("Successfully saved pinned status: {}", item_id);
             },
             Err(e) => {
                 let context = ErrorHandler::handle_with_resource(
@@ -368,7 +331,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     let item_id = item.id.clone();
     let old_checked = item.checked;
 
-    info!(
+    debug!(
         "Optimistically {} item: {}",
         if checked { "completing" } else { "uncompleting" },
         item_id
@@ -389,7 +352,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
 
         match result {
             Ok(()) => {
-                info!("Successfully saved completion status: {}", item_id);
+                debug!("Successfully saved completion status: {}", item_id);
                 if let Some(fresh) = store.get_item(&item_id).await {
                     cx.update_global::<TodoStore, _>(|todo_store, _| {
                         todo_store.update_item(Arc::new(fresh));
@@ -423,23 +386,4 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         }
     })
     .detach();
-}
-
-/// 获取连接池统计信息（用于诊断）
-///
-/// 尝试从底层数据库连接中获取连接池状态。
-/// 注意：SeaORM/SQLx 的连接池统计 API 可能不直接暴露，
-/// 这里提供一个简化版本。
-fn get_pool_stats(_db_state: &DBState) -> Option<PoolStats> {
-    // TODO: 当 SQLx/SeaORM 提供公开的池统计 API 时实现
-    // 目前返回 None，但不影响日志输出
-    None
-}
-
-/// 连接池统计信息
-#[derive(Debug, Clone)]
-struct PoolStats {
-    idle: usize,
-    used: usize,
-    max: usize,
 }

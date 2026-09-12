@@ -210,14 +210,14 @@ impl ReminderForm {
 
             if is_temp_id {
                 // 如果是临时 ID，将提醒添加到待保存列表
-                tracing::info!(
+                tracing::debug!(
                     "Item ID is temporary ({}), deferring reminder save",
                     reminder.item_id.as_ref().unwrap_or(&String::new())
                 );
                 parent.pending_reminders.push(reminder);
             } else {
                 // 如果是真实 ID，立即保存到数据库
-                tracing::info!(
+                tracing::debug!(
                     "Item ID is real ({}), saving reminder immediately",
                     reminder.item_id.as_ref().unwrap_or(&String::new())
                 );
@@ -346,7 +346,7 @@ impl ReminderButtonState {
     pub fn update_item_id(&mut self, new_item_id: String, cx: &mut Context<Self>) {
         if self.item_id != new_item_id {
             let old_id = self.item_id.clone();
-            tracing::info!(
+            tracing::debug!(
                 "ReminderButtonState: updating item_id from {} to {}",
                 old_id,
                 new_item_id
@@ -355,7 +355,7 @@ impl ReminderButtonState {
 
             // 如果有待保存的提醒，现在保存它们
             if !self.pending_reminders.is_empty() {
-                tracing::info!(
+                tracing::debug!(
                     "Saving {} pending reminders with new item_id: {}",
                     self.pending_reminders.len(),
                     new_item_id
@@ -398,11 +398,6 @@ impl ReminderButtonState {
         delete_reminder(reminder_id.to_string(), cx);
         cx.notify();
     }
-
-    /// 获取过滤后的提醒列表
-    fn get_filtered_reminders(&self) -> Vec<Arc<ReminderModel>> {
-        self.items.get_filtered("")
-    }
 }
 
 impl Render for ReminderButtonState {
@@ -410,12 +405,11 @@ impl Render for ReminderButtonState {
         let view = cx.entity();
         let show_add_form = self.show_add_form;
         let form = self.form.clone();
-        let filtered_reminders = self.get_filtered_reminders();
 
-        // 同步表单状态
         self.form.update(cx, |form, cx| {
             form.sync_from_parent(self, window, cx);
         });
+        let reminders = self.items.items.clone();
 
         gpui_component::popover::Popover::new("reminder-popover")
             .p_0()
@@ -433,8 +427,8 @@ impl Render for ReminderButtonState {
                     .small()
                     .outline()
                     .icon(IconName::AlarmSymbolic);
-                if !filtered_reminders.is_empty() {
-                    button = button.label(format!("{}", filtered_reminders.len()));
+                if !reminders.is_empty() {
+                    button = button.label(format!("{}", reminders.len()));
                 }
                 button
             })
@@ -470,7 +464,7 @@ impl Render for ReminderButtonState {
                     .when(show_add_form, |this| this.child(form.clone()))
                     // 已添加的 reminder 列表
                     .child(v_flex().gap_1().children(
-                        filtered_reminders.iter().enumerate().map(|(idx, reminder)| {
+                        reminders.iter().enumerate().map(|(idx, reminder)| {
                             let reminder_id = reminder.id.clone();
                             let view = view.clone();
                             let display_text = reminder

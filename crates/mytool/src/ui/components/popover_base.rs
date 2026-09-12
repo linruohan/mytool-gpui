@@ -51,12 +51,14 @@ impl<T: Clone + 'static> PopoverListMixin<T> {
         self.items.retain(|item| !predicate(item));
     }
 
-    /// 获取过滤后的项目
-    pub fn get_filtered(&self, query: &str) -> Vec<T> {
+    /// 获取过滤后的项目；空查询直接借用原列表，避免整表 clone。
+    pub fn get_filtered(&self, query: &str) -> std::borrow::Cow<'_, [T]> {
         if query.is_empty() {
-            self.items.clone()
+            std::borrow::Cow::Borrowed(&self.items)
         } else {
-            self.items.iter().filter(|item| (self.filter_fn)(item, query)).cloned().collect()
+            std::borrow::Cow::Owned(
+                self.items.iter().filter(|item| (self.filter_fn)(item, query)).cloned().collect(),
+            )
         }
     }
 

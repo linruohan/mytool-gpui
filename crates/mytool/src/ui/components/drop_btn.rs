@@ -30,9 +30,6 @@ impl SearchableListItem for NamedOption {
 #[macro_export]
 macro_rules! create_button_wrapper {
     ($button_name:ident, $state_name:ident, $button_id:expr) => {
-        create_button_wrapper!($button_name, $state_name, $button_id, false);
-    };
-    ($button_name:ident, $state_name:ident, $button_id:expr, $_custom_render:expr) => {
         #[derive(gpui::IntoElement)]
         pub struct $button_name {
             id: gpui::ElementId,
@@ -89,18 +86,6 @@ macro_rules! create_button_wrapper {
                     .refine_style(&self.style)
                     .child(self.state.clone())
             }
-        }
-    };
-}
-
-/// 向后兼容别名
-#[macro_export]
-macro_rules! create_complex_button {
-    ($button_name:ident, $state_name:ident, $event_type:ty, $button_id:expr) => {
-        $crate::create_button_wrapper! {
-            $button_name,
-            $state_name,
-            $button_id
         }
     };
 }
