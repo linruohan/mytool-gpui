@@ -124,7 +124,7 @@ impl Board for TodayBoard {
     }
 
     fn colors() -> Vec<gpui::Hsla> {
-        vec![gpui::rgb(0x33d17a).into(), gpui::rgb(0x33d17a).into()]
+        vec![gpui::rgb(0xd4f3de).into(), gpui::rgb(0x4caf78).into()]
     }
 
     fn count(cx: &mut gpui::App) -> usize {
@@ -138,7 +138,7 @@ impl Board for TodayBoard {
     }
 
     fn description() -> &'static str {
-        "今天到期和已过期、需要立刻处理的任务"
+        ""
     }
 
     fn zoomable() -> Option<gpui_component::dock::PanelControl> {
@@ -206,6 +206,14 @@ impl Render for TodayBoard {
         let active_index = self.base.active_index;
         let past_due_schedule_button = self.past_due_schedule_button.clone();
 
+        let date_label = {
+            use chrono::Datelike;
+            let now = chrono::Local::now();
+            let weekday = ["日", "一", "二", "三", "四", "五", "六"]
+                [now.weekday().num_days_from_sunday() as usize];
+            format!("{} {}月 {}", weekday, now.month(), now.day())
+        };
+
         v_flex()
             .id("today-board")
             .track_focus(&self.base.focus_handle)
@@ -218,7 +226,7 @@ impl Render for TodayBoard {
                 cx,
                 <TodayBoard as Board>::icon(),
                 <TodayBoard as Board>::title(),
-                <TodayBoard as Board>::description(),
+                date_label,
                 board_count,
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
@@ -297,9 +305,10 @@ impl Render for TodayBoard {
                         })
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
+                                cx,
                                 TodayBoard::icon(),
-                                "今天没有到期任务",
-                                "今天到期的任务会出现在这里。",
+                                "添加一些任务",
+                                "点击右下角 + 创建新任务",
                             ))
                         })
                         .when(!past_due_items.is_empty(), |this| {
@@ -371,5 +380,11 @@ impl Render for TodayBoard {
                         })),
                 ),
             )
+            .child(crate::ui::views::boards::board_common::render_add_task_fab(
+                "fab-add-today",
+                cx.listener(|this, _, window, cx| {
+                    this.show_item_dialog(window, cx, false, None);
+                }),
+            ))
     }
 }

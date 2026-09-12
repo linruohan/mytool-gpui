@@ -6,13 +6,12 @@
 use std::sync::Arc;
 
 use gpui::{
-    Entity, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    App, Entity, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    Icon, Sizable,
+    ActiveTheme, Icon, Sizable, StyledExt,
     button::{Button, ButtonVariants},
-    empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle},
     h_flex,
     menu::{DropdownMenu, PopupMenu, PopupMenuItem},
     v_flex,
@@ -23,18 +22,32 @@ use todos::entity::ItemModel;
 use super::{board_base::BoardView, board_common::BoardSectionActions};
 use crate::{ItemRow, ItemRowState, ScheduleButtonState, VisualHierarchy, section};
 
-/// Board 空状态，使用 `gpui_component::empty::Empty`。
+/// Board 空状态：居中大图标 + 标题 + 提示，无虚线框。
 pub fn render_empty_placeholder(
+    cx: &App,
     icon: IconName,
     title: impl Into<gpui::SharedString>,
     description: impl Into<gpui::SharedString>,
 ) -> impl IntoElement {
-    Empty::new().w_full().header(
-        EmptyHeader::new()
-            .media(EmptyMedia::new().with_variant(EmptyMediaVariant::Icon).child(Icon::new(icon)))
-            .title(EmptyTitle::new().child(title.into()))
-            .description(EmptyDescription::new().child(description.into())),
-    )
+    v_flex()
+        .w_full()
+        .flex_1()
+        .items_center()
+        .justify_center()
+        .gap_3()
+        .py_16()
+        .child(
+            Icon::new(icon)
+                .with_size(px(88.))
+                .text_color(cx.theme().muted_foreground.opacity(0.4)),
+        )
+        .child(div().text_xl().font_semibold().child(title.into()))
+        .child(
+            div()
+                .text_sm()
+                .text_color(cx.theme().muted_foreground)
+                .child(description.into()),
+        )
 }
 
 // ==================== 通用渲染辅助 ====================
@@ -56,7 +69,7 @@ where
         .on_click(move |_, _, cx| {
             cx.stop_propagation();
             view.update(cx, |this, cx| {
-                this.set_active_index(Some(i));
+                this.set_active_index(if is_active { None } else { Some(i) });
                 cx.notify();
             });
         })

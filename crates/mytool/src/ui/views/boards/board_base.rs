@@ -76,14 +76,12 @@ pub fn group_items(
     grouped
 }
 
-/// 修正选中下标，避免越界。
+/// 修正选中下标，避免越界；未选中时保持未选中。
 pub fn clamp_active_index(active_index: &mut Option<usize>, len: usize) {
     if let Some(ix) = *active_index {
-        if ix >= len {
-            *active_index = if len == 0 { None } else { Some(0) };
+        if len == 0 || ix >= len {
+            *active_index = None;
         }
-    } else if len > 0 {
-        *active_index = Some(0);
     }
 }
 
@@ -123,7 +121,7 @@ impl BoardBase {
         Self {
             focus_handle: cx.focus_handle(),
             _subscriptions: vec![],
-            active_index: Some(0),
+            active_index: None,
             item_rows,
             item_info,
             no_section_items,
@@ -543,10 +541,10 @@ mod tests {
 
         idx = Some(5);
         clamp_active_index(&mut idx, 2);
-        assert_eq!(idx, Some(0));
+        assert_eq!(idx, None);
 
         idx = None;
         clamp_active_index(&mut idx, 2);
-        assert_eq!(idx, Some(0));
+        assert_eq!(idx, None);
     }
 }

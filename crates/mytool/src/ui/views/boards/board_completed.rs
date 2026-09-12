@@ -94,7 +94,7 @@ impl Board for CompletedBoard {
     }
 
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xffbe6f).into(), gpui::rgb(0xff7800).into()]
+        vec![gpui::rgb(0xffedd6).into(), gpui::rgb(0xe09a4c).into()]
     }
 
     fn count(cx: &mut App) -> usize {
@@ -104,11 +104,11 @@ impl Board for CompletedBoard {
     }
 
     fn title() -> &'static str {
-        "Completed"
+        "已完成"
     }
 
     fn description() -> &'static str {
-        "已完成任务"
+        ""
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -177,9 +177,10 @@ impl Render for CompletedBoard {
                         .gap(VisualHierarchy::spacing(2.0))
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
+                                cx,
                                 CompletedBoard::icon(),
                                 "没有已完成的任务",
-                                "完成的任务会出现在这里。",
+                                "完成任务后会显示在这里",
                             ))
                         })
                         .children(item_rows.iter().enumerate().map(move |(i, item_row)| {

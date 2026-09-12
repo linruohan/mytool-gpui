@@ -96,7 +96,7 @@ impl Board for PinBoard {
     }
 
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xf66151).into(), gpui::rgb(0xed333b).into()]
+        vec![gpui::rgb(0xf8e0dc).into(), gpui::rgb(0xe07070).into()]
     }
 
     fn count(cx: &mut App) -> usize {
@@ -106,11 +106,11 @@ impl Board for PinBoard {
     }
 
     fn title() -> &'static str {
-        "Pinboard"
+        "置顶"
     }
 
     fn description() -> &'static str {
-        "重点关注任务"
+        ""
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -183,9 +183,10 @@ impl Render for PinBoard {
                         .p(VisualHierarchy::spacing(3.0))
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
+                                cx,
                                 PinBoard::icon(),
                                 "没有置顶任务",
-                                "把重要任务钉在这里，方便随时看到。",
+                                "把重要任务钉在这里，方便随时看到",
                             ))
                         })
                         .when(!pinned_items.is_empty(), |this| {
@@ -255,5 +256,11 @@ impl Render for PinBoard {
                         })),
                 ),
             )
+            .child(crate::ui::views::boards::board_common::render_add_task_fab(
+                "fab-add-pin",
+                cx.listener(|this, _, window, cx| {
+                    this.show_item_dialog(window, cx, false, None);
+                }),
+            ))
     }
 }

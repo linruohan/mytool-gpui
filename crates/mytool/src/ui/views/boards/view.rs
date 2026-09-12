@@ -1,17 +1,18 @@
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, IsZero, ParentElement,
-    Render, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Render, StatefulInteractiveElement, Styled, Subscription, Window,
+    div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme,
-    input::{Input, InputEvent, InputState},
-    sidebar::{SidebarBoard, SidebarBoardItem},
-    v_flex,
+    Icon,
+    input::{InputEvent, InputState},
+    h_flex, v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
-    PinBoard, ScheduledBoard, TodayBoard, VisualHierarchy, todo_state::TodoStore,
+    PinBoard, ScheduledBoard, TodayBoard, todo_state::TodoStore,
 };
 
 pub struct BoardPanel {
@@ -84,8 +85,8 @@ impl BoardPanel {
             BoardContainer::panel::<InboxBoard>(window, cx),
             BoardContainer::panel::<TodayBoard>(window, cx),
             BoardContainer::panel::<ScheduledBoard>(window, cx),
-            BoardContainer::panel::<PinBoard>(window, cx),
             BoardContainer::panel::<LabelsBoard>(window, cx),
+            BoardContainer::panel::<PinBoard>(window, cx),
             BoardContainer::panel::<CompletedBoard>(window, cx),
         ];
 
@@ -117,6 +118,51 @@ impl BoardPanel {
     }
 }
 
+fn board_tile_colors(colors: &[Hsla]) -> (Hsla, Hsla) {
+    let bg = colors.first().copied().unwrap_or_else(|| gpui::rgb(0xe8e8e8).into());
+    let accent = colors.get(1).copied().unwrap_or(bg);
+    (bg, accent)
+}
+
+fn render_board_tile(
+    ix: usize,
+    name: impl Into<gpui::SharedString>,
+    icon: IconName,
+    colors: &[Hsla],
+    count: usize,
+    active: bool,
+    on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    let (bg, accent) = board_tile_colors(colors);
+    v_flex()
+        .id(("board-tile", ix))
+        .flex_1()
+        .h(px(60.))
+        .px_3()
+        .py_2()
+        .gap_1()
+        .justify_between()
+        .rounded(px(14.))
+        .bg(bg)
+        .border_1()
+        .border_color(if active { accent } else { bg })
+        .hover(|this| this.opacity(0.9))
+        .on_click(on_click)
+        .child(
+            h_flex().w_full().justify_between().items_center().child(
+                Icon::new(icon).text_color(accent),
+            ).when(count > 0, |this| {
+                this.child(
+                    div()
+                        .text_xs()
+                        .text_color(accent)
+                        .child(count.to_string()),
+                )
+            }),
+        )
+        .child(div().text_sm().text_color(accent).child(name.into()))
+}
+
 impl Render for BoardPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let query = self.search_input.read(cx).value().trim().to_lowercase();
@@ -127,43 +173,26 @@ impl Render for BoardPanel {
             .filter(|(_, story)| story.read(cx).name.to_lowercase().contains(&query))
             .map(|(ix, story)| (ix, story.clone()))
             .collect();
-        v_flex()
-            .w_full()
-            .gap(VisualHierarchy::spacing(3.0))
-            .child(
-                div()
-                    .bg(cx.theme().sidebar_accent)
-                    .rounded_md()
-                    .when(cx.theme().radius.is_zero(), |this| this.rounded(px(0.)))
-                    .px_1()
-                    .mx_1()
-                    .child(Input::new(&self.search_input).appearance(false).cleanable(true)),
-            )
-            .child(
-                SidebarBoard::new().children(
-                    boards
-                        .iter()
-                        .map(|(ix, item)| {
-                            let board = item.read(cx);
-                            SidebarBoardItem::new(
-                                board.name.clone(),
-                                board.colors.clone(),
-                                board.count,
-                                gpui_component::IconName::Inbox,
-                            )
-                            .icon(board.icon)
-                            .size(gpui::Length::Definite(gpui::DefiniteLength::Fraction(0.5)))
-                            .active(self.active_index == Some(*ix))
-                            .on_click(cx.listener({
-                                let ix = *ix;
-                                move |this, _: &ClickEvent, _, cx| {
-                                    this.active_index = Some(ix);
-                                    cx.notify();
-                                }
-                            }))
-                        })
-                        .collect::<Vec<_>>(),
-                ),
-            )
+
+        v_flex().w_full().gap_1().children(boards.chunks(2).map(|row| {
+            h_flex().w_full().gap_1().children(row.iter().map(|(ix, item)| {
+                let board = item.read(cx);
+                render_board_tile(
+                    *ix,
+                    board.name.clone(),
+                    board.icon,
+                    &board.colors,
+                    board.count,
+                    self.active_index == Some(*ix),
+                    cx.listener({
+                        let ix = *ix;
+                        move |this, _: &ClickEvent, _, cx| {
+                            this.active_index = Some(ix);
+                            cx.notify();
+                        }
+                    }),
+                )
+            }))
+        }))
     }
 }

@@ -48,7 +48,7 @@ impl Board for LabelsBoard {
     }
 
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xcdab8f).into(), gpui::rgb(0x986a44).into()]
+        vec![gpui::rgb(0xebe3d6).into(), gpui::rgb(0xa08b6e).into()]
     }
 
     fn count(cx: &mut App) -> usize {
@@ -56,11 +56,11 @@ impl Board for LabelsBoard {
     }
 
     fn title() -> &'static str {
-        "Labels"
+        "标签"
     }
 
     fn description() -> &'static str {
-        "按标签浏览任务"
+        ""
     }
 
     fn zoomable() -> Option<PanelControl> {

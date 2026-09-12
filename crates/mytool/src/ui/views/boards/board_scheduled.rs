@@ -142,7 +142,7 @@ impl Board for ScheduledBoard {
     }
 
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0xdc8add).into(), gpui::rgb(0x9141ac).into()]
+        vec![gpui::rgb(0xe6d4f2).into(), gpui::rgb(0x9b6ec0).into()]
     }
 
     fn count(cx: &mut App) -> usize {
@@ -156,7 +156,7 @@ impl Board for ScheduledBoard {
     }
 
     fn description() -> &'static str {
-        "已安排日期、稍后执行的任务"
+        ""
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -230,9 +230,10 @@ impl Render for ScheduledBoard {
                         .p(VisualHierarchy::spacing(3.0))
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
+                                cx,
                                 ScheduledBoard::icon(),
-                                "没有计划中的任务",
-                                "设置了日期的任务会按天分组显示。",
+                                "添加一些任务",
+                                "设置日期后会按天分组显示",
                             ))
                         })
                         .children(grouped_by_date.iter().filter_map(|(date, items)| {
@@ -286,5 +287,11 @@ impl Render for ScheduledBoard {
                         })),
                 ),
             )
+            .child(crate::ui::views::boards::board_common::render_add_task_fab(
+                "fab-add-scheduled",
+                cx.listener(|this, _, window, cx| {
+                    this.show_item_dialog(window, cx, false, None);
+                }),
+            ))
     }
 }

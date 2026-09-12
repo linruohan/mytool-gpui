@@ -6,7 +6,7 @@ use gpui::{
     Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme as _, Colorize, IndexPath, Sizable, WindowExt,
+    ActiveTheme as _, Colorize, IndexPath, Sizable, StyledExt, WindowExt,
     button::{Button, ButtonVariants},
     color_picker::{ColorPickerEvent, ColorPickerState},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
@@ -16,7 +16,6 @@ use gpui_component::{
     input::{Input, InputState},
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
-    tag::Tag,
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -125,7 +124,7 @@ impl ProjectItemsPanel {
         ];
 
         Self {
-            active_index: Some(0),
+            active_index: None,
             item_rows,
             item_info,
             _subscriptions,
@@ -150,7 +149,7 @@ impl ProjectItemsPanel {
         );
 
         self.project = project.clone();
-        self.active_index = Some(0);
+        self.active_index = None;
 
         // 检查 project_id 是否有效
         if project.id.is_empty() {
@@ -524,19 +523,21 @@ impl Render for ProjectItemsPanel {
             .child(
                 h_flex()
                     .id("header")
-                    .border_b_1()
-                    .border_color(cx.theme().border)
                     .justify_between()
                     .items_center()
+                    .px(gpui::px(24.))
+                    .pt(gpui::px(18.))
+                    .pb(gpui::px(8.))
                     .child(
                         h_flex()
-                            .items_center()
+                            .items_baseline()
                             .gap(VisualHierarchy::spacing(2.0))
-                            .child(div().text_xl().child(self.project.name.clone()))
+                            .child(div().text_xl().font_semibold().child(self.project.name.clone()))
                             .when(!self.item_rows.is_empty(), |this| {
                                 this.child(
-                                    Tag::secondary()
-                                        .small()
+                                    div()
+                                        .text_sm()
+                                        .text_color(cx.theme().muted_foreground)
                                         .child(self.item_rows.len().to_string()),
                                 )
                             })
@@ -687,9 +688,10 @@ impl Render for ProjectItemsPanel {
                         // 1. Pinned 分组
                         .when(self.item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
+                                cx,
                                 IconName::FolderOpen,
-                                "No tasks in this project",
-                                "Add a task to this project to get started.",
+                                "添加一些任务",
+                                "点击右下角 + 创建新任务",
                             ))
                         })
                         .when(!self.pinned_items.is_empty(), |this| {
@@ -713,7 +715,11 @@ impl Render for ProjectItemsPanel {
                                         .id(("pinned-item", i))
                                         .on_click(move |_, _, cx| {
                                             view.update(cx, |this, cx| {
-                                                this.active_index = Some(i);
+                                                this.active_index = if this.active_index == Some(i) {
+                                                    None
+                                                } else {
+                                                    Some(i)
+                                                };
                                                 cx.notify();
                                             });
                                         })
@@ -786,7 +792,12 @@ impl Render for ProjectItemsPanel {
                                                 .id(("item", i))
                                                 .on_click(move |_, _, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.active_index = Some(i);
+                                                        this.active_index =
+                                                            if this.active_index == Some(i) {
+                                                                None
+                                                            } else {
+                                                                Some(i)
+                                                            };
                                                         cx.notify();
                                                     });
                                                 })
@@ -952,7 +963,12 @@ impl Render for ProjectItemsPanel {
                                                 .id(("item", i))
                                                 .on_click(move |_, _, cx| {
                                                     view.update(cx, |this, cx| {
-                                                        this.active_index = Some(i);
+                                                        this.active_index =
+                                                            if this.active_index == Some(i) {
+                                                                None
+                                                            } else {
+                                                                Some(i)
+                                                            };
                                                         cx.notify();
                                                     });
                                                 })
@@ -966,5 +982,11 @@ impl Render for ProjectItemsPanel {
                         })),
                 ),
             )
+            .child(crate::ui::views::boards::board_common::render_add_task_fab(
+                "fab-add-project",
+                cx.listener(|this, _, window, cx| {
+                    this.show_item_dialog(window, cx, false, None);
+                }),
+            ))
     }
 }

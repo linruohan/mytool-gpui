@@ -96,7 +96,7 @@ impl Board for InboxBoard {
     }
 
     fn colors() -> Vec<Hsla> {
-        vec![gpui::rgb(0x99c1f1).into(), gpui::rgb(0x3584e4).into()]
+        vec![gpui::rgb(0xd4e6fb).into(), gpui::rgb(0x5b9ae8).into()]
     }
 
     fn count(cx: &mut App) -> usize {
@@ -110,7 +110,7 @@ impl Board for InboxBoard {
     }
 
     fn description() -> &'static str {
-        "收件箱：尚未归入项目、且不是今天到期的待办"
+        ""
     }
 
     fn zoomable() -> Option<PanelControl> {
@@ -246,9 +246,10 @@ impl Render for InboxBoard {
                         })
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
+                                cx,
                                 InboxBoard::icon(),
-                                "收件箱是空的",
-                                "添加一个任务开始吧。",
+                                "添加一些任务",
+                                "点击右下角 + 创建新任务",
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
@@ -280,5 +281,11 @@ impl Render for InboxBoard {
                         })),
                 ),
             )
+            .child(crate::ui::views::boards::board_common::render_add_task_fab(
+                "fab-add-inbox",
+                cx.listener(|this, _, window, cx| {
+                    this.show_item_dialog(window, cx, false, None);
+                }),
+            ))
     }
 }

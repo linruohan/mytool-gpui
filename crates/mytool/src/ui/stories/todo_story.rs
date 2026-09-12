@@ -2,11 +2,13 @@ use std::{option::Option, sync::Arc};
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme, Side, h_flex,
-    sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
+    ActiveTheme, Icon, Side,
+    h_flex,
+    sidebar::{Sidebar, SidebarMenu},
     switch::Switch,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use serde::Deserialize;
 use todos::entity::ProjectModel;
 
@@ -39,7 +41,11 @@ impl super::Mytool for TodoStory {
     }
 
     fn description() -> &'static str {
-        "my todoist sidebar story"
+        "侧栏看板、项目与今日任务"
+    }
+
+    fn paddings() -> Pixels {
+        px(0.)
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
@@ -225,27 +231,68 @@ impl Render for TodoStory {
         }
 
         h_flex()
-            .rounded(cx.theme().radius)
-            .border_1()
-            .border_color(cx.theme().border)
-            .h_full()
+            .size_full()
+            .bg(cx.theme().background)
             .child(
-                Sidebar::new("sidebar-story")
+                Sidebar::<SidebarMenu>::new("sidebar-story")
                     .side(self.side)
                     .collapsed(self.collapsed)
-                    .w(px(220.))
+                    .w(px(248.))
                     .gap_0()
-                    .board(self.board_panel.clone())
-                    .child(SidebarMenu::new().child(
-                        SidebarMenuItem::new("+ 新建项目").on_click(cx.listener(Self::add_project)),
-                    ))
-                    .child(SidebarMenu::new().children(project_list.iter().enumerate().map(
-                        |(ix, project)| {
-                            SidebarMenuItem::new(project.name.clone())
-                                .active(project_active_index == Some(ix))
-                                .on_click({
-                                    let story = project.clone();
-                                    cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    .p_2()
+                    .board(
+                        v_flex()
+                            .w_full()
+                            .gap_1()
+                            .child(self.board_panel.clone())
+                            .child(
+                                div()
+                                    .px_1()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child("此电脑"),
+                            )
+                            .child(
+                                h_flex()
+                                    .id("add-project")
+                                    .w_full()
+                                    .h_7()
+                                    .px_2()
+                                    .gap_2()
+                                    .items_center()
+                                    .rounded(cx.theme().radius)
+                                    .text_sm()
+                                    .hover(|this| this.bg(cx.theme().sidebar_accent))
+                                    .on_click(cx.listener(|this, ev, window, cx| {
+                                        this.add_project(ev, window, cx);
+                                    }))
+                                    .child(Icon::new(IconName::Plus))
+                                    .child("新建项目"),
+                            )
+                            .children(project_list.iter().enumerate().map(|(ix, project)| {
+                                let count = cx
+                                    .global::<TodoStore>()
+                                    .items_by_project(&project.id)
+                                    .iter()
+                                    .filter(|item| !item.checked)
+                                    .count();
+                                let active = project_active_index == Some(ix);
+                                let story = project.clone();
+                                h_flex()
+                                    .id(("sidebar-project", ix))
+                                    .w_full()
+                                    .h_7()
+                                    .px_2()
+                                    .items_center()
+                                    .justify_between()
+                                    .rounded(cx.theme().radius)
+                                    .text_sm()
+                                    .when(active, |this| {
+                                        this.bg(cx.theme().sidebar_accent)
+                                            .text_color(cx.theme().sidebar_accent_foreground)
+                                    })
+                                    .hover(|this| this.bg(cx.theme().sidebar_accent))
+                                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                         this.active_project = Some(story.clone());
                                         this.project_panel.update(cx, |panel, cx| {
                                             panel.update_active_index(Some(ix));
@@ -260,11 +307,25 @@ impl Render for TodoStory {
                                             cx.notify();
                                         });
                                         cx.notify();
-                                    })
-                                })
-                        },
-                    ))),
+                                    }))
+                                    .child(project.name.clone())
+                                    .child(
+                                        div()
+                                            .text_sm()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child(count.to_string()),
+                                    )
+                            })),
+                    ),
             )
-            .child(v_flex().flex_1().h_full().overflow_x_hidden().child(content))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .h_full()
+                    .min_w_0()
+                    .bg(cx.theme().background)
+                    .overflow_x_hidden()
+                    .child(content),
+            )
     }
 }

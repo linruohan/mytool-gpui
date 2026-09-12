@@ -12,7 +12,7 @@ use gpui_component::{
 };
 use gpui_kit::assets::IconName;
 
-use crate::{ShowPanelInfo, VisualHierarchy};
+use crate::ShowPanelInfo;
 
 pub struct BoardContainer {
     focus_handle: gpui::FocusHandle,
@@ -154,7 +154,7 @@ impl Render for BoardContainer {
                         .id("board-children")
                         .size_full()
                         .overflow_hidden()
-                        .p(VisualHierarchy::spacing(2.0))
+                        .p(px(0.))
                         .child(board),
                 )
             })

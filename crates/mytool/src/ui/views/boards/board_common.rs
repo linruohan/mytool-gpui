@@ -3,17 +3,17 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
-    Styled, Window, prelude::FluentBuilder,
+    App, AppContext, ClickEvent, Context, ElementId, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Render, Styled, Window, px,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Sizable, WindowExt,
+    ActiveTheme, IndexPath, Sizable, StyledExt, WindowExt,
     alert::Alert,
     button::{Button, ButtonVariants},
     h_flex,
-    tag::Tag,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::entity::ItemModel;
 
 use super::board_base::BoardView;
@@ -417,36 +417,28 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
     });
 }
 
-/// 渲染 Board 顶部标题栏（左侧 icon + title + description，右侧自定义 actions）
+/// 渲染 Board 顶部标题栏（左侧 icon + 大标题 + 弱化副标题，右侧操作）
 pub fn render_board_header(
     cx: &App,
     icon: impl IntoElement,
     title: impl IntoElement,
     description: impl IntoElement,
-    count: usize,
+    _count: usize,
     actions: impl IntoElement,
 ) -> impl IntoElement {
     h_flex()
         .id("header")
-        .border_b_1()
-        .border_color(cx.theme().border)
         .justify_between()
         .items_center()
-        .px(VisualHierarchy::spacing(3.0))
-        .py(VisualHierarchy::spacing(2.0))
+        .px(px(24.))
+        .pt(px(18.))
+        .pb(px(8.))
         .child(
-            v_flex()
-                .gap(VisualHierarchy::spacing(1.0))
-                .child(
-                    h_flex()
-                        .gap(VisualHierarchy::spacing(2.0))
-                        .items_center()
-                        .child(icon)
-                        .child(gpui::div().text_base().child(title))
-                        .when(count > 0, |this| {
-                            this.child(Tag::secondary().small().child(count.to_string()))
-                        }),
-                )
+            h_flex()
+                .gap(px(10.))
+                .items_baseline()
+                .child(icon)
+                .child(gpui::div().text_xl().font_semibold().child(title))
                 .child(
                     gpui::div()
                         .text_sm()
@@ -462,5 +454,26 @@ pub fn render_board_header(
                 .gap(VisualHierarchy::spacing(2.0))
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .child(actions),
+        )
+}
+
+/// 右下角新建任务按钮
+pub fn render_add_task_fab(
+    id: impl Into<ElementId>,
+    on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    h_flex()
+        .w_full()
+        .justify_end()
+        .px_6()
+        .pb_6()
+        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .child(
+            Button::new(id)
+                .icon(IconName::PlusLargeSymbolic)
+                .primary()
+                .large()
+                .rounded(px(28.))
+                .on_click(on_click),
         )
 }
