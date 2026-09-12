@@ -160,11 +160,11 @@ impl Render for Gallery {
                     .child(
                         h_flex()
                             .id("header")
-                            .p_4()
+                            .p_3()
                             .border_b_1()
                             .border_color(cx.theme().border)
                             .justify_between()
-                            .items_start()
+                            .items_center()
                             .child(
                                 v_flex().gap_1().child(div().text_xl().child(story_name)).child(
                                     div()

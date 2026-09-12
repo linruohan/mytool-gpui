@@ -1,8 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, prelude::FluentBuilder, px,
+    App, Context, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce,
+    SharedString, StatefulInteractiveElement, Styled, Task, Window, actions, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, Placement, Selectable, WindowExt,
@@ -11,14 +12,13 @@ use gpui_component::{
     h_flex,
     label::Label,
     list::{ListDelegate, ListItem, ListState},
-    red_400, v_flex,
+    v_flex,
 };
-use todos::{
-    entity::{ItemModel, LabelModel},
-    utils::datetime::DateTime,
-};
+use todos::{entity::ItemModel, utils::datetime::DateTime};
 
-use crate::{label_chip, todo_state::TodoStore};
+use crate::{
+    SemanticColors, label_chip, todo_actions::complete_item_optimistic, todo_state::TodoStore,
+};
 
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {
@@ -54,75 +54,83 @@ impl Selectable for ItemListItem {
 
 impl RenderOnce for ItemListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let colors = SemanticColors::from_theme(cx);
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        let labels = cx.global::<TodoStore>().labels.clone();
-        let label_map: HashMap<&str, &Arc<LabelModel>> =
-            labels.iter().map(|l| (l.id.as_str(), l)).collect();
+        let due_label = self
+            .item
+            .due_date()
+            .and_then(|due_date| due_date.datetime())
+            .map(|datetime| DateTime::default().get_relative_date_from_date(&datetime))
+            .unwrap_or_else(|| "无日期".to_string());
+        let due_color = if self.item.checked {
+            cx.theme().muted_foreground
+        } else if self.item.is_past_due() {
+            colors.status_overdue
+        } else if self.item.is_due_today() {
+            colors.status_today
+        } else if self.item.due_date().is_none() {
+            cx.theme().muted_foreground
+        } else {
+            colors.status_scheduled
+        };
 
-        // 从 ItemModel 的 labels 字段获取标签 ID
-        let item_labels: Vec<String> = self
+        let item_label_chips: Vec<_> = self
             .item
             .labels
-            .as_ref()
-            .map(|labels_str| {
-                labels_str.split(';').filter(|id| !id.is_empty()).map(|id| id.to_string()).collect()
+            .as_deref()
+            .unwrap_or("")
+            .split(';')
+            .filter(|id| !id.is_empty())
+            .filter_map(|id| {
+                cx.global::<TodoStore>()
+                    .get_label(id)
+                    .map(|label| label_chip(label.name.clone(), &label.color))
             })
-            .unwrap_or_default();
+            .collect();
 
-        self.base
-            .px_1()
-            .py_0p5()
-            .overflow_x_hidden()
-            .border_1()
-            .rounded(cx.theme().radius)
-            .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
-            .rounded(cx.theme().radius)
-            .child(
-                h_flex()
-                    .items_center()
-                    .justify_start()
-                    .gap_1()
-                    .text_color(text_color)
-                    .child(Checkbox::new("item-finished").checked(self.item.checked))
-                    .child(
-                        Label::new(
-                            // 使用类型安全的 due_date() 方法
-                            self.item
-                                .due_date()
-                                .and_then(|due_date| due_date.datetime())
-                                .map(|datetime| {
-                                    DateTime::default().get_relative_date_from_date(&datetime)
-                                })
-                                .unwrap_or_else(|| "No date".to_string()),
-                        )
-                        .when(self.item.checked, |this| this.line_through().text_color(red_400())),
-                    )
-                    .child(
-                        v_flex().overflow_x_hidden().flex_nowrap().child(
-                            Label::new(self.item.content.clone())
-                                .whitespace_nowrap()
-                                .when(self.item.checked, |this| this.line_through()),
-                        ),
-                    )
-                    // 显示标签
-                    .when(!item_labels.is_empty(), |this| {
-                        this.child(
-                            h_flex().gap_1().flex().children(
-                                item_labels
-                                    .iter()
-                                    .flat_map(|group| group.split(';').filter(|id| !id.is_empty()))
-                                    .filter_map(|id| {
-                                        label_map.get(id).map(|label| {
-                                            label_chip(label.name.clone(), &label.color)
-                                        })
-                                    })
-                                    .collect::<Vec<_>>(),
-                            ),
-                        )
-                    }),
-            )
+        let item_for_check = self.item.clone();
+
+        self.base.px_1().py_0p5().flex_1().overflow_x_hidden().child(
+            h_flex()
+                .items_center()
+                .justify_start()
+                .gap_2()
+                .w_full()
+                .min_w_0()
+                .text_color(text_color)
+                .child(
+                    div()
+                        .id("item-check-wrap")
+                        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                            cx.stop_propagation();
+                        })
+                        .on_click(|_, _, cx| cx.stop_propagation())
+                        .child(Checkbox::new("item-finished").checked(self.item.checked).on_click(
+                            move |checked, _, cx| {
+                                complete_item_optimistic(item_for_check.clone(), *checked, cx);
+                            },
+                        )),
+                )
+                .child(
+                    Label::new(due_label)
+                        .text_color(due_color)
+                        .when(self.item.checked, |this| this.line_through()),
+                )
+                .child(
+                    v_flex().flex_1().min_w_0().overflow_x_hidden().flex_nowrap().child(
+                        Label::new(self.item.content.clone())
+                            .whitespace_nowrap()
+                            .when(self.item.checked, |this| {
+                                this.line_through().text_color(cx.theme().muted_foreground)
+                            }),
+                    ),
+                )
+                .when(!item_label_chips.is_empty(), |this| {
+                    this.child(h_flex().gap_1().flex_shrink_0().children(item_label_chips))
+                }),
+        )
     }
 }
 
@@ -151,15 +159,17 @@ impl ItemListDelegate {
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let items: Vec<Arc<ItemModel>> = self
-            ._items
-            .iter()
-            .filter(|item| item.content.to_lowercase().contains(&self.query.to_lowercase()))
-            .cloned()
-            .collect();
-        for item in items.into_iter() {
-            self.matched_items.push(vec![item]);
-        }
+        let query_lower = self.query.to_lowercase();
+        let items: Vec<Arc<ItemModel>> = if query_lower.is_empty() {
+            self._items.clone()
+        } else {
+            self._items
+                .iter()
+                .filter(|item| item.content.to_lowercase().contains(&query_lower))
+                .cloned()
+                .collect()
+        };
+        self.matched_items = vec![items];
     }
 
     pub fn update_items(&mut self, items: Vec<Arc<ItemModel>>) {

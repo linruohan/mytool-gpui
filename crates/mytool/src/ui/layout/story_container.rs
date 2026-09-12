@@ -103,12 +103,12 @@ impl BasePanel for StoryContainer {
 
     /// 面板缩放状态变更回调
     fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, _cx: &mut Context<Self>) {
-        println!("panel: {} zoomed: {}", self.name, zoomed);
+        tracing::debug!("panel: {} zoomed: {}", self.name, zoomed);
     }
 
     /// 面板激活状态变更回调
     fn set_active(&mut self, active: bool, _window: &mut Window, cx: &mut Context<Self>) {
-        println!("panel: {} active: {}", self.name, active);
+        tracing::debug!("panel: {} active: {}", self.name, active);
         if let Some(on_active) = self.on_active {
             if let Some(story) = self.story.clone() {
                 on_active(story, active, _window, cx);

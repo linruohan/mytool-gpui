@@ -51,13 +51,14 @@ where
 {
     div()
         .id(("item", i))
+        .rounded_md()
         .on_click(move |_, _, cx| {
             view.update(cx, |this, cx| {
                 this.set_active_index(Some(i));
                 cx.notify();
             });
         })
-        .when(is_active, |this| this.border_color(active_border))
+        .when(is_active, |this| this.border_1().border_color(active_border).shadow_sm())
         .children(item_row.map(|row| ItemRow::new(&row)))
 }
 

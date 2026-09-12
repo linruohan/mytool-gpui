@@ -1,7 +1,7 @@
 use gpui::{
-    AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
-    Window, div, prelude::FluentBuilder as _,
+    AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, div,
+    prelude::FluentBuilder as _,
 };
 use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
 use gpui_fps::fps_monitor;

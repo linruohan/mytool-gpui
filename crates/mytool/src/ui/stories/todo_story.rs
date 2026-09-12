@@ -212,7 +212,7 @@ impl Render for TodoStory {
         let _view = cx.entity();
         let project_active_index = project_panel.active_index;
 
-        let mut content = div().id("todos").flex_1().overflow_y_scroll();
+        let mut content = div().id("todos").flex_1().min_h_0().overflow_hidden();
 
         if let Some(active_ix) = board_active_index {
             if let Some(board_view) = boards.get(active_ix) {
@@ -236,12 +236,9 @@ impl Render for TodoStory {
                     .w(px(220.))
                     .gap_0()
                     .board(self.board_panel.clone())
-                    .child(
-                        SidebarMenu::new().child(
-                            SidebarMenuItem::new("On This Computer   ➕")
-                                .on_click(cx.listener(Self::add_project)),
-                        ),
-                    )
+                    .child(SidebarMenu::new().child(
+                        SidebarMenuItem::new("+ 新建项目").on_click(cx.listener(Self::add_project)),
+                    ))
                     .child(SidebarMenu::new().children(project_list.iter().enumerate().map(
                         |(ix, project)| {
                             SidebarMenuItem::new(project.name.clone())

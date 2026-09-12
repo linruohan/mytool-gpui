@@ -3,11 +3,11 @@ use std::sync::Arc;
 use gpui::{
     App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
     Focusable, InteractiveElement, IntoElement, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    StatefulInteractiveElement, StyleRefinement, Styled, Subscription, Window, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible, h_flex,
-    v_flex,
+    ActiveTheme, Icon, Sizable, Size, StyledExt as _, collapsible::Collapsible, h_flex, v_flex,
 };
 use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
@@ -32,7 +32,6 @@ pub struct ItemRowState {
     pub item: Arc<ItemModel>,
     pub item_info: Option<Entity<ItemInfoState>>,
     is_open: bool,
-    is_hovered: bool,          // 悬停状态
     is_focused: bool,          // 焦点状态
     focus_handle: FocusHandle, // 焦点句柄
     _subscriptions: Vec<Subscription>,
@@ -55,7 +54,6 @@ impl ItemRowState {
             item,
             item_info: None,
             is_open: false,
-            is_hovered: false,
             is_focused: false,
             focus_handle,
             _subscriptions: Vec::new(),
@@ -199,16 +197,6 @@ impl ItemRowState {
         }
     }
 
-    /// 展开详情面板
-    fn expand(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.open_detail(window, cx, false);
-    }
-
-    /// 检查点击是否在展开按钮区域
-    fn is_toggle_button_click(&self, event: &gpui::MouseDownEvent) -> bool {
-        event.position.x > px(300.0)
-    }
-
     // ==================== 快捷键处理方法 ====================
 
     /// 处理删除任务快捷键 (Cmd/Ctrl + D)
@@ -325,19 +313,24 @@ impl Render for ItemRowState {
         let is_open = self.is_open;
         let is_focused = self.is_focused;
         let item_id = format!("item-{}", item.id);
-        let view = cx.entity();
         let version = self.update_version;
 
         let colors = SemanticColors::from_theme(cx);
+        let hover_bg = colors.hover_overlay;
+        let active_bg = colors.active_overlay;
         let priority = item.priority.unwrap_or(4);
         let priority_color = gpui::rgb(ItemPriority::from_i32(priority).get_color());
-        let status_indicator = if item.checked { Some(colors.status_completed) } else { None };
-        let completed_opacity = if item.checked { 0.6 } else { 1.0 };
+        let completed_opacity = if item.checked { 0.65 } else { 1.0 };
         let left_border_width = match priority {
             1 => px(4.0),
             2 => px(3.0),
             3 => px(2.0),
             _ => px(1.0),
+        };
+        let row_bg = if is_open || is_focused {
+            active_bg
+        } else {
+            colors.priority_background_tint(priority, cx.theme().background)
         };
 
         let item_info_entity = self.item_info.clone();
@@ -347,33 +340,14 @@ impl Render for ItemRowState {
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
             .rounded(px(6.0))
-            .p(px(3.0))
-            .my(px(1.0))
+            .p(px(4.0))
+            .my(px(2.0))
             .border_l(left_border_width)
             .border_color(priority_color)
-            .bg(colors.priority_background_tint(priority, cx.theme().background))
+            .bg(row_bg)
             .opacity(completed_opacity)
-            .when(is_focused, |this| this.shadow_md().border_color(priority_color).border(px(2.0)))
-            .on_mouse_move(cx.listener(|this, _event, _window, cx| {
-                this.is_hovered = true;
-                cx.notify();
-            }))
-            .on_mouse_down(
-                gpui::MouseButton::Left,
-                cx.listener(|this, event, window, cx| {
-                    if this.is_toggle_button_click(event) {
-                        this.toggle_expand(window, cx);
-                    } else if !this.is_open {
-                        this.expand(window, cx);
-                    }
-                    this.focus_handle.focus(window, cx);
-                    cx.notify();
-                }),
-            )
-            .hover(|style: gpui::StyleRefinement| style.cursor_pointer())
-            .when_some(status_indicator, |this: gpui::Stateful<gpui::Div>, color| {
-                this.border_t_2().border_color(color)
-            })
+            .when(is_focused, |this| this.shadow_sm())
+            .hover(move |style: StyleRefinement| style.bg(hover_bg).cursor_pointer())
             .on_key_down(cx.listener(|this, event, window, cx| {
                 if this.handle_key_event(event, window, cx) {
                     cx.stop_propagation();
@@ -385,31 +359,32 @@ impl Render for ItemRowState {
                     .open(is_open)
                     .child(
                         h_flex()
+                            .id("item-title-bar")
+                            .w_full()
                             .items_center()
-                            .justify_start()
+                            .justify_between()
                             .gap(px(4.0))
                             .text_color(text_color)
-                            .child(ItemListItem::new(
-                                format!("{}-{}", item_id, version),
-                                item.clone(),
-                                false,
-                            ))
+                            .cursor_pointer()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.toggle_expand(window, cx);
+                                this.focus_handle.focus(window, cx);
+                            }))
+                            .when(!is_open, |this| {
+                                this.child(ItemListItem::new(
+                                    format!("{}-{}", item_id, version),
+                                    item.clone(),
+                                    is_focused,
+                                ))
+                            })
                             .child(
-                                Button::new("toggle-edit")
-                                    .small()
-                                    .outline()
-                                    .icon(IconName::ChevronDown)
-                                    .when(is_open, |this| this.icon(IconName::ChevronUp))
-                                    .tooltip(if is_open {
-                                        "Close editor (Enter)"
-                                    } else {
-                                        "Open editor (Enter)"
-                                    })
-                                    .on_click(move |_event, window, cx| {
-                                        cx.update_entity(&view, |this, cx| {
-                                            this.toggle_expand(window, cx);
-                                        })
-                                    }),
+                                Icon::new(if is_open {
+                                    IconName::ChevronUp
+                                } else {
+                                    IconName::ChevronDown
+                                })
+                                .small()
+                                .text_color(cx.theme().muted_foreground),
                             ),
                     )
                     .when_some(item_info_entity.filter(|_| is_open), |collapsible, item_info| {

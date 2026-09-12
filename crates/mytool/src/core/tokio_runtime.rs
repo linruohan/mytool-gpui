@@ -106,8 +106,10 @@ where
     F: std::future::Future<Output = T> + Send + 'static,
     T: Send + 'static,
 {
-    let runtime_arc = get_db_runtime();
-    let guard = runtime_arc.lock().unwrap();
-    let runtime = guard.as_ref().expect("DB Runtime not initialized");
-    runtime.spawn(future)
+    let handle = {
+        let runtime_arc = get_db_runtime();
+        let guard = runtime_arc.lock().unwrap();
+        guard.as_ref().expect("DB Runtime not initialized").handle().clone()
+    };
+    handle.spawn(future)
 }

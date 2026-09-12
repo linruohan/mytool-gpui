@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
-    Focusable, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
-    StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
+    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
+    StatefulInteractiveElement, StyleRefinement, Styled, Subscription, Window, div,
+    prelude::FluentBuilder as _,
 };
 use gpui_component::{
     Sizable,
@@ -425,9 +426,11 @@ impl Render for ItemInfoState {
         };
 
         div()
+            .id("item-info-body")
             .on_mouse_down(gpui::MouseButton::Left, |_event, _window, cx| {
                 cx.stop_propagation();
             })
+            .on_click(|_, _, cx| cx.stop_propagation())
             .child(
                 GroupBox::new()
                     .outline()
@@ -450,7 +453,11 @@ impl Render for ItemInfoState {
                                     .compact()
                                     .icon(IconName::PinSymbolic)
                                     .text_color(pinned_color)
-                                    .tooltip("Pin item")
+                                    .tooltip(if self.state_manager.item.pinned {
+                                        "取消置顶"
+                                    } else {
+                                        "置顶任务"
+                                    })
                                     .on_click({
                                         let item = self.state_manager.item.clone();
                                         move |_event, _window, cx| {

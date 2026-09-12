@@ -155,7 +155,7 @@ impl Board for ScheduledBoard {
     }
 
     fn description() -> &'static str {
-        "计划中任务，在其他时间去执行的任务"
+        "已安排日期、稍后执行的任务"
     }
 
     fn zoomable() -> Option<PanelControl> {

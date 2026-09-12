@@ -1,7 +1,7 @@
 use gpui::{
     AnyView, App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    IntoElement, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
-    Window, prelude::FluentBuilder, px,
+    IntoElement, ParentElement, Pixels, Render, SharedString, Styled, Window,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme,
@@ -146,15 +146,15 @@ impl Render for BoardContainer {
         v_flex()
             .id("board-container")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_hidden()
             .track_focus(&self.focus_handle)
             .when_some(self.board.clone(), |this, board| {
                 this.child(
                     v_flex()
                         .id("board-children")
-                        .w_full()
-                        .flex_1()
-                        .p(VisualHierarchy::spacing(4.0))
+                        .size_full()
+                        .overflow_hidden()
+                        .p(VisualHierarchy::spacing(2.0))
                         .child(board),
                 )
             })

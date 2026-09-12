@@ -1,17 +1,13 @@
 use gpui::{
-    App, AppContext, ClickEvent, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    IsZero, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, IsZero, ParentElement,
+    Render, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Sizable,
-    button::{Button, ButtonVariants},
-    h_flex,
+    ActiveTheme,
     input::{Input, InputEvent, InputState},
     sidebar::{SidebarBoard, SidebarBoardItem},
     v_flex,
 };
-use gpui_kit::assets::IconName;
 
 use crate::{
     Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
@@ -82,7 +78,7 @@ impl BoardPanel {
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("Search..."));
+        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("筛选看板..."));
         // 🚀 7.0修复后：恢复所有 6 个 Board（InboxBoard 已使用延迟注册）
         let boards = vec![
             BoardContainer::panel::<InboxBoard>(window, cx),
@@ -97,9 +93,8 @@ impl BoardPanel {
         let cached_counts = vec![0; boards.len()];
 
         let _subscriptions = vec![
-            cx.subscribe(&search_input, |this, _, e, cx| {
+            cx.subscribe(&search_input, |_, _, e, cx| {
                 if let InputEvent::Change = e {
-                    this.active_index = Some(0);
                     cx.notify()
                 }
             }),
@@ -128,77 +123,47 @@ impl Render for BoardPanel {
         let boards: Vec<_> = self
             .boards
             .iter()
-            .filter(|story| story.read(cx).name.to_lowercase().contains(&query))
-            .cloned()
+            .enumerate()
+            .filter(|(_, story)| story.read(cx).name.to_lowercase().contains(&query))
+            .map(|(ix, story)| (ix, story.clone()))
             .collect();
         v_flex()
             .w_full()
-            .gap(VisualHierarchy::spacing(4.0))
+            .gap(VisualHierarchy::spacing(3.0))
             .child(
                 div()
                     .bg(cx.theme().sidebar_accent)
-                    .rounded_full()
+                    .rounded_md()
                     .when(cx.theme().radius.is_zero(), |this| this.rounded(px(0.)))
-                    .flex_1()
+                    .px_1()
                     .mx_1()
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_end()
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(Input::new(&self.search_input).appearance(false).cleanable(true))
-                            .child(
-                                Button::new("add-section")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditFindSymbolic),
-                            )
-                            .child(
-                                Button::new("edit-section")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::MenuLargeSymbolic),
-                            ),
-                    ),
+                    .child(Input::new(&self.search_input).appearance(false).cleanable(true)),
             )
             .child(
                 SidebarBoard::new().children(
                     boards
                         .iter()
-                        .enumerate()
                         .map(|(ix, item)| {
                             let board = item.read(cx);
                             SidebarBoardItem::new(
                                 board.name.clone(),
                                 board.colors.clone(),
                                 board.count,
-                                // new() 第 4 参仅接受组件子集 IconName，
-                                // 先给占位图标，随后用 .icon() 覆盖为完整目录中的真实图标
                                 gpui_component::IconName::Inbox,
                             )
                             .icon(board.icon)
                             .size(gpui::Length::Definite(gpui::DefiniteLength::Fraction(0.5)))
-                            .active(self.active_index == Some(ix))
-                            .on_click(cx.listener(
+                            .active(self.active_index == Some(*ix))
+                            .on_click(cx.listener({
+                                let ix = *ix;
                                 move |this, _: &ClickEvent, _, cx| {
                                     this.active_index = Some(ix);
                                     cx.notify();
-                                },
-                            ))
+                                }
+                            }))
                         })
                         .collect::<Vec<_>>(),
                 ),
-            )
-            .child(
-                h_flex()
-                    .bg(cx.theme().sidebar_border)
-                    .px_1()
-                    .flex_1()
-                    .justify_between()
-                    .mt(px(30.0)),
             )
     }
 }

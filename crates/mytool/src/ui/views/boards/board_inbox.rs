@@ -109,7 +109,7 @@ impl Board for InboxBoard {
     }
 
     fn description() -> &'static str {
-        "未完成的无项目任务，去掉今天"
+        "收件箱：尚未归入项目、且不是今天到期的待办"
     }
 
     fn zoomable() -> Option<PanelControl> {

@@ -60,7 +60,7 @@ impl Board for LabelsBoard {
     }
 
     fn description() -> &'static str {
-        "所有的标签"
+        "按标签浏览任务"
     }
 
     fn zoomable() -> Option<PanelControl> {

@@ -431,8 +431,9 @@ pub fn render_board_header(
         .border_b_1()
         .border_color(cx.theme().border)
         .justify_between()
-        .items_start()
-        .p(VisualHierarchy::spacing(3.0))
+        .items_center()
+        .px(VisualHierarchy::spacing(3.0))
+        .py(VisualHierarchy::spacing(2.0))
         .child(
             v_flex()
                 .gap(VisualHierarchy::spacing(1.0))

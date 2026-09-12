@@ -137,7 +137,7 @@ impl Board for TodayBoard {
     }
 
     fn description() -> &'static str {
-        "今天需要完成的任务"
+        "今天到期和已过期、需要立刻处理的任务"
     }
 
     fn zoomable() -> Option<gpui_component::dock::PanelControl> {
