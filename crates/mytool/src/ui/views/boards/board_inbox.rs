@@ -5,8 +5,7 @@
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window,
-    prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -163,9 +162,12 @@ impl Render for InboxBoard {
             .track_focus(&self.base.focus_handle)
             .relative()
             .size_full()
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.base.on_background_click(cx);
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.base.on_background_click(cx);
+                }),
+            )
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,
@@ -242,13 +244,15 @@ impl Render for InboxBoard {
                         .pt_1()
                         .pb(FAB_BOTTOM_PAD)
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(board_section("置顶").child(board_renderer::render_item_list(
-                                &pinned_items,
-                                item_rows,
-                                active_index,
-                                active_border,
-                                view.clone(),
-                            )))
+                            this.child(board_section("置顶").child(
+                                board_renderer::render_item_list(
+                                    &pinned_items,
+                                    item_rows,
+                                    active_index,
+                                    active_border,
+                                    view.clone(),
+                                ),
+                            ))
                         })
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
@@ -279,10 +283,8 @@ impl Render for InboxBoard {
                             }
                         })
                         .children(inbox_sections.iter().map(|sec| {
-                            let items = section_items_map
-                                .get(&sec.id)
-                                .map(|v| v.as_slice())
-                                .unwrap_or(&[]);
+                            let items =
+                                section_items_map.get(&sec.id).map(|v| v.as_slice()).unwrap_or(&[]);
                             board_renderer::render_section_block(
                                 sec.name.clone(),
                                 sec.id.clone(),

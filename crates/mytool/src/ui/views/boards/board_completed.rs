@@ -5,8 +5,7 @@
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window,
-    prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -146,9 +145,12 @@ impl Render for CompletedBoard {
             .id("completed-board")
             .track_focus(&self.base.focus_handle)
             .size_full()
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.base.on_background_click(cx);
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.base.on_background_click(cx);
+                }),
+            )
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,

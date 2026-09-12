@@ -280,9 +280,8 @@ impl ManageSectionsPanel {
 
     /// 显示新建 Section 对话框
     pub fn show_new_section_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let name_input = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx).placeholder("分区名称")
-        });
+        let name_input =
+            cx.new(|cx| gpui_component::input::InputState::new(window, cx).placeholder("分区名称"));
 
         let config = SectionDialogConfig::new("新建分区", "添加", false);
 
@@ -325,15 +324,13 @@ impl Render for ManageSectionsPanel {
         v_flex().size_full().gap_2().child(
             GroupBox::new()
                 .outline()
-                .title(
-                    h_flex().justify_between().w_full().child("分区").child(
-                        Button::new("new-section").label("新建分区").icon(IconName::Plus).on_click(
-                            cx.listener(|this, _, window, cx| {
-                                this.show_new_section_dialog(window, cx);
-                            }),
-                        ),
+                .title(h_flex().justify_between().w_full().child("分区").child(
+                    Button::new("new-section").label("新建分区").icon(IconName::Plus).on_click(
+                        cx.listener(|this, _, window, cx| {
+                            this.show_new_section_dialog(window, cx);
+                        }),
                     ),
-                )
+                ))
                 .child(List::new(&self.section_list).flex_1().w_full().h(px(360.))),
         )
     }

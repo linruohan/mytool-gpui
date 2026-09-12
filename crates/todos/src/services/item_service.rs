@@ -435,10 +435,7 @@ impl ItemService {
                 resolved_ids.push(existing.id);
                 continue;
             }
-            tracing::warn!(
-                "set_item_labels: label_id {} 不在 labels 表中，已跳过",
-                label_id
-            );
+            tracing::warn!("set_item_labels: label_id {} 不在 labels 表中，已跳过", label_id);
         }
 
         self.item_label_repo.set_item_labels(item_id, &resolved_ids).await?;

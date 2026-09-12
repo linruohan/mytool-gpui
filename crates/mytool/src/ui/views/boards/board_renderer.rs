@@ -42,12 +42,7 @@ pub fn render_empty_placeholder(
                 .text_color(cx.theme().muted_foreground.opacity(0.45)),
         )
         .child(div().text_lg().font_semibold().child(title.into()))
-        .child(
-            div()
-                .text_sm()
-                .text_color(cx.theme().muted_foreground)
-                .child(description.into()),
-        )
+        .child(div().text_sm().text_color(cx.theme().muted_foreground).child(description.into()))
 }
 
 // ==================== 通用渲染辅助 ====================
@@ -214,9 +209,13 @@ pub fn render_no_section_block<V: BoardSectionActions>(
             }
         });
 
-    board_section("未分组")
-        .sub_title(h_flex().gap_1().child(add_button))
-        .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
+    board_section("未分组").sub_title(h_flex().gap_1().child(add_button)).child(render_item_list(
+        items,
+        item_rows,
+        active_index,
+        active_border,
+        view_clone,
+    ))
 }
 
 /// 渲染简单分组（标题 + 可选更多菜单 + 任务列表），用于 Pinned / Today 等虚拟分组
@@ -229,7 +228,13 @@ pub fn render_simple_group_block<V: BoardView + Render>(
     view: Entity<V>,
     _show_more_menu: bool,
 ) -> impl IntoElement {
-    board_section(title).child(render_item_list(items, item_rows, active_index, active_border, view))
+    board_section(title).child(render_item_list(
+        items,
+        item_rows,
+        active_index,
+        active_border,
+        view,
+    ))
 }
 
 /// 渲染带 Schedule 按钮的简单分组，用于 Past Due 等

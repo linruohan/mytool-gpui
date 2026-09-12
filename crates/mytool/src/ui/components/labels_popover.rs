@@ -50,8 +50,7 @@ impl LabelsPopoverList {
         });
 
         // 创建新标签输入框
-        let new_label_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("新标签名称"));
+        let new_label_input = cx.new(|cx| InputState::new(window, cx).placeholder("新标签名称"));
 
         cx.focus_self(window);
         let label_list_clone = label_list.clone();
@@ -200,7 +199,8 @@ impl LabelsPopoverList {
             "#ef5350", "#ec407a", "#ab47bc", "#5c6bc0", "#42a5f5", "#26a69a", "#66bb6a", "#9ccc65",
             "#ffca28", "#ffa726", "#ff7043", "#8d6e63",
         ];
-        let color_seed = label_name.bytes().fold(0usize, |acc, b| acc.wrapping_mul(31).wrapping_add(b as usize));
+        let color_seed =
+            label_name.bytes().fold(0usize, |acc, b| acc.wrapping_mul(31).wrapping_add(b as usize));
         let color = colors[color_seed % colors.len()].to_string();
 
         // 创建新标签模型

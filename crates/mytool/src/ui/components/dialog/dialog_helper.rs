@@ -234,9 +234,7 @@ where
             .child(Alert::error("delete-alert", message.clone()).title("删除"))
             .footer(
                 DialogFooter::new()
-                    .child(
-                        DialogClose::new().child(Button::new("cancel").label("取消").outline()),
-                    )
+                    .child(DialogClose::new().child(Button::new("cancel").label("取消").outline()))
                     .child(DialogAction::new().child(Button::new("ok").label("确认").primary())),
             )
             .on_ok(move |_, window, cx| {

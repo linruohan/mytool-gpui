@@ -122,7 +122,9 @@ impl RenderOnce for ItemListItem {
                     ),
                 )
                 .when(!item_label_dots.is_empty(), |this| {
-                    this.child(h_flex().gap_1().flex_shrink_0().items_center().children(item_label_dots))
+                    this.child(
+                        h_flex().gap_1().flex_shrink_0().items_center().children(item_label_dots),
+                    )
                 })
                 .when_some(due_label, |this, due_label| {
                     this.child(

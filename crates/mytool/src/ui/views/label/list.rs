@@ -71,7 +71,9 @@ impl RenderOnce for LabelListItem {
             .py_1()
             .overflow_x_hidden()
             .rounded(cx.theme().radius)
-            .when(self.selected, |this| this.bg(cx.theme().list_active).border_color(cx.theme().list_active_border))
+            .when(self.selected, |this| {
+                this.bg(cx.theme().list_active).border_color(cx.theme().list_active_border)
+            })
             .child(
                 h_flex()
                     .items_center()

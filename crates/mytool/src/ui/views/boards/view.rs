@@ -4,9 +4,9 @@ use gpui::{
     div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    Icon,
+    Icon, h_flex,
     input::{InputEvent, InputState},
-    h_flex, v_flex,
+    v_flex,
 };
 use gpui_kit::assets::IconName;
 
@@ -149,16 +149,14 @@ fn render_board_tile(
         .hover(|this| this.opacity(0.9))
         .on_click(on_click)
         .child(
-            h_flex().w_full().justify_between().items_center().child(
-                Icon::new(icon).text_color(accent),
-            ).when(count > 0, |this| {
-                this.child(
-                    div()
-                        .text_xs()
-                        .text_color(accent)
-                        .child(count.to_string()),
-                )
-            }),
+            h_flex()
+                .w_full()
+                .justify_between()
+                .items_center()
+                .child(Icon::new(icon).text_color(accent))
+                .when(count > 0, |this| {
+                    this.child(div().text_xs().text_color(accent).child(count.to_string()))
+                }),
         )
         .child(div().text_sm().text_color(accent).child(name.into()))
 }

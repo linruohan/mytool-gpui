@@ -16,9 +16,7 @@ use crate::{
     LabelEvent,
     todo_state::TodoStore,
     ui::views::{
-        boards::{
-            board_common::render_board_header, board_renderer, container_board::Board,
-        },
+        boards::{board_common::render_board_header, board_renderer, container_board::Board},
         label::LabelsPanel,
     },
 };
@@ -133,21 +131,25 @@ impl Render for LabelsBoard {
                                     let labels_panel = labels_panel.clone();
                                     move |this, window, _cx| {
                                         let labels_panel = labels_panel.clone();
-                                        this.item(
-                                            PopupMenuItem::new("编辑标签").on_click(
-                                                window.listener_for(&labels_panel, |this, _, window, cx| {
+                                        this.item(PopupMenuItem::new("编辑标签").on_click(
+                                            window.listener_for(
+                                                &labels_panel,
+                                                |this, _, window, cx| {
                                                     this.show_label_dialog(window, cx, true);
                                                     cx.notify();
-                                                }),
+                                                },
                                             ),
-                                        )
+                                        ))
                                         .separator()
                                         .item(
                                             PopupMenuItem::new("删除标签").on_click(
-                                                window.listener_for(&labels_panel, |this, _, window, cx| {
-                                                    this.show_label_delete_dialog(window, cx);
-                                                    cx.notify();
-                                                }),
+                                                window.listener_for(
+                                                    &labels_panel,
+                                                    |this, _, window, cx| {
+                                                        this.show_label_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                ),
                                             ),
                                         )
                                     }

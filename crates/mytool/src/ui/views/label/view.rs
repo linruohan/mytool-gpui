@@ -175,8 +175,7 @@ impl LabelsPanel {
                 .footer(
                     DialogFooter::new()
                         .child(
-                            DialogClose::new()
-                                .child(Button::new("cancel").label("取消").outline()),
+                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
                         )
                         .child(
                             DialogAction::new()
@@ -243,10 +242,6 @@ impl LabelsPanel {
 
 impl Render for LabelsPanel {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        List::new(&self.label_list)
-            .px_4()
-            .py_1()
-            .flex_1()
-            .w_full()
+        List::new(&self.label_list).px_4().py_1().flex_1().w_full()
     }
 }

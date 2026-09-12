@@ -8,8 +8,7 @@ use std::{collections::HashMap, sync::Arc};
 use chrono::Datelike;
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div,
-    prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -125,8 +124,8 @@ fn format_schedule_heading(date_key: &str, today: &str) -> String {
     let Ok(date) = chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d") else {
         return date_key.to_string();
     };
-    let weekday = ["日", "一", "二", "三", "四", "五", "六"]
-        [date.weekday().num_days_from_sunday() as usize];
+    let weekday =
+        ["日", "一", "二", "三", "四", "五", "六"][date.weekday().num_days_from_sunday() as usize];
     let today_date = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d").ok();
 
     if Some(date) == today_date {
@@ -224,9 +223,12 @@ impl Render for ScheduledBoard {
             .track_focus(&self.base.focus_handle)
             .relative()
             .size_full()
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.base.on_background_click(cx);
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    this.base.on_background_click(cx);
+                }),
+            )
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
                 cx,

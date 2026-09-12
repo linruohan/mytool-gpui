@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, MouseButton, ParentElement, Render,
-    Styled, Subscription, Window, div, prelude::FluentBuilder,
+    InteractiveElement as _, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme as _, Colorize, IndexPath, Sizable, StyledExt, WindowExt,
@@ -443,15 +443,16 @@ impl ProjectItemsPanel {
                     v_form()
                         .child(field().label("名称").required(true).child(Input::new(&name_input)))
                         .child(field().label("颜色").child(todo_color_picker(&color)))
-                        .child(field().label("截止日期").child(
-                            DatePicker::new(&project_due).placeholder("项目截止日期"),
-                        )),
+                        .child(
+                            field()
+                                .label("截止日期")
+                                .child(DatePicker::new(&project_due).placeholder("项目截止日期")),
+                        ),
                 )
                 .footer(
                     DialogFooter::new()
                         .child(
-                            DialogClose::new()
-                                .child(Button::new("cancel").label("取消").outline()),
+                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
                         )
                         .child(
                             DialogAction::new().child(Button::new("save").primary().label("保存")),
@@ -533,14 +534,17 @@ impl Render for ProjectItemsPanel {
             .track_focus(&self.focus_handle)
             .relative()
             .size_full()
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                for row in this.item_rows.clone() {
-                    row.update(cx, |row, cx| row.collapse_if_open(cx));
-                }
-                if this.active_index.take().is_some() {
-                    cx.notify();
-                }
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    for row in this.item_rows.clone() {
+                        row.update(cx, |row, cx| row.collapse_if_open(cx));
+                    }
+                    if this.active_index.take().is_some() {
+                        cx.notify();
+                    }
+                }),
+            )
             .gap(VisualHierarchy::spacing(4.0))
             .child(
                 h_flex()
@@ -587,16 +591,26 @@ impl Render for ProjectItemsPanel {
                                                     .global::<TodoStore>()
                                                     .sections
                                                     .iter()
-                                                    .filter(|s| s.project_id.as_deref() == Some(&project_id))
+                                                    .filter(|s| {
+                                                        s.project_id.as_deref() == Some(&project_id)
+                                                    })
                                                     .map(|s| (s.name.clone(), s.id.clone()))
                                                     .collect();
                                                 for (section_name, section_id) in project_sections {
                                                     this = this.item(
                                                         PopupMenuItem::new(section_name).on_click(
-                                                            window.listener_for(&view, move |this, _, window, cx| {
-                                                                this.show_item_dialog(window, cx, false, Some(section_id.clone()));
-                                                                cx.notify();
-                                                            }),
+                                                            window.listener_for(
+                                                                &view,
+                                                                move |this, _, window, cx| {
+                                                                    this.show_item_dialog(
+                                                                        window,
+                                                                        cx,
+                                                                        false,
+                                                                        Some(section_id.clone()),
+                                                                    );
+                                                                    cx.notify();
+                                                                },
+                                                            ),
                                                         ),
                                                     );
                                                 }
@@ -634,21 +648,27 @@ impl Render for ProjectItemsPanel {
                                         let view = view.clone();
                                         move |this, window, _cx| {
                                             let view = view.clone();
-                                            this.item(
-                                                PopupMenuItem::new("编辑项目").on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
+                                            this.item(PopupMenuItem::new("编辑项目").on_click(
+                                                window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
                                                         this.show_project_edit_dialog(window, cx);
                                                         cx.notify();
-                                                    }),
+                                                    },
                                                 ),
-                                            )
+                                            ))
                                             .separator()
                                             .item(
                                                 PopupMenuItem::new("删除项目").on_click(
-                                                    window.listener_for(&view, |this, _, window, cx| {
-                                                        this.show_project_delete_dialog(window, cx);
-                                                        cx.notify();
-                                                    }),
+                                                    window.listener_for(
+                                                        &view,
+                                                        |this, _, window, cx| {
+                                                            this.show_project_delete_dialog(
+                                                                window, cx,
+                                                            );
+                                                            cx.notify();
+                                                        },
+                                                    ),
                                                 ),
                                             )
                                         }
@@ -672,15 +692,15 @@ impl Render for ProjectItemsPanel {
                             ))
                         })
                         .when(!self.pinned_items.is_empty(), |this| {
-                            this.child(
-                                board_section("置顶").child(board_renderer::render_item_list(
+                            this.child(board_section("置顶").child(
+                                board_renderer::render_item_list(
                                     &self.pinned_items,
                                     item_rows,
                                     active_index,
                                     active_border,
                                     view.clone(),
-                                )),
-                            )
+                                ),
+                            ))
                         })
                         .when(!no_section_items.is_empty(), |this| {
                             if has_project_sections {
@@ -703,10 +723,8 @@ impl Render for ProjectItemsPanel {
                             }
                         })
                         .children(project_sections.iter().map(|sec| {
-                            let items = section_items_map
-                                .get(&sec.id)
-                                .map(|v| v.as_slice())
-                                .unwrap_or(&[]);
+                            let items =
+                                section_items_map.get(&sec.id).map(|v| v.as_slice()).unwrap_or(&[]);
                             board_renderer::render_section_block(
                                 sec.name.clone(),
                                 sec.id.clone(),

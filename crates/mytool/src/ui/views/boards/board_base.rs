@@ -210,9 +210,8 @@ impl BoardBase {
             todos::entity::SectionModel::default()
         };
 
-        let name_input = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx).placeholder("分区名称")
-        });
+        let name_input =
+            cx.new(|cx| gpui_component::input::InputState::new(window, cx).placeholder("分区名称"));
         if is_edit {
             name_input.update(cx, |is, cx| {
                 is.set_value(ori_section.name.clone(), window, cx);

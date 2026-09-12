@@ -94,7 +94,9 @@ impl LabelService {
         }
 
         if !label.name.trim().is_empty() {
-            return self.get_or_create_label(&label.name, label.source_id.as_deref().unwrap_or("")).await;
+            return self
+                .get_or_create_label(&label.name, label.source_id.as_deref().unwrap_or(""))
+                .await;
         }
 
         Err(TodoError::ValidationError("标签名称不能为空".into()))

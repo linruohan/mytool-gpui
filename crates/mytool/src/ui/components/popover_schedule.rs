@@ -217,12 +217,19 @@ impl Render for ScheduleForm {
         let date_picker = self.date_picker_state.clone();
         let time_select = self.time_select.clone();
 
+        let has_date = !self.parent.read(cx).due_date.date.is_empty();
         let radio_group =
             RadioGroup::vertical("schedule-preset-group")
                 .selected_index(Some(selected_index))
                 .on_click(cx.listener(|this, index, _, cx| {
                     this.selected_preset_index = *index;
-                    cx.notify();
+                    let preset = this.get_selected_preset();
+                    if preset == SchedulePreset::Custom {
+                        cx.notify();
+                    } else {
+                        this.apply_date_preset(preset, cx);
+                        cx.emit(DismissEvent);
+                    }
                 }))
                 .children(presets.iter().map(|preset| {
                     Radio::new(format!("preset-{:?}", preset)).label(preset.to_label())
@@ -241,17 +248,28 @@ impl Render for ScheduleForm {
                 field().label("时间").child(Select::new(&time_select).small().placeholder("17:00")),
             ))
             .child(Separator::horizontal())
-            .child(Button::new("apply-btn").w_full().primary().label("确定").on_click(
-                cx.listener(move |this, _, _window, cx| {
-                    if is_custom {
+            .child(Button::new("apply-btn").w_full().primary().label("确定").on_click(cx.listener(
+                move |this, _, _window, cx| {
+                    if this.get_selected_preset() == SchedulePreset::Custom {
                         this.apply_custom_date(cx);
                     } else {
                         let preset = this.get_selected_preset();
                         this.apply_date_preset(preset, cx);
                     }
                     cx.emit(DismissEvent);
-                }),
-            ))
+                },
+            )))
+            .when(has_date, |this| {
+                this.child(Button::new("clear-date").w_full().ghost().label("清除日期").on_click(
+                    cx.listener(|this, _, _, cx| {
+                        this.parent.update(cx, |parent, cx| {
+                            parent.due_date.date.clear();
+                            cx.emit(ScheduleButtonEvent::Cleared);
+                        });
+                        cx.emit(DismissEvent);
+                    }),
+                ))
+            })
     }
 }
 

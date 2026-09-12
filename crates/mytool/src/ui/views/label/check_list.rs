@@ -5,8 +5,7 @@ use gpui::{
     Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IndexPath, Selectable, Sizable,
-    h_flex,
+    ActiveTheme, Icon, IndexPath, Selectable, Sizable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
 use gpui_kit::assets::IconName;

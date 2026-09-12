@@ -15,10 +15,9 @@ pub mod reminders;
 pub mod sections;
 pub mod sources;
 
-pub(crate) use ids::assign_id_if_empty;
-
 // Active domain models
 pub use attachments::{ActiveModel as AttachmentActiveModel, Model as AttachmentModel};
+pub(crate) use ids::assign_id_if_empty;
 pub use item_labels::{ActiveModel as ItemLabelActiveModel, Model as ItemLabelModel};
 pub use items::{ActiveModel as ItemActiveModel, Model as ItemModel};
 pub use labels::{ActiveModel as LabelActiveModel, Model as LabelModel};

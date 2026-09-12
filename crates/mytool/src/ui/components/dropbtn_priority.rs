@@ -1,6 +1,6 @@
 use gpui::{
-    App, Context, EventEmitter, FocusHandle, Focusable, Hsla, ParentElement, Render,
-    Styled, Window, px, rgb,
+    App, Context, EventEmitter, FocusHandle, Focusable, Hsla, ParentElement, Render, Styled,
+    Window, px, rgb,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -98,11 +98,7 @@ impl Render for PriorityState {
 
 impl PriorityState {
     pub fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self {
-            focus_handle: cx.focus_handle(),
-            priority: ItemPriority::NONE,
-            popover_open: false,
-        }
+        Self { focus_handle: cx.focus_handle(), priority: ItemPriority::NONE, popover_open: false }
     }
 
     pub fn priority(&self, _cx: &App) -> ItemPriority {

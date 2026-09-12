@@ -444,33 +444,26 @@ impl Render for RecurrencyForm {
         let selected_index = self.selected_preset_index;
         let presets = RecurrencyPreset::all_presets();
 
-        // 构建 RadioGroup
+        let is_recurring = self.parent.read(cx).due_date.is_recurring;
         let radio_group =
             RadioGroup::vertical("recurrency-preset-group")
                 .selected_index(Some(selected_index))
                 .on_click(cx.listener(move |this, index, _, cx| {
                     this.selected_preset_index = *index;
-                    cx.notify();
+                    let preset = this.get_selected_preset();
+                    if preset == RecurrencyPreset::Custom {
+                        cx.notify();
+                    } else {
+                        let (recurrency_type, weeks) = preset.to_recurrency();
+                        this.parent.update(cx, |parent, cx| {
+                            parent.apply_recurrency_change(Some((recurrency_type, 1, weeks)), cx);
+                        });
+                        cx.emit(DismissEvent);
+                    }
                 }))
                 .children(presets.iter().map(|preset| {
                     Radio::new(format!("preset-{:?}", preset)).label(preset.to_label())
                 }));
-
-        // 构建 Done 按钮
-        let done_button = Button::new("done").w_full().primary().label("完成").on_click(
-            cx.listener(move |this, _, _window, cx| {
-                let preset = this.get_selected_preset();
-                if preset == RecurrencyPreset::Custom {
-                    this.apply_custom(cx);
-                } else {
-                    let (recurrency_type, weeks) = preset.to_recurrency();
-                    this.parent.update(cx, |parent, cx| {
-                        parent.apply_recurrency_change(Some((recurrency_type, 1, weeks)), cx);
-                    });
-                    cx.emit(DismissEvent);
-                }
-            }),
-        );
 
         v_flex()
             .gap_2()
@@ -478,8 +471,26 @@ impl Render for RecurrencyForm {
             .w(px(260.))
             .child(radio_group)
             .when(is_custom, |this| this.child(self.render_custom_panel(cx)))
-            .child(Separator::horizontal())
-            .child(done_button)
+            .when(is_custom || is_recurring, |this| this.child(Separator::horizontal()))
+            .when(is_custom, |this| {
+                this.child(Button::new("done").w_full().primary().label("完成").on_click(
+                    cx.listener(move |this, _, _window, cx| {
+                        this.apply_custom(cx);
+                    }),
+                ))
+            })
+            .when(is_recurring, |this| {
+                this.child(
+                    Button::new("clear-recurrency").w_full().ghost().label("清除重复").on_click(
+                        cx.listener(|this, _, _, cx| {
+                            this.parent.update(cx, |parent, cx| {
+                                parent.apply_recurrency_change(None, cx);
+                            });
+                            cx.emit(DismissEvent);
+                        }),
+                    ),
+                )
+            })
     }
 }
 
@@ -515,22 +526,19 @@ impl RecurrencyForm {
                     .child(NumberInput::new(&interval_input).small().w_full()),
             )
             .child(
-                v_flex()
-                    .gap_1()
-                    .child(gpui::div().text_xs().child("结束"))
-                    .child(
-                        RadioGroup::horizontal("recurrency-end")
-                            .selected_index(Some(end_index))
-                            .on_click(cx.listener(|this, index, _, cx| {
-                                if let Some(&option) = RecurrencyEndOption::all().get(*index) {
-                                    this.end_type = option;
-                                    cx.notify();
-                                }
-                            }))
-                            .children(RecurrencyEndOption::all().into_iter().map(|option| {
-                                Radio::new(format!("end-{:?}", option)).label(option.to_label())
-                            })),
-                    ),
+                v_flex().gap_1().child(gpui::div().text_xs().child("结束")).child(
+                    RadioGroup::horizontal("recurrency-end")
+                        .selected_index(Some(end_index))
+                        .on_click(cx.listener(|this, index, _, cx| {
+                            if let Some(&option) = RecurrencyEndOption::all().get(*index) {
+                                this.end_type = option;
+                                cx.notify();
+                            }
+                        }))
+                        .children(RecurrencyEndOption::all().into_iter().map(|option| {
+                            Radio::new(format!("end-{:?}", option)).label(option.to_label())
+                        })),
+                ),
             )
             .when(end_type == RecurrencyEndOption::OnDate, move |this| {
                 this.child(DatePicker::new(&end_date_picker).cleanable(true).w_full())

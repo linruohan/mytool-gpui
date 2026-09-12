@@ -90,13 +90,7 @@ impl RenderOnce for StorySection {
                 .gap_1()
                 .pt_1()
                 .child(header)
-                .child(
-                    v_flex()
-                        .w_full()
-                        .items_start()
-                        .justify_start()
-                        .children(self.children),
-                )
+                .child(v_flex().w_full().items_start().justify_start().children(self.children))
                 .into_any_element();
         }
 

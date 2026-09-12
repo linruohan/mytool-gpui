@@ -22,7 +22,9 @@ pub fn delete_attachment(attachment_id: String, cx: &mut App) {
     let db_state = cx.global::<DBState>().clone();
     cx.spawn(async move |_cx| {
         match db_state
-            .spawn_store_op(move |store| async move { store.delete_attachment(&attachment_id).await })
+            .spawn_store_op(
+                move |store| async move { store.delete_attachment(&attachment_id).await },
+            )
             .await
         {
             Ok(Ok(_)) => {},

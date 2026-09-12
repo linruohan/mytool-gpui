@@ -10,8 +10,7 @@ use gpui_component::{
     ActiveTheme, Icon, IndexPath, Sizable, StyledExt, WindowExt,
     alert::Alert,
     button::{Button, ButtonVariants},
-    h_flex,
-    v_flex,
+    h_flex, v_flex,
 };
 use gpui_kit::assets::IconName;
 use todos::entity::ItemModel;
@@ -406,10 +405,7 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
 
                     batch_update_items(updated_items, cx);
 
-                    window.push_notification(
-                        format!("已为分区安排 {} 个任务", count),
-                        cx,
-                    );
+                    window.push_notification(format!("已为分区安排 {} 个任务", count), cx);
                     true
                 }
             })
@@ -429,36 +425,46 @@ pub fn render_board_header(
     h_flex()
         .id("header")
         .justify_between()
-        .items_center()
-        .px(px(24.))
-        .pt(px(18.))
-        .pb(px(8.))
+        .items_start()
+        .px(px(16.))
+        .pt(px(12.))
+        .pb(px(6.))
         .child(
             h_flex()
-                .gap(px(10.))
-                .items_center()
+                .gap(px(8.))
+                .items_start()
                 .child(
                     Icon::new(icon)
-                        .with_size(px(22.))
-                        .text_color(cx.theme().muted_foreground),
+                        .with_size(px(18.))
+                        .text_color(cx.theme().muted_foreground)
+                        .mt(px(3.)),
                 )
-                .child(gpui::div().text_xl().font_semibold().child(title))
-                .when(count > 0, |this| {
-                    this.child(
-                        gpui::div()
-                            .text_sm()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(count.to_string()),
-                    )
-                })
-                .when(!description.is_empty(), |this| {
-                    this.child(
-                        gpui::div()
-                            .text_sm()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(description),
-                    )
-                }),
+                .child(
+                    v_flex()
+                        .gap(px(2.))
+                        .child(
+                            h_flex()
+                                .gap(px(8.))
+                                .items_baseline()
+                                .child(gpui::div().text_lg().font_semibold().child(title))
+                                .when(count > 0, |this| {
+                                    this.child(
+                                        gpui::div()
+                                            .text_xs()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child(count.to_string()),
+                                    )
+                                }),
+                        )
+                        .when(!description.is_empty(), |this| {
+                            this.child(
+                                gpui::div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(description),
+                            )
+                        }),
+                ),
         )
         .child(
             gpui::div()
@@ -472,7 +478,7 @@ pub fn render_board_header(
 }
 
 /// 列表底部留白，避免最后几行被悬浮添加按钮挡住
-pub const FAB_BOTTOM_PAD: gpui::Pixels = px(72.);
+pub const FAB_BOTTOM_PAD: gpui::Pixels = px(56.);
 
 /// 右下角新建任务按钮（叠在内容之上，不挤占列表高度）
 pub fn render_add_task_fab(
@@ -481,15 +487,15 @@ pub fn render_add_task_fab(
 ) -> impl IntoElement {
     gpui::div()
         .absolute()
-        .bottom(px(24.))
-        .right(px(24.))
+        .bottom(px(16.))
+        .right(px(16.))
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .child(
             Button::new(id)
                 .icon(IconName::PlusLargeSymbolic)
                 .primary()
                 .large()
-                .rounded(px(28.))
+                .rounded(px(24.))
                 .tooltip("新建任务")
                 .on_click(on_click),
         )

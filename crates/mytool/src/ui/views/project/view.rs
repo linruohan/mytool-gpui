@@ -188,15 +188,16 @@ impl ProjectsPanel {
                     v_form()
                         .child(field().label("名称").required(true).child(Input::new(&name_input)))
                         .child(field().label("颜色").child(todo_color_picker(&color)))
-                        .child(field().label("截止日期").child(
-                            DatePicker::new(&project_due).placeholder("项目截止日期"),
-                        )),
+                        .child(
+                            field()
+                                .label("截止日期")
+                                .child(DatePicker::new(&project_due).placeholder("项目截止日期")),
+                        ),
                 )
                 .footer(
                     DialogFooter::new()
                         .child(
-                            DialogClose::new()
-                                .child(Button::new("cancel").label("取消").outline()),
+                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
                         )
                         .child(
                             DialogAction::new().child(Button::new("add").primary().label("添加")),

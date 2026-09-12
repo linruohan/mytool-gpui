@@ -10,11 +10,12 @@ use gpui_component::{
     Sizable, Size, StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
-    h_flex, v_flex,
+    h_flex,
     input::{Input, InputState, Textarea, TextareaState},
     spinner::Spinner,
     tag::Tag,
     theme::ActiveTheme,
+    v_flex,
 };
 use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
@@ -450,8 +451,8 @@ impl Render for ItemInfoState {
                                     "item-checked-{}",
                                     self.state_manager.item.id
                                 ))
-                                    .checked(self.state_manager.item.checked)
-                                    .on_click(cx.listener(Self::toggle_finished)),
+                                .checked(self.state_manager.item.checked)
+                                .on_click(cx.listener(Self::toggle_finished)),
                             )
                             .child(
                                 v_flex()
@@ -483,8 +484,7 @@ impl Render for ItemInfoState {
                                                         "置顶任务"
                                                     })
                                                     .on_click(cx.listener(|this, _, _, cx| {
-                                                        let item =
-                                                            this.state_manager.item.clone();
+                                                        let item = this.state_manager.item.clone();
                                                         let pinned = item.pinned;
                                                         set_item_pinned_optimistic(
                                                             item, !pinned, cx,
@@ -529,30 +529,32 @@ impl Render for ItemInfoState {
                                             .text_color(muted),
                                     )
                                     .when(!selected_labels.is_empty(), |this| {
-                                        this.child(
-                                            h_flex().gap_1().flex_wrap().children(
-                                                selected_labels.iter().map(|label| {
-                                                    let popover = label_popover.clone();
-                                                    let chip_id = format!("edit-label-chip-{}", label.id);
-                                                    div()
-                                                        .id(chip_id)
-                                                        .cursor_pointer()
-                                                        .on_click(move |_, window, cx| {
-                                                            popover.update(cx, |this, cx| {
-                                                                this.list_popover_open = true;
-                                                                this.label_list.update(cx, |list, cx| {
+                                        this.child(h_flex().gap_1().flex_wrap().children(
+                                            selected_labels.iter().map(|label| {
+                                                let popover = label_popover.clone();
+                                                let chip_id =
+                                                    format!("edit-label-chip-{}", label.id);
+                                                div()
+                                                    .id(chip_id)
+                                                    .cursor_pointer()
+                                                    .on_click(move |_, window, cx| {
+                                                        popover.update(cx, |this, cx| {
+                                                            this.list_popover_open = true;
+                                                            this.label_list.update(
+                                                                cx,
+                                                                |list, cx| {
                                                                     list.focus(window, cx);
-                                                                });
-                                                                cx.notify();
-                                                            });
-                                                        })
-                                                        .child(label_chip(
-                                                            label.name.clone(),
-                                                            &label.color,
-                                                        ))
-                                                }),
-                                            ),
-                                        )
+                                                                },
+                                                            );
+                                                            cx.notify();
+                                                        });
+                                                    })
+                                                    .child(label_chip(
+                                                        label.name.clone(),
+                                                        &label.color,
+                                                    ))
+                                            }),
+                                        ))
                                     }),
                             ),
                     )
