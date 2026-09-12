@@ -3,7 +3,7 @@ use std::sync::Arc;
 use gpui::{
     App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, Styled, Subscription, Window, actions,
-    prelude::FluentBuilder, px,
+    px,
 };
 use gpui_component::{
     Sizable,
@@ -281,8 +281,8 @@ impl Render for LabelsPopoverList {
                         this.list_popover_open = *open;
                         cx.notify();
                     }))
-                    .trigger(
-                        Button::new("item-labels-button")
+                    .trigger({
+                        let mut button = Button::new("item-labels-button")
                             .small()
                             .ghost()
                             .compact()
@@ -291,11 +291,12 @@ impl Render for LabelsPopoverList {
                             } else {
                                 "Set Labels".to_string()
                             })
-                            .icon(IconName::TagOutlineSymbolic)
-                            .when(selected_count > 0, |this| {
-                                this.label(format!("{}", selected_count))
-                            }),
-                    )
+                            .icon(IconName::TagOutlineSymbolic);
+                        if selected_count > 0 {
+                            button = button.label(format!("{}", selected_count));
+                        }
+                        button
+                    })
                     .child(
                         v_flex()
                             .gap_1()
@@ -317,7 +318,7 @@ impl Render for LabelsPopoverList {
                                         Button::new("create-label-button")
                                             .small()
                                             .ghost()
-                                            .icon(IconName::PinSymbolic)
+                                            .icon(IconName::Plus)
                                             .on_click(cx.listener(|this, _event, window, cx| {
                                                 let label_name = this
                                                     .new_label_input

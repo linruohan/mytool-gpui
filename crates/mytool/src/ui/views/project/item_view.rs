@@ -16,6 +16,7 @@ use gpui_component::{
     input::{Input, InputState},
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
+    tag::Tag,
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -526,6 +527,13 @@ impl Render for ProjectItemsPanel {
                             .items_center()
                             .gap(VisualHierarchy::spacing(2.0))
                             .child(div().text_xl().child(self.project.name.clone()))
+                            .when(!self.item_rows.is_empty(), |this| {
+                                this.child(
+                                    Tag::secondary()
+                                        .small()
+                                        .child(self.item_rows.len().to_string()),
+                                )
+                            })
                             .child(
                                 Button::new("edit-project")
                                     .small()

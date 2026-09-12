@@ -4,12 +4,15 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
-    Styled, Window,
+    Styled, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, WindowExt,
+    ActiveTheme, IndexPath, Sizable, WindowExt,
+    alert::Alert,
     button::{Button, ButtonVariants},
-    h_flex, v_flex,
+    h_flex,
+    tag::Tag,
+    v_flex,
 };
 use todos::entity::ItemModel;
 
@@ -86,7 +89,7 @@ pub fn show_confirm_dialog<T, F>(
         dialog
             .overlay(true)
             .overlay_closable(true)
-            .child(message)
+            .child(Alert::warning("confirm-alert", message.clone()).title("Confirm"))
             .on_ok({
                 let on_confirm = on_confirm.clone();
                 let success_notification = success_notification.clone();
@@ -420,6 +423,7 @@ pub fn render_board_header(
     icon: impl IntoElement,
     title: impl IntoElement,
     description: impl IntoElement,
+    count: usize,
     actions: impl IntoElement,
 ) -> impl IntoElement {
     h_flex()
@@ -437,7 +441,10 @@ pub fn render_board_header(
                         .gap(VisualHierarchy::spacing(2.0))
                         .items_center()
                         .child(icon)
-                        .child(gpui::div().text_base().child(title)),
+                        .child(gpui::div().text_base().child(title))
+                        .when(count > 0, |this| {
+                            this.child(Tag::secondary().small().child(count.to_string()))
+                        }),
                 )
                 .child(
                     gpui::div()

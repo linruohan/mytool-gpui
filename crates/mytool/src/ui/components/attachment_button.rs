@@ -255,12 +255,16 @@ impl Render for AttachmentButtonState {
                 );
                 cx.notify();
             }))
-            .trigger(
-                Button::new("open-attachment-dialog")
+            .trigger({
+                let mut button = Button::new("open-attachment-dialog")
                     .small()
                     .outline()
-                    .icon(IconName::MailAttachmentSymbolic),
-            )
+                    .icon(IconName::MailAttachmentSymbolic);
+                if !filtered_attachments.is_empty() {
+                    button = button.label(format!("{}", filtered_attachments.len()));
+                }
+                button
+            })
             .track_focus(&self.focus_handle)
             .child(
                 v_flex()

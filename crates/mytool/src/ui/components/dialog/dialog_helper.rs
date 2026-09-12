@@ -3,6 +3,7 @@ use std::sync::Arc;
 use gpui::{Context, ParentElement, Render, Styled, Window, prelude::*};
 use gpui_component::{
     WindowExt,
+    alert::Alert,
     button::{Button, ButtonVariants},
     dialog::{DialogAction, DialogClose, DialogFooter},
     input::{Input, InputState},
@@ -230,7 +231,7 @@ where
         dialog
             .overlay(true)
             .overlay_closable(true)
-            .child(message)
+            .child(Alert::error("delete-alert", message.clone()).title("Delete"))
             .footer(
                 DialogFooter::new()
                     .child(

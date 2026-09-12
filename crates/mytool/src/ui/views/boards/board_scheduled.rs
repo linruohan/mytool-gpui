@@ -183,6 +183,7 @@ impl Render for ScheduledBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
+        let board_count = ScheduledBoard::count(cx);
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
@@ -200,6 +201,7 @@ impl Render for ScheduledBoard {
                 <ScheduledBoard as Board>::icon(),
                 <ScheduledBoard as Board>::title(),
                 <ScheduledBoard as Board>::description(),
+                board_count,
                 Button::new("add-section")
                     .small()
                     .ghost()

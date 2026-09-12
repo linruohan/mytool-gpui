@@ -193,6 +193,7 @@ impl Render for TodayBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
+        let board_count = TodayBoard::count(cx);
         let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = &self.base.pinned_items;
         let past_due_items = &self.base.past_due_items;
@@ -213,6 +214,7 @@ impl Render for TodayBoard {
                 <TodayBoard as Board>::icon(),
                 <TodayBoard as Board>::title(),
                 <TodayBoard as Board>::description(),
+                board_count,
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
                     .child(

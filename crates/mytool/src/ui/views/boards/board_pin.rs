@@ -137,6 +137,7 @@ impl Render for PinBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
+        let board_count = PinBoard::count(cx);
         let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = &self.base.pinned_items;
         let no_section_items = &self.base.no_section_items;
@@ -154,6 +155,7 @@ impl Render for PinBoard {
                 <PinBoard as Board>::icon(),
                 <PinBoard as Board>::title(),
                 <PinBoard as Board>::description(),
+                board_count,
                 Button::new("unpin-item")
                     .small()
                     .ghost()

@@ -431,9 +431,16 @@ impl Render for ReminderButtonState {
                 }
                 cx.notify();
             }))
-            .trigger(
-                Button::new("open-reminder-dialog").small().outline().icon(IconName::AlarmSymbolic),
-            )
+            .trigger({
+                let mut button = Button::new("open-reminder-dialog")
+                    .small()
+                    .outline()
+                    .icon(IconName::AlarmSymbolic);
+                if !filtered_reminders.is_empty() {
+                    button = button.label(format!("{}", filtered_reminders.len()));
+                }
+                button
+            })
             .track_focus(&form.focus_handle(cx))
             .child(
                 v_flex()

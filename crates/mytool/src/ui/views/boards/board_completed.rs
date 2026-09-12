@@ -135,6 +135,7 @@ impl Render for CompletedBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
+        let board_count = CompletedBoard::count(cx);
         let active_border = cx.theme().list_active_border;
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
@@ -148,6 +149,7 @@ impl Render for CompletedBoard {
                 <CompletedBoard as Board>::icon(),
                 <CompletedBoard as Board>::title(),
                 <CompletedBoard as Board>::description(),
+                board_count,
                 Button::new("unfinish-item")
                     .small()
                     .ghost()

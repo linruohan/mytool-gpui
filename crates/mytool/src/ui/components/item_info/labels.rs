@@ -42,6 +42,7 @@ impl ItemInfoState {
     }
 
     /// label 行内 checkbox：选中或取消选中
+    #[allow(dead_code)]
     pub(super) fn label_toggle_checked(
         &mut self,
         label: Arc<LabelModel>,
@@ -53,6 +54,7 @@ impl ItemInfoState {
     }
 
     /// 统一标签选择路径：更新本地选中 → 同步 item.labels → 可选持久化
+    #[allow(dead_code)]
     fn apply_label_selection(
         &mut self,
         label: Arc<LabelModel>,

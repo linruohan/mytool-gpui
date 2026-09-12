@@ -11,12 +11,14 @@ use gpui_component::{
     StyledExt as _,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
+    group_box::{GroupBox, GroupBoxVariants},
     h_flex,
     // 🔧 修复：描述输入框需要 auto_grow，只在多行 TextareaState 上可用
     input::{Input, InputState, Textarea, TextareaState},
     separator::Separator,
+    spinner::Spinner,
+    tag::Tag,
     theme::ActiveTheme,
-    v_flex,
 };
 use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
@@ -452,10 +454,6 @@ impl Render for ItemInfoState {
             }
         }
 
-        let view = cx.entity();
-        // 🚀 性能优化：克隆 labels 后立即释放借用，避免在闭包中持有不可变借用
-        let labels = cx.global::<TodoStore>().labels.clone();
-        // 🚀 性能优化：在渲染开始时缓存选中的标签，避免在闭包中重复调用
         let selected_labels = self.selected_labels(cx);
 
         let colors = SemanticColors::from_theme(cx);
@@ -465,143 +463,96 @@ impl Render for ItemInfoState {
             cx.theme().muted_foreground
         };
 
-        v_flex()
-            .bg(cx.theme().background)
-            .border_1()
-            .border_color(cx.theme().border)
-            .rounded(px(6.0))
-            .overflow_hidden()  // 确保圆角生效
-            .shadow_sm()  // 添加轻微阴影
-            // 阻止点击事件冒泡，防止意外收起
+        div()
             .on_mouse_down(gpui::MouseButton::Left, |_event, _window, cx| {
                 cx.stop_propagation();
             })
             .child(
-                h_flex()
-                    .gap_1()
-                    .p(px(6.0))
-                    .bg(cx.theme().background)
-                    .border_b_1()
-                    .border_color(cx.theme().border.opacity(0.5))
+                GroupBox::new()
+                    .outline()
                     .child(
-                        Checkbox::new("item-checked")
-                            .checked(self.state_manager.item.checked)
-                            .on_click(cx.listener(Self::toggle_finished)),
-                    )
-                    .child(
-                        Input::new(&self.name_input)
-                            .focus_bordered(false)
-                    )
-                    .child(
-                        Button::new("item-pin")
-                            .small()
-                            .ghost()
-                            .compact()
-                            .icon(IconName::PinSymbolic)
-                            .text_color(pinned_color)
-                            .tooltip("Pin item")
-                            .on_click({
-                                let item = self.state_manager.item.clone();
-                                move |_event, _window, cx| {
-                                    set_item_pinned_optimistic(item.clone(), !item.pinned, cx);
-                                }
-                            }),
-                    )
-                    // 🚀 7.0新增：保存状态指示器
-                    .when(
-                        self.state_manager.save_status != SaveItemStatus::Idle,
-                        |this| {
-                            let status = self.state_manager.save_status;
-                            let (icon, color, tooltip) = match status {
-                                SaveItemStatus::Saving => (
-                                    IconName::ClockSymbolic,
-                                    cx.theme().warning,
-                                    "Saving...",
-                                ),
-                                SaveItemStatus::Succeeded => (
-                                    IconName::CheckmarkSmallSymbolic,
-                                    gpui::green().opacity(0.8),
-                                    "Saved successfully",
-                                ),
-                                SaveItemStatus::Failed => (
-                                    IconName::Info,
-                                    gpui::red().opacity(0.8),
-                                    "Save failed - please retry",
-                                ),
-                                _ => (IconName::Info, cx.theme().muted_foreground, ""),
-                            };
-                            this.child(
-                                Button::new("save-status")
+                        h_flex()
+                            .gap_1()
+                            .p(px(6.0))
+                            .child(
+                                Checkbox::new("item-checked")
+                                    .checked(self.state_manager.item.checked)
+                                    .on_click(cx.listener(Self::toggle_finished)),
+                            )
+                            .child(Input::new(&self.name_input).focus_bordered(false))
+                            .child(
+                                Button::new("item-pin")
                                     .small()
                                     .ghost()
                                     .compact()
-                                    .icon(icon)
-                                    .text_color(color)
-                                    .tooltip(tooltip),
+                                    .icon(IconName::PinSymbolic)
+                                    .text_color(pinned_color)
+                                    .tooltip("Pin item")
+                                    .on_click({
+                                        let item = self.state_manager.item.clone();
+                                        move |_event, _window, cx| {
+                                            set_item_pinned_optimistic(
+                                                item.clone(),
+                                                !item.pinned,
+                                                cx,
+                                            );
+                                        }
+                                    }),
                             )
-                        },
-                    ),
-            )
-            .child(
-                // 🔧 修复：TextareaState 对应的渲染组件是 Textarea 而不是 Input
-                Textarea::new(&self.desc_input)
-                    .bordered(false)
-                    .px(px(6.0))
-                    .py(px(4.0))
-                    .bg(cx.theme().background.opacity(0.5))
-            )
-            .child(
-                h_flex()
-                    .gap_2()
-                    .p(px(6.0))
-                    .flex_wrap()
-                    .children(labels.iter().map(|label| {
-                        let label_clone = label.clone();
-                        let view_clone = view.clone();
-                        let is_checked = selected_labels.iter().any(|l| l.id == label.id);
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .p_1()
-                            .rounded(px(4.0))
-                            .hover(|style| style.bg(cx.theme().accent.opacity(0.1)))
-                            .child(
-                                Checkbox::new(format!("label-checkbox-{}", label.id))
-                                    .checked(is_checked)
-                                    .on_click(cx.listener(move |_this, _event, window, cx| {
-                                        info!("Label checkbox clicked! Label: {}", label_clone.name);
-                                        let label_model = label_clone.as_ref().clone();
-                                        cx.update_entity(&view_clone, |view, cx| {
-                                            let new_checked = !view.selected_labels(cx).iter().any(|l| l.id == label_clone.id);
-                                            view.label_toggle_checked(Arc::new(label_model), &new_checked, window, cx);
-                                        });
-                                    }))
-                            )
-                            .child(label_chip(label.name.clone(), &label.color))
-                    }))
-            )
-            .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .gap_1()
-                    .p(px(6.0))
-                    .bg(cx.theme().background.opacity(0.3))
-                    .border_t_1()
-                    .border_color(cx.theme().border.opacity(0.5))
-                    .child(
-                        h_flex().gap_1().child(
-                            h_flex()
-                                .gap_1()
-                                .overflow_x_hidden()
-                                .flex_nowrap()
-                                .child(ScheduleButton::new(&self.schedule_button_state))
-                                .child(RecurrencyButton::new(&self.recurrency_button_state)),
-                        ),
+                            .when(self.state_manager.save_status != SaveItemStatus::Idle, |this| {
+                                match self.state_manager.save_status {
+                                    SaveItemStatus::Saving => {
+                                        this.child(Spinner::new().small().color(cx.theme().warning))
+                                    },
+                                    SaveItemStatus::Succeeded => {
+                                        this.child(Tag::success().small().child("Saved"))
+                                    },
+                                    SaveItemStatus::Failed => {
+                                        this.child(Tag::danger().small().child("Failed"))
+                                    },
+                                    _ => this,
+                                }
+                            }),
                     )
                     .child(
+                        Textarea::new(&self.desc_input)
+                            .bordered(false)
+                            .px(px(6.0))
+                            .py(px(4.0))
+                            .bg(cx.theme().background.opacity(0.5)),
+                    )
+                    .when(!selected_labels.is_empty(), |this| {
+                        this.child(
+                            h_flex().gap_1().px(px(6.0)).flex_wrap().children(
+                                selected_labels
+                                    .iter()
+                                    .map(|label| label_chip(label.name.clone(), &label.color)),
+                            ),
+                        )
+                    })
+                    .child(
                         h_flex()
+                            .items_center()
+                            .justify_between()
+                            .gap_1()
+                            .p(px(6.0))
+                            .bg(cx.theme().background.opacity(0.3))
+                            .border_t_1()
+                            .border_color(cx.theme().border.opacity(0.5))
+                            .child(
+                                h_flex().gap_1().child(
+                                    h_flex()
+                                        .gap_1()
+                                        .overflow_x_hidden()
+                                        .flex_nowrap()
+                                        .child(ScheduleButton::new(&self.schedule_button_state))
+                                        .child(RecurrencyButton::new(
+                                            &self.recurrency_button_state,
+                                        )),
+                                ),
+                            )
+                            .child(
+                                h_flex()
                             .gap_1()
                             .items_center()
                             .justify_end()
@@ -609,21 +560,22 @@ impl Render for ItemInfoState {
                             .child(self.label_popover_list.clone()) // tags
                             .child(PriorityButton::new(&self.priority_state)) // priority
                             .child(ReminderButton::new(&self.reminder_state)),
-                ),
-            )
-            .child(Separator::horizontal().p_1())
-            .child(
-                h_flex().items_center().justify_between().gap_1().child(
-                    h_flex().gap_1().child(
-                        h_flex()
-                            .gap_1()
-                            .overflow_x_hidden()
-                            .flex_nowrap()
-                            .child(ProjectButton::new(&self.project_state))
-                            .child(Separator::vertical().h_4())
-                            .child(SectionButton::new(&self.section_state)),
+                            ),
+                    )
+                    .child(Separator::horizontal().p_1())
+                    .child(
+                        h_flex().items_center().justify_between().gap_1().child(
+                            h_flex().gap_1().child(
+                                h_flex()
+                                    .gap_1()
+                                    .overflow_x_hidden()
+                                    .flex_nowrap()
+                                    .child(ProjectButton::new(&self.project_state))
+                                    .child(Separator::vertical().h_4())
+                                    .child(SectionButton::new(&self.section_state)),
+                            ),
+                        ),
                     ),
-                ),
             )
     }
 }

@@ -136,6 +136,7 @@ impl Render for InboxBoard {
         self.apply_pending_refresh(window, cx);
 
         let view = cx.entity().clone();
+        let board_count = InboxBoard::count(cx);
         let sections = &cx.global::<TodoStore>().sections;
         let pinned_items = &self.base.pinned_items;
         let no_section_items = &self.base.no_section_items;
@@ -153,6 +154,7 @@ impl Render for InboxBoard {
                 <InboxBoard as Board>::icon(),
                 <InboxBoard as Board>::title(),
                 <InboxBoard as Board>::description(),
+                board_count,
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
                     .child(
