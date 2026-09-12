@@ -73,11 +73,11 @@ impl ItemInfoState {
     pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
 
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Task name..."));
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("任务名称"));
 
         let desc_input = cx.new(|cx| {
             // 🔧 修复：auto_grow 只在多行 TextareaState 上存在，使用 TextareaState::new()
-            TextareaState::new(window, cx).auto_grow(1, 8).placeholder("Add description...")
+            TextareaState::new(window, cx).auto_grow(1, 8).placeholder("添加描述...")
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 

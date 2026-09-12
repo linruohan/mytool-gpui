@@ -23,7 +23,7 @@ use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, VisualHierarchy, section,
+    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, VisualHierarchy, board_section,
     todo_actions::{
         add_section, delete_project, delete_project_item, delete_section, load_project_items,
         update_project, update_project_item, update_section,
@@ -730,7 +730,7 @@ impl Render for ProjectItemsPanel {
                                 }));
 
                             this.child(
-                                section("置顶")
+                                board_section("置顶")
                                     .sub_title(
                                         h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new("more-pinned")
@@ -760,7 +760,7 @@ impl Render for ProjectItemsPanel {
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
-                                section("未分组")
+                                board_section("未分组")
                                     .sub_title(
                                         h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new("add-item-to-no-section")
@@ -819,7 +819,7 @@ impl Render for ProjectItemsPanel {
                             let section_id = sec.id.clone();
 
                             Some(
-                                section(sec.name.clone())
+                                board_section(sec.name.clone())
                                     .sub_title(
                                         h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new(format!(

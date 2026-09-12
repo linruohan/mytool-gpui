@@ -244,14 +244,14 @@ impl ItemInfoState {
         match event {
             ReminderButtonEvent::Added(reminder) => {
                 NotificationSystem::debug(format!("Reminder added: {:?}", reminder.id));
-                window.notify_success("Reminder added successfully", cx);
+                window.notify_success("已添加提醒", cx);
             },
             ReminderButtonEvent::Removed(reminder_id) => {
                 NotificationSystem::debug(format!("Reminder removed: {:?}", reminder_id));
-                window.notify_success("Reminder removed", cx);
+                window.notify_success("已移除提醒", cx);
             },
             ReminderButtonEvent::Error(error) => {
-                window.notify_error(format!("Failed to manage reminder: {}", error), cx);
+                window.notify_error(format!("提醒更新失败：{}", error), cx);
             },
         }
 

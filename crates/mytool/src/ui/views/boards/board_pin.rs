@@ -20,7 +20,7 @@ use gpui_component::{
 use gpui_kit::assets::IconName;
 
 use crate::{
-    BoardBase, VisualHierarchy, section,
+    BoardBase, VisualHierarchy, board_section,
     todo_state::TodoStore,
     ui::views::boards::{
         BoardView,
@@ -193,7 +193,7 @@ impl Render for PinBoard {
                         .when(!pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
-                                section("置顶")
+                                board_section("置顶")
                                     .sub_title(
                                         h_flex().gap_1().child(
                                             Button::new("more-pinned")

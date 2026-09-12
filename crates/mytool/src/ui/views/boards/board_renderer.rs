@@ -20,7 +20,7 @@ use gpui_kit::assets::IconName;
 use todos::entity::ItemModel;
 
 use super::{board_base::BoardView, board_common::BoardSectionActions};
-use crate::{ItemRow, ItemRowState, ScheduleButtonState, section};
+use crate::{ItemRow, ItemRowState, ScheduleButtonState, board_section};
 
 /// Board 空状态：居中大图标 + 标题 + 提示，无虚线框。
 pub fn render_empty_placeholder(
@@ -196,7 +196,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .icon(IconName::EllipsisVertical)
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
-    let mut block = section(section_name);
+    let mut block = board_section(section_name);
 
     if options.show_inline_edit_delete {
         block = block.sub_title(h_flex().gap_1().child(add_button));
@@ -302,7 +302,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
             }
         });
 
-    let mut block = section("未分组");
+    let mut block = board_section("未分组");
 
     if compact_toolbar {
         block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
@@ -326,7 +326,7 @@ pub fn render_simple_group_block<V: BoardView + Render>(
     show_more_menu: bool,
 ) -> impl IntoElement {
     let view_clone = view.clone();
-    let mut block = section(title);
+    let mut block = board_section(title);
 
     if show_more_menu {
         block = block.sub_title(
@@ -365,7 +365,7 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
 ) -> impl IntoElement {
     let view_clone = view.clone();
 
-    section(title)
+    board_section(title)
         .sub_title(
             h_flex()
                 .gap_1()
@@ -429,7 +429,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .icon(IconName::EllipsisVertical)
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
-    section(section_name)
+    board_section(section_name)
         .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
         .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
 }

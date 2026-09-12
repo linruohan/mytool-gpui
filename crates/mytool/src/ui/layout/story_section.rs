@@ -1,11 +1,11 @@
 use gpui::{
-    AnyElement, App, Div, IntoElement, ParentElement, RenderOnce, SharedString, StyleRefinement,
-    Styled, Window, rems,
+    AnyElement, App, Div, InteractiveElement, IntoElement, ParentElement, RenderOnce, SharedString,
+    StyleRefinement, Styled, Window, div, prelude::FluentBuilder, rems,
 };
 use gpui_component::{
-    ActiveTheme,
+    ActiveTheme, StyledExt,
     group_box::{GroupBox, GroupBoxVariants},
-    h_flex,
+    h_flex, v_flex,
 };
 
 #[derive(IntoElement)]
@@ -14,11 +14,17 @@ pub struct StorySection {
     pub(crate) title: SharedString,
     pub(crate) sub_title: Vec<AnyElement>,
     pub(crate) children: Vec<AnyElement>,
+    pub(crate) plain: bool,
 }
 
 impl StorySection {
     pub fn sub_title(mut self, sub_title: impl IntoElement) -> Self {
         self.sub_title.push(sub_title.into_any_element());
+        self
+    }
+
+    pub fn plain(mut self) -> Self {
+        self.plain = true;
         self
     }
 
@@ -61,17 +67,43 @@ impl Styled for StorySection {
 
 impl RenderOnce for StorySection {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let header = h_flex()
+            .justify_between()
+            .w_full()
+            .items_center()
+            .gap_2()
+            .when(!self.title.is_empty(), |this| {
+                this.child(
+                    div()
+                        .text_sm()
+                        .font_semibold()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(self.title.clone()),
+                )
+            })
+            .children(self.sub_title);
+
+        if self.plain {
+            return v_flex()
+                .id(self.title.clone())
+                .w_full()
+                .gap_1()
+                .pt_1()
+                .child(header)
+                .child(
+                    v_flex()
+                        .w_full()
+                        .items_start()
+                        .justify_start()
+                        .children(self.children),
+                )
+                .into_any_element();
+        }
+
         GroupBox::new()
             .id(self.title.clone())
             .outline()
-            .title(
-                h_flex()
-                    .justify_between()
-                    .w_full()
-                    .gap_4()
-                    .child(self.title)
-                    .children(self.sub_title),
-            )
+            .title(header)
             .content_style(
                 StyleRefinement::default()
                     .rounded(cx.theme().radius_lg)
@@ -80,5 +112,6 @@ impl RenderOnce for StorySection {
                     .justify_center(),
             )
             .child(self.base.children(self.children))
+            .into_any_element()
     }
 }

@@ -302,7 +302,12 @@ pub(crate) fn section(title: impl Into<SharedString>) -> StorySection {
         sub_title: vec![],
         base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_4(),
         children: vec![],
+        plain: false,
     }
+}
+
+pub(crate) fn board_section(title: impl Into<SharedString>) -> StorySection {
+    section(title).plain()
 }
 
 pub(crate) fn section_with_title(title: impl IntoElement) -> StorySection {
@@ -311,6 +316,7 @@ pub(crate) fn section_with_title(title: impl IntoElement) -> StorySection {
         sub_title: vec![title.into_any_element()],
         base: h_flex().w_full().flex_wrap().justify_center().items_center().gap_2(),
         children: vec![],
+        plain: true,
     }
 }
 

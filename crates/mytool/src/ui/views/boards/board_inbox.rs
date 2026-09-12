@@ -20,7 +20,7 @@ use gpui_component::{
 use gpui_kit::assets::IconName;
 
 use crate::{
-    BoardBase, VisualHierarchy, section,
+    BoardBase, VisualHierarchy, board_section,
     todo_state::TodoStore,
     ui::views::boards::{
         BoardView,
@@ -237,7 +237,7 @@ impl Render for InboxBoard {
                         .px_4()
                         .py_1()
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(section("置顶").child(board_renderer::render_item_list(
+                            this.child(board_section("置顶").child(board_renderer::render_item_list(
                                 &pinned_items,
                                 item_rows,
                                 active_index,

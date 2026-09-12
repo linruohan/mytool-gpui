@@ -62,16 +62,13 @@ impl RenderOnce for ItemListItem {
             .item
             .due_date()
             .and_then(|due_date| due_date.datetime())
-            .map(|datetime| DateTime::default().get_relative_date_from_date(&datetime))
-            .unwrap_or_else(|| "无日期".to_string());
+            .map(|datetime| DateTime::default().get_relative_date_from_date(&datetime));
         let due_color = if self.item.checked {
             cx.theme().muted_foreground
         } else if self.item.is_past_due() {
             colors.status_overdue
         } else if self.item.is_due_today() {
             colors.status_today
-        } else if self.item.due_date().is_none() {
-            cx.theme().muted_foreground
         } else {
             colors.status_scheduled
         };
@@ -113,11 +110,13 @@ impl RenderOnce for ItemListItem {
                             },
                         )),
                 )
-                .child(
-                    Label::new(due_label)
-                        .text_color(due_color)
-                        .when(self.item.checked, |this| this.line_through()),
-                )
+                .when_some(due_label, |this, due_label| {
+                    this.child(
+                        Label::new(due_label)
+                            .text_color(due_color)
+                            .when(self.item.checked, |this| this.line_through()),
+                    )
+                })
                 .child(
                     v_flex().flex_1().min_w_0().overflow_x_hidden().flex_nowrap().child(
                         Label::new(self.item.content.clone())
