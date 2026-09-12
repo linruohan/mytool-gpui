@@ -4,7 +4,6 @@ use gpui::{
     px,
 };
 use gpui_component::{
-    IconName,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
@@ -13,6 +12,7 @@ use gpui_component::{
     radio::{Radio, RadioGroup},
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use serde::Deserialize;
 use todos::{DueDate, enums::RecurrencyType};
 

@@ -4,12 +4,13 @@
 // #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 use std::{process, sync::mpsc::channel, thread};
 
-use gpui_kit::assets::Assets;
+// 使用 AllAssets：嵌入完整 Lucide 图标目录，gpui_kit::assets::IconName 中的图标才能被加载
+use gpui_kit::assets::AllAssets;
 use mytool::{Gallery, todo_state::get_todo_conn};
 
 #[tokio::main]
 async fn main() {
-    let app = gpui_platform::application().with_assets(Assets);
+    let app = gpui_platform::application().with_assets(AllAssets);
     let name = std::env::args().nth(1);
 
     let db = match get_todo_conn().await {

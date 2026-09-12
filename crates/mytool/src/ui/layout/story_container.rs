@@ -4,12 +4,13 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName, WindowExt,
+    ActiveTheme, WindowExt,
     button::Button,
     dock::{BasePanel, Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
     scroll::ScrollableElement,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{AppState, Mytool, ShowPanelInfo, StoryState};
 

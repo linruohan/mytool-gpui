@@ -5,11 +5,12 @@ use gpui::{
     RenderOnce, SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName, IndexPath, Selectable, Sizable,
+    ActiveTheme, IndexPath, Selectable, Sizable,
     button::{Button, ButtonVariants},
     h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
+use gpui_kit::assets::IconName;
 use todos::entity::ProjectModel;
 
 use crate::VisualHierarchy;

@@ -1,7 +1,6 @@
 use gpui::*;
 use gpui_component::{
     ActiveTheme,
-    IconName,
     Sizable,
     button::{Button, ButtonVariants as _},
     h_flex,
@@ -11,6 +10,7 @@ use gpui_component::{
     switch::Switch,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::Mytool;
 

@@ -5,9 +5,10 @@ use gpui::{
     Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable, h_flex,
+    ActiveTheme, Icon, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
+use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 
 use crate::{UnSelectedCheckLabel, VisualHierarchy};

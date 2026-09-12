@@ -6,7 +6,7 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    IconName, Sizable,
+    Sizable,
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -15,6 +15,7 @@ use gpui_component::{
     separator::Separator,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 use tracing::info;
 

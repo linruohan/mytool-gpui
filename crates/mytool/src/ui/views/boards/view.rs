@@ -4,13 +4,14 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable,
+    ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
     sidebar::{SidebarBoard, SidebarBoardItem},
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
@@ -174,8 +175,11 @@ impl Render for BoardPanel {
                                 board.name.clone(),
                                 board.colors.clone(),
                                 board.count,
-                                board.icon.clone(),
+                                // new() 第 4 参仅接受组件子集 IconName，
+                                // 先给占位图标，随后用 .icon() 覆盖为完整目录中的真实图标
+                                gpui_component::IconName::Inbox,
                             )
+                            .icon(board.icon)
                             .size(gpui::Length::Definite(gpui::DefiniteLength::Fraction(0.5)))
                             .active(self.active_index == Some(ix))
                             .on_click(cx.listener(

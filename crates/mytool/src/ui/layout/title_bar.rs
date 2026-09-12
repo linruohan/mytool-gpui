@@ -6,12 +6,13 @@ use gpui::{
     Window, div, px,
 };
 use gpui_component::{
-    ActiveTheme as _, IconName, Side, Sizable as _, Theme, TitleBar, WindowExt as _,
+    ActiveTheme as _, Side, Sizable as _, Theme, TitleBar, WindowExt as _,
     badge::Badge,
     button::{Button, ButtonVariants as _},
     menu::{AppMenuBar, DropdownMenu as _},
     scroll::ScrollbarMode,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     AppState, SelectFont, SelectRadius, SelectScrollbarMode, ToggleFpsMonitor,

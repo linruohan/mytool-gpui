@@ -1,6 +1,6 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _, Icon, IconName, Sizable as _,
+    ActiveTheme as _, Icon, Sizable as _,
     button::{Button, ButtonVariants as _},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -10,6 +10,7 @@ use gpui_component::{
     status_bar::StatusBar,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::*;
 

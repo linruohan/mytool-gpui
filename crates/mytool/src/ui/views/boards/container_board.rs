@@ -4,12 +4,13 @@ use gpui::{
     Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName,
+    ActiveTheme,
     button::Button,
     dock::{BasePanel, Panel, PanelControl, PanelEvent, PanelInfo, PanelState, TitleStyle},
     menu::PopupMenu,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{ShowPanelInfo, VisualHierarchy};
 

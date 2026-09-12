@@ -5,7 +5,7 @@ use gpui::{
     Task, Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, Icon, IconName, IndexPath, Placement, Selectable, WindowExt,
+    ActiveTheme, Colorize, Icon, IndexPath, Placement, Selectable, WindowExt,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     h_flex,
@@ -13,6 +13,7 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
     red_400, v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::{
     entity::{ItemModel, LabelModel},
     utils::datetime::DateTime,

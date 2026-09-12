@@ -5,13 +5,14 @@ use gpui::{
     Styled, Window,
 };
 use gpui_component::{
-    IconName, Sizable,
+    Sizable,
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
     popover::Popover,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use sea_orm::prelude::Uuid;
 use todos::entity::AttachmentModel;
 

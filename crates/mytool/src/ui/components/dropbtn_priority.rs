@@ -1,5 +1,5 @@
 use gpui::{Context, EventEmitter, Focusable, ParentElement, Render, Window};
-use gpui_component::IconName;
+use gpui_kit::assets::IconName;
 use todos::enums::item_priority::ItemPriority;
 
 use crate::{

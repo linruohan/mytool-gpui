@@ -8,7 +8,7 @@ use gpui::{
     ParentElement, Render, Styled, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable,
+    ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex,
@@ -16,6 +16,7 @@ use gpui_component::{
     scroll::ScrollableElement,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     BoardBase, VisualHierarchy, section,

@@ -10,13 +10,14 @@ use gpui::{
     Render, Styled, Subscription, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable, WindowExt,
+    ActiveTheme, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     h_flex,
     menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     BoardBase, ScheduleButtonEvent, ScheduleButtonState, VisualHierarchy,

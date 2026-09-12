@@ -6,7 +6,7 @@ use gpui::{
     Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme as _, Colorize, IconName, IndexPath, Sizable, WindowExt,
+    ActiveTheme as _, Colorize, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dialog::{DialogAction, DialogClose, DialogFooter},
@@ -16,6 +16,7 @@ use gpui_component::{
     scroll::ScrollableElement,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 

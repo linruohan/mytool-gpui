@@ -8,12 +8,13 @@ use gpui::{
     ParentElement, Render, Styled, Window,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable,
+    ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     scroll::ScrollableElement,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     BoardBase, VisualHierarchy,

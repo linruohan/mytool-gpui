@@ -6,9 +6,10 @@ use gpui::{
     StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible,
-    h_flex, v_flex,
+    ActiveTheme, Sizable, Size, StyledExt as _, button::Button, collapsible::Collapsible, h_flex,
+    v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{

@@ -6,7 +6,6 @@ use gpui::{
     StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
-    IconName,
     Sizable,
     Size,
     StyledExt as _,
@@ -19,6 +18,7 @@ use gpui_component::{
     theme::ActiveTheme,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 use tracing::{info, warn};
 

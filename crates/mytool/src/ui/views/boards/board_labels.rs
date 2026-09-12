@@ -3,11 +3,12 @@ use gpui::{
     MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
 };
 use gpui_component::{
-    ActiveTheme, IconName, Sizable,
+    ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex, v_flex,
 };
+use gpui_kit::assets::IconName;
 
 use crate::{
     LabelEvent,

@@ -116,7 +116,7 @@ where
                 .small()
                 .ghost()
                 .compact()
-                .icon(gpui_component::IconName::UserTrashSymbolic)
+                .icon(gpui_kit::assets::IconName::UserTrashSymbolic)
                 .on_click(move |_event, _window, cx| {
                     on_remove(item_id.clone(), view.clone(), cx);
                 }),

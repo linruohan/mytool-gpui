@@ -5,11 +5,12 @@ use gpui::{
     SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Selectable,
+    ActiveTheme, Icon, IndexPath, Selectable,
     checkbox::Checkbox,
     h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
+use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 use tracing::info;
 

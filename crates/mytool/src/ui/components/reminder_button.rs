@@ -6,12 +6,13 @@ use gpui::{
     px,
 };
 use gpui_component::{
-    IconName, Sizable,
+    Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     menu::{DropdownMenu, PopupMenuItem},
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use sea_orm::prelude::Uuid;
 use todos::entity::ReminderModel;
 

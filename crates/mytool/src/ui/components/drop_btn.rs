@@ -3,11 +3,12 @@ use gpui::{
     ParentElement, Render, SharedString, StyleRefinement, Styled, Window, div, px,
 };
 use gpui_component::{
-    Icon, IconName, Sizable, Size, StyledExt,
+    Icon, Sizable, Size, StyledExt,
     button::{Button, ButtonVariants},
     menu::DropdownMenu,
     v_flex,
 };
+use gpui_kit::assets::IconName;
 // Generic dropdown state
 pub struct DropdownState<T: Clone + PartialEq + 'static + Send> {
     focus_handle: FocusHandle,

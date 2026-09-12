@@ -7,12 +7,13 @@ use gpui::{
     ParentElement, Render, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath,
+    ActiveTheme, Icon, IndexPath,
     button::Button,
     h_flex,
     list::{List, ListDelegate, ListEvent, ListItem, ListState},
     v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::entity::SectionModel;
 
 use crate::{
