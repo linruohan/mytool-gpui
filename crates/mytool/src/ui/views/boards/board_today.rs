@@ -27,7 +27,7 @@ use crate::{
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, render_board_header, show_item_delete_dialog,
+            BoardItemClickEvent, FAB_BOTTOM_PAD, render_board_header, show_item_delete_dialog,
             show_schedule_popover, with_selected_item,
         },
         board_renderer,
@@ -134,7 +134,7 @@ impl Board for TodayBoard {
     }
 
     fn title() -> &'static str {
-        "Today"
+        "今天"
     }
 
     fn description() -> &'static str {
@@ -281,7 +281,8 @@ impl Render for TodayBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .px_4()
-                        .py_1()
+                        .pt_1()
+                        .pb(FAB_BOTTOM_PAD)
                         .when(!pinned_items.is_empty(), |this| {
                             this.child(board_renderer::render_simple_group_block(
                                 "置顶",

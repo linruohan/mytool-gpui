@@ -65,6 +65,7 @@ where
     div()
         .id(("item", i))
         .rounded_md()
+        .hover(move |this| this.bg(active_border.opacity(0.12)))
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_click(move |_, _, cx| {
             cx.stop_propagation();
@@ -109,20 +110,11 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
 ) -> impl Fn(PopupMenu, &mut Window, &mut gpui::Context<PopupMenu>) -> PopupMenu + 'static {
     move |this, window, _cx| {
         let view = view.clone();
-        let section_id1 = section_id.clone();
         let section_id2 = section_id.clone();
         let section_id3 = section_id.clone();
         let section_id4 = section_id.clone();
         let section_id5 = section_id.clone();
-        this.item(PopupMenuItem::new("添加任务").on_click(window.listener_for(
-            &view,
-            move |this, _, window, cx| {
-                this.show_item_dialog(window, cx, false, Some(section_id1.clone()));
-                cx.notify();
-            },
-        )))
-        .separator()
-        .item(PopupMenuItem::new("编辑分区").on_click(window.listener_for(
+        this.item(PopupMenuItem::new("编辑分区").on_click(window.listener_for(
             &view,
             move |this, _, window, cx| {
                 this.show_section_dialog(window, cx, Some(section_id2.clone()), true);

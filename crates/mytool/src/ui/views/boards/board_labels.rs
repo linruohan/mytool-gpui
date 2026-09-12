@@ -105,6 +105,7 @@ impl Render for LabelsBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::PlusLargeSymbolic)
+                            .tooltip("新建标签")
                             .on_click({
                                 let labels_panel = labels_panel.clone();
                                 move |_event, window, cx| {
@@ -121,6 +122,7 @@ impl Render for LabelsBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::EditSymbolic)
+                            .tooltip("编辑标签")
                             .on_click({
                                 let labels_panel = labels_panel.clone();
                                 move |_event, window, cx| {
@@ -136,6 +138,7 @@ impl Render for LabelsBoard {
                             .small()
                             .ghost()
                             .icon(IconName::UserTrashSymbolic)
+                            .tooltip("删除标签")
                             .on_click({
                                 let labels_panel = labels_panel.clone();
                                 move |_event, window, cx| {

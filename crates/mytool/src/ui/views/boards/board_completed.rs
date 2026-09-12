@@ -160,6 +160,7 @@ impl Render for CompletedBoard {
                     .ghost()
                     .compact()
                     .icon(IconName::Undo)
+                    .tooltip("恢复为未完成")
                     .on_click({
                         let view = view.clone();
                         move |_event, window, cx| {

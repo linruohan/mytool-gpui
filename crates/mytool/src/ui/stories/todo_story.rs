@@ -309,12 +309,14 @@ impl Render for TodoStory {
                                         cx.notify();
                                     }))
                                     .child(project.name.clone())
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child(count.to_string()),
-                                    )
+                                    .when(count > 0, |this| {
+                                        this.child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(cx.theme().muted_foreground)
+                                                .child(count.to_string()),
+                                        )
+                                    })
                             })),
                     ),
             )

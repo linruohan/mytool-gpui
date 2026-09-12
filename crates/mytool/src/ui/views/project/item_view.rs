@@ -31,7 +31,8 @@ use crate::{
     todo_color_picker,
     todo_state::TodoStore,
     ui::views::boards::{
-        PinnedLayout, board_renderer, clamp_active_index, diff_update_item_rows, group_items,
+        PinnedLayout, board_common, board_renderer, clamp_active_index, diff_update_item_rows,
+        group_items,
     },
 };
 
@@ -673,6 +674,7 @@ impl Render for ProjectItemsPanel {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
+                        .pb(board_common::FAB_BOTTOM_PAD)
                         // 1. Pinned 分组
                         .when(self.item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
@@ -884,17 +886,6 @@ impl Render for ProjectItemsPanel {
                                                             let view = view.clone();
                                                             let section_id = section_id.clone();
                                                             this.item({
-                                                                let view = view.clone();
-                                                                let section_id = section_id.clone();
-                                                                PopupMenuItem::new("添加任务").on_click(
-                                                                    window.listener_for(&view, move |this, _, window, cx| {
-                                                                        this.show_item_dialog(window, cx, false, Some(section_id.clone()));
-                                                                        cx.notify();
-                                                                    }),
-                                                                )
-                                                            })
-                                                                .separator()
-                                                                .item({
                                                                     let view = view.clone();
                                                                     let section_id = section_id.clone();
                                                                     PopupMenuItem::new("编辑分区").on_click(
@@ -970,7 +961,7 @@ impl Render for ProjectItemsPanel {
                         })),
                 ),
             )
-            .child(crate::ui::views::boards::board_common::render_add_task_fab(
+            .child(board_common::render_add_task_fab(
                 "fab-add-project",
                 cx.listener(|this, _, window, cx| {
                     this.show_item_dialog(window, cx, false, None);

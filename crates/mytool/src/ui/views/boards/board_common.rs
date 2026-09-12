@@ -456,6 +456,9 @@ pub fn render_board_header(
         )
 }
 
+/// 列表底部留白，避免最后几行被悬浮添加按钮挡住
+pub const FAB_BOTTOM_PAD: gpui::Pixels = px(72.);
+
 /// 右下角新建任务按钮（叠在内容之上，不挤占列表高度）
 pub fn render_add_task_fab(
     id: impl Into<ElementId>,

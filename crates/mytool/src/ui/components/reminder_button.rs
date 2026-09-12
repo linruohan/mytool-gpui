@@ -470,7 +470,7 @@ impl Render for ReminderButtonState {
                             let display_text = reminder
                                 .due
                                 .clone()
-                                .unwrap_or_else(|| "No date".to_string());
+                                .unwrap_or_else(|| "无日期".to_string());
 
                             create_list_item_element(
                                 idx,

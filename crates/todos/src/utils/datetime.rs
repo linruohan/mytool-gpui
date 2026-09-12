@@ -26,13 +26,12 @@ impl DateTime {
     pub fn get_relative_date_from_date(&self, datetime: &NaiveDateTime) -> String {
         let format_str = self.get_default_date_format_from_date(datetime).clone();
         let returned = if self.is_today(datetime) {
-            "Today".to_string()
+            "今天".to_string()
         } else if self.is_tomorrow(datetime) {
-            "Tomorrow".to_string()
+            "明天".to_string()
         } else if self.is_yesterday(datetime) {
-            "Yesterday".to_string()
+            "昨天".to_string()
         } else {
-            // 使用 format 方法将日期格式化为字符串，而不是直接返回格式字符串
             datetime.format(&format_str).to_string()
         };
         if self.has_time(datetime) {
@@ -95,7 +94,7 @@ impl DateTime {
     pub fn days_left(&self, datetime: &NaiveDateTime, show_today: bool) -> String {
         let days = (*datetime - Local::now().naive_local()).num_days();
         match (self.is_today(datetime), days.cmp(&0)) {
-            (true, _) if show_today => "Today".into(),
+            (true, _) if show_today => "今天".into(),
             (true, _) => String::new(),
             (false, Ordering::Less) => self.format_duration(-days, "ago"),
             (false, Ordering::Greater) => self.format_duration(days + 1, "left"),
@@ -118,7 +117,7 @@ impl DateTime {
     }
 
     pub fn is_same_day(&self, dt1: &NaiveDateTime, dt2: &NaiveDateTime) -> bool {
-        dt1.year() == dt2.year() && dt1.day() == dt2.day()
+        dt1.year() == dt2.year() && dt1.month() == dt2.month() && dt1.day() == dt2.day()
     }
 
     pub fn is_overdue(&self, date: &NaiveDateTime) -> bool {
@@ -405,9 +404,9 @@ impl DateTime {
 
     pub fn get_default_date_format_from_date(&self, date: &NaiveDateTime) -> String {
         if date.year() == Local::now().year() {
-            "%m-%d %p".to_string()
+            "%m月%d日".to_string()
         } else {
-            "%Y-%m-%d %p".to_string()
+            "%Y年%m月%d日".to_string()
         }
     }
 

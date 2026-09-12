@@ -27,7 +27,7 @@ use crate::{
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, FinishItemDialogStyle, render_board_header,
+            BoardItemClickEvent, FAB_BOTTOM_PAD, FinishItemDialogStyle, render_board_header,
             show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
             with_selected_item,
         },
@@ -152,7 +152,7 @@ impl Board for ScheduledBoard {
     }
 
     fn title() -> &'static str {
-        "Scheduled"
+        "日程"
     }
 
     fn description() -> &'static str {
@@ -229,7 +229,8 @@ impl Render for ScheduledBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .px_4()
-                        .py_1()
+                        .pt_1()
+                        .pb(FAB_BOTTOM_PAD)
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
