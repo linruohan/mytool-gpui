@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, SharedString, Styled, Window, div, prelude::FluentBuilder,
-    px,
+    IntoElement, ParentElement, Render, SharedString, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    form::{field, h_form},
+    group_box::{GroupBox, GroupBoxVariants},
     menu::{DropdownMenu, PopupMenuItem},
     v_flex,
 };
@@ -226,51 +227,47 @@ impl Render for ReminderForm {
         let date_picker = self.date_picker.clone();
         let current_time = self.current_time.clone();
 
-        div()
-            .flex()
-            .flex_row()
-            .gap_1()
-            .items_center()
-            // 日期选择框
-            .child(
-                DatePicker::new(&date_picker)
-                    .cleanable(true)
-                    .w(px(140.)),
-            )
-            // 时间选择下拉框
-            .child(
-                Button::new("time-dropdown")
-                    .small()
-                    .outline()
-                    .label(&current_time)
-                    .dropdown_menu({
-                        let view = cx.entity();
-                        move |this, window, _cx| {
-                            let view_for_fold = view.clone();
-                            Self::get_time_options()
-                                .into_iter()
-                                .fold(this, move |this, time| {
-                                    let time = time.to_string();
-                                    this.item(
-                                        PopupMenuItem::new(SharedString::from(time.clone()))
-                                            .on_click(window.listener_for(
-                                                &view_for_fold,
-                                                move |this, _event, window, cx| {
-                                                    this.select_time(&time, window, cx);
-                                                },
-                                            )),
+        GroupBox::new().outline().child(
+            h_form()
+                .label_width(px(40.))
+                .child(
+                    field()
+                        .label("Date")
+                        .child(DatePicker::new(&date_picker).cleanable(true).w(px(140.))),
+                )
+                .child(
+                    field().label("Time").child(
+                        Button::new("time-dropdown")
+                            .small()
+                            .outline()
+                            .label(&current_time)
+                            .dropdown_menu({
+                                let view = cx.entity();
+                                move |this, window, _cx| {
+                                    let view_for_fold = view.clone();
+                                    Self::get_time_options().into_iter().fold(
+                                        this,
+                                        move |this, time| {
+                                            let time = time.to_string();
+                                            this.item(
+                                                PopupMenuItem::new(SharedString::from(
+                                                    time.clone(),
+                                                ))
+                                                .on_click(window.listener_for(
+                                                    &view_for_fold,
+                                                    move |this, _event, window, cx| {
+                                                        this.select_time(&time, window, cx);
+                                                    },
+                                                )),
+                                            )
+                                        },
                                     )
-                                })
-                        }
-                    }),
-            )
-            // 添加按钮
-            .child(
-                Button::new("add-reminder")
-                    .small()
-                    .primary()
-                    .icon(IconName::Plus)
-                    .on_click({
+                                }
+                            }),
+                    ),
+                )
+                .child(field().child(
+                    Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
                         let view = cx.entity();
                         move |_event, _window, cx| {
                             cx.update_entity(&view, |this, cx| {
@@ -278,7 +275,8 @@ impl Render for ReminderForm {
                             });
                         }
                     }),
-            )
+                )),
+        )
     }
 }
 

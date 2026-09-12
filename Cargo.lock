@@ -852,9 +852,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.12.0"
+version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0e56a716f1e132ff6bf4bdac1c944a3fcdc1cae65f70a4a2a1ac3b401d2d1f"
+checksum = "6a1f896587b6f2c069c73d2f0913e2d590c3990285cd2f0b6aa02b786b4c679c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2544,7 +2544,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.6.1"
-source = "git+https://github.com/linruohan/gpui-component.git#5d73b9c797145539679a50a891125b4a714c2713"
+source = "git+https://github.com/linruohan/gpui-component.git#5d4e44dbcc3a0fd925160a4c0f9a881bedffc104"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2578,7 +2578,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.6.1"
-source = "git+https://github.com/linruohan/gpui-component.git#5d73b9c797145539679a50a891125b4a714c2713"
+source = "git+https://github.com/linruohan/gpui-component.git#5d4e44dbcc3a0fd925160a4c0f9a881bedffc104"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2657,7 +2657,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.6.1"
-source = "git+https://github.com/linruohan/gpui-component.git#5d73b9c797145539679a50a891125b4a714c2713"
+source = "git+https://github.com/linruohan/gpui-component.git#5d4e44dbcc3a0fd925160a4c0f9a881bedffc104"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2668,7 +2668,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.6.1"
-source = "git+https://github.com/linruohan/gpui-component.git#5d73b9c797145539679a50a891125b4a714c2713"
+source = "git+https://github.com/linruohan/gpui-component.git#5d4e44dbcc3a0fd925160a4c0f9a881bedffc104"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2685,7 +2685,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.6.1"
-source = "git+https://github.com/linruohan/gpui-component.git#5d73b9c797145539679a50a891125b4a714c2713"
+source = "git+https://github.com/linruohan/gpui-component.git#5d4e44dbcc3a0fd925160a4c0f9a881bedffc104"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2698,7 +2698,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.6.1"
-source = "git+https://github.com/linruohan/gpui-component.git#5d73b9c797145539679a50a891125b4a714c2713"
+source = "git+https://github.com/linruohan/gpui-component.git#5d4e44dbcc3a0fd925160a4c0f9a881bedffc104"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -4094,9 +4094,9 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "libredox"
-version = "0.1.23"
+version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d8f1ea3f21fd3405dcaf6c9b5c1630af9afc422d9073ea39c5f6d6c772e08ed"
+checksum = "6480ccc157a1389bb2e4891b24751b0f798ba640d22386f23143fbcc89da195a"
 dependencies = [
  "bitflags 2.13.2",
  "libc",

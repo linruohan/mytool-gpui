@@ -1,9 +1,9 @@
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
+    ParentElement, Render, Styled, Subscription, Window,
 };
 use gpui_component::{
-    ActiveTheme, Sizable,
+    Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
     h_flex, v_flex,
@@ -13,7 +13,10 @@ use gpui_kit::assets::IconName;
 use crate::{
     LabelEvent,
     todo_state::TodoStore,
-    ui::views::{boards::container_board::Board, label::LabelsPanel},
+    ui::views::{
+        boards::{board_common::render_board_header, container_board::Board},
+        label::LabelsPanel,
+    },
 };
 
 pub struct LabelsBoard {
@@ -81,95 +84,69 @@ impl Render for LabelsBoard {
         _window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> impl gpui::IntoElement {
+        let board_count = LabelsBoard::count(cx);
+        let labels_panel = self.labels_panel.clone();
+
         v_flex()
             .track_focus(&self.focus_handle)
             .size_full()
             .gap_4()
-            .child(
+            .child(render_board_header(
+                cx,
+                <LabelsBoard as Board>::icon(),
+                <LabelsBoard as Board>::title(),
+                <LabelsBoard as Board>::description(),
+                board_count,
                 h_flex()
-                    .id("header")
-                    .border_b_1()
-                    .border_color(cx.theme().border)
-                    .justify_between()
-                    .items_start()
+                    .gap_2()
                     .child(
-                        v_flex()
-                            .child(
-                                h_flex().gap_2().child(<LabelsBoard as Board>::icon()).child(
-                                    div().text_base().child(<LabelsBoard as Board>::title()),
-                                ),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child(<LabelsBoard as Board>::description()),
-                            ),
+                        Button::new("add-label")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::PlusLargeSymbolic)
+                            .on_click({
+                                let labels_panel = labels_panel.clone();
+                                move |_event, window, cx| {
+                                    labels_panel.update(cx, |labels_panel, cx| {
+                                        labels_panel.show_label_dialog(window, cx, false);
+                                        cx.notify();
+                                    })
+                                }
+                            }),
                     )
                     .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .justify_end()
-                            .px_2()
-                            .gap_2()
-                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .child(
-                                Button::new("add-label")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::PlusLargeSymbolic)
-                                    .on_click({
-                                        let labels_panel = self.labels_panel.clone();
-                                        move |_event, window, cx| {
-                                            let labels_panel_clone = labels_panel.clone();
-                                            labels_panel_clone.update(cx, |labels_panel, cx| {
-                                                labels_panel.show_label_dialog(window, cx, false);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("edit-label")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .on_click({
-                                        let labels_panel = self.labels_panel.clone();
-                                        move |_event, window, cx| {
-                                            let labels_panel_clone = labels_panel.clone();
-                                            labels_panel_clone.update(cx, |labels_panel, cx| {
-                                                labels_panel.show_label_dialog(window, cx, true);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete-label")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .on_click({
-                                        let labels_panel = self.labels_panel.clone();
-                                        move |_event, window, cx| {
-                                            let labels_panel_clone = labels_panel.clone();
-                                            labels_panel_clone.update(
-                                                cx,
-                                                |labels_panel: &mut LabelsPanel, cx| {
-                                                    labels_panel
-                                                        .show_label_delete_dialog(window, cx);
-                                                    cx.notify();
-                                                },
-                                            )
-                                        }
-                                    }),
-                            ),
+                        Button::new("edit-label")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::EditSymbolic)
+                            .on_click({
+                                let labels_panel = labels_panel.clone();
+                                move |_event, window, cx| {
+                                    labels_panel.update(cx, |labels_panel, cx| {
+                                        labels_panel.show_label_dialog(window, cx, true);
+                                        cx.notify();
+                                    })
+                                }
+                            }),
+                    )
+                    .child(
+                        Button::new("delete-label")
+                            .small()
+                            .ghost()
+                            .icon(IconName::UserTrashSymbolic)
+                            .on_click({
+                                let labels_panel = labels_panel.clone();
+                                move |_event, window, cx| {
+                                    labels_panel.update(cx, |labels_panel, cx| {
+                                        labels_panel.show_label_delete_dialog(window, cx);
+                                        cx.notify();
+                                    })
+                                }
+                            }),
                     ),
-            )
+            ))
             .child(self.labels_panel.clone())
     }
 }

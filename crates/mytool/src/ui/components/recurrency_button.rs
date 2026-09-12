@@ -1,15 +1,17 @@
 use gpui::{
     Action, App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, SharedString, Styled, Window, div, prelude::FluentBuilder,
-    px,
+    IntoElement, ParentElement, Render, SharedString, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
+    Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
-    h_flex,
-    input::{Input, InputEvent, InputState},
+    form::{field, v_form},
+    group_box::{GroupBox, GroupBoxVariants},
+    input::{InputEvent, InputState, NumberInput},
     popover::Popover,
     radio::{Radio, RadioGroup},
+    separator::Separator,
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -73,6 +75,14 @@ impl RecurrencyUnit {
             Self::Years => "Year(s)",
         }
     }
+
+    fn all() -> [Self; 4] {
+        [Self::Days, Self::Weeks, Self::Months, Self::Years]
+    }
+
+    fn index(self) -> usize {
+        Self::all().iter().position(|&unit| unit == self).unwrap_or(0)
+    }
 }
 
 /// 重复截止类型
@@ -81,6 +91,24 @@ pub enum RecurrencyEndOption {
     Never,
     OnDate,
     After,
+}
+
+impl RecurrencyEndOption {
+    fn all() -> [Self; 3] {
+        [Self::Never, Self::OnDate, Self::After]
+    }
+
+    fn to_label(self) -> &'static str {
+        match self {
+            Self::Never => "Never",
+            Self::OnDate => "On Date",
+            Self::After => "After",
+        }
+    }
+
+    fn index(self) -> usize {
+        Self::all().iter().position(|&option| option == self).unwrap_or(0)
+    }
 }
 
 /// 重复类型选项（Radio 单选按钮项）
@@ -185,8 +213,12 @@ impl RecurrencyForm {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let interval_input = cx.new(|cx| InputState::new(window, cx).placeholder("1"));
-        let count_input = cx.new(|cx| InputState::new(window, cx).placeholder("1"));
+        let interval_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("1").default_value("1").min(1.).step(1.)
+        });
+        let count_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("1").default_value("1").min(1.).step(1.)
+        });
         let end_date_picker = cx.new(|cx| DatePickerState::new(window, cx));
 
         // 设置初始值
@@ -365,42 +397,6 @@ impl RecurrencyForm {
         });
     }
 
-    /// 间隔减一
-    fn decrement_interval(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.interval_value > 1 {
-            self.interval_value -= 1;
-            self.interval_input.update(cx, |input, cx| {
-                input.set_value(self.interval_value.to_string(), window, cx);
-            });
-        }
-    }
-
-    /// 间隔加一
-    fn increment_interval(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.interval_value += 1;
-        self.interval_input.update(cx, |input, cx| {
-            input.set_value(self.interval_value.to_string(), window, cx);
-        });
-    }
-
-    /// 次数减一
-    fn decrement_count(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.after_count > 1 {
-            self.after_count -= 1;
-            self.count_input.update(cx, |input, cx| {
-                input.set_value(self.after_count.to_string(), window, cx);
-            });
-        }
-    }
-
-    /// 次数加一
-    fn increment_count(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.after_count += 1;
-        self.count_input.update(cx, |input, cx| {
-            input.set_value(self.after_count.to_string(), window, cx);
-        });
-    }
-
     /// 应用自定义重复设置
     fn apply_custom(&mut self, cx: &mut Context<Self>) {
         let recurrency_type = self.custom_unit.to_recurrency_type();
@@ -478,210 +474,75 @@ impl Render for RecurrencyForm {
             }),
         );
 
-        // 根据 is_custom 决定是否渲染自定义面板
-        if is_custom {
-            let custom_panel = self.render_custom_panel(cx);
-            v_flex()
-                .gap_3()
-                .p_3()
-                .w(px(280.))
-                .child(v_flex().gap_2().child(radio_group))
-                .child(custom_panel)
-                .child(done_button)
-        } else {
-            v_flex()
-                .gap_3()
-                .p_3()
-                .w(px(280.))
-                .child(v_flex().gap_2().child(radio_group))
-                .child(done_button)
-        }
+        v_flex()
+            .gap_3()
+            .p_3()
+            .w(px(280.))
+            .child(GroupBox::new().outline().child(radio_group))
+            .when(is_custom, |this| this.child(self.render_custom_panel(cx)))
+            .child(Separator::horizontal())
+            .child(done_button)
     }
 }
 
 impl RecurrencyForm {
-    /// 渲染自定义面板
     fn render_custom_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let interval_input = self.interval_input.clone();
         let count_input = self.count_input.clone();
         let end_type = self.end_type;
         let end_date_picker = self.end_date_picker.clone();
+        let unit_index = self.custom_unit.index();
+        let end_index = self.end_type.index();
 
-        v_flex()
-            .gap_3()
-            .p_2()
-            .border_1()
-            .rounded_lg()
-            .border_color(gpui::rgb(0xe0e0e0))
-            .child(
-                // Repeat every
-                v_flex().gap_2().child("Repeat every").child(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .child(
-                            h_flex()
-                                .gap_0()
-                                .border_1()
-                                .rounded_md()
-                                .border_color(gpui::rgb(0xd0d0d0))
-                                .overflow_hidden()
-                                .child(
-                                    Button::new("interval-dec")
-                                        .ghost()
-                                        .compact()
-                                        .label("−")
-                                        .px_2()
-                                        .on_click(cx.listener(move |this, _, window, cx| {
-                                            this.decrement_interval(window, cx);
-                                        })),
-                                )
-                                .child(
-                                    div()
-                                        .w(px(40.))
-                                        .child(Input::new(&interval_input).appearance(false)),
-                                )
-                                .child(
-                                    Button::new("interval-inc")
-                                        .ghost()
-                                        .compact()
-                                        .label("+")
-                                        .px_2()
-                                        .on_click(cx.listener(move |this, _, window, cx| {
-                                            this.increment_interval(window, cx);
-                                        })),
-                                ),
-                        )
-                        .child(
-                            // 单位选择器
-                            v_flex()
-                                .gap_0()
-                                .border_1()
-                                .rounded_md()
-                                .border_color(gpui::rgb(0xd0d0d0))
-                                .overflow_hidden()
-                                .child(self.render_unit_button(RecurrencyUnit::Days, cx))
-                                .child(self.render_unit_button(RecurrencyUnit::Weeks, cx))
-                                .child(self.render_unit_button(RecurrencyUnit::Months, cx))
-                                .child(self.render_unit_button(RecurrencyUnit::Years, cx)),
+        GroupBox::new().outline().child(
+            v_form()
+                .child(
+                    field().label("Repeat every").child(
+                        NumberInput::new(&interval_input).small().suffix(
+                            RadioGroup::horizontal("recurrency-unit")
+                                .selected_index(Some(unit_index))
+                                .on_click(cx.listener(|this, index, _, cx| {
+                                    if let Some(&unit) = RecurrencyUnit::all().get(*index) {
+                                        this.custom_unit = unit;
+                                        cx.notify();
+                                    }
+                                }))
+                                .children(RecurrencyUnit::all().into_iter().map(|unit| {
+                                    Radio::new(format!("unit-{:?}", unit)).label(unit.to_label())
+                                })),
                         ),
-                ),
-            )
-            .child(
-                // End
-                v_flex()
-                    .gap_2()
-                    .child("End")
-                    .child(
-                        h_flex()
-                            .gap_0()
-                            .border_1()
-                            .rounded_md()
-                            .border_color(gpui::rgb(0xd0d0d0))
-                            .overflow_hidden()
-                            .child(self.render_end_button(RecurrencyEndOption::Never, cx))
-                            .child(self.render_end_button(RecurrencyEndOption::OnDate, cx))
-                            .child(self.render_end_button(RecurrencyEndOption::After, cx)),
+                    ),
+                )
+                .child(
+                    field().label("End").child(
+                        RadioGroup::horizontal("recurrency-end")
+                            .selected_index(Some(end_index))
+                            .on_click(cx.listener(|this, index, _, cx| {
+                                if let Some(&option) = RecurrencyEndOption::all().get(*index) {
+                                    this.end_type = option;
+                                    cx.notify();
+                                }
+                            }))
+                            .children(RecurrencyEndOption::all().into_iter().map(|option| {
+                                Radio::new(format!("end-{:?}", option)).label(option.to_label())
+                            })),
+                    ),
+                )
+                .when(end_type == RecurrencyEndOption::OnDate, move |this| {
+                    this.child(
+                        field()
+                            .label("On date")
+                            .child(DatePicker::new(&end_date_picker).cleanable(true).w(px(200.))),
                     )
-                    // On Date 日期选择器
-                    .when(end_type == RecurrencyEndOption::OnDate, move |this| {
-                        this.child(
-                            DatePicker::new(&end_date_picker).cleanable(true).w(px(200.)),
-                        )
-                    })
-                    // After 次数输入
-                    .when(end_type == RecurrencyEndOption::After, move |this| {
-                        this.child(
-                            h_flex()
-                                .gap_2()
-                                .items_center()
-                                .child(
-                                    h_flex()
-                                        .gap_0()
-                                        .border_1()
-                                        .rounded_md()
-                                        .border_color(gpui::rgb(0xd0d0d0))
-                                        .overflow_hidden()
-                                        .child(
-                                            Button::new("count-dec")
-                                                .ghost()
-                                                .compact()
-                                                .label("−")
-                                                .px_2()
-                                                .on_click(
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        this.decrement_count(window, cx);
-                                                    }),
-                                                ),
-                                        )
-                                        .child(
-                                            div()
-                                                .w(px(40.))
-                                                .child(Input::new(&count_input).appearance(false)),
-                                        )
-                                        .child(
-                                            Button::new("count-inc")
-                                                .ghost()
-                                                .compact()
-                                                .label("+")
-                                                .px_2()
-                                                .on_click(
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        this.increment_count(window, cx);
-                                                    }),
-                                                ),
-                                        ),
-                                )
-                                .child("times"),
-                        )
-                    }),
-            )
-    }
-
-    /// 渲染单位按钮
-    fn render_unit_button(
-        &mut self,
-        unit: RecurrencyUnit,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
-        let is_selected = unit == self.custom_unit;
-        let label = unit.to_label();
-
-        Button::new(format!("unit-{:?}", unit))
-            .ghost()
-            .compact()
-            .px_2()
-            .label(label)
-            .when(is_selected, |btn| btn.bg(gpui::rgb(0xe8e8e8)))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.custom_unit = unit;
-                cx.notify();
-            }))
-    }
-
-    /// 渲染 End 类型按钮
-    fn render_end_button(
-        &mut self,
-        end_option: RecurrencyEndOption,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
-        let is_selected = end_option == self.end_type;
-        let label = match end_option {
-            RecurrencyEndOption::Never => "Never",
-            RecurrencyEndOption::OnDate => "On Date",
-            RecurrencyEndOption::After => "After",
-        };
-
-        Button::new(format!("end-{:?}", end_option))
-            .flex_1()
-            .ghost()
-            .compact()
-            .label(label)
-            .when(is_selected, |btn| btn.bg(gpui::rgb(0xe8e8e8)))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.end_type = end_option;
-                cx.notify();
-            }))
+                })
+                .when(end_type == RecurrencyEndOption::After, move |this| {
+                    this.child(
+                        field()
+                            .label("After")
+                            .child(NumberInput::new(&count_input).small().suffix("times")),
+                    )
+                }),
+        )
     }
 }
 

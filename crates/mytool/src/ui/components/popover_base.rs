@@ -96,31 +96,35 @@ pub fn create_list_item_element<T>(
 where
     T: gpui::Focusable + 'static,
 {
+    use std::rc::Rc;
+
     use gpui::{ParentElement, Styled};
-    use gpui_component::{Sizable, button::ButtonVariants};
+    use gpui_component::{
+        Sizable,
+        button::{Button, ButtonVariants},
+        label::Label,
+        list::ListItem,
+    };
 
-    use crate::VisualHierarchy;
-
-    gpui::div()
-        .flex()
-        .flex_row()
-        .gap(VisualHierarchy::spacing(2.0))
-        .items_center()
-        .justify_between()
-        .px(VisualHierarchy::spacing(2.0))
-        .py(VisualHierarchy::spacing(2.0))
-        .border_b_1()
-        .child(gpui_component::label::Label::new(display_text).text_sm())
-        .child(
-            gpui_component::button::Button::new(format!("remove-item-{}", index))
+    let on_remove = Rc::new(on_remove);
+    ListItem::new(("popover-item", index)).child(Label::new(display_text).text_sm()).suffix({
+        let on_remove = on_remove.clone();
+        let item_id = item_id.clone();
+        let view = view.clone();
+        move |_, _| {
+            let on_remove = on_remove.clone();
+            let item_id = item_id.clone();
+            let view = view.clone();
+            Button::new(format!("remove-item-{}", index))
                 .small()
                 .ghost()
                 .compact()
                 .icon(gpui_kit::assets::IconName::UserTrashSymbolic)
                 .on_click(move |_event, _window, cx| {
                     on_remove(item_id.clone(), view.clone(), cx);
-                }),
-        )
+                })
+        }
+    })
 }
 
 #[cfg(test)]

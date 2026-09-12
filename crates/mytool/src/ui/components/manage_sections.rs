@@ -3,14 +3,16 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement,
-    ParentElement, Render, Styled, Window, div, prelude::FluentBuilder, px,
+    App, AppContext, Context, Entity, FocusHandle, Focusable, IntoElement, ParentElement, Render,
+    Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IndexPath,
+    Icon, IndexPath, Sizable,
     button::Button,
+    group_box::{GroupBox, GroupBoxVariants},
     h_flex,
     list::{List, ListDelegate, ListEvent, ListItem, ListState},
+    tag::Tag,
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -96,59 +98,46 @@ impl ListDelegate for ManageSectionListDelegate {
                 .and_then(|c| u32::from_str_radix(&c[1..], 16).ok().map(gpui::rgb))
                 .unwrap_or(gpui::rgb(0x3b82f6));
 
-            let item = div()
-                .id(("section-item", ix.row))
-                .p(px(8.0))
-                .border_1()
-                .border_color(cx.theme().border)
-                .rounded(px(4.0))
-                .when(is_archived, |this| this.opacity(0.5))
-                .child(
-                    h_flex()
-                        .items_center()
-                        .justify_between()
-                        .w_full()
-                        .child(
-                            h_flex()
-                                .items_center()
-                                .gap(px(8.0))
-                                .child(
-                                    Icon::build(IconName::TagOutlineSymbolic)
-                                        .text_color(section_color),
-                                )
-                                .child(div().child(section.name.clone()))
-                                .when(is_archived, |this| {
-                                    this.child(
-                                        div()
-                                            .text_xs()
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child("(已隐藏)"),
-                                    )
-                                }),
-                        )
-                        .child(
-                            h_flex()
-                                .gap(px(4.0))
-                                .child(
-                                    Button::new(format!("edit-{}", ix.row))
-                                        .icon(IconName::Pencil)
-                                        .size(px(14.0))
-                                        .on_click(cx.listener(move |_this, _, _, cx| {
-                                            cx.emit(ListEvent::Confirm(ix));
-                                        })),
-                                )
-                                .child(
-                                    Button::new(format!("delete-{}", ix.row))
-                                        .icon(IconName::Trash)
-                                        .size(px(14.0))
-                                        .on_click(cx.listener(move |_this, _, _, cx| {
-                                            cx.emit(ListEvent::Select(ix));
-                                        })),
-                                ),
-                        ),
-                );
+            let item = ListItem::new(ix.row).when(is_archived, |this| this.opacity(0.5)).child(
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .w_full()
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .child(
+                                Icon::build(IconName::TagOutlineSymbolic).text_color(section_color),
+                            )
+                            .child(section.name.clone())
+                            .when(is_archived, |this| {
+                                this.child(Tag::secondary().small().child("Archived"))
+                            }),
+                    )
+                    .child(
+                        h_flex()
+                            .gap(px(4.0))
+                            .child(
+                                Button::new(format!("edit-{}", ix.row))
+                                    .icon(IconName::Pencil)
+                                    .size(px(14.0))
+                                    .on_click(cx.listener(move |_this, _, _, cx| {
+                                        cx.emit(ListEvent::Confirm(ix));
+                                    })),
+                            )
+                            .child(
+                                Button::new(format!("delete-{}", ix.row))
+                                    .icon(IconName::Trash)
+                                    .size(px(14.0))
+                                    .on_click(cx.listener(move |_this, _, _, cx| {
+                                        cx.emit(ListEvent::Select(ix));
+                                    })),
+                            ),
+                    ),
+            );
 
-            return Some(ListItem::new(ix.row).child(item));
+            return Some(item);
         }
         None
     }
@@ -333,23 +322,17 @@ impl Render for ManageSectionsPanel {
             self.show_delete_confirmation(section, window, cx);
         }
 
-        v_flex()
-            .size_full()
-            .gap_2()
-            .child(h_flex().justify_between().child(div().child("Sections")).child(
-                Button::new("new-section").label("New Section").icon(IconName::Plus).on_click(
-                    cx.listener(|this, _, window, cx| {
-                        this.show_new_section_dialog(window, cx);
-                    }),
-                ),
-            ))
-            .child(
-                List::new(&self.section_list)
-                    .flex_1()
-                    .w_full()
-                    .border_1()
-                    .border_color(cx.theme().border)
-                    .rounded(px(4.0)),
-            )
+        v_flex().size_full().gap_2().child(
+            GroupBox::new()
+                .outline()
+                .title(h_flex().justify_between().w_full().child("Sections").child(
+                    Button::new("new-section").label("New Section").icon(IconName::Plus).on_click(
+                        cx.listener(|this, _, window, cx| {
+                            this.show_new_section_dialog(window, cx);
+                        }),
+                    ),
+                ))
+                .child(List::new(&self.section_list).flex_1().w_full().h(px(360.))),
+        )
     }
 }

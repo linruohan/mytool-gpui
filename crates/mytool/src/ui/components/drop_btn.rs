@@ -6,6 +6,7 @@ use gpui_component::{
     Icon, Sizable, Size, StyledExt,
     button::{Button, ButtonVariants},
     menu::DropdownMenu,
+    searchable_list::SearchableListItem,
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -80,6 +81,31 @@ impl<T: Clone + PartialEq + 'static + Send> Render for DropdownState<T> {
 pub trait DropdownItem: Clone + PartialEq + 'static + Send {
     fn display_name(&self) -> String;
     fn id(&self) -> String;
+}
+
+/// Select 选项：显示名与取值（id）分离。
+#[derive(Clone, PartialEq, Eq)]
+pub struct NamedOption {
+    pub id: String,
+    pub name: SharedString,
+}
+
+impl NamedOption {
+    pub fn new(id: impl Into<String>, name: impl Into<SharedString>) -> Self {
+        Self { id: id.into(), name: name.into() }
+    }
+}
+
+impl SearchableListItem for NamedOption {
+    type Value = String;
+
+    fn title(&self) -> SharedString {
+        self.name.clone()
+    }
+
+    fn value(&self) -> &Self::Value {
+        &self.id
+    }
 }
 
 /// 简化 Button on_click 模式的通用辅助函数

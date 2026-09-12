@@ -8,7 +8,6 @@ use gpui::{
 use gpui_component::{
     Sizable,
     button::{Button, ButtonVariants},
-    h_flex,
     input::{Input, InputEvent, InputState},
     list::{List, ListState},
     popover::Popover,
@@ -310,26 +309,20 @@ impl Render for LabelsPopoverList {
                                 Separator::horizontal().mt_1().mb_1(),
                             )
                             .child(
-                                // 新建标签输入框和按钮
-                                h_flex()
-                                    .gap_1()
-                                    .child(Input::new(&self.new_label_input).small().flex_1())
-                                    .child(
-                                        Button::new("create-label-button")
-                                            .small()
-                                            .ghost()
-                                            .icon(IconName::Plus)
-                                            .on_click(cx.listener(|this, _event, window, cx| {
-                                                let label_name = this
-                                                    .new_label_input
-                                                    .read(cx)
-                                                    .value()
-                                                    .to_string();
-                                                if !label_name.trim().is_empty() {
-                                                    this.create_new_label(label_name, window, cx);
-                                                }
-                                            })),
-                                    ),
+                                Input::new(&self.new_label_input).small().suffix(
+                                    Button::new("create-label-button")
+                                        .small()
+                                        .ghost()
+                                        .compact()
+                                        .icon(IconName::Plus)
+                                        .on_click(cx.listener(|this, _event, window, cx| {
+                                            let label_name =
+                                                this.new_label_input.read(cx).value().to_string();
+                                            if !label_name.trim().is_empty() {
+                                                this.create_new_label(label_name, window, cx);
+                                            }
+                                        })),
+                                ),
                             ),
                     )
                     .w_64(),

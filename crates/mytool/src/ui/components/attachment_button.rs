@@ -8,7 +8,6 @@ use gpui_component::{
     Sizable,
     attachment::{Attachment, AttachmentActions, AttachmentContent, AttachmentTitle},
     button::{Button, ButtonVariants},
-    h_flex,
     input::{Input, InputEvent, InputState},
     popover::Popover,
     v_flex,
@@ -272,24 +271,20 @@ impl Render for AttachmentButtonState {
                     .p_2()
                     .w_96()
                     .child(
-                        h_flex()
-                            .gap_1()
-                            .items_center()
-                            .child(Input::new(&search_input).flex_1())
-                            .child(
-                                Button::new("add-attachment-dialog")
-                                    .small()
-                                    .primary()
-                                    .icon(IconName::Plus)
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            cx.update_entity(&view, |this, cx| {
-                                                this.on_add_attachment(window, cx);
-                                            });
-                                        }
-                                    }),
-                            ),
+                        Input::new(&search_input).flex_1().suffix(
+                            Button::new("add-attachment-dialog")
+                                .small()
+                                .primary()
+                                .icon(IconName::Plus)
+                                .on_click({
+                                    let view = view.clone();
+                                    move |_event, window, cx| {
+                                        cx.update_entity(&view, |this, cx| {
+                                            this.on_add_attachment(window, cx);
+                                        });
+                                    }
+                                }),
+                        ),
                     )
                     .child(v_flex().gap_1().children(filtered_attachments.iter().enumerate().map(
                         |(idx, attachment)| {

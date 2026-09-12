@@ -1,17 +1,20 @@
 use chrono::Local;
 use gpui::{
     Action, App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Window, div,
+    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Window,
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
     Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
+    form::{field, v_form},
+    group_box::{GroupBox, GroupBoxVariants},
     input::InputState,
     menu::DropdownMenu,
     popover::Popover,
     radio::{Radio, RadioGroup},
+    separator::Separator,
     v_flex,
 };
 use gpui_kit::assets::IconName;
@@ -252,13 +255,13 @@ impl Render for ScheduleForm {
             .p_3()
             .w(px(280.))
             .on_action(cx.listener(Self::on_time_selected))
-            .child(radio_group)
+            .child(GroupBox::new().outline().child(radio_group))
             .when(is_custom, move |this| {
                 this.child(DatePicker::new(&date_picker).cleanable(true).w(px(240.)))
             })
-            .child(div().h_1().bg(gpui::rgb(0xe0e0e0)).mx_3())
-            .child(v_flex().gap_2().child("Time").child(time_dropdown))
-            .child(div().h_1().bg(gpui::rgb(0xe0e0e0)).mx_3())
+            .child(Separator::horizontal())
+            .child(v_form().child(field().label("Time").child(time_dropdown)))
+            .child(Separator::horizontal())
             .child(Button::new("apply-btn").w_full().primary().label("Apply").on_click(
                 cx.listener(move |this, _, _window, cx| {
                     if is_custom {
