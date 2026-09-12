@@ -65,12 +65,11 @@ where
     div()
         .id(("item", i))
         .rounded_md()
-        .hover(move |this| this.bg(active_border.opacity(0.12)))
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_click(move |_, _, cx| {
             cx.stop_propagation();
             view.update(cx, |this, cx| {
-                this.set_active_index(if is_active { None } else { Some(i) });
+                this.set_active_index(Some(i));
                 cx.notify();
             });
         })

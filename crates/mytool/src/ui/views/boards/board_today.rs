@@ -150,34 +150,6 @@ impl Board for TodayBoard {
     }
 }
 
-/// 创建头部按钮的辅助函数
-fn create_header_button<F>(
-    id: String,
-    icon: IconName,
-    tooltip: &'static str,
-    view: Entity<TodayBoard>,
-    action: F,
-) -> impl gpui::IntoElement
-where
-    F: Fn(&mut TodayBoard, &mut Window, &mut Context<TodayBoard>) + 'static + Clone,
-{
-    Button::new(id)
-        .small()
-        .ghost()
-        .compact()
-        .icon(icon)
-        .tooltip(tooltip)
-        .on_click({
-            let view = view.clone();
-            move |_event, window, cx| {
-                view.update(cx, |this, cx| {
-                    action(this, window, cx);
-                    cx.notify();
-                })
-            }
-        })
-}
-
 impl Focusable for TodayBoard {
     fn focus_handle(&self, _: &gpui::App) -> gpui::FocusHandle {
         self.base.focus_handle.clone()
@@ -221,7 +193,7 @@ impl Render for TodayBoard {
             .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.base.collapse_open_rows(cx);
+                this.base.on_background_click(cx);
             }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
@@ -272,14 +244,7 @@ impl Render for TodayBoard {
                                     }
                                 }),
                         )
-                    })
-                    .child(create_header_button(
-                        "section-actions".to_string(),
-                        IconName::PlusLargeSymbolic,
-                        "新建分区",
-                        view.clone(),
-                        |this, window, cx| this.show_section_dialog(window, cx, None, false),
-                    )),
+                    }),
             ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
@@ -319,14 +284,12 @@ impl Render for TodayBoard {
                             ))
                         })
                         .when(!due_today_items.is_empty(), |this| {
-                            this.child(board_renderer::render_simple_group_block(
-                                "今天",
+                            this.child(board_renderer::render_item_list(
                                 &due_today_items,
                                 item_rows,
                                 active_index,
                                 active_border,
                                 view.clone(),
-                                true,
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {

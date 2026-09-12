@@ -537,6 +537,9 @@ impl Render for ProjectItemsPanel {
                 for row in this.item_rows.clone() {
                     row.update(cx, |row, cx| row.collapse_if_open(cx));
                 }
+                if this.active_index.take().is_some() {
+                    cx.notify();
+                }
             }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(

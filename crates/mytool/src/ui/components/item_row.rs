@@ -370,7 +370,6 @@ impl Render for ItemRowState {
             })
             .when(is_focused && !is_open, |this| this.shadow_sm())
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .on_click(|_, _, cx| cx.stop_propagation())
             .on_key_down(cx.listener(|this, event, window, cx| {
                 if this.handle_key_event(event, window, cx) {
                     cx.stop_propagation();

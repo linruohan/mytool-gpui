@@ -149,7 +149,7 @@ impl Render for PinBoard {
             .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.base.collapse_open_rows(cx);
+                this.base.on_background_click(cx);
             }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(

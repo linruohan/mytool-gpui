@@ -15,6 +15,8 @@ use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
     dock::PanelControl,
+    h_flex,
+    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement,
     v_flex,
 };
@@ -223,7 +225,7 @@ impl Render for ScheduledBoard {
             .relative()
             .size_full()
             .on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                this.base.collapse_open_rows(cx);
+                this.base.on_background_click(cx);
             }))
             .gap(VisualHierarchy::spacing(4.0))
             .child(render_board_header(
@@ -232,21 +234,45 @@ impl Render for ScheduledBoard {
                 <ScheduledBoard as Board>::title(),
                 <ScheduledBoard as Board>::description(),
                 board_count,
-                Button::new("add-section")
-                    .small()
-                    .ghost()
-                    .compact()
-                    .icon(IconName::PlusLargeSymbolic)
-                    .tooltip("新建分区")
-                    .on_click({
-                        let view = view.clone();
-                        move |_event, window, cx| {
-                            view.update(cx, |this, cx| {
-                                this.show_section_dialog(window, cx, None, false);
-                                cx.notify();
-                            })
-                        }
-                    }),
+                h_flex().when(active_index.is_some(), |this| {
+                    this.child(
+                        Button::new("item-actions")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .tooltip("任务操作")
+                            .icon(IconName::CheckSquare)
+                            .dropdown_menu({
+                                let view = view.clone();
+                                move |this, window, _cx| {
+                                    let view = view.clone();
+                                    this.item(
+                                        PopupMenuItem::new("编辑任务")
+                                            .icon(IconName::EditSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_dialog(window, cx, true, None);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                    .separator()
+                                    .item(
+                                        PopupMenuItem::new("删除任务")
+                                            .icon(IconName::UserTrashSymbolic)
+                                            .on_click(window.listener_for(
+                                                &view,
+                                                |this, _, window, cx| {
+                                                    this.show_item_delete_dialog(window, cx);
+                                                    cx.notify();
+                                                },
+                                            )),
+                                    )
+                                }
+                            }),
+                    )
+                }),
             ))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(

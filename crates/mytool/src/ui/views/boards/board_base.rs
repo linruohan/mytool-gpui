@@ -397,6 +397,14 @@ impl BoardBase {
         Self::take_pending_refresh(pending_refresh)
     }
 
+    /// 点击看板空白处时收起展开的任务，并取消选中
+    pub fn on_background_click<V: gpui::Render>(&mut self, cx: &mut Context<V>) {
+        self.collapse_open_rows(cx);
+        if self.active_index.take().is_some() {
+            cx.notify();
+        }
+    }
+
     /// 点击看板空白处时保存并收起所有已展开的任务
     pub fn collapse_open_rows<V: gpui::Render>(&self, cx: &mut Context<V>) {
         for row in &self.item_rows {
