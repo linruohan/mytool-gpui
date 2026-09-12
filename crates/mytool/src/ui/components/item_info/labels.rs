@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use gpui::{Context, Entity, Window};
 use todos::entity::LabelModel;
-use tracing::info;
 
 use super::{ItemInfoEvent, ItemInfoState};
 use crate::{LabelsPopoverEvent, LabelsPopoverList, core::notification::NotificationSystem};
@@ -39,58 +38,6 @@ impl ItemInfoState {
     /// 获取选中的 Labels（本地缓存）
     pub fn selected_labels(&self, cx: &mut Context<Self>) -> Vec<Arc<LabelModel>> {
         self.label_popover_list.read(cx).selected_labels.clone()
-    }
-
-    /// label 行内 checkbox：选中或取消选中
-    #[allow(dead_code)]
-    pub(super) fn label_toggle_checked(
-        &mut self,
-        label: Arc<LabelModel>,
-        selected: &bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.apply_label_selection(label, *selected, true, window, cx);
-    }
-
-    /// 统一标签选择路径：更新本地选中 → 同步 item.labels → 可选持久化
-    #[allow(dead_code)]
-    fn apply_label_selection(
-        &mut self,
-        label: Arc<LabelModel>,
-        selected: bool,
-        persist: bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        info!("Label selection: {} -> {}", label.name, selected);
-
-        self.label_popover_list.update(cx, |popover_list, cx| {
-            if selected {
-                if !popover_list.selected_labels.iter().any(|l| l.id == label.id) {
-                    popover_list.selected_labels.push(label.clone());
-                }
-            } else {
-                popover_list.selected_labels.retain(|l| l.id != label.id);
-            }
-            popover_list.label_list.update(cx, |list, cx| {
-                list.delegate_mut()
-                    .set_item_checked_labels(popover_list.selected_labels.clone(), cx);
-            });
-        });
-
-        let selected_label_ids =
-            self.selected_labels(cx).iter().map(|l| l.id.clone()).collect::<Vec<_>>().join(";");
-        self.state_manager.update_item(|item| {
-            item.labels = Some(selected_label_ids.clone());
-        });
-
-        if persist {
-            self.persist_item_labels(&selected_label_ids, cx);
-        }
-
-        cx.emit(ItemInfoEvent::Updated());
-        cx.notify();
     }
 
     pub(super) fn persist_item_labels(&self, selected_label_ids: &str, cx: &mut Context<Self>) {

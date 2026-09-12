@@ -41,18 +41,6 @@ pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
     cx.global::<DBState>().get_connection()
 }
 
-/// 获取全局 Store 实例（同步版本）
-///
-/// ⚠️ 仅在非 async 上下文中使用！
-/// 如果在 async 上下文中，请使用 `DBState::get_store_async()`！
-///
-/// # Panics
-/// 如果 Store 尚未初始化（这表示应用逻辑有错误）
-#[inline]
-pub fn get_store(cx: &App) -> Arc<todos::Store> {
-    cx.global::<DBState>().get_store()
-}
-
 /// 初始化所有状态
 ///
 /// 新架构使用 TodoStore 作为唯一数据源，

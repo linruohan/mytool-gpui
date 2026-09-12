@@ -31,10 +31,7 @@ use super::{
 };
 use crate::{
     LabelsPopoverList,
-    core::{
-        notification::NotificationSystem,
-        state::{DBState, SaveResults, TodoStore},
-    },
+    core::state::{DBState, SaveResults, TodoStore},
     label_chip,
     todo_actions::set_item_pinned_optimistic,
     ui::theme::visual_enhancements::SemanticColors,
@@ -337,67 +334,6 @@ impl ItemInfoState {
             }
         });
 
-        // Labels 现在存储在 item_labels 关联表中，需要异步加载
-        // 只有在 reload_labels 为 true 时才重新加载标签
-        if reload_labels {
-            // 异步加载当前项目的标签
-            let item_id_for_labels = item.id.clone();
-            let label_popover_list = self.label_popover_list.clone();
-            let db_state = cx.global::<crate::todo_state::DBState>().clone();
-            let this_entity = cx.entity();
-
-            cx.spawn(async move |_this, cx| {
-                // 🚀 6.9修复：防御性检查 Store 是否已初始化
-                //
-                // 【问题】BoardBase::new() 同步创建 ItemInfoState 时会调用 set_item_internal，
-                //   而此时 state_init 中的 Store 还是 None（Store 是异步初始化的）。
-                //   直接调用 get_store() 会触发 expect panic → 应用闪退。
-                //
-                // 【修复】先检查 is_store_ready()，未就绪时安全跳过标签加载。
-                //   后续 TodoStore 数据加载完成后，observe_global 回调会再次触发更新。
-                if !db_state.is_store_ready() {
-                    tracing::debug!(
-                        "Store not ready, skipping label load for item: {}",
-                        item_id_for_labels
-                    );
-                    return;
-                }
-
-                let store = db_state.get_store_async().await;
-                match store.get_labels_by_item(&item_id_for_labels).await {
-                    Ok(item_labels) => {
-                        let label_ids: Vec<String> =
-                            item_labels.iter().map(|l| l.id.clone()).collect();
-                        let label_ids_str = label_ids.join(";");
-
-                        cx.update_entity(&label_popover_list, |popover_list, cx| {
-                            // 注意：这里不能使用 window 参数，因为它不能跨越异步边界
-                            // 我们需要在 set_item_checked_label_id 方法中处理这个问题
-                            popover_list.set_item_checked_label_id_async(label_ids_str, cx);
-                        });
-
-                        // 触发UI更新，确保标签复选框状态正确显示
-                        cx.update_entity(&this_entity, |_item_info_state, cx| {
-                            cx.notify();
-                        });
-                    },
-                    Err(e) => {
-                        NotificationSystem::log_error("Failed to load item labels", e);
-                        // 如果加载失败，清空标签选择
-                        cx.update_entity(&label_popover_list, |popover_list, cx| {
-                            popover_list.set_item_checked_label_id_async(String::new(), cx);
-                        });
-
-                        // 即使失败也要触发UI更新
-                        cx.update_entity(&this_entity, |_item_info_state, cx| {
-                            cx.notify();
-                        });
-                    },
-                }
-            })
-            .detach();
-        }
-
         // 使用类型安全的 due_date() 方法
         self.schedule_button_state.update(cx, |this, cx| {
             if let Some(due_date) = item.due_date() {
@@ -416,35 +352,63 @@ impl ItemInfoState {
             }
         });
 
-        // 异步加载附件和提醒
-        let item_id = item.id.clone();
+        self.load_related_records(item.id.clone(), reload_labels, cx);
+    }
+
+    fn load_related_records(&self, item_id: String, reload_labels: bool, cx: &mut Context<Self>) {
+        if item_id.is_empty() {
+            return;
+        }
+
+        let label_popover_list = self.label_popover_list.clone();
         let attachment_state = self.attachment_state.clone();
         let reminder_state = self.reminder_state.clone();
+        let this_entity = cx.entity();
+        let db_state = cx.global::<DBState>().clone();
 
         cx.spawn(async move |_this, cx| {
-            // 异步获取 Store
-            let db_state = cx.update_global::<DBState, _>(|db_state, _| db_state.clone());
-            let store = db_state.get_store_async().await;
+            let loaded = db_state
+                .spawn_store_op(move |store| async move {
+                    let labels = if reload_labels {
+                        Some(store.get_labels_by_item(&item_id).await.unwrap_or_default())
+                    } else {
+                        None
+                    };
+                    let attachments =
+                        store.get_attachments_by_item(&item_id).await.unwrap_or_default();
+                    let reminders = store.get_reminders_by_item(&item_id).await.unwrap_or_default();
+                    Ok((labels, attachments, reminders))
+                })
+                .await;
 
-            // 加载附件
-            let attachments = match store.get_attachments_by_item(&item_id).await {
-                Ok(attachments) => attachments,
+            let (labels, attachments, reminders) = match loaded {
+                Ok(Ok(data)) => data,
+                Ok(Err(e)) => {
+                    tracing::error!("Failed to load item related data: {:?}", e);
+                    return;
+                },
                 Err(e) => {
-                    tracing::error!("Failed to load attachments for item {}: {:?}", item_id, e);
-                    vec![]
+                    tracing::error!("Item related data task panicked: {:?}", e);
+                    return;
                 },
             };
-            let rc_attachments =
-                attachments.iter().map(|a| Arc::new(a.clone())).collect::<Vec<_>>();
-            cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
-                state.set_attachments(rc_attachments, cx);
-            });
 
-            // 加载提醒
-            let reminders = store.get_reminders_by_item(&item_id).await.unwrap_or_default();
-            let rc_reminders = reminders.iter().map(|r| Arc::new(r.clone())).collect::<Vec<_>>();
+            if let Some(item_labels) = labels {
+                let label_ids_str =
+                    item_labels.iter().map(|label| label.id.as_str()).collect::<Vec<_>>().join(";");
+                cx.update_entity(&label_popover_list, |popover_list, cx| {
+                    popover_list.set_item_checked_label_id_async(label_ids_str, cx);
+                });
+            }
+
+            cx.update_entity(&attachment_state, |state: &mut AttachmentButtonState, cx| {
+                state.set_attachments(attachments.into_iter().map(Arc::new).collect(), cx);
+            });
             cx.update_entity(&reminder_state, |state: &mut ReminderButtonState, cx| {
-                state.set_reminders(rc_reminders, cx);
+                state.set_reminders(reminders.into_iter().map(Arc::new).collect(), cx);
+            });
+            cx.update_entity(&this_entity, |_item_info_state, cx| {
+                cx.notify();
             });
         })
         .detach();
