@@ -79,9 +79,9 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
             .footer(
                 DialogFooter::new()
                     .child(DialogClose::new().child(
-                        Button::new("cancel").label("Cancel").outline().on_click(
+                        Button::new("cancel").label("取消").outline().on_click(
                             move |_, window, cx| {
-                                window.push_notification("Cancelled.", cx);
+                                window.push_notification("已取消。", cx);
                                 window.close_sheet(cx);
                             },
                         ),
@@ -91,7 +91,7 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
                             move |_, window, cx| {
                                 // Call save function with App reference
                                 (save_fn)(cx);
-                                window.push_notification("Item saved.", cx);
+                                window.push_notification("已保存。", cx);
                                 window.close_sheet(cx);
                             },
                         ),
@@ -140,7 +140,7 @@ pub fn show_item_dialog<T, F>(
             .footer(
                 DialogFooter::new()
                     .child(DialogClose::new().child(
-                        Button::new("cancel").label("Cancel").outline().on_click(
+                        Button::new("cancel").label("取消").outline().on_click(
                             move |_, _window, _cx| {
                                 // 取消按钮不需要做任何事，DialogClose 会自动处理关闭
                             },
@@ -231,21 +231,21 @@ where
         dialog
             .overlay(true)
             .overlay_closable(true)
-            .child(Alert::error("delete-alert", message.clone()).title("Delete"))
+            .child(Alert::error("delete-alert", message.clone()).title("删除"))
             .footer(
                 DialogFooter::new()
                     .child(
-                        DialogClose::new().child(Button::new("cancel").label("Cancel").outline()),
+                        DialogClose::new().child(Button::new("cancel").label("取消").outline()),
                     )
-                    .child(DialogAction::new().child(Button::new("ok").label("Confirm").primary())),
+                    .child(DialogAction::new().child(Button::new("ok").label("确认").primary())),
             )
             .on_ok(move |_, window, cx| {
                 on_ok(cx);
-                window.push_notification("You have delete ok.", cx);
+                window.push_notification("已删除。", cx);
                 true
             })
             .on_cancel(|_, window, cx| {
-                window.push_notification("You have canceled delete.", cx);
+                window.push_notification("已取消删除。", cx);
                 true
             })
     });

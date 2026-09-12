@@ -72,7 +72,7 @@ impl Focusable for AttachmentButtonState {
 impl AttachmentButtonState {
     pub fn new(item_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let search_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Search attachments..."));
+            cx.new(|cx| InputState::new(window, cx).placeholder("搜索附件..."));
 
         // Subscribe to search events directly
         let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);

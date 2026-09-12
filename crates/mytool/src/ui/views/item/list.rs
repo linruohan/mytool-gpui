@@ -110,13 +110,6 @@ impl RenderOnce for ItemListItem {
                             },
                         )),
                 )
-                .when_some(due_label, |this, due_label| {
-                    this.child(
-                        Label::new(due_label)
-                            .text_color(due_color)
-                            .when(self.item.checked, |this| this.line_through()),
-                    )
-                })
                 .child(
                     v_flex().flex_1().min_w_0().overflow_x_hidden().flex_nowrap().child(
                         Label::new(self.item.content.clone())
@@ -128,6 +121,14 @@ impl RenderOnce for ItemListItem {
                 )
                 .when(!item_label_chips.is_empty(), |this| {
                     this.child(h_flex().gap_1().flex_shrink_0().children(item_label_chips))
+                })
+                .when_some(due_label, |this, due_label| {
+                    this.child(
+                        Label::new(due_label)
+                            .text_sm()
+                            .text_color(due_color)
+                            .when(self.item.checked, |this| this.line_through()),
+                    )
                 }),
         )
     }

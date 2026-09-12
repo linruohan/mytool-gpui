@@ -258,12 +258,12 @@ impl Render for ReminderForm {
             .label_width(px(40.))
             .child(
                 field()
-                    .label("Date")
+                    .label("日期")
                     .child(DatePicker::new(&date_picker).cleanable(true).w(px(140.))),
             )
             .child(
                 field()
-                    .label("Time")
+                    .label("时间")
                     .child(Select::new(&time_select).small().placeholder("09:00").w(px(100.))),
             )
             .child(field().child(
@@ -440,7 +440,7 @@ impl Render for ReminderButtonState {
                         Button::new("add-reminder-trigger")
                             .small()
                             .primary()
-                            .label("Add Reminder")
+                            .label("添加提醒")
                             .icon(IconName::Plus)
                             .on_click({
                                 let view = view.clone();

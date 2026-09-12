@@ -68,10 +68,10 @@ impl RecurrencyUnit {
     /// 获取显示标签
     pub fn to_label(self) -> &'static str {
         match self {
-            Self::Days => "Day(s)",
-            Self::Weeks => "Week(s)",
-            Self::Months => "Month(s)",
-            Self::Years => "Year(s)",
+            Self::Days => "天",
+            Self::Weeks => "周",
+            Self::Months => "月",
+            Self::Years => "年",
         }
     }
 
@@ -99,9 +99,9 @@ impl RecurrencyEndOption {
 
     fn to_label(self) -> &'static str {
         match self {
-            Self::Never => "Never",
-            Self::OnDate => "On Date",
-            Self::After => "After",
+            Self::Never => "永不",
+            Self::OnDate => "指定日期",
+            Self::After => "次数",
         }
     }
 
@@ -126,13 +126,13 @@ impl RecurrencyPreset {
     /// 获取显示标签
     pub fn to_label(self) -> &'static str {
         match self {
-            Self::Daily => "Daily",
-            Self::Weekdays => "Weekdays",
-            Self::Weekends => "Weekends",
-            Self::Weekly => "Weekly",
-            Self::Monthly => "Monthly",
-            Self::Yearly => "Yearly",
-            Self::Custom => "Custom",
+            Self::Daily => "每天",
+            Self::Weekdays => "工作日",
+            Self::Weekends => "周末",
+            Self::Weekly => "每周",
+            Self::Monthly => "每月",
+            Self::Yearly => "每年",
+            Self::Custom => "自定义",
         }
     }
 
@@ -458,7 +458,7 @@ impl Render for RecurrencyForm {
                 }));
 
         // 构建 Done 按钮
-        let done_button = Button::new("done").w_full().primary().label("Done").on_click(
+        let done_button = Button::new("done").w_full().primary().label("完成").on_click(
             cx.listener(move |this, _, _window, cx| {
                 let preset = this.get_selected_preset();
                 if preset == RecurrencyPreset::Custom {
@@ -495,7 +495,7 @@ impl RecurrencyForm {
 
         v_form()
             .child(
-                field().label("Repeat every").child(
+                field().label("重复间隔").child(
                     NumberInput::new(&interval_input).small().suffix(
                         RadioGroup::horizontal("recurrency-unit")
                             .selected_index(Some(unit_index))
@@ -512,7 +512,7 @@ impl RecurrencyForm {
                 ),
             )
             .child(
-                field().label("End").child(
+                field().label("结束").child(
                     RadioGroup::horizontal("recurrency-end")
                         .selected_index(Some(end_index))
                         .on_click(cx.listener(|this, index, _, cx| {
@@ -529,15 +529,15 @@ impl RecurrencyForm {
             .when(end_type == RecurrencyEndOption::OnDate, move |this| {
                 this.child(
                     field()
-                        .label("On date")
+                        .label("指定日期")
                         .child(DatePicker::new(&end_date_picker).cleanable(true).w(px(200.))),
                 )
             })
             .when(end_type == RecurrencyEndOption::After, move |this| {
                 this.child(
                     field()
-                        .label("After")
-                        .child(NumberInput::new(&count_input).small().suffix("times")),
+                        .label("次数")
+                        .child(NumberInput::new(&count_input).small().suffix("次")),
                 )
             })
     }

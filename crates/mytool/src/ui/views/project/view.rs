@@ -160,7 +160,7 @@ impl ProjectsPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("项目名称"));
         let now = chrono::Local::now().naive_local().date();
         let project_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
@@ -180,26 +180,26 @@ impl ProjectsPanel {
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("New Project")
+                .title("新建项目")
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
                     v_form()
-                        .child(field().label("Name").required(true).child(Input::new(&name_input)))
-                        .child(field().label("Color").child(todo_color_picker(&color)))
-                        .child(field().label("Due date").child(
-                            DatePicker::new(&project_due).placeholder("DueDate of Project"),
+                        .child(field().label("名称").required(true).child(Input::new(&name_input)))
+                        .child(field().label("颜色").child(todo_color_picker(&color)))
+                        .child(field().label("截止日期").child(
+                            DatePicker::new(&project_due).placeholder("项目截止日期"),
                         )),
                 )
                 .footer(
                     DialogFooter::new()
                         .child(
                             DialogClose::new()
-                                .child(Button::new("cancel").label("Cancel").outline()),
+                                .child(Button::new("cancel").label("取消").outline()),
                         )
                         .child(
-                            DialogAction::new().child(Button::new("add").primary().label("Add")),
+                            DialogAction::new().child(Button::new("add").primary().label("添加")),
                         ),
                 )
                 .on_ok({

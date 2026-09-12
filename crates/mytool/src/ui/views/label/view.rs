@@ -148,7 +148,7 @@ impl LabelsPanel {
         cx: &mut Context<Self>,
         is_edit: bool,
     ) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Label Name"));
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("标签名称"));
         let ori_label = self.initialize_label_model(is_edit, window, cx);
         if is_edit {
             name_input.update(cx, |is, cx| {
@@ -158,8 +158,8 @@ impl LabelsPanel {
         };
 
         let view = cx.entity().clone();
-        let dialog_title = if is_edit { "Edit Label" } else { "New Label" };
-        let button_label = if is_edit { "Save" } else { "Add" };
+        let dialog_title = if is_edit { "编辑标签" } else { "新建标签" };
+        let button_label = if is_edit { "保存" } else { "添加" };
         let color = self.color.clone();
         window.open_dialog(cx, move |modal, _, _| {
             modal
@@ -169,14 +169,14 @@ impl LabelsPanel {
                 .overlay_closable(true)
                 .child(
                     v_form()
-                        .child(field().label("Name").required(true).child(Input::new(&name_input)))
-                        .child(field().label("Color").child(todo_color_picker(&color))),
+                        .child(field().label("名称").required(true).child(Input::new(&name_input)))
+                        .child(field().label("颜色").child(todo_color_picker(&color))),
                 )
                 .footer(
                     DialogFooter::new()
                         .child(
                             DialogClose::new()
-                                .child(Button::new("cancel").label("Cancel").outline()),
+                                .child(Button::new("cancel").label("取消").outline()),
                         )
                         .child(
                             DialogAction::new()

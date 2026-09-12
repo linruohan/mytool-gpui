@@ -39,10 +39,10 @@ pub enum SchedulePreset {
 impl SchedulePreset {
     pub fn to_label(self) -> &'static str {
         match self {
-            Self::Today => "Today",
-            Self::Tomorrow => "Tomorrow",
-            Self::NextWeek => "Next week",
-            Self::Custom => "Choose a date...",
+            Self::Today => "今天",
+            Self::Tomorrow => "明天",
+            Self::NextWeek => "下周",
+            Self::Custom => "选择日期...",
         }
     }
 
@@ -238,10 +238,10 @@ impl Render for ScheduleForm {
             })
             .child(Separator::horizontal())
             .child(v_form().child(
-                field().label("Time").child(Select::new(&time_select).small().placeholder("17:00")),
+                field().label("时间").child(Select::new(&time_select).small().placeholder("17:00")),
             ))
             .child(Separator::horizontal())
-            .child(Button::new("apply-btn").w_full().primary().label("Apply").on_click(
+            .child(Button::new("apply-btn").w_full().primary().label("确定").on_click(
                 cx.listener(move |this, _, _window, cx| {
                     if is_custom {
                         this.apply_custom_date(cx);

@@ -51,7 +51,7 @@ impl LabelsPopoverList {
 
         // 创建新标签输入框
         let new_label_input =
-            cx.new(|cx| InputState::new(window, cx).placeholder("New label name"));
+            cx.new(|cx| InputState::new(window, cx).placeholder("新标签名称"));
 
         cx.focus_self(window);
         let label_list_clone = label_list.clone();

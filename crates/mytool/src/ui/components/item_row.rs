@@ -7,9 +7,8 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Icon, Sizable, Size, StyledExt as _, collapsible::Collapsible, h_flex,
+    ActiveTheme, Sizable, Size, StyledExt as _, collapsible::Collapsible, h_flex,
 };
-use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{
@@ -340,7 +339,7 @@ impl Render for ItemRowState {
             1 => px(4.0),
             2 => px(3.0),
             3 => px(2.0),
-            _ => px(1.0),
+            _ => px(0.0),
         };
         let row_bg = colors.priority_background_tint(priority, cx.theme().background);
         let item_info_entity = self.item_info.clone();
@@ -401,11 +400,6 @@ impl Render for ItemRowState {
                                 item.clone(),
                                 is_focused,
                             ))
-                            .child(
-                                Icon::new(IconName::ChevronDown)
-                                    .small()
-                                    .text_color(cx.theme().muted_foreground),
-                            )
                             .into_any_element()
                     })
                     .when_some(item_info_entity.filter(|_| is_open), |collapsible, item_info| {

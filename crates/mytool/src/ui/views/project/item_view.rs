@@ -434,16 +434,16 @@ impl ProjectItemsPanel {
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("Edit Project")
+                .title("编辑项目")
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
                     v_form()
-                        .child(field().label("Name").required(true).child(Input::new(&name_input)))
-                        .child(field().label("Color").child(todo_color_picker(&color)))
-                        .child(field().label("Due date").child(
-                            DatePicker::new(&project_due).placeholder("DueDate of Project"),
+                        .child(field().label("名称").required(true).child(Input::new(&name_input)))
+                        .child(field().label("颜色").child(todo_color_picker(&color)))
+                        .child(field().label("截止日期").child(
+                            DatePicker::new(&project_due).placeholder("项目截止日期"),
                         )),
                 )
                 .footer(
