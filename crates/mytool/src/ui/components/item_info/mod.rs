@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, BorrowAppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
+    App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
     StyleRefinement, Styled, Subscription, Window, div, prelude::FluentBuilder as _,
 };
@@ -223,13 +223,7 @@ impl ItemInfoState {
     /// 消费异步保存结果，避免在 render 里改状态。
     fn apply_save_results(&mut self, cx: &mut Context<Self>) -> bool {
         let item_id = self.state_manager.item.id.clone();
-        if item_id.is_empty() {
-            return false;
-        }
-
-        let save_result =
-            cx.update_global::<SaveResults, _>(|results, _| results.take_result(&item_id));
-        let Some(save_success) = save_result else {
+        let Some(save_success) = cx.global::<SaveResults>().take_result(&item_id) else {
             return false;
         };
 
@@ -270,7 +264,9 @@ impl ItemInfoState {
         cx: &mut Context<Self>,
         reload_labels: bool,
     ) {
-        // 更新 state_manager
+        let previous_id = self.state_manager.item.id.clone();
+        let item_id_changed = previous_id != item.id;
+
         self.state_manager = ItemStateManager::new(item.clone());
 
         self.name_input.update(cx, |this, cx| {
@@ -352,7 +348,9 @@ impl ItemInfoState {
             }
         });
 
-        self.load_related_records(item.id.clone(), reload_labels, cx);
+        if item_id_changed || reload_labels {
+            self.load_related_records(item.id.clone(), reload_labels || item_id_changed, cx);
+        }
     }
 
     fn load_related_records(&self, item_id: String, reload_labels: bool, cx: &mut Context<Self>) {

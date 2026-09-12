@@ -4,8 +4,6 @@ mod events;
 mod pending_tasks;
 mod store;
 
-use std::sync::Arc;
-
 pub use cache::*;
 pub use database::DBState;
 pub use events::*;
@@ -21,24 +19,6 @@ use tracing::error;
 /// 返回 Result 类型，允许调用者处理错误
 pub async fn get_todo_conn() -> Result<DatabaseConnection, sea_orm::DbErr> {
     todos::init_db().await
-}
-
-/// 获取数据库连接的便捷函数
-///
-/// 这是一个辅助函数，用于简化从全局状态获取数据库连接的操作。
-/// 返回的 Arc<DatabaseConnection> 是轻量级的，可以安全地克隆。
-///
-/// # 示例
-/// ```ignore
-/// let db = get_db_connection(cx);
-/// cx.spawn(async move |cx| {
-///     // 使用 db 进行数据库操作
-/// })
-/// .detach();
-/// ```
-#[inline]
-pub fn get_db_connection(cx: &App) -> Arc<DatabaseConnection> {
-    cx.global::<DBState>().get_connection()
 }
 
 /// 初始化所有状态
@@ -68,9 +48,8 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     cx.spawn(async move |cx| {
         tracing::info!("Initializing Store asynchronously...");
 
-        // 🚀 6.1优化：异步创建 Store，不阻塞首帧
-        // 通过 update_global 获取 DBState 克隆，然后在 async 块中初始化
-        let db_state = cx.update_global::<DBState, _>(|db_state, _| db_state.clone());
+        // 只读克隆，不要 update_global，否则会误通知 DBState 观察者
+        let db_state = cx.read_global::<DBState, _>(|db_state, _| db_state.clone());
         let store = db_state
             .init_store()
             .await

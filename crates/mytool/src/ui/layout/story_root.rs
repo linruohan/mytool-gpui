@@ -1,5 +1,5 @@
 use gpui::{
-    AnyView, App, AppContext, BorrowAppContext, Context, Entity, FocusHandle, Focusable,
+    AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
     Window, div, prelude::FluentBuilder as _,
 };
@@ -24,7 +24,7 @@ impl StoryRoot {
     ) -> Self {
         let title_bar = cx.new(|cx| AppTitleBar::new(title, window, cx));
         let error_sub = cx.observe_global_in::<ErrorNotifier>(window, |_, window, cx| {
-            let Some(msg) = cx.update_global::<ErrorNotifier, _>(|n, _| n.take_error()) else {
+            let Some(msg) = cx.global::<ErrorNotifier>().take_error() else {
                 return;
             };
             struct SaveError;

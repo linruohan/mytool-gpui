@@ -401,14 +401,10 @@ impl ReminderButtonState {
 }
 
 impl Render for ReminderButtonState {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity();
         let show_add_form = self.show_add_form;
         let form = self.form.clone();
-
-        self.form.update(cx, |form, cx| {
-            form.sync_from_parent(self, window, cx);
-        });
         let reminders = self.items.items.clone();
 
         gpui_component::popover::Popover::new("reminder-popover")
@@ -450,9 +446,12 @@ impl Render for ReminderButtonState {
                                 move |_event, window, cx| {
                                     cx.update_entity(&view, |this, cx| {
                                         this.show_add_form = !this.show_add_form;
-                                        if this.show_add_form && this.current_date.is_empty() {
+                                        if this.show_add_form {
                                             this.form.update(cx, |form, cx| {
-                                                form.set_default_date(window, cx);
+                                                form.sync_from_parent(this, window, cx);
+                                                if this.current_date.is_empty() {
+                                                    form.set_default_date(window, cx);
+                                                }
                                             });
                                         }
                                         cx.notify();

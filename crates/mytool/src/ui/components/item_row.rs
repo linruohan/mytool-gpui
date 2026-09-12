@@ -100,7 +100,6 @@ impl ItemRowState {
         self.update_version += 1;
         if let Some(item_info) = self.item_info.as_ref() {
             item_info.update(cx, |this_info, cx| {
-                this_info.state_manager.item = item.clone();
                 this_info.update_item_without_reloading_labels(item.clone(), window, cx);
                 if is_label_update {
                     this_info.refresh_labels_selection_from_item(cx);
