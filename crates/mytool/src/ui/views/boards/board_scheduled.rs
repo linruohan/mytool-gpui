@@ -212,7 +212,7 @@ impl Render for ScheduledBoard {
                     .ghost()
                     .compact()
                     .icon(IconName::PlusLargeSymbolic)
-                    .label("Add Section")
+                    .label("分区")
                     .on_click({
                         let view = view.clone();
                         move |_event, window, cx| {
@@ -227,7 +227,8 @@ impl Render for ScheduledBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
-                        .p(VisualHierarchy::spacing(3.0))
+                        .px_4()
+                        .py_1()
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
@@ -262,7 +263,7 @@ impl Render for ScheduledBoard {
                                                 let view = view_clone.clone();
                                                 move |this, window, _cx| {
                                                     this.item(
-                                                        PopupMenuItem::new("Show Completed Tasks")
+                                                        PopupMenuItem::new("显示已完成任务")
                                                             .on_click(window.listener_for(
                                                                 &view,
                                                                 |_this, _, _window, cx| {

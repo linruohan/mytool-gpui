@@ -234,9 +234,10 @@ impl Render for InboxBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
-                        .p(VisualHierarchy::spacing(3.0))
+                        .px_4()
+                        .py_1()
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(section("Pinned").child(board_renderer::render_item_list(
+                            this.child(section("置顶").child(board_renderer::render_item_list(
                                 &pinned_items,
                                 item_rows,
                                 active_index,

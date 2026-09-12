@@ -180,7 +180,8 @@ impl Render for PinBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
-                        .p(VisualHierarchy::spacing(3.0))
+                        .px_4()
+                        .py_1()
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
@@ -192,7 +193,7 @@ impl Render for PinBoard {
                         .when(!pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
-                                section("Pinned")
+                                section("置顶")
                                     .sub_title(
                                         h_flex().gap_1().child(
                                             Button::new("more-pinned")
@@ -205,7 +206,7 @@ impl Render for PinBoard {
                                                     move |this, window, _cx| {
                                                         this.item(
                                                             PopupMenuItem::new(
-                                                                "Show Completed Tasks",
+                                                                "显示已完成任务",
                                                             )
                                                             .on_click(window.listener_for(
                                                                 &view,

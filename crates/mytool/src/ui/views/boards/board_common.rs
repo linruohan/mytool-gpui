@@ -43,22 +43,22 @@ pub enum FinishItemDialogStyle {
 impl FinishItemDialogStyle {
     fn message(self) -> &'static str {
         match self {
-            Self::Inbox => "Are you sure to finish the item?",
-            Self::Standard => "Mark this item as completed?",
+            Self::Inbox => "确定完成这个任务吗？",
+            Self::Standard => "将此任务标记为已完成？",
         }
     }
 
     fn success_notification(self) -> &'static str {
         match self {
-            Self::Inbox => "You have finished item ok.",
-            Self::Standard => "Item marked as completed.",
+            Self::Inbox => "已完成任务。",
+            Self::Standard => "任务已标记为完成。",
         }
     }
 
     fn cancel_notification(self) -> &'static str {
         match self {
-            Self::Inbox => "You have canceled.",
-            Self::Standard => "Operation canceled.",
+            Self::Inbox => "已取消。",
+            Self::Standard => "已取消操作。",
         }
     }
 }
@@ -89,7 +89,7 @@ pub fn show_confirm_dialog<T, F>(
         dialog
             .overlay(true)
             .overlay_closable(true)
-            .child(Alert::warning("confirm-alert", message.clone()).title("Confirm"))
+            .child(Alert::warning("confirm-alert", message.clone()).title("确认"))
             .on_ok({
                 let on_confirm = on_confirm.clone();
                 let success_notification = success_notification.clone();
@@ -117,13 +117,13 @@ where
     show_confirm_dialog(
         window,
         cx,
-        "Are you sure to delete the item?",
-        "Confirm",
+        "确定删除这个任务吗？",
+        "确认",
         move |cx| {
             delete_item_optimistic(item.clone(), cx);
         },
-        "You have delete ok.",
-        "You have canceled delete.",
+        "已删除任务。",
+        "已取消删除。",
     );
 }
 
@@ -140,7 +140,7 @@ pub fn show_finish_item_dialog<T>(
         window,
         cx,
         style.message(),
-        "Confirm",
+        "确认",
         move |cx| {
             complete_item_optimistic(item.clone(), true, cx);
         },
@@ -154,19 +154,19 @@ pub fn show_pin_item_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: A
 where
     T: Render + 'static,
 {
-    let message = if item.pinned { "Unpin this item?" } else { "Pin this item?" };
-    let success = if item.pinned { "Item unpinned." } else { "Item pinned." };
+    let message = if item.pinned { "取消置顶这个任务？" } else { "置顶这个任务？" };
+    let success = if item.pinned { "已取消置顶。" } else { "已置顶任务。" };
 
     show_confirm_dialog(
         window,
         cx,
         message,
-        "Confirm",
+        "确认",
         move |cx| {
             set_item_pinned_optimistic(item.clone(), !item.pinned, cx);
         },
         success,
-        "Operation canceled.",
+        "已取消操作。",
     );
 }
 
@@ -178,13 +178,13 @@ where
     show_confirm_dialog(
         window,
         cx,
-        "Are you sure to mark this item as unfinished?",
-        "Confirm",
+        "确定将此任务标记为未完成吗？",
+        "确认",
         move |cx| {
             complete_item_optimistic(item.clone(), false, cx);
         },
-        "Item marked as unfinished.",
-        "You have canceled.",
+        "已标记为未完成。",
+        "已取消。",
     );
 }
 
@@ -361,7 +361,7 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
         .collect();
 
     if section_items.is_empty() {
-        window.push_notification("No items to schedule in this section", cx);
+        window.push_notification("这个分区里没有可安排的任务", cx);
         return;
     }
 
@@ -369,30 +369,29 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
 
     window.open_dialog(cx, move |dialog, _, _| {
         dialog
-            .title("Schedule Section Tasks")
+            .title("安排分区任务")
             .overlay(true)
             .overlay_closable(true)
             .child(
                 v_flex()
                     .gap_2()
-                    .child(gpui::div().child("Select date for all tasks in this section:"))
+                    .child(gpui::div().child("为这个分区的所有任务选择日期："))
                     .child(crate::ui::components::ScheduleButton::new(&schedule_state)),
             )
             .footer(
                 gpui_component::dialog::DialogFooter::new()
                     .child(
                         gpui_component::dialog::DialogClose::new()
-                            .child(Button::new("cancel").label("Cancel").outline()),
+                            .child(Button::new("cancel").label("取消").outline()),
                     )
                     .child(
                         gpui_component::dialog::DialogAction::new()
-                            .child(Button::new("schedule").label("Schedule").primary()),
+                            .child(Button::new("schedule").label("安排").primary()),
                     ),
             )
             .on_ok({
                 let schedule_state = schedule_state.clone();
                 let section_items = section_items.clone();
-                let section_id = section_id.clone();
                 move |_, window, cx| {
                     let due_date = schedule_state.read(cx).due_date.clone();
 
@@ -408,7 +407,7 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
                     batch_update_items(updated_items, cx);
 
                     window.push_notification(
-                        format!("Scheduled {} tasks in section '{}'", count, section_id),
+                        format!("已为分区安排 {} 个任务", count),
                         cx,
                     );
                     true

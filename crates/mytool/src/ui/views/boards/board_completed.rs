@@ -173,7 +173,8 @@ impl Render for CompletedBoard {
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
-                        .p(VisualHierarchy::spacing(3.0))
+                        .px_4()
+                        .py_1()
                         .gap(VisualHierarchy::spacing(2.0))
                         .when(item_rows.is_empty(), |this| {
                             this.child(board_renderer::render_empty_placeholder(

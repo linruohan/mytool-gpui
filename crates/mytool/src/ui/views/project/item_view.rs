@@ -236,8 +236,8 @@ impl ProjectItemsPanel {
         });
 
         let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "Edit Item" } else { "New Item" },
-            if is_edit { "Save" } else { "Add" },
+            if is_edit { "编辑任务" } else { "新建任务" },
+            if is_edit { "保存" } else { "添加" },
             is_edit,
         );
 
@@ -274,7 +274,7 @@ impl ProjectItemsPanel {
                 crate::ui::components::show_item_delete_dialog(
                     window,
                     cx,
-                    "Are you sure to delete the item?",
+                    "确定删除这个任务吗？",
                     move |cx| {
                         view.update(cx, |_, cx| {
                             cx.emit(ProjectItemEvent::Deleted(item.clone()));
@@ -306,7 +306,7 @@ impl ProjectItemsPanel {
             }
         };
 
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Section Name"));
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("分区名称"));
         if is_edit {
             name_input.update(cx, |is, cx| {
                 is.set_value(ori_section.name.clone(), window, cx);
@@ -315,8 +315,8 @@ impl ProjectItemsPanel {
         };
 
         let config = crate::ui::components::SectionDialogConfig::new(
-            if is_edit { "Edit Section" } else { "New Section" },
-            if is_edit { "Save" } else { "Add" },
+            if is_edit { "编辑分区" } else { "新建分区" },
+            if is_edit { "保存" } else { "添加" },
             is_edit,
         )
         .with_overlay(false);
@@ -353,7 +353,7 @@ impl ProjectItemsPanel {
             crate::ui::components::show_section_delete_dialog(
                 window,
                 cx,
-                "Are you sure to delete the section?",
+                "确定删除这个分区吗？",
                 move |cx| {
                     view.update(cx, |_view, cx| {
                         delete_section(section.clone(), cx);
@@ -373,9 +373,9 @@ impl ProjectItemsPanel {
         if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
-            new_section.name = format!("{} (copy)", new_section.name);
+            new_section.name = format!("{}（副本）", new_section.name);
             add_section(Arc::new(new_section), cx);
-            window.push_notification("Section duplicated successfully.", cx);
+            window.push_notification("已复制分区。", cx);
         }
     }
 
@@ -389,13 +389,13 @@ impl ProjectItemsPanel {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
-            window.push_notification("Section archived successfully.", cx);
+            window.push_notification("已归档分区。", cx);
         }
     }
 
     /// 显示项目编辑对话框，支持修改项目名称、颜色和截止日期
     pub fn show_project_edit_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("Project Name"));
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("项目名称"));
         name_input.update(cx, |is, cx| {
             is.set_value(self.project.name.clone(), window, cx);
             cx.notify();
@@ -450,10 +450,10 @@ impl ProjectItemsPanel {
                     DialogFooter::new()
                         .child(
                             DialogClose::new()
-                                .child(Button::new("cancel").label("Cancel").outline()),
+                                .child(Button::new("cancel").label("取消").outline()),
                         )
                         .child(
-                            DialogAction::new().child(Button::new("save").primary().label("Save")),
+                            DialogAction::new().child(Button::new("save").primary().label("保存")),
                         ),
                 )
                 .on_ok({
@@ -486,7 +486,7 @@ impl ProjectItemsPanel {
         crate::ui::components::show_delete_dialog(
             window,
             cx,
-            "Are you sure to delete this project? All tasks and sections will be deleted.",
+            "确定删除这个项目吗？其中的任务和分区都会被删除。",
             move |cx| {
                 view.update(cx, |_view, cx| {
                     delete_project(project.clone(), cx);
@@ -587,7 +587,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .label("Add Task")
+                                    .label("添加任务")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -604,7 +604,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::FolderOpen)
-                                    .label("Add to Section")
+                                    .label("添加到分区")
                                     .dropdown_menu({
                                         let view = view.clone();
                                         let project_id = self.project.id.clone();
@@ -668,7 +668,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .label("Add Section")
+                                    .label("分区")
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -730,7 +730,7 @@ impl Render for ProjectItemsPanel {
                                 }));
 
                             this.child(
-                                section("Pinned")
+                                section("置顶")
                                     .sub_title(
                                         h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new("more-pinned")
@@ -742,7 +742,7 @@ impl Render for ProjectItemsPanel {
                                                     let view = view_clone_for_dropdown.clone();
                                                     move |this, window, _cx| {
                                                         this.item(
-                                                            PopupMenuItem::new("Show Completed Tasks")
+                                                            PopupMenuItem::new("显示已完成任务")
                                                                 .on_click(
                                                                     window.listener_for(&view, |_this, _, _window, cx| {
                                                                         cx.notify();
@@ -760,7 +760,7 @@ impl Render for ProjectItemsPanel {
                         .when(!no_section_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(
-                                section("No Section")
+                                section("未分组")
                                     .sub_title(
                                         h_flex().gap(VisualHierarchy::spacing(1.0)).child(
                                             Button::new("add-item-to-no-section")
@@ -768,7 +768,7 @@ impl Render for ProjectItemsPanel {
                                                 .ghost()
                                                 .compact()
                                                 .icon(IconName::PlusLargeSymbolic)
-                                                .label("Add Task")
+                                                .label("添加任务")
                                                 .on_click({
                                                     let view = view_clone.clone();
                                                     move |_, window, cx| {
@@ -830,7 +830,7 @@ impl Render for ProjectItemsPanel {
                                             .ghost()
                                             .compact()
                                             .icon(IconName::PlusLargeSymbolic)
-                                            .label("Add Task")
+                                            .label("添加任务")
                                             .on_click({
                                                 let view = view_clone.clone();
                                                 let section_id = section_id.clone();
@@ -898,7 +898,7 @@ impl Render for ProjectItemsPanel {
                                                             this.item({
                                                                 let view = view.clone();
                                                                 let section_id = section_id.clone();
-                                                                PopupMenuItem::new("+ Add Task").on_click(
+                                                                PopupMenuItem::new("添加任务").on_click(
                                                                     window.listener_for(&view, move |this, _, window, cx| {
                                                                         this.show_item_dialog(window, cx, false, Some(section_id.clone()));
                                                                         cx.notify();
@@ -909,7 +909,7 @@ impl Render for ProjectItemsPanel {
                                                                 .item({
                                                                     let view = view.clone();
                                                                     let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Edit Section").on_click(
+                                                                    PopupMenuItem::new("编辑分区").on_click(
                                                                         window.listener_for(&view, move |this, _, window, cx| {
                                                                             this.show_section_dialog(window, cx, Some(section_id.clone()), true);
                                                                             cx.notify();
@@ -920,7 +920,7 @@ impl Render for ProjectItemsPanel {
                                                                 .item({
                                                                     let view = view.clone();
                                                                     let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Duplicate").on_click(
+                                                                    PopupMenuItem::new("复制分区").on_click(
                                                                         window.listener_for(&view, move |this, _, window, cx| {
                                                                             this.duplicate_section(window, cx, section_id.clone());
                                                                             cx.notify();
@@ -931,7 +931,7 @@ impl Render for ProjectItemsPanel {
                                                                 .item({
                                                                     let view = view.clone();
                                                                     let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Archive").on_click(
+                                                                    PopupMenuItem::new("归档分区").on_click(
                                                                         window.listener_for(&view, move |this, _, window, cx| {
                                                                             this.archive_section(window, cx, section_id.clone());
                                                                             cx.notify();
@@ -942,7 +942,7 @@ impl Render for ProjectItemsPanel {
                                                                 .item({
                                                                     let view = view.clone();
                                                                     let section_id = section_id.clone();
-                                                                    PopupMenuItem::new("Delete Section").on_click(
+                                                                    PopupMenuItem::new("删除分区").on_click(
                                                                         window.listener_for(&view, move |this, _, window, cx| {
                                                                             this.show_section_delete_dialog(window, cx, section_id.clone());
                                                                             cx.notify();

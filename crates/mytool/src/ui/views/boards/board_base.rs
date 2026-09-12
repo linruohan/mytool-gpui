@@ -184,8 +184,8 @@ impl BoardBase {
         };
 
         let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "Edit Item" } else { "New Item" },
-            if is_edit { "Save" } else { "Add" },
+            if is_edit { "编辑任务" } else { "新建任务" },
+            if is_edit { "保存" } else { "添加" },
             is_edit,
         );
 
@@ -211,7 +211,7 @@ impl BoardBase {
         };
 
         let name_input = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx).placeholder("Section Name")
+            gpui_component::input::InputState::new(window, cx).placeholder("分区名称")
         });
         if is_edit {
             name_input.update(cx, |is, cx| {
@@ -221,8 +221,8 @@ impl BoardBase {
         }
 
         let config = crate::ui::components::SectionDialogConfig::new(
-            if is_edit { "Edit Section" } else { "New Section" },
-            if is_edit { "Save" } else { "Add" },
+            if is_edit { "编辑分区" } else { "新建分区" },
+            if is_edit { "保存" } else { "添加" },
             is_edit,
         )
         .with_overlay(false);
@@ -253,7 +253,7 @@ impl BoardBase {
             crate::ui::components::show_section_delete_dialog(
                 window,
                 cx,
-                "Are you sure to delete the section?",
+                "确定删除这个分区吗？",
                 move |cx| {
                     crate::todo_actions::delete_section(section.clone(), cx);
                 },
@@ -271,9 +271,9 @@ impl BoardBase {
         if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
-            new_section.name = format!("{} (copy)", new_section.name);
+            new_section.name = format!("{}（副本）", new_section.name);
             add_section(Arc::new(new_section), cx);
-            window.push_notification("Section duplicated successfully.", cx);
+            window.push_notification("已复制分区。", cx);
         }
     }
 
@@ -288,7 +288,7 @@ impl BoardBase {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
-            window.push_notification("Section archived successfully.", cx);
+            window.push_notification("已归档分区。", cx);
         }
     }
 

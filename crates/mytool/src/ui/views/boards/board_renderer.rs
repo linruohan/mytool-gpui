@@ -20,7 +20,7 @@ use gpui_kit::assets::IconName;
 use todos::entity::ItemModel;
 
 use super::{board_base::BoardView, board_common::BoardSectionActions};
-use crate::{ItemRow, ItemRowState, ScheduleButtonState, VisualHierarchy, section};
+use crate::{ItemRow, ItemRowState, ScheduleButtonState, section};
 
 /// Board 空状态：居中大图标 + 标题 + 提示，无虚线框。
 pub fn render_empty_placeholder(
@@ -89,7 +89,7 @@ pub fn render_item_list<V>(
 where
     V: BoardView + Render,
 {
-    v_flex().gap(VisualHierarchy::spacing(2.0)).w_full().children(items.iter().map(|(i, _)| {
+    v_flex().gap_1().w_full().children(items.iter().map(|(i, _)| {
         let item_row = item_rows.get(*i).cloned();
         let is_active = active_index == Some(*i);
         render_item_row(*i, item_row, is_active, active_border, view.clone())
@@ -114,7 +114,7 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
         let section_id3 = section_id.clone();
         let section_id4 = section_id.clone();
         let section_id5 = section_id.clone();
-        this.item(PopupMenuItem::new("+ Add Task").on_click(window.listener_for(
+        this.item(PopupMenuItem::new("添加任务").on_click(window.listener_for(
             &view,
             move |this, _, window, cx| {
                 this.show_item_dialog(window, cx, false, Some(section_id1.clone()));
@@ -122,7 +122,7 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
             },
         )))
         .separator()
-        .item(PopupMenuItem::new("Edit Section").on_click(window.listener_for(
+        .item(PopupMenuItem::new("编辑分区").on_click(window.listener_for(
             &view,
             move |this, _, window, cx| {
                 this.show_section_dialog(window, cx, Some(section_id2.clone()), true);
@@ -130,7 +130,7 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
             },
         )))
         .separator()
-        .item(PopupMenuItem::new("Duplicate").on_click(window.listener_for(
+        .item(PopupMenuItem::new("复制分区").on_click(window.listener_for(
             &view,
             move |this, _, window, cx| {
                 this.duplicate_section(window, cx, section_id3.clone());
@@ -138,7 +138,7 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
             },
         )))
         .separator()
-        .item(PopupMenuItem::new("Archive").on_click(window.listener_for(
+        .item(PopupMenuItem::new("归档分区").on_click(window.listener_for(
             &view,
             move |this, _, window, cx| {
                 this.archive_section(window, cx, section_id4.clone());
@@ -146,7 +146,7 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
             },
         )))
         .separator()
-        .item(PopupMenuItem::new("Delete Section").on_click(window.listener_for(
+        .item(PopupMenuItem::new("删除分区").on_click(window.listener_for(
             &view,
             move |this, _, window, cx| {
                 this.show_section_delete_dialog(window, cx, section_id5.clone());
@@ -177,7 +177,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .label("Add Task")
+        .label("添加任务")
         .on_click({
             let view = view_clone.clone();
             let section_id = section_id.clone();
@@ -267,7 +267,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .label("Add Task")
+        .label("添加任务")
         .on_click({
             let view = view_clone.clone();
             move |_, window, cx| {
@@ -286,7 +286,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
         .dropdown_menu({
             let view = view_clone.clone();
             move |this, window, _cx| {
-                this.item(PopupMenuItem::new("+ Add Task").on_click(window.listener_for(
+                this.item(PopupMenuItem::new("添加任务").on_click(window.listener_for(
                     &view,
                     |this, _, window, cx| {
                         this.show_item_dialog(window, cx, false, None);
@@ -294,7 +294,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
                     },
                 )))
                 .separator()
-                .item(PopupMenuItem::new("Show Completed Tasks").on_click(
+                .item(PopupMenuItem::new("显示已完成任务").on_click(
                     window.listener_for(&view, |_this, _, _window, cx| {
                         cx.notify();
                     }),
@@ -302,7 +302,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
             }
         });
 
-    let mut block = section("No Section");
+    let mut block = section("未分组");
 
     if compact_toolbar {
         block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
@@ -339,7 +339,7 @@ pub fn render_simple_group_block<V: BoardView + Render>(
                     .dropdown_menu({
                         let view = view_clone.clone();
                         move |this, window, _cx| {
-                            this.item(PopupMenuItem::new("Show Completed Tasks").on_click(
+                            this.item(PopupMenuItem::new("显示已完成任务").on_click(
                                 window.listener_for(&view, |_this, _, _window, cx| {
                                     cx.notify();
                                 }),
@@ -379,7 +379,7 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
                         .dropdown_menu({
                             let view = view_clone.clone();
                             move |this, window, _cx| {
-                                this.item(PopupMenuItem::new("Show Completed Tasks").on_click(
+                                this.item(PopupMenuItem::new("显示已完成任务").on_click(
                                     window.listener_for(&view, |_this, _, _window, cx| {
                                         cx.notify();
                                     }),
@@ -410,7 +410,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .label("Add Task")
+        .label("添加任务")
         .on_click({
             let view = view_clone.clone();
             let section_id = section_id.clone();

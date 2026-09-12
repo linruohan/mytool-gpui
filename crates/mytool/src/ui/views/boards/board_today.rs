@@ -282,7 +282,7 @@ impl Render for TodayBoard {
                     .child(create_header_button(
                         "section-actions".to_string(),
                         IconName::PlusLargeSymbolic,
-                        Some("Add Section"),
+                        Some("分区"),
                         view.clone(),
                         |this, window, cx| this.show_section_dialog(window, cx, None, false),
                     )),
@@ -291,10 +291,11 @@ impl Render for TodayBoard {
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
-                        .p(VisualHierarchy::spacing(3.0))
+                        .px_4()
+                        .py_1()
                         .when(!pinned_items.is_empty(), |this| {
                             this.child(board_renderer::render_simple_group_block(
-                                "Pinned",
+                                "置顶",
                                 &pinned_items,
                                 item_rows,
                                 active_index,
@@ -313,7 +314,7 @@ impl Render for TodayBoard {
                         })
                         .when(!past_due_items.is_empty(), |this| {
                             this.child(board_renderer::render_group_with_schedule_button(
-                                "Past Due",
+                                "已过期",
                                 &past_due_items,
                                 item_rows,
                                 active_index,
@@ -324,7 +325,7 @@ impl Render for TodayBoard {
                         })
                         .when(!due_today_items.is_empty(), |this| {
                             this.child(board_renderer::render_simple_group_block(
-                                "Today",
+                                "今天",
                                 &due_today_items,
                                 item_rows,
                                 active_index,
@@ -359,7 +360,7 @@ impl Render for TodayBoard {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::Calendar)
-                                    .label("Schedule")
+                                    .label("安排")
                                     .on_click({
                                         let section_id = section_id.clone();
                                         move |_, window, cx| {
