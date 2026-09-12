@@ -425,6 +425,8 @@ impl Render for ItemInfoState {
         } else {
             cx.theme().muted_foreground
         };
+        let has_date = !self.schedule_button_state.read(cx).due_date.date.is_empty();
+        let label_popover = self.label_popover_list.clone();
         let muted = cx.theme().muted_foreground;
 
         div()
@@ -444,7 +446,10 @@ impl Render for ItemInfoState {
                             .items_start()
                             .gap_2()
                             .child(
-                                Checkbox::new("item-checked")
+                                Checkbox::new(format!(
+                                    "item-checked-{}",
+                                    self.state_manager.item.id
+                                ))
                                     .checked(self.state_manager.item.checked)
                                     .on_click(cx.listener(Self::toggle_finished)),
                             )
@@ -527,7 +532,24 @@ impl Render for ItemInfoState {
                                         this.child(
                                             h_flex().gap_1().flex_wrap().children(
                                                 selected_labels.iter().map(|label| {
-                                                    label_chip(label.name.clone(), &label.color)
+                                                    let popover = label_popover.clone();
+                                                    let chip_id = format!("edit-label-chip-{}", label.id);
+                                                    div()
+                                                        .id(chip_id)
+                                                        .cursor_pointer()
+                                                        .on_click(move |_, window, cx| {
+                                                            popover.update(cx, |this, cx| {
+                                                                this.list_popover_open = true;
+                                                                this.label_list.update(cx, |list, cx| {
+                                                                    list.focus(window, cx);
+                                                                });
+                                                                cx.notify();
+                                                            });
+                                                        })
+                                                        .child(label_chip(
+                                                            label.name.clone(),
+                                                            &label.color,
+                                                        ))
                                                 }),
                                             ),
                                         )
@@ -547,16 +569,20 @@ impl Render for ItemInfoState {
                                     .items_center()
                                     .min_w_0()
                                     .child(ScheduleButton::new(&self.schedule_button_state))
-                                    .child(RecurrencyButton::new(&self.recurrency_button_state))
+                                    .when(has_date, |this| {
+                                        this.child(RecurrencyButton::new(
+                                            &self.recurrency_button_state,
+                                        ))
+                                    })
                                     .child(
                                         ProjectButton::new(&self.project_state)
-                                            .w(px(120.))
+                                            .max_w(px(140.))
                                             .flex_shrink_0(),
                                     )
                                     .when(has_sections, |this| {
                                         this.child(
                                             SectionButton::new(&self.section_state)
-                                                .w(px(108.))
+                                                .max_w(px(120.))
                                                 .flex_shrink_0(),
                                         )
                                     }),

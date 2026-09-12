@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, Styled, Window, prelude::FluentBuilder, px,
+    IntoElement, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    IndexPath, Sizable,
+    ActiveTheme, IndexPath, Sizable,
     button::{Button, ButtonVariants},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     h_flex,
@@ -462,31 +462,45 @@ impl Render for ReminderButtonState {
                     )
                     // 添加表单（点击后显示）
                     .when(show_add_form, |this| this.child(form.clone()))
-                    // 已添加的 reminder 列表
-                    .child(v_flex().gap_1().children(
-                        reminders.iter().enumerate().map(|(idx, reminder)| {
-                            let reminder_id = reminder.id.clone();
-                            let view = view.clone();
-                            let display_text = reminder
-                                .due
-                                .clone()
-                                .unwrap_or_else(|| "无日期".to_string());
+                    .when(reminders.is_empty() && !show_add_form, |this| {
+                        this.child(
+                            div()
+                                .px_1()
+                                .py_2()
+                                .text_sm()
+                                .text_color(cx.theme().muted_foreground)
+                                .child("还没有提醒"),
+                        )
+                    })
+                    .when(!reminders.is_empty(), |this| {
+                        this.child(v_flex().gap_1().children(reminders.iter().enumerate().map(
+                            |(idx, reminder)| {
+                                let reminder_id = reminder.id.clone();
+                                let view = view.clone();
+                                let display_text = reminder
+                                    .due
+                                    .clone()
+                                    .unwrap_or_else(|| "无日期".to_string());
 
-                            create_list_item_element(
-                                idx,
-                                display_text,
-                                reminder_id,
-                                view,
-                                move |item_id: String,
-                                      view: Entity<ReminderButtonState>,
-                                      cx: &mut App| {
-                                    cx.update_entity(&view, |this: &mut ReminderButtonState, cx| {
-                                        this.remove_reminder(&item_id, cx);
-                                    });
-                                },
-                            )
-                        }),
-                    )),
+                                create_list_item_element(
+                                    idx,
+                                    display_text,
+                                    reminder_id,
+                                    view,
+                                    move |item_id: String,
+                                          view: Entity<ReminderButtonState>,
+                                          cx: &mut App| {
+                                        cx.update_entity(
+                                            &view,
+                                            |this: &mut ReminderButtonState, cx| {
+                                                this.remove_reminder(&item_id, cx);
+                                            },
+                                        );
+                                    },
+                                )
+                            },
+                        )))
+                    }),
             )
     }
 }

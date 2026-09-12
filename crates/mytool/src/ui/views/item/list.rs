@@ -98,16 +98,18 @@ impl RenderOnce for ItemListItem {
                 .text_color(text_color)
                 .child(
                     div()
-                        .id("item-check-wrap")
+                        .id(format!("item-check-wrap-{}", self.item.id))
                         .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
                         .on_click(|_, _, cx| cx.stop_propagation())
-                        .child(Checkbox::new("item-finished").checked(self.item.checked).on_click(
-                            move |checked, _, cx| {
-                                complete_item_optimistic(item_for_check.clone(), *checked, cx);
-                            },
-                        )),
+                        .child(
+                            Checkbox::new(format!("item-finished-{}", self.item.id))
+                                .checked(self.item.checked)
+                                .on_click(move |checked, _, cx| {
+                                    complete_item_optimistic(item_for_check.clone(), *checked, cx);
+                                }),
+                        ),
                 )
                 .child(
                     v_flex().flex_1().min_w_0().overflow_x_hidden().flex_nowrap().child(
