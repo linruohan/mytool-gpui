@@ -7,8 +7,10 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
+    color_picker::{ColorPickerEvent, ColorPickerState},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dialog::{DialogAction, DialogClose, DialogFooter},
+    form::{field, v_form},
     input::{Input, InputState},
     list::{ListEvent, ListState},
     v_flex,
@@ -16,9 +18,9 @@ use gpui_component::{
 use todos::entity::ProjectModel;
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ProjectEvent, ProjectListDelegate,
-    VisualHierarchy,
+    ProjectEvent, ProjectListDelegate, VisualHierarchy,
     todo_actions::{add_project, delete_project, update_project},
+    todo_color_picker,
     todo_state::TodoStore,
 };
 
@@ -27,7 +29,7 @@ pub struct ProjectsPanel {
     input_esc: Entity<InputState>,
     pub project_list: Entity<ListState<ProjectListDelegate>>,
     project_due: Option<String>,
-    color: Entity<ColorGroupState>,
+    color: Entity<ColorPickerState>,
     selected_color: Option<Hsla>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
@@ -39,7 +41,8 @@ impl ProjectsPanel {
             cx.new(|cx| InputState::new(window, cx).placeholder("Enter DB URL").clean_on_escape());
 
         let project_list = cx.new(|cx| ListState::new(ProjectListDelegate::new(), window, cx));
-        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let color =
+            cx.new(|cx| ColorPickerState::new(window, cx).default_value(cx.theme().primary));
         let project_list_clone = project_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<TodoStore>(move |_this, cx| {
@@ -57,7 +60,7 @@ impl ProjectsPanel {
                 cx.notify();
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
-                ColorGroupEvent::Change(color) => {
+                ColorPickerEvent::Change(color) => {
                     this.selected_color = *color;
                     tracing::debug!("project Color changed to: {:?}", color.unwrap().to_hex());
                 },
@@ -182,11 +185,12 @@ impl ProjectsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex()
-                        .gap(VisualHierarchy::spacing(3.0))
-                        .child(Input::new(&name_input))
-                        .child(ColorGroup::new(&color))
-                        .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
+                    v_form()
+                        .child(field().label("Name").required(true).child(Input::new(&name_input)))
+                        .child(field().label("Color").child(todo_color_picker(&color)))
+                        .child(field().label("Due date").child(
+                            DatePicker::new(&project_due).placeholder("DueDate of Project"),
+                        )),
                 )
                 .footer(
                     DialogFooter::new()

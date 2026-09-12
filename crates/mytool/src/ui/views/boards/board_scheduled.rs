@@ -7,7 +7,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window, div,
+    ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -221,6 +221,13 @@ impl Render for ScheduledBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
+                        .when(item_rows.is_empty(), |this| {
+                            this.child(board_renderer::render_empty_placeholder(
+                                ScheduledBoard::icon(),
+                                "Nothing scheduled",
+                                "Tasks with due dates will be grouped here.",
+                            ))
+                        })
                         .children(grouped_by_date.iter().filter_map(|(date, items)| {
                             if items.is_empty() {
                                 return None;

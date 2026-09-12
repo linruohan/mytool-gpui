@@ -10,8 +10,9 @@ use gpui::{
     StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
-    Sizable,
+    Icon, Sizable,
     button::{Button, ButtonVariants},
+    empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle},
     h_flex,
     menu::{DropdownMenu, PopupMenu, PopupMenuItem},
     v_flex,
@@ -21,6 +22,20 @@ use todos::entity::ItemModel;
 
 use super::{board_base::BoardView, board_common::BoardSectionActions};
 use crate::{ItemRow, ItemRowState, ScheduleButtonState, VisualHierarchy, section};
+
+/// Board 空状态，使用 `gpui_component::empty::Empty`。
+pub fn render_empty_placeholder(
+    icon: IconName,
+    title: impl Into<gpui::SharedString>,
+    description: impl Into<gpui::SharedString>,
+) -> impl IntoElement {
+    Empty::new().w_full().header(
+        EmptyHeader::new()
+            .media(EmptyMedia::new().with_variant(EmptyMediaVariant::Icon).child(Icon::new(icon)))
+            .title(EmptyTitle::new().child(title.into()))
+            .description(EmptyDescription::new().child(description.into())),
+    )
+}
 
 // ==================== 通用渲染辅助 ====================
 /// 渲染单行任务项（可点击选中、高亮、展示 ItemRow）

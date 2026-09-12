@@ -33,6 +33,7 @@ use crate::{
         notification::NotificationSystem,
         state::{DBState, SaveResults, TodoStore},
     },
+    label_chip,
     todo_actions::set_item_pinned_optimistic,
     ui::theme::visual_enhancements::SemanticColors,
 };
@@ -577,7 +578,7 @@ impl Render for ItemInfoState {
                                         });
                                     }))
                             )
-                            .child(label.name.clone())
+                            .child(label_chip(label.name.clone(), &label.color))
                     }))
             )
             .child(
@@ -619,7 +620,7 @@ impl Render for ItemInfoState {
                             .overflow_x_hidden()
                             .flex_nowrap()
                             .child(ProjectButton::new(&self.project_state))
-                            .child("——>")
+                            .child(Separator::vertical().h_4())
                             .child(SectionButton::new(&self.section_state)),
                     ),
                 ),

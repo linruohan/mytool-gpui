@@ -288,6 +288,13 @@ impl Render for TodayBoard {
                                 true,
                             ))
                         })
+                        .when(item_rows.is_empty(), |this| {
+                            this.child(board_renderer::render_empty_placeholder(
+                                TodayBoard::icon(),
+                                "Nothing due today",
+                                "Tasks due today will show up here.",
+                            ))
+                        })
                         .when(!past_due_items.is_empty(), |this| {
                             this.child(board_renderer::render_group_with_schedule_button(
                                 "Past Due",

@@ -174,6 +174,13 @@ impl Render for PinBoard {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         .p(VisualHierarchy::spacing(3.0))
+                        .when(item_rows.is_empty(), |this| {
+                            this.child(board_renderer::render_empty_placeholder(
+                                PinBoard::icon(),
+                                "No pinned tasks",
+                                "Pin important tasks to keep them here.",
+                            ))
+                        })
                         .when(!pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             this.child(

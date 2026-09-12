@@ -8,8 +8,10 @@ use gpui::{
 use gpui_component::{
     ActiveTheme as _, Colorize, IndexPath, Sizable, WindowExt,
     button::{Button, ButtonVariants},
+    color_picker::{ColorPickerEvent, ColorPickerState},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dialog::{DialogAction, DialogClose, DialogFooter},
+    form::{field, v_form},
     h_flex,
     input::{Input, InputState},
     menu::{DropdownMenu, PopupMenuItem},
@@ -21,14 +23,16 @@ use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow,
-    ItemRowState, VisualHierarchy, section,
+    ItemEvent, ItemInfoEvent, ItemInfoState, ItemRow, ItemRowState, VisualHierarchy, section,
     todo_actions::{
         add_section, delete_project, delete_project_item, delete_section, load_project_items,
         update_project, update_project_item, update_section,
     },
+    todo_color_picker,
     todo_state::TodoStore,
-    ui::views::boards::{PinnedLayout, clamp_active_index, diff_update_item_rows, group_items},
+    ui::views::boards::{
+        PinnedLayout, board_renderer, clamp_active_index, diff_update_item_rows, group_items,
+    },
 };
 
 pub enum ProjectItemEvent {
@@ -53,7 +57,7 @@ pub struct ProjectItemsPanel {
     no_section_items: Vec<(usize, Arc<ItemModel>)>,
     section_items_map: std::collections::HashMap<String, Vec<(usize, Arc<ItemModel>)>>,
     cached_version: usize,
-    color: Entity<ColorGroupState>,
+    color: Entity<ColorPickerState>,
     selected_color: Option<Hsla>,
     project_due: Option<String>,
     item_row_ids: Vec<String>,
@@ -67,7 +71,8 @@ impl ProjectItemsPanel {
         let pinned_items = vec![];
         let no_section_items = vec![];
         let section_items_map = std::collections::HashMap::new();
-        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let color =
+            cx.new(|cx| ColorPickerState::new(window, cx).default_value(cx.theme().primary));
 
         let _subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
@@ -112,7 +117,7 @@ impl ProjectItemsPanel {
                 cx.notify();
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
-                ColorGroupEvent::Change(color) => {
+                ColorPickerEvent::Change(color) => {
                     this.selected_color = *color;
                 },
             }),
@@ -434,11 +439,12 @@ impl ProjectItemsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex()
-                        .gap(VisualHierarchy::spacing(3.0))
-                        .child(Input::new(&name_input))
-                        .child(ColorGroup::new(&color))
-                        .child(DatePicker::new(&project_due).placeholder("DueDate of Project")),
+                    v_form()
+                        .child(field().label("Name").required(true).child(Input::new(&name_input)))
+                        .child(field().label("Color").child(todo_color_picker(&color)))
+                        .child(field().label("Due date").child(
+                            DatePicker::new(&project_due).placeholder("DueDate of Project"),
+                        )),
                 )
                 .footer(
                     DialogFooter::new()
@@ -665,6 +671,13 @@ impl Render for ProjectItemsPanel {
                     v_flex()
                         .gap(VisualHierarchy::spacing(4.0))
                         // 1. Pinned 分组
+                        .when(self.item_rows.is_empty(), |this| {
+                            this.child(board_renderer::render_empty_placeholder(
+                                IconName::FolderOpen,
+                                "No tasks in this project",
+                                "Add a task to this project to get started.",
+                            ))
+                        })
                         .when(!self.pinned_items.is_empty(), |this| {
                             let view_clone = view.clone();
                             let view_clone_for_dropdown = view_clone.clone();

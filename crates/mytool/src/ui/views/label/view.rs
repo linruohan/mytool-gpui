@@ -7,17 +7,19 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, Colorize, IndexPath, WindowExt,
     button::{Button, ButtonVariants},
+    color_picker::{ColorPickerEvent, ColorPickerState},
     dialog::{DialogAction, DialogClose, DialogFooter},
+    form::{field, v_form},
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
-    v_flex,
 };
 use todos::entity::LabelModel;
 
 use super::LabelEvent;
 use crate::{
-    ColorGroup, ColorGroupEvent, ColorGroupState, LabelListDelegate, VisualHierarchy,
+    LabelListDelegate,
     todo_actions::{add_label, delete_label, update_label},
+    todo_color_picker,
     todo_state::TodoStore,
 };
 
@@ -27,7 +29,7 @@ pub struct LabelsPanel {
     pub label_list: Entity<ListState<LabelListDelegate>>,
     pub active_index: Option<usize>,
     _subscriptions: Vec<Subscription>,
-    color: Entity<ColorGroupState>,
+    color: Entity<ColorPickerState>,
     selected_color: Option<Hsla>,
 }
 
@@ -38,7 +40,8 @@ impl LabelsPanel {
 
         let label_list =
             cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
-        let color = cx.new(|cx| ColorGroupState::new(window, cx).default_value(cx.theme().primary));
+        let color =
+            cx.new(|cx| ColorPickerState::new(window, cx).default_value(cx.theme().primary));
         let label_list_clone = label_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<TodoStore>(move |_this, cx| {
@@ -61,7 +64,7 @@ impl LabelsPanel {
                 cx.notify();
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
-                ColorGroupEvent::Change(color) => {
+                ColorPickerEvent::Change(color) => {
                     this.selected_color = *color;
                     tracing::debug!("label Color changed to: {:?}", color.unwrap().to_hex());
                 },
@@ -165,10 +168,9 @@ impl LabelsPanel {
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
-                    v_flex()
-                        .gap(VisualHierarchy::spacing(3.0))
-                        .child(Input::new(&name_input))
-                        .child(ColorGroup::new(&color)),
+                    v_form()
+                        .child(field().label("Name").required(true).child(Input::new(&name_input)))
+                        .child(field().label("Color").child(todo_color_picker(&color))),
                 )
                 .footer(
                     DialogFooter::new()

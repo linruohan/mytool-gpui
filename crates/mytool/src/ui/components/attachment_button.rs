@@ -6,6 +6,7 @@ use gpui::{
 };
 use gpui_component::{
     Sizable,
+    attachment::{Attachment, AttachmentActions, AttachmentContent, AttachmentTitle},
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -20,8 +21,7 @@ use crate::{
     create_button_wrapper,
     todo_actions::delete_attachment,
     ui::components::{
-        PopoverListMixin, PopoverSearchMixin, create_list_item_element, handle_search_input_change,
-        manage_popover_state,
+        PopoverListMixin, PopoverSearchMixin, handle_search_input_change, manage_popover_state,
     },
 };
 
@@ -291,21 +291,28 @@ impl Render for AttachmentButtonState {
                         |(idx, attachment)| {
                             let attachment_id = attachment.id.clone();
                             let view = view.clone();
-                            let display_text = attachment.file_name.clone();
+                            let file_name = attachment.file_name.clone();
 
-                            create_list_item_element(
-                                idx,
-                                display_text,
-                                attachment_id,
-                                view,
-                                move |item_id: String,
-                                      view: Entity<AttachmentButtonState>,
-                                      cx: &mut App| {
-                                    cx.update_entity(&view, |this, cx| {
-                                        this.on_remove_attachment(&item_id, cx);
-                                    });
-                                },
-                            )
+                            Attachment::new()
+                                .id(("attachment", idx))
+                                .small()
+                                .content(
+                                    AttachmentContent::new().title(AttachmentTitle::new(file_name)),
+                                )
+                                .actions(
+                                    AttachmentActions::new().child(
+                                        Button::new(format!("remove-attachment-{}", idx))
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::UserTrashSymbolic)
+                                            .on_click(move |_event, _window, cx| {
+                                                cx.update_entity(&view, |this, cx| {
+                                                    this.on_remove_attachment(&attachment_id, cx);
+                                                });
+                                            }),
+                                    ),
+                                )
                         },
                     ))),
             )

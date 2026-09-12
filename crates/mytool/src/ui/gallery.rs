@@ -39,6 +39,7 @@ impl Gallery {
             ("Components", vec![
                 StoryContainer::panel::<WelcomeStory>(window, cx),
                 StoryContainer::panel::<CalendarStory>(window, cx),
+                StoryContainer::panel::<DatePickerStory>(window, cx),
                 StoryContainer::panel::<TodoStory>(window, cx),
                 StoryContainer::panel::<ListStory>(window, cx),
                 StoryContainer::panel::<EditorStory>(window, cx),

@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
-    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
-    Task, Window, actions, prelude::FluentBuilder, px,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, Colorize, Icon, IndexPath, Placement, Selectable, WindowExt,
+    ActiveTheme, IndexPath, Placement, Selectable, WindowExt,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     h_flex,
@@ -13,13 +13,12 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
     red_400, v_flex,
 };
-use gpui_kit::assets::IconName;
 use todos::{
     entity::{ItemModel, LabelModel},
     utils::datetime::DateTime,
 };
 
-use crate::todo_state::TodoStore;
+use crate::{label_chip, todo_state::TodoStore};
 
 actions!(item, [SelectedItem]);
 pub enum ItemEvent {
@@ -116,26 +115,7 @@ impl RenderOnce for ItemListItem {
                                     .flat_map(|group| group.split(';').filter(|id| !id.is_empty()))
                                     .filter_map(|id| {
                                         label_map.get(id).map(|label| {
-                                            h_flex()
-                                                .rounded(px(10.0))
-                                                .bg(Hsla::from(gpui::rgb(
-                                                    u32::from_str_radix(&label.color[1..], 16)
-                                                        .ok()
-                                                        .unwrap_or_default(),
-                                                ))
-                                                .lighten(0.3))
-                                                .child(
-                                                    Icon::build(IconName::TagOutlineSymbolic)
-                                                        .text_color(Hsla::from(gpui::rgb(
-                                                            u32::from_str_radix(
-                                                                &label.color[1..],
-                                                                16,
-                                                            )
-                                                            .ok()
-                                                            .unwrap_or_default(),
-                                                        ))),
-                                                )
-                                                .child(label.name.clone())
+                                            label_chip(label.name.clone(), &label.color)
                                         })
                                     })
                                     .collect::<Vec<_>>(),

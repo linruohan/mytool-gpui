@@ -1,18 +1,19 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, EventEmitter, Hsla, IntoElement, ParentElement, RenderOnce,
-    SharedString, Styled, Task, Window, actions, div, prelude::FluentBuilder,
+    App, Context, ElementId, EventEmitter, IntoElement, ParentElement, RenderOnce, SharedString,
+    Styled, Task, Window, actions, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IndexPath, Selectable,
+    ActiveTheme, IndexPath, Selectable,
     checkbox::Checkbox,
     h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
-use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 use tracing::info;
+
+use crate::label_chip;
 
 actions!(label, [SelectedCheckLabel, UnSelectedCheckLabel]);
 pub enum LabelCheckEvent {
@@ -75,16 +76,7 @@ impl RenderOnce for LabelCheckListItem {
                     .gap_3()
                     .text_color(text_color)
                     .child(Checkbox::new("label-checked").checked(self.checked))
-                    .child(
-                        Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
-                            gpui::rgb(
-                                u32::from_str_radix(&self.label.color[1..], 16)
-                                    .ok()
-                                    .unwrap_or_default(),
-                            ),
-                        )),
-                    )
-                    .child(div().flex_1().child(self.label.name.clone())),
+                    .child(label_chip(self.label.name.clone(), &self.label.color)),
             )
     }
 }

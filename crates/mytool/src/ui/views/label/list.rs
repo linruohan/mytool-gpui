@@ -1,17 +1,16 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, Hsla, IntoElement, ParentElement, RenderOnce, SharedString, Styled,
-    Task, Window, actions, div, prelude::FluentBuilder, px,
+    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
+    Window, actions, prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, Icon, IndexPath, Selectable, h_flex,
+    ActiveTheme, IndexPath, Selectable, h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
-use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 
-use crate::{UnSelectedCheckLabel, VisualHierarchy};
+use crate::{UnSelectedCheckLabel, VisualHierarchy, label_chip};
 
 actions!(label, [SelectedLabel, UnSelectedLabel]);
 #[derive(Debug)]
@@ -85,16 +84,7 @@ impl RenderOnce for LabelListItem {
                             .gap(VisualHierarchy::spacing(2.0))
                             .items_center()
                             .justify_end()
-                            .child(
-                                Icon::build(IconName::TagOutlineSymbolic).text_color(Hsla::from(
-                                    gpui::rgb(
-                                        u32::from_str_radix(&self.label.color[1..], 16)
-                                            .ok()
-                                            .unwrap_or_default(),
-                                    ),
-                                )),
-                            )
-                            .child(div().w(px(120.)).child(self.label.name.clone())),
+                            .child(label_chip(self.label.name.clone(), &self.label.color)),
                     )
                     .child(h_flex().gap(VisualHierarchy::spacing(1.0))),
             )

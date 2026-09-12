@@ -16,7 +16,7 @@ pub use board_base::{
 pub use board_common::{BoardItemClickEvent, BoardSectionActions, FinishItemDialogStyle};
 #[allow(unused_imports)]
 pub use board_renderer::{
-    SectionBlockOptions, build_section_more_menu, render_group_with_schedule_button,
-    render_item_list, render_item_row, render_no_section_block, render_section_block,
-    render_section_block_with_leading, render_simple_group_block,
+    SectionBlockOptions, build_section_more_menu, render_empty_placeholder,
+    render_group_with_schedule_button, render_item_list, render_item_row, render_no_section_block,
+    render_section_block, render_section_block_with_leading, render_simple_group_block,
 };

@@ -237,6 +237,13 @@ impl Render for InboxBoard {
                                 view.clone(),
                             )))
                         })
+                        .when(item_rows.is_empty(), |this| {
+                            this.child(board_renderer::render_empty_placeholder(
+                                InboxBoard::icon(),
+                                "Inbox is empty",
+                                "Add a task to get started.",
+                            ))
+                        })
                         .when(!no_section_items.is_empty(), |this| {
                             this.child(board_renderer::render_no_section_block(
                                 &no_section_items,

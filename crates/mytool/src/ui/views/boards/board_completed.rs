@@ -5,7 +5,7 @@
 
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Window,
+    ParentElement, Render, Styled, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
@@ -164,21 +164,28 @@ impl Render for CompletedBoard {
                     }),
             ))
             .child(
-                v_flex()
-                    .flex_1()
-                    .overflow_y_scrollbar()
-                    .p(VisualHierarchy::spacing(3.0))
-                    .gap(VisualHierarchy::spacing(2.0))
-                    .children(item_rows.iter().enumerate().map(move |(i, item_row)| {
-                        let is_active = active_index == Some(i);
-                        board_renderer::render_item_row(
-                            i,
-                            Some(item_row.clone()),
-                            is_active,
-                            active_border,
-                            view.clone(),
-                        )
-                    })),
+                v_flex().flex_1().overflow_y_scrollbar().child(
+                    v_flex()
+                        .p(VisualHierarchy::spacing(3.0))
+                        .gap(VisualHierarchy::spacing(2.0))
+                        .when(item_rows.is_empty(), |this| {
+                            this.child(board_renderer::render_empty_placeholder(
+                                CompletedBoard::icon(),
+                                "No completed tasks",
+                                "Finished tasks will appear here.",
+                            ))
+                        })
+                        .children(item_rows.iter().enumerate().map(move |(i, item_row)| {
+                            let is_active = active_index == Some(i);
+                            board_renderer::render_item_row(
+                                i,
+                                Some(item_row.clone()),
+                                is_active,
+                                active_border,
+                                view.clone(),
+                            )
+                        })),
+                ),
             )
     }
 }
