@@ -11,11 +11,11 @@ pub struct DialogConfig {
 impl Default for DialogConfig {
     fn default() -> Self {
         Self {
-            title: "Dialog".to_string(),
+            title: "对话框".to_string(),
             overlay: true,
             keyboard: true,
             overlay_closable: true,
-            cancel_label: "Cancel".to_string(),
+            cancel_label: "取消".to_string(),
         }
     }
 }

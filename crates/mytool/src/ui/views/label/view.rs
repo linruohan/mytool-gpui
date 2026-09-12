@@ -85,7 +85,7 @@ impl LabelsPanel {
         Self {
             input_esc,
             label_list,
-            active_index: Some(0),
+            active_index: None,
             _subscriptions,
             color,
             selected_color: None,

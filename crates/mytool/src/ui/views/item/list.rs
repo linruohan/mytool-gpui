@@ -126,6 +126,7 @@ impl RenderOnce for ItemListItem {
                     this.child(
                         Label::new(due_label)
                             .text_sm()
+                            .flex_shrink_0()
                             .text_color(due_color)
                             .when(self.item.checked, |this| this.line_through()),
                     )

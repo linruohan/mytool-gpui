@@ -163,43 +163,47 @@ impl Render for InboxBoard {
                 board_count,
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
-                    .child(
-                        Button::new("item-actions")
-                            .small()
-                            .ghost()
-                            .compact()
-                            .tooltip("任务操作")
-                            .icon(IconName::CheckSquare)
-                            .dropdown_menu({
-                                let view = view.clone();
-                                move |this, window, _cx| {
+                    .when(active_index.is_some(), |this| {
+                        this.child(
+                            Button::new("item-actions")
+                                .small()
+                                .ghost()
+                                .compact()
+                                .tooltip("任务操作")
+                                .icon(IconName::CheckSquare)
+                                .dropdown_menu({
                                     let view = view.clone();
-                                    this.item(
-                                        PopupMenuItem::new("编辑任务")
-                                            .icon(IconName::EditSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_dialog(window, cx, true, None);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                    .separator()
-                                    .item(
-                                        PopupMenuItem::new("删除任务")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_delete_dialog(window, cx);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                }
-                            }),
-                    )
+                                    move |this, window, _cx| {
+                                        let view = view.clone();
+                                        this.item(
+                                            PopupMenuItem::new("编辑任务")
+                                                .icon(IconName::EditSymbolic)
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_item_dialog(
+                                                            window, cx, true, None,
+                                                        );
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
+                                        .separator()
+                                        .item(
+                                            PopupMenuItem::new("删除任务")
+                                                .icon(IconName::UserTrashSymbolic)
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_item_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
+                                    }
+                                }),
+                        )
+                    })
                     .child(
                         Button::new("add-action")
                             .small()

@@ -2,7 +2,8 @@ use std::{option::Option, sync::Arc};
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme, Icon, Side,
+    ActiveTheme, Side, Sizable,
+    button::{Button, ButtonVariants},
     h_flex,
     sidebar::{Sidebar, SidebarMenu},
     switch::Switch,
@@ -246,28 +247,28 @@ impl Render for TodoStory {
                             .gap_1()
                             .child(self.board_panel.clone())
                             .child(
-                                div()
-                                    .px_1()
-                                    .text_xs()
-                                    .text_color(cx.theme().muted_foreground)
-                                    .child("此电脑"),
-                            )
-                            .child(
                                 h_flex()
-                                    .id("add-project")
                                     .w_full()
-                                    .h_7()
-                                    .px_2()
-                                    .gap_2()
                                     .items_center()
-                                    .rounded(cx.theme().radius)
-                                    .text_sm()
-                                    .hover(|this| this.bg(cx.theme().sidebar_accent))
-                                    .on_click(cx.listener(|this, ev, window, cx| {
-                                        this.add_project(ev, window, cx);
-                                    }))
-                                    .child(Icon::new(IconName::Plus))
-                                    .child("新建项目"),
+                                    .justify_between()
+                                    .px_1()
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child("此电脑"),
+                                    )
+                                    .child(
+                                        Button::new("add-project")
+                                            .small()
+                                            .ghost()
+                                            .compact()
+                                            .icon(IconName::Plus)
+                                            .tooltip("新建项目")
+                                            .on_click(cx.listener(|this, ev, window, cx| {
+                                                this.add_project(ev, window, cx);
+                                            })),
+                                    ),
                             )
                             .children(project_list.iter().enumerate().map(|(ix, project)| {
                                 let count = cx
@@ -308,7 +309,13 @@ impl Render for TodoStory {
                                         });
                                         cx.notify();
                                     }))
-                                    .child(project.name.clone())
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .min_w_0()
+                                            .overflow_x_hidden()
+                                            .child(project.name.clone()),
+                                    )
                                     .when(count > 0, |this| {
                                         this.child(
                                             div()

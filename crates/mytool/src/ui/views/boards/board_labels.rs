@@ -1,6 +1,6 @@
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, Focusable, Hsla, InteractiveElement,
-    ParentElement, Render, Styled, Subscription, Window,
+    ParentElement, Render, Styled, Subscription, Window, prelude::FluentBuilder,
 };
 use gpui_component::{
     Sizable,
@@ -14,7 +14,9 @@ use crate::{
     LabelEvent,
     todo_state::TodoStore,
     ui::views::{
-        boards::{board_common::render_board_header, container_board::Board},
+        boards::{
+            board_common::render_board_header, board_renderer, container_board::Board,
+        },
         label::LabelsPanel,
     },
 };
@@ -86,6 +88,7 @@ impl Render for LabelsBoard {
     ) -> impl gpui::IntoElement {
         let board_count = LabelsBoard::count(cx);
         let labels_panel = self.labels_panel.clone();
+        let has_selected_label = self.labels_panel.read(cx).active_index.is_some();
 
         v_flex()
             .track_focus(&self.focus_handle)
@@ -116,40 +119,50 @@ impl Render for LabelsBoard {
                                 }
                             }),
                     )
-                    .child(
-                        Button::new("edit-label")
-                            .small()
-                            .ghost()
-                            .compact()
-                            .icon(IconName::EditSymbolic)
-                            .tooltip("编辑标签")
-                            .on_click({
-                                let labels_panel = labels_panel.clone();
-                                move |_event, window, cx| {
-                                    labels_panel.update(cx, |labels_panel, cx| {
-                                        labels_panel.show_label_dialog(window, cx, true);
-                                        cx.notify();
-                                    })
-                                }
-                            }),
-                    )
-                    .child(
-                        Button::new("delete-label")
-                            .small()
-                            .ghost()
-                            .icon(IconName::UserTrashSymbolic)
-                            .tooltip("删除标签")
-                            .on_click({
-                                let labels_panel = labels_panel.clone();
-                                move |_event, window, cx| {
-                                    labels_panel.update(cx, |labels_panel, cx| {
-                                        labels_panel.show_label_delete_dialog(window, cx);
-                                        cx.notify();
-                                    })
-                                }
-                            }),
-                    ),
+                    .when(has_selected_label, |this| {
+                        this.child(
+                            Button::new("edit-label")
+                                .small()
+                                .ghost()
+                                .compact()
+                                .icon(IconName::EditSymbolic)
+                                .tooltip("编辑标签")
+                                .on_click({
+                                    let labels_panel = labels_panel.clone();
+                                    move |_event, window, cx| {
+                                        labels_panel.update(cx, |labels_panel, cx| {
+                                            labels_panel.show_label_dialog(window, cx, true);
+                                            cx.notify();
+                                        })
+                                    }
+                                }),
+                        )
+                        .child(
+                            Button::new("delete-label")
+                                .small()
+                                .ghost()
+                                .icon(IconName::UserTrashSymbolic)
+                                .tooltip("删除标签")
+                                .on_click({
+                                    let labels_panel = labels_panel.clone();
+                                    move |_event, window, cx| {
+                                        labels_panel.update(cx, |labels_panel, cx| {
+                                            labels_panel.show_label_delete_dialog(window, cx);
+                                            cx.notify();
+                                        })
+                                    }
+                                }),
+                        )
+                    }),
             ))
-            .child(self.labels_panel.clone())
+            .when(board_count == 0, |this| {
+                this.child(board_renderer::render_empty_placeholder(
+                    cx,
+                    LabelsBoard::icon(),
+                    "还没有标签",
+                    "点击右上角 + 创建标签",
+                ))
+            })
+            .when(board_count > 0, |this| this.child(self.labels_panel.clone()))
     }
 }

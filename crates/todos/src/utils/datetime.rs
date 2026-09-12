@@ -47,48 +47,35 @@ impl DateTime {
         let total_seconds = diff.num_seconds();
 
         if total_seconds < 60 {
-            return "just now".to_string();
+            return "刚刚".to_string();
         }
 
         let total_minutes = total_seconds / 60;
         if total_minutes < 60 {
-            return format!(
-                "{} {} ago",
-                total_minutes,
-                if total_minutes == 1 { "minute" } else { "minutes" }
-            );
+            return format!("{total_minutes} 分钟前");
         }
 
         let total_hours = total_minutes / 60;
         if total_hours < 24 {
-            return format!(
-                "{} {} ago",
-                total_hours,
-                if total_hours == 1 { "hour" } else { "hours" }
-            );
+            return format!("{total_hours} 小时前");
         }
 
         let total_days = total_hours / 24;
         if total_days < 30 {
-            return format!("{} {} ago", total_days, if total_days == 1 { "day" } else { "days" });
+            return format!("{total_days} 天前");
         }
 
         let total_months = total_days / 30;
         if total_months < 12 {
-            return format!(
-                "{} {} ago",
-                total_months,
-                if total_months == 1 { "month" } else { "months" }
-            );
+            return format!("{total_months} 个月前");
         }
 
         let total_years = total_months / 12;
-        format!("{} {} ago", total_years, if total_years == 1 { "year" } else { "years" })
+        format!("{total_years} 年前")
     }
 
     fn format_duration(&self, days: i64, suffix: &str) -> String {
-        let unit = if days > 1 { "days" } else { "day" };
-        format!("{days} {unit} {suffix}")
+        format!("{days}天{suffix}")
     }
 
     pub fn days_left(&self, datetime: &NaiveDateTime, show_today: bool) -> String {
@@ -96,8 +83,8 @@ impl DateTime {
         match (self.is_today(datetime), days.cmp(&0)) {
             (true, _) if show_today => "今天".into(),
             (true, _) => String::new(),
-            (false, Ordering::Less) => self.format_duration(-days, "ago"),
-            (false, Ordering::Greater) => self.format_duration(days + 1, "left"),
+            (false, Ordering::Less) => self.format_duration(-days, "前"),
+            (false, Ordering::Greater) => self.format_duration(days + 1, "后"),
             (false, Ordering::Equal) => String::new(),
         }
     }
@@ -358,31 +345,31 @@ impl DateTime {
             let mut weeks = String::new();
 
             if recurrency_weeks.contains("1") {
-                weeks.push_str("Mo,");
+                weeks.push_str("一,");
             }
 
             if recurrency_weeks.contains("2") {
-                weeks.push_str("Tu,");
+                weeks.push_str("二,");
             }
 
             if recurrency_weeks.contains("3") {
-                weeks.push_str("We,");
+                weeks.push_str("三,");
             }
 
             if recurrency_weeks.contains("4") {
-                weeks.push_str("Th,");
+                weeks.push_str("四,");
             }
 
             if recurrency_weeks.contains("5") {
-                weeks.push_str("Fr,");
+                weeks.push_str("五,");
             }
 
             if recurrency_weeks.contains("6") {
-                weeks.push_str("Sa,");
+                weeks.push_str("六,");
             }
 
             if recurrency_weeks.contains("7") {
-                weeks.push_str("Su,");
+                weeks.push_str("日,");
             }
 
             if !weeks.is_empty() {

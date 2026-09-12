@@ -73,7 +73,7 @@ impl TodayBoard {
                         }
                         let count = updated_items.len();
                         batch_update_items(updated_items, cx);
-                        window.push_notification(format!("Rescheduled {count} items"), cx);
+                        window.push_notification(format!("已为 {count} 个任务改期"), cx);
                     },
                     ScheduleButtonEvent::Cleared => {
                         for item in &mut updated_items {
@@ -211,7 +211,7 @@ impl Render for TodayBoard {
             let now = chrono::Local::now();
             let weekday = ["日", "一", "二", "三", "四", "五", "六"]
                 [now.weekday().num_days_from_sunday() as usize];
-            format!("{} {}月 {}", weekday, now.month(), now.day())
+            format!("周{} · {}月{}日", weekday, now.month(), now.day())
         };
 
         v_flex()
@@ -231,43 +231,47 @@ impl Render for TodayBoard {
                 board_count,
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
-                    .child(
-                        Button::new("item-actions")
-                            .small()
-                            .ghost()
-                            .compact()
-                            .tooltip("任务操作")
-                            .icon(IconName::CheckSquare)
-                            .dropdown_menu({
-                                let view = view.clone();
-                                move |this, window, _cx| {
+                    .when(active_index.is_some(), |this| {
+                        this.child(
+                            Button::new("item-actions")
+                                .small()
+                                .ghost()
+                                .compact()
+                                .tooltip("任务操作")
+                                .icon(IconName::CheckSquare)
+                                .dropdown_menu({
                                     let view = view.clone();
-                                    this.item(
-                                        PopupMenuItem::new("编辑任务")
-                                            .icon(IconName::EditSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_dialog(window, cx, true, None);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                    .separator()
-                                    .item(
-                                        PopupMenuItem::new("删除任务")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_delete_dialog(window, cx);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                }
-                            }),
-                    )
+                                    move |this, window, _cx| {
+                                        let view = view.clone();
+                                        this.item(
+                                            PopupMenuItem::new("编辑任务")
+                                                .icon(IconName::EditSymbolic)
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_item_dialog(
+                                                            window, cx, true, None,
+                                                        );
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
+                                        .separator()
+                                        .item(
+                                            PopupMenuItem::new("删除任务")
+                                                .icon(IconName::UserTrashSymbolic)
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_item_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
+                                    }
+                                }),
+                        )
+                    })
                     .child(create_header_button(
                         "section-actions".to_string(),
                         IconName::PlusLargeSymbolic,

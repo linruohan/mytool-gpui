@@ -12,20 +12,15 @@ pub enum RecurrencyType {
 }
 impl RecurrencyType {
     pub fn to_friendly_string(&self, interval: i32) -> String {
+        let interval = interval.max(1);
         match self {
-            RecurrencyType::NONE => "Don't Repeat".to_owned(),
-            _ => {
-                let s = serde_json::to_string(self)
-                    .unwrap()
-                    .to_lowercase()
-                    .replace("ly", "")
-                    .replace("every", "");
-                if interval == 0 {
-                    format!("Every {s}")
-                } else {
-                    format!("Every {s}  Every {interval} {s}s")
-                }
-            },
+            RecurrencyType::NONE => "不重复".to_owned(),
+            RecurrencyType::MINUTELY => format!("每{interval}分钟"),
+            RecurrencyType::HOURLY => format!("每{interval}小时"),
+            RecurrencyType::EveryDay => format!("每{interval}天"),
+            RecurrencyType::EveryWeek => format!("每{interval}周"),
+            RecurrencyType::EveryMonth => format!("每{interval}月"),
+            RecurrencyType::EveryYear => format!("每{interval}年"),
         }
     }
 }

@@ -532,7 +532,7 @@ impl Render for ProjectItemsPanel {
                     .pb(gpui::px(8.))
                     .child(
                         h_flex()
-                            .items_baseline()
+                            .items_center()
                             .gap(VisualHierarchy::spacing(2.0))
                             .child(div().text_xl().font_semibold().child(self.project.name.clone()))
                             .when(!self.item_rows.is_empty(), |this| {
@@ -542,41 +542,7 @@ impl Render for ProjectItemsPanel {
                                         .text_color(cx.theme().muted_foreground)
                                         .child(self.item_rows.len().to_string()),
                                 )
-                            })
-                            .child(
-                                Button::new("edit-project")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .tooltip("编辑项目")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_project_edit_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete-project")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .tooltip("删除项目")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_project_delete_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            ),
+                            }),
                     )
                     .child(
                         div()
@@ -619,39 +585,6 @@ impl Render for ProjectItemsPanel {
                                     }),
                             )
                             .child(
-                                Button::new("edit-item")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::EditSymbolic)
-                                    .tooltip("编辑任务")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_dialog(window, cx, true, None);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("delete-item")
-                                    .icon(IconName::UserTrashSymbolic)
-                                    .small()
-                                    .ghost()
-                                    .tooltip("删除任务")
-                                    .on_click({
-                                        let view = view.clone();
-                                        move |_event, window, cx| {
-                                            view.update(cx, |this, cx| {
-                                                this.show_item_delete_dialog(window, cx);
-                                                cx.notify();
-                                            })
-                                        }
-                                    }),
-                            )
-                            .child(
                                 Button::new("section-actions")
                                     .small()
                                     .ghost()
@@ -663,6 +596,40 @@ impl Render for ProjectItemsPanel {
                                         move |_event, window, cx| {
                                             view.update(cx, |this, cx| {
                                                 this.show_section_dialog(window, cx, None, false);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("edit-project")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::EditSymbolic)
+                                    .tooltip("编辑项目")
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_project_edit_dialog(window, cx);
+                                                cx.notify();
+                                            })
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("delete-project")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::UserTrashSymbolic)
+                                    .tooltip("删除项目")
+                                    .on_click({
+                                        let view = view.clone();
+                                        move |_event, window, cx| {
+                                            view.update(cx, |this, cx| {
+                                                this.show_project_delete_dialog(window, cx);
                                                 cx.notify();
                                             })
                                         }

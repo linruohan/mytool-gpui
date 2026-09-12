@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, ClickEvent, Context, ElementId, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Render, Styled, Window, prelude::FluentBuilder, px,
+    ParentElement, Render, SharedString, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Sizable, StyledExt, WindowExt,
+    ActiveTheme, Icon, IndexPath, Sizable, StyledExt, WindowExt,
     alert::Alert,
     button::{Button, ButtonVariants},
     h_flex,
@@ -419,12 +419,13 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
 /// 渲染 Board 顶部标题栏（左侧 icon + 大标题 + 弱化副标题，右侧操作）
 pub fn render_board_header(
     cx: &App,
-    icon: impl IntoElement,
+    icon: IconName,
     title: impl IntoElement,
-    description: impl IntoElement,
+    description: impl Into<SharedString>,
     count: usize,
     actions: impl IntoElement,
 ) -> impl IntoElement {
+    let description = description.into();
     h_flex()
         .id("header")
         .justify_between()
@@ -435,8 +436,12 @@ pub fn render_board_header(
         .child(
             h_flex()
                 .gap(px(10.))
-                .items_baseline()
-                .child(icon)
+                .items_center()
+                .child(
+                    Icon::new(icon)
+                        .with_size(px(22.))
+                        .text_color(cx.theme().muted_foreground),
+                )
                 .child(gpui::div().text_xl().font_semibold().child(title))
                 .when(count > 0, |this| {
                     this.child(
@@ -446,12 +451,14 @@ pub fn render_board_header(
                             .child(count.to_string()),
                     )
                 })
-                .child(
-                    gpui::div()
-                        .text_sm()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(description),
-                ),
+                .when(!description.is_empty(), |this| {
+                    this.child(
+                        gpui::div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(description),
+                    )
+                }),
         )
         .child(
             gpui::div()

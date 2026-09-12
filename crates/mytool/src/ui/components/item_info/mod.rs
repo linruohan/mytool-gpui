@@ -455,7 +455,9 @@ impl Render for ItemInfoState {
                                             .child(
                                                 Input::new(&self.name_input)
                                                     .appearance(false)
-                                                    .focus_bordered(false),
+                                                    .focus_bordered(false)
+                                                    .flex_1()
+                                                    .min_w_0(),
                                             )
                                             .child(
                                                 Button::new("item-pin")
