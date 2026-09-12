@@ -265,7 +265,7 @@ impl Render for ReminderForm {
                     .items_center()
                     .child(Select::new(&time_select).small().placeholder("09:00").flex_1())
                     .child(
-                        Button::new("add-reminder").small().primary().icon(IconName::Plus).on_click({
+                        Button::new("add-reminder").small().ghost().icon(IconName::Plus).on_click({
                             let view = cx.entity();
                             move |_event, _window, cx| {
                                 cx.update_entity(&view, |this, cx| {

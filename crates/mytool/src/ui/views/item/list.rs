@@ -114,6 +114,7 @@ impl RenderOnce for ItemListItem {
                 .child(
                     v_flex().flex_1().min_w_0().overflow_x_hidden().flex_nowrap().child(
                         Label::new(self.item.content.clone())
+                            .w_full()
                             .whitespace_nowrap()
                             .when(self.item.checked, |this| {
                                 this.line_through().text_color(cx.theme().muted_foreground)

@@ -34,14 +34,14 @@ pub fn render_empty_placeholder(
         .flex_1()
         .items_center()
         .justify_center()
-        .gap_3()
-        .py_16()
+        .gap_2()
+        .py_8()
         .child(
             Icon::new(icon)
-                .with_size(px(88.))
-                .text_color(cx.theme().muted_foreground.opacity(0.4)),
+                .with_size(px(48.))
+                .text_color(cx.theme().muted_foreground.opacity(0.45)),
         )
-        .child(div().text_xl().font_semibold().child(title.into()))
+        .child(div().text_lg().font_semibold().child(title.into()))
         .child(
             div()
                 .text_sm()
@@ -73,7 +73,7 @@ where
                 cx.notify();
             });
         })
-        .when(is_active, |this| this.border_1().border_color(active_border).shadow_sm())
+        .when(is_active, |this| this.bg(active_border.opacity(0.12)).rounded_md())
         .children(item_row.map(|row| ItemRow::new(&row)))
 }
 
@@ -89,7 +89,7 @@ pub fn render_item_list<V>(
 where
     V: BoardView + Render,
 {
-    v_flex().gap_1().w_full().children(items.iter().map(|(i, _)| {
+    v_flex().gap(px(2.)).w_full().children(items.iter().map(|(i, _)| {
         let item_row = item_rows.get(*i).cloned();
         let is_active = active_index == Some(*i);
         render_item_row(*i, item_row, is_active, active_border, view.clone())
