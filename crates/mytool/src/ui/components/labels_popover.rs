@@ -108,7 +108,12 @@ impl LabelsPopoverList {
                 .split(';')
                 .filter_map(|label_id| {
                     let trimmed_id = label_id.trim();
-                    if trimmed_id.is_empty() { None } else { store.get_label(trimmed_id) }
+                    if trimmed_id.is_empty() {
+                        return None;
+                    }
+                    store.get_label(trimmed_id).or_else(|| {
+                        store.labels.iter().find(|label| label.name == trimmed_id).cloned()
+                    })
                 })
                 .collect()
         };
@@ -190,16 +195,13 @@ impl LabelsPopoverList {
         cx: &mut Context<Self>,
     ) {
         // 生成随机颜色
+        // 柔和色板，避免荧光黄/青导致字看不清
         let colors = [
-            "#ff5252", "#ff4081", "#e040fb", "#7c4dff", "#536dfe", "#448aff", "#40c4ff", "#18ffff",
-            "#64ffda", "#69f0ae", "#b2ff59", "#eeff41", "#ffff00", "#ffd740", "#ffab40", "#ff6e40",
+            "#ef5350", "#ec407a", "#ab47bc", "#5c6bc0", "#42a5f5", "#26a69a", "#66bb6a", "#9ccc65",
+            "#ffca28", "#ffa726", "#ff7043", "#8d6e63",
         ];
-        // 使用时间戳作为随机种子来选择颜色
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as usize;
-        let color = colors[timestamp % colors.len()].to_string();
+        let color_seed = label_name.bytes().fold(0usize, |acc, b| acc.wrapping_mul(31).wrapping_add(b as usize));
+        let color = colors[color_seed % colors.len()].to_string();
 
         // 创建新标签模型
         let new_label = Arc::new(LabelModel {
@@ -227,6 +229,7 @@ impl LabelsPopoverList {
                 list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
             });
         }
+        cx.notify();
 
         let db_state = cx.global::<crate::todo_state::DBState>().clone();
         let label_for_db = new_label.as_ref().clone();
@@ -292,8 +295,6 @@ impl Render for LabelsPopoverList {
         v_flex()
             .key_context(CONTEXT)
             .track_focus(&self.focus_handle)
-            .items_center()
-            .justify_end()
             .on_action(cx.listener(Self::selected_label))
             .on_action(cx.listener(Self::unselected_label))
             .child(
@@ -301,8 +302,13 @@ impl Render for LabelsPopoverList {
                     .p_0()
                     .text_sm()
                     .open(self.list_popover_open)
-                    .on_open_change(cx.listener(move |this, open, _, cx| {
+                    .on_open_change(cx.listener(move |this, open, window, cx| {
                         this.list_popover_open = *open;
+                        if *open {
+                            this.label_list.update(cx, |list, cx| {
+                                list.focus(window, cx);
+                            });
+                        }
                         cx.notify();
                     }))
                     .trigger({
@@ -324,15 +330,15 @@ impl Render for LabelsPopoverList {
                     .child(
                         v_flex()
                             .gap_1()
-                            .p_2()
+                            .p_1p5()
+                            .w_full()
                             .child(
-                                // 标签列表
-                                List::new(&self.label_list).h(px(240.)),
+                                List::new(&self.label_list)
+                                    .search_placeholder("搜索标签")
+                                    .scrollbar_visible(false)
+                                    .max_h(px(180.)),
                             )
-                            .child(
-                                // 分隔线
-                                Separator::horizontal().mt_1().mb_1(),
-                            )
+                            .child(Separator::horizontal())
                             .child(
                                 Input::new(&self.new_label_input).small().suffix(
                                     Button::new("create-label-button")
@@ -340,6 +346,7 @@ impl Render for LabelsPopoverList {
                                         .ghost()
                                         .compact()
                                         .icon(IconName::Plus)
+                                        .tooltip("创建标签")
                                         .on_click(cx.listener(|this, _event, window, cx| {
                                             let label_name =
                                                 this.new_label_input.read(cx).value().to_string();
@@ -350,7 +357,7 @@ impl Render for LabelsPopoverList {
                                 ),
                             ),
                     )
-                    .w_64(),
+                    .w(px(220.)),
             )
     }
 }

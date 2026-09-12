@@ -2,18 +2,18 @@ use std::sync::Arc;
 
 use gpui::{
     App, Context, ElementId, EventEmitter, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Task, Window, actions, prelude::FluentBuilder,
+    Styled, Task, Window, actions, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable,
-    checkbox::Checkbox,
+    ActiveTheme, Icon, IndexPath, Selectable, Sizable,
     h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
+use gpui_kit::assets::IconName;
 use todos::entity::LabelModel;
 use tracing::info;
 
-use crate::label_chip;
+use crate::label_color_dot;
 
 actions!(label, [SelectedCheckLabel, UnSelectedCheckLabel]);
 pub enum LabelCheckEvent {
@@ -50,34 +50,49 @@ impl Selectable for LabelCheckListItem {
         self.selected
     }
 
-    fn secondary_selected(mut self, secondary: bool) -> Self {
-        self.checked = secondary;
+    fn secondary_selected(self, _: bool) -> Self {
+        // List 用 secondary_selected 表示右键高亮，不能覆盖标签勾选状态。
         self
     }
 }
 
 impl RenderOnce for LabelCheckListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let text_color =
-            if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
+        let fill = if self.checked {
+            cx.theme().list_active_border.opacity(0.18)
+        } else if self.selected {
+            cx.theme().list_hover
+        } else {
+            cx.theme().transparent
+        };
 
-        self.base
-            .px_2()
-            .py_1()
-            .overflow_x_hidden()
-            .border_1()
-            .rounded(cx.theme().radius)
-            .when(self.selected, |this| this.border_color(cx.theme().list_active_border))
-            .rounded(cx.theme().radius)
-            .child(
-                h_flex()
-                    .items_center()
-                    .justify_start()
-                    .gap_3()
-                    .text_color(text_color)
-                    .child(Checkbox::new("label-checked").checked(self.checked))
-                    .child(label_chip(self.label.name.clone(), &self.label.color)),
-            )
+        self.base.px_1().py_px().overflow_x_hidden().child(
+            h_flex()
+                .w_full()
+                .items_center()
+                .gap_2()
+                .px_2()
+                .py_1()
+                .rounded(cx.theme().radius)
+                .bg(fill)
+                .child(label_color_dot(&self.label.color))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .text_sm()
+                        .text_ellipsis()
+                        .text_color(cx.theme().foreground)
+                        .child(self.label.name.clone()),
+                )
+                .when(self.checked, |this| {
+                    this.child(
+                        Icon::new(IconName::CheckSquare)
+                            .small()
+                            .text_color(cx.theme().list_active_border),
+                    )
+                }),
+        )
     }
 }
 
@@ -102,50 +117,41 @@ impl LabelCheckListDelegate {
         }
     }
 
-    fn prepare(&mut self, query: impl Into<SharedString>) {
-        self.query = query.into();
-        let labels: Vec<Arc<LabelModel>> = self
-            ._labels
+    fn visible_labels(&self) -> Vec<Arc<LabelModel>> {
+        let query = self.query.to_lowercase();
+        self._labels
             .iter()
-            .filter(|label| label.name.to_lowercase().contains(&self.query.to_lowercase()))
+            .filter(|label| !label.is_deleted)
+            .filter(|label| query.is_empty() || label.name.to_lowercase().contains(&query))
             .cloned()
-            .collect();
+            .collect()
+    }
 
-        // 清空之前的匹配结果
-        self.matched_labels.clear();
-
-        // 添加新的匹配结果
-        for label in labels.into_iter() {
-            self.matched_labels.push(vec![label]);
+    fn set_matched(&mut self, labels: Vec<Arc<LabelModel>>) {
+        let len = labels.len();
+        self.matched_labels = vec![labels];
+        if len == 0 {
+            self.selected_index = None;
+            return;
         }
-
-        // 如果没有匹配结果，创建一个空的 section
-        if self.matched_labels.is_empty() {
-            self.matched_labels.push(vec![]);
+        if let Some(ix) = self.selected_index
+            && (ix.section != 0 || ix.row >= len)
+        {
             self.selected_index = None;
         }
     }
 
+    fn prepare(&mut self, query: impl Into<SharedString>) {
+        self.query = query.into();
+        self.set_matched(self.visible_labels());
+    }
+
     pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {
-        // 只在标签列表真正变化时更新
         if self._labels == labels {
             return;
         }
-
         self._labels = labels;
-
-        // 只有当有标签时才创建 section
-        if self._labels.is_empty() {
-            self.matched_labels = vec![];
-            self.selected_index = None;
-        } else {
-            self.matched_labels = vec![self._labels.clone()];
-            if self.selected_index.is_none() {
-                self.selected_index = Some(IndexPath::default());
-            }
-        }
-
-        // 保持 checked_list 不变，确保选中状态在标签更新后仍然保留
+        self.set_matched(self.visible_labels());
     }
 
     // set_checked_labels:设置checked标签
@@ -163,6 +169,7 @@ impl LabelCheckListDelegate {
         self.matched_labels.get(ix.section).and_then(|c| c.get(ix.row)).cloned()
     }
 }
+
 impl ListDelegate for LabelCheckListDelegate {
     type Item = LabelCheckListItem;
 
@@ -177,8 +184,22 @@ impl ListDelegate for LabelCheckListDelegate {
     }
 
     fn items_count(&self, section: usize, _: &App) -> usize {
-        // 检查 section 是否在范围内
         self.matched_labels.get(section).map(|s| s.len()).unwrap_or(0)
+    }
+
+    fn render_empty(
+        &mut self,
+        _: &mut Window,
+        cx: &mut Context<ListState<Self>>,
+    ) -> impl IntoElement {
+        h_flex()
+            .w_full()
+            .h(px(64.))
+            .items_center()
+            .justify_center()
+            .text_sm()
+            .text_color(cx.theme().muted_foreground)
+            .child(if self.query.is_empty() { "还没有标签" } else { "没有匹配的标签" })
     }
 
     fn render_item(
