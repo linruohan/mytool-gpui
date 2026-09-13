@@ -1624,4 +1624,252 @@ todo:
     es: "No se pudo marcar incompleta: %{error}."
     fr: "Marquage non terminé impossible : %{error}."
     de: "Unerledigt markieren fehlgeschlagen: %{error}."
+  notify.saved:
+    en: Saved
+    zh-CN: 已保存
+    zh-HK: 已儲存
+    it: Salvato
+    es: Guardado
+    fr: Enregistré
+    de: Gespeichert
+  notify.deleted:
+    en: Deleted
+    zh-CN: 已删除
+    zh-HK: 已刪除
+    it: Eliminato
+    es: Eliminado
+    fr: Supprimé
+    de: Gelöscht
+  dialog.delete:
+    en: Delete
+    zh-CN: 删除
+    zh-HK: 刪除
+    it: Elimina
+    es: Eliminar
+    fr: Supprimer
+    de: Löschen
+  field.name:
+    en: Name
+    zh-CN: 名称
+    zh-HK: 名稱
+    it: Nome
+    es: Nombre
+    fr: Nom
+    de: Name
+  field.color:
+    en: Color
+    zh-CN: 颜色
+    zh-HK: 顏色
+    it: Colore
+    es: Color
+    fr: Couleur
+    de: Farbe
+  field.due:
+    en: Due date
+    zh-CN: 截止日期
+    zh-HK: 截止日期
+    it: Scadenza
+    es: Fecha
+    fr: Échéance
+    de: Fälligkeit
+  project.child_new:
+    en: New sub-project
+    zh-CN: 新建子项目
+    zh-HK: 新增子項目
+    it: Nuovo sotto-progetto
+    es: Nuevo subproyecto
+    fr: Nouveau sous-projet
+    de: Neues Unterprojekt
+  project.name_placeholder:
+    en: Project name
+    zh-CN: 项目名称
+    zh-HK: 項目名稱
+    it: Nome progetto
+    es: Nombre del proyecto
+    fr: Nom du projet
+    de: Projektname
+  project.child_placeholder:
+    en: Sub-project name
+    zh-CN: 子项目名称
+    zh-HK: 子項目名稱
+    it: Nome sotto-progetto
+    es: Nombre del subproyecto
+    fr: Nom du sous-projet
+    de: Unterprojektname
+  project.due_placeholder:
+    en: Project due date
+    zh-CN: 项目截止日期
+    zh-HK: 項目截止日期
+    it: Scadenza progetto
+    es: Fecha del proyecto
+    fr: Échéance du projet
+    de: Projektfälligkeit
+  project.edit:
+    en: Edit project
+    zh-CN: 编辑项目
+    zh-HK: 編輯項目
+    it: Modifica progetto
+    es: Editar proyecto
+    fr: Modifier le projet
+    de: Projekt bearbeiten
+  project.delete:
+    en: Delete project
+    zh-CN: 删除项目
+    zh-HK: 刪除項目
+    it: Elimina progetto
+    es: Eliminar proyecto
+    fr: Supprimer le projet
+    de: Projekt löschen
+  project.delete_confirm:
+    en: Delete this project? Its tasks and sections will also be deleted.
+    zh-CN: 确定删除这个项目吗？其中的任务和分区都会被删除。
+    zh-HK: 確定刪除這個項目嗎？其中的任務和分區都會被刪除。
+    it: Eliminare questo progetto? Attività e sezioni verranno eliminate.
+    es: ¿Eliminar este proyecto? También se eliminarán tareas y secciones.
+    fr: Supprimer ce projet ? Les tâches et sections seront aussi supprimées.
+    de: Dieses Projekt löschen? Aufgaben und Abschnitte werden ebenfalls gelöscht.
+  project.add_to_section:
+    en: Add to section
+    zh-CN: 添加到分区
+    zh-HK: 新增到分區
+    it: Aggiungi alla sezione
+    es: Añadir a sección
+    fr: Ajouter à la section
+    de: Zum Abschnitt hinzufügen
+  section.search:
+    en: Search sections
+    zh-CN: 搜索分区
+    zh-HK: 搜尋分區
+    it: Cerca sezioni
+    es: Buscar secciones
+    fr: Rechercher des sections
+    de: Abschnitte suchen
+  section.delete_named:
+    en: "Delete section \"%{name}\"?"
+    zh-CN: "确定要删除分区 \"%{name}\" 吗？"
+    zh-HK: "確定要刪除分區 \"%{name}\" 嗎？"
+    it: "Eliminare la sezione \"%{name}\"?"
+    es: "¿Eliminar la sección \"%{name}\"?"
+    fr: "Supprimer la section « %{name} » ?"
+    de: "Abschnitt \"%{name}\" löschen?"
+  label.name_placeholder:
+    en: Label name
+    zh-CN: 标签名称
+    zh-HK: 標籤名稱
+    it: Nome etichetta
+    es: Nombre de etiqueta
+    fr: Nom de l'étiquette
+    de: Labelname
+  label.delete_confirm:
+    en: Delete this label?
+    zh-CN: 确定删除这个标签吗？
+    zh-HK: 確定刪除這個標籤嗎？
+    it: Eliminare questa etichetta?
+    es: ¿Eliminar esta etiqueta?
+    fr: Supprimer cette étiquette ?
+    de: Dieses Label löschen?
+  label.deleted:
+    en: Label deleted.
+    zh-CN: 已删除标签。
+    zh-HK: 已刪除標籤。
+    it: Etichetta eliminata.
+    es: Etiqueta eliminada.
+    fr: Étiquette supprimée.
+    de: Label gelöscht.
+  label.save_failed:
+    en: "Could not save labels: %{error}. Please retry."
+    zh-CN: "标签保存失败：%{error}，请稍后重试"
+    zh-HK: "標籤儲存失敗：%{error}，請稍後重試"
+    it: "Salvataggio etichette non riuscito: %{error}."
+    es: "No se pudieron guardar las etiquetas: %{error}."
+    fr: "Enregistrement des étiquettes impossible : %{error}."
+    de: "Labels speichern fehlgeschlagen: %{error}."
+  label.no_match:
+    en: No matching labels
+    zh-CN: 没有匹配的标签
+    zh-HK: 沒有匹配的標籤
+    it: Nessuna etichetta corrispondente
+    es: No hay etiquetas coincidentes
+    fr: Aucune étiquette correspondante
+    de: Keine passenden Labels
+  item.pin:
+    en: Pin task
+    zh-CN: 置顶任务
+    zh-HK: 置頂任務
+    it: Fissa attività
+    es: Fijar tarea
+    fr: Épingler la tâche
+    de: Aufgabe anheften
+  item.collapse:
+    en: Collapse (Enter)
+    zh-CN: 收起 (Enter)
+    zh-HK: 收起 (Enter)
+    it: Comprimi (Invio)
+    es: Contraer (Enter)
+    fr: Réduire (Entrée)
+    de: Einklappen (Enter)
+  item.add_subtask:
+    en: Add subtask
+    zh-CN: 添加子任务
+    zh-HK: 新增子任務
+    it: Aggiungi sotto-attività
+    es: Añadir subtarea
+    fr: Ajouter une sous-tâche
+    de: Unteraufgabe hinzufügen
+  item.name_placeholder:
+    en: Task name
+    zh-CN: 任务名称
+    zh-HK: 任務名稱
+    it: Nome attività
+    es: Nombre de la tarea
+    fr: Nom de la tâche
+    de: Aufgabenname
+  item.desc_placeholder:
+    en: Add a description...
+    zh-CN: 添加描述...
+    zh-HK: 新增描述...
+    it: Aggiungi una descrizione...
+    es: Añade una descripción...
+    fr: Ajouter une description...
+    de: Beschreibung hinzufügen...
+  notify.save_failed:
+    en: Save failed
+    zh-CN: 保存失败
+    zh-HK: 儲存失敗
+    it: Salvataggio non riuscito
+    es: Error al guardar
+    fr: Échec de l'enregistrement
+    de: Speichern fehlgeschlagen
+  board.filter:
+    en: Filter boards...
+    zh-CN: 筛选看板...
+    zh-HK: 篩選看板...
+    it: Filtra schede...
+    es: Filtrar tableros...
+    fr: Filtrer les tableaux...
+    de: Tafeln filtern...
+  section.archived_badge:
+    en: Archived
+    zh-CN: 已归档
+    zh-HK: 已封存
+    it: Archiviate
+    es: Archivadas
+    fr: Archivées
+    de: Archiviert
+  section.panel:
+    en: Sections
+    zh-CN: 分区
+    zh-HK: 分區
+    it: Sezioni
+    es: Secciones
+    fr: Sections
+    de: Abschnitte
+  dialog.title:
+    en: Dialog
+    zh-CN: 对话框
+    zh-HK: 對話框
+    it: Finestra
+    es: Diálogo
+    fr: Dialogue
+    de: Dialog
 

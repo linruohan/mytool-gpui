@@ -19,6 +19,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use sea_orm::sqlx::types::uuid;
 use todos::entity::{ItemModel, ProjectModel};
 
@@ -239,11 +240,13 @@ impl ProjectItemsPanel {
             cx.notify();
         });
 
-        let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "编辑任务" } else { "新建任务" },
-            if is_edit { "保存" } else { "添加" },
-            is_edit,
-        );
+        let title = if is_edit {
+            t!("todo.item.edit").to_string()
+        } else {
+            t!("todo.item.new").to_string()
+        };
+        let button = if is_edit { t!("todo.save").to_string() } else { t!("todo.add").to_string() };
+        let config = crate::ui::components::ItemDialogConfig::new(&title, &button, is_edit);
 
         let view = cx.entity().clone();
         crate::ui::components::show_item_dialog(
@@ -278,7 +281,7 @@ impl ProjectItemsPanel {
                 crate::ui::components::show_item_delete_dialog(
                     window,
                     cx,
-                    "确定删除这个任务吗？",
+                    &t!("todo.item.delete_confirm"),
                     move |cx| {
                         view.update(cx, |_, cx| {
                             cx.emit(ProjectItemEvent::Deleted(item.clone()));
@@ -310,7 +313,9 @@ impl ProjectItemsPanel {
             }
         };
 
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("分区名称"));
+        let name_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.section.name_placeholder").to_string())
+        });
         if is_edit {
             name_input.update(cx, |is, cx| {
                 is.set_value(ori_section.name.clone(), window, cx);
@@ -318,12 +323,14 @@ impl ProjectItemsPanel {
             })
         };
 
-        let config = crate::ui::components::SectionDialogConfig::new(
-            if is_edit { "编辑分区" } else { "新建分区" },
-            if is_edit { "保存" } else { "添加" },
-            is_edit,
-        )
-        .with_overlay(false);
+        let title = if is_edit {
+            t!("todo.section.edit").to_string()
+        } else {
+            t!("todo.section.new").to_string()
+        };
+        let button = if is_edit { t!("todo.save").to_string() } else { t!("todo.add").to_string() };
+        let config = crate::ui::components::SectionDialogConfig::new(&title, &button, is_edit)
+            .with_overlay(false);
 
         let view = cx.entity().clone();
         crate::ui::components::show_section_dialog(
@@ -357,7 +364,7 @@ impl ProjectItemsPanel {
             crate::ui::components::show_section_delete_dialog(
                 window,
                 cx,
-                "确定删除这个分区吗？",
+                &t!("todo.section.delete_confirm"),
                 move |cx| {
                     view.update(cx, |_view, cx| {
                         delete_section(section.clone(), cx);
@@ -377,9 +384,9 @@ impl ProjectItemsPanel {
         if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
-            new_section.name = format!("{}（副本）", new_section.name);
+            new_section.name = t!("todo.section.copy_name", name => &new_section.name).to_string();
             add_section(Arc::new(new_section), cx);
-            window.push_notification("已复制分区。", cx);
+            window.push_notification(t!("todo.section.copied").to_string(), cx);
         }
     }
 
@@ -393,30 +400,39 @@ impl ProjectItemsPanel {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
-            window.push_notification("已归档分区。", cx);
+            window.push_notification(t!("todo.section.archived").to_string(), cx);
         }
     }
 
     /// 在当前项目下新建子项目
     pub fn show_child_project_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let parent_id = self.project.id.clone();
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("子项目名称"));
+        let name_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("todo.project.child_placeholder").to_string())
+        });
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("新建子项目")
+                .title(t!("todo.project.child_new").to_string())
                 .overlay(true)
                 .overlay_closable(true)
                 .child(
-                    v_form()
-                        .child(field().label("名称").required(true).child(Input::new(&name_input))),
+                    v_form().child(
+                        field()
+                            .label(t!("todo.field.name").to_string())
+                            .required(true)
+                            .child(Input::new(&name_input)),
+                    ),
                 )
                 .footer(
                     DialogFooter::new()
+                        .child(DialogClose::new().child(
+                            Button::new("cancel").label(t!("todo.cancel").to_string()).outline(),
+                        ))
                         .child(
-                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
-                        )
-                        .child(
-                            DialogAction::new().child(Button::new("add").primary().label("添加")),
+                            DialogAction::new().child(
+                                Button::new("add").primary().label(t!("todo.add").to_string()),
+                            ),
                         ),
                 )
                 .on_ok({
@@ -440,7 +456,9 @@ impl ProjectItemsPanel {
     }
 
     pub fn show_project_edit_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("项目名称"));
+        let name_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.project.name_placeholder").to_string())
+        });
         name_input.update(cx, |is, cx| {
             is.set_value(self.project.name.clone(), window, cx);
             cx.notify();
@@ -479,28 +497,38 @@ impl ProjectItemsPanel {
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("编辑项目")
+                .title(t!("todo.project.edit").to_string())
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
                     v_form()
-                        .child(field().label("名称").required(true).child(Input::new(&name_input)))
-                        .child(field().label("颜色").child(todo_color_picker(&color)))
                         .child(
                             field()
-                                .label("截止日期")
-                                .child(DatePicker::new(&project_due).placeholder("项目截止日期")),
+                                .label(t!("todo.field.name").to_string())
+                                .required(true)
+                                .child(Input::new(&name_input)),
+                        )
+                        .child(
+                            field()
+                                .label(t!("todo.field.color").to_string())
+                                .child(todo_color_picker(&color)),
+                        )
+                        .child(
+                            field().label(t!("todo.field.due").to_string()).child(
+                                DatePicker::new(&project_due)
+                                    .placeholder(t!("todo.project.due_placeholder").to_string()),
+                            ),
                         ),
                 )
                 .footer(
                     DialogFooter::new()
-                        .child(
-                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
-                        )
-                        .child(
-                            DialogAction::new().child(Button::new("save").primary().label("保存")),
-                        ),
+                        .child(DialogClose::new().child(
+                            Button::new("cancel").label(t!("todo.cancel").to_string()).outline(),
+                        ))
+                        .child(DialogAction::new().child(
+                            Button::new("save").primary().label(t!("todo.save").to_string()),
+                        )),
                 )
                 .on_ok({
                     let view = view.clone();
@@ -532,7 +560,7 @@ impl ProjectItemsPanel {
         crate::ui::components::show_delete_dialog(
             window,
             cx,
-            "确定删除这个项目吗？其中的任务和分区都会被删除。",
+            &t!("todo.project.delete_confirm"),
             move |cx| {
                 view.update(cx, |_view, cx| {
                     delete_project(project.clone(), cx);
@@ -656,7 +684,7 @@ impl Render for ProjectItemsPanel {
                                         .ghost()
                                         .compact()
                                         .icon(IconName::FolderOpen)
-                                        .tooltip("添加到分区")
+                                        .tooltip(t!("todo.project.add_to_section").to_string())
                                         .dropdown_menu({
                                             let view = view.clone();
                                             let project_id = self.project.id.clone();
@@ -700,7 +728,7 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::PlusLargeSymbolic)
-                                    .tooltip("新建分区")
+                                    .tooltip(t!("todo.section.new").to_string())
                                     .on_click({
                                         let view = view.clone();
                                         move |_event, window, cx| {
@@ -717,42 +745,47 @@ impl Render for ProjectItemsPanel {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::EllipsisVertical)
-                                    .tooltip("更多")
+                                    .tooltip(t!("todo.more").to_string())
                                     .dropdown_menu({
                                         let view = view.clone();
                                         move |this, window, _cx| {
                                             let view = view.clone();
-                                            this.item(PopupMenuItem::new("编辑项目").on_click(
-                                                window.listener_for(
+                                            this.item(
+                                                PopupMenuItem::new(
+                                                    t!("todo.project.edit").to_string(),
+                                                )
+                                                .on_click(window.listener_for(
                                                     &view,
                                                     |this, _, window, cx| {
                                                         this.show_project_edit_dialog(window, cx);
                                                         cx.notify();
                                                     },
-                                                ),
-                                            ))
-                                            .item(PopupMenuItem::new("新建子项目").on_click(
-                                                window.listener_for(
+                                                )),
+                                            )
+                                            .item(
+                                                PopupMenuItem::new(
+                                                    t!("todo.project.child_new").to_string(),
+                                                )
+                                                .on_click(window.listener_for(
                                                     &view,
                                                     |this, _, window, cx| {
                                                         this.show_child_project_dialog(window, cx);
                                                         cx.notify();
                                                     },
-                                                ),
-                                            ))
+                                                )),
+                                            )
                                             .separator()
                                             .item(
-                                                PopupMenuItem::new("删除项目").on_click(
-                                                    window.listener_for(
-                                                        &view,
-                                                        |this, _, window, cx| {
-                                                            this.show_project_delete_dialog(
-                                                                window, cx,
-                                                            );
-                                                            cx.notify();
-                                                        },
-                                                    ),
-                                                ),
+                                                PopupMenuItem::new(
+                                                    t!("todo.project.delete").to_string(),
+                                                )
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_project_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                )),
                                             )
                                         }
                                     }),
@@ -771,12 +804,12 @@ impl Render for ProjectItemsPanel {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
                                 IconName::FolderOpen,
-                                "添加一些任务",
-                                "点击右下角 + 创建新任务",
+                                t!("todo.empty.add_tasks").to_string(),
+                                t!("todo.empty.add_hint").to_string(),
                             ))
                         })
                         .when(!self.pinned_items.is_empty(), |this| {
-                            this.child(board_section("置顶").child(
+                            this.child(board_section(t!("todo.board.pin").to_string()).child(
                                 board_renderer::render_item_list(
                                     &self.pinned_items,
                                     item_rows,

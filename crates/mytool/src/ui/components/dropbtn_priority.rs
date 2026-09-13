@@ -9,6 +9,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::enums::item_priority::ItemPriority;
 
 use crate::create_button_wrapper;
@@ -32,12 +33,12 @@ impl Focusable for PriorityState {
     }
 }
 
-fn priority_label(priority: &ItemPriority) -> &'static str {
+fn priority_label(priority: &ItemPriority) -> String {
     match priority {
-        ItemPriority::HIGH => "高优先级",
-        ItemPriority::MEDIUM => "中优先级",
-        ItemPriority::LOW => "低优先级",
-        ItemPriority::NONE => "无优先级",
+        ItemPriority::HIGH => t!("todo.priority.high").to_string(),
+        ItemPriority::MEDIUM => t!("todo.priority.medium").to_string(),
+        ItemPriority::LOW => t!("todo.priority.low").to_string(),
+        ItemPriority::NONE => t!("todo.priority.none").to_string(),
     }
 }
 

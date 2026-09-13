@@ -18,6 +18,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 use tracing::warn;
 
@@ -74,11 +75,14 @@ impl ItemInfoState {
     pub fn new(item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let item = item.clone();
 
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("任务名称"));
+        let name_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.item.name_placeholder").to_string())
+        });
 
         let desc_input = cx.new(|cx| {
-            // 🔧 修复：auto_grow 只在多行 TextareaState 上存在，使用 TextareaState::new()
-            TextareaState::new(window, cx).auto_grow(1, 8).placeholder("添加描述...")
+            TextareaState::new(window, cx)
+                .auto_grow(1, 8)
+                .placeholder(t!("todo.item.desc_placeholder").to_string())
         });
         let label_popover_list = cx.new(|cx| LabelsPopoverList::new(window, cx));
 
@@ -480,9 +484,9 @@ impl Render for ItemInfoState {
                                                     .icon(IconName::PinSymbolic)
                                                     .text_color(pinned_color)
                                                     .tooltip(if self.state_manager.item.pinned {
-                                                        "取消置顶"
+                                                        t!("todo.item.unpin").to_string()
                                                     } else {
-                                                        "置顶任务"
+                                                        t!("todo.item.pin").to_string()
                                                     })
                                                     .on_click(cx.listener(|this, _, _, cx| {
                                                         let item = this.state_manager.item.clone();
@@ -501,11 +505,16 @@ impl Render for ItemInfoState {
                                                             .small()
                                                             .color(cx.theme().warning),
                                                     ),
-                                                    SaveItemStatus::Succeeded => this.child(
-                                                        Tag::success().small().child("已保存"),
-                                                    ),
+                                                    SaveItemStatus::Succeeded => {
+                                                        this.child(Tag::success().small().child(
+                                                            t!("todo.notify.saved").to_string(),
+                                                        ))
+                                                    },
                                                     SaveItemStatus::Failed => this.child(
-                                                        Tag::danger().small().child("保存失败"),
+                                                        Tag::danger().small().child(
+                                                            t!("todo.notify.save_failed")
+                                                                .to_string(),
+                                                        ),
                                                     ),
                                                     _ => this,
                                                 },
@@ -516,7 +525,7 @@ impl Render for ItemInfoState {
                                                     .ghost()
                                                     .compact()
                                                     .icon(IconName::ChevronUp)
-                                                    .tooltip("收起 (Enter)")
+                                                    .tooltip(t!("todo.item.collapse").to_string())
                                                     .on_click(cx.listener(|_, _, _, cx| {
                                                         cx.emit(ItemInfoEvent::Collapse());
                                                     })),
@@ -602,7 +611,7 @@ impl Render for ItemInfoState {
                                                 .ghost()
                                                 .compact()
                                                 .icon(IconName::Plus)
-                                                .tooltip("添加子任务")
+                                                .tooltip(t!("todo.item.add_subtask").to_string())
                                                 .on_click(cx.listener(|this, _, window, cx| {
                                                     this.add_subtask(window, cx);
                                                 })),

@@ -14,6 +14,7 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::{entity::ItemModel, utils::datetime::DateTime};
 
 use crate::{
@@ -233,14 +234,21 @@ impl ItemListDelegate {
                     h_flex()
                         .gap_6()
                         .items_center()
-                        .child(Button::new("confirm").primary().label("确认").on_click(
-                            |_, window, cx| {
-                                window.close_sheet(cx);
-                            },
-                        ))
-                        .child(Button::new("cancel").label("取消").on_click(|_, window, cx| {
-                            window.close_sheet(cx);
-                        })),
+                        .child(
+                            Button::new("confirm")
+                                .primary()
+                                .label(t!("todo.confirm").to_string())
+                                .on_click(|_, window, cx| {
+                                    window.close_sheet(cx);
+                                }),
+                        )
+                        .child(
+                            Button::new("cancel").label(t!("todo.cancel").to_string()).on_click(
+                                |_, window, cx| {
+                                    window.close_sheet(cx);
+                                },
+                            ),
+                        ),
                 )
         });
     }

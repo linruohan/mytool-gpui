@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use gpui::{Context, Entity, Window};
+use rust_i18n::t;
 use todos::entity::LabelModel;
 
 use super::{ItemInfoEvent, ItemInfoState};
@@ -79,7 +80,9 @@ impl ItemInfoState {
                 Ok(Err(e)) => {
                     NotificationSystem::log_error("Failed to set item labels", &e);
                     cx.update_global::<crate::core::state::ErrorNotifier, _>(|notifier, _| {
-                        notifier.set_error(format!("标签保存失败：{}，请稍后重试", e));
+                        notifier.set_error(
+                            t!("todo.label.save_failed", error => e.to_string()).to_string(),
+                        );
                     });
                 },
                 Err(e) => {

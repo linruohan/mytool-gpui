@@ -15,6 +15,7 @@ use gpui_component::{
     list::{ListEvent, ListState},
     v_flex,
 };
+use rust_i18n::t;
 use todos::entity::ProjectModel;
 
 use crate::{
@@ -160,7 +161,9 @@ impl ProjectsPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("项目名称"));
+        let name_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.project.name_placeholder").to_string())
+        });
         let now = chrono::Local::now().naive_local().date();
         let project_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
@@ -174,9 +177,9 @@ impl ProjectsPanel {
             ori_project = self.initialize_project_model(is_edit, window, cx);
         }
         let title = if ori_project.parent_id.as_deref().is_some_and(|id| !id.is_empty()) {
-            "新建子项目"
+            t!("todo.project.child_new").to_string()
         } else {
-            "新建项目"
+            t!("todo.project.new").to_string()
         };
         let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
@@ -188,27 +191,39 @@ impl ProjectsPanel {
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title(title)
+                .title(title.clone())
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
                     v_form()
-                        .child(field().label("名称").required(true).child(Input::new(&name_input)))
-                        .child(field().label("颜色").child(todo_color_picker(&color)))
                         .child(
                             field()
-                                .label("截止日期")
-                                .child(DatePicker::new(&project_due).placeholder("项目截止日期")),
+                                .label(t!("todo.field.name").to_string())
+                                .required(true)
+                                .child(Input::new(&name_input)),
+                        )
+                        .child(
+                            field()
+                                .label(t!("todo.field.color").to_string())
+                                .child(todo_color_picker(&color)),
+                        )
+                        .child(
+                            field().label(t!("todo.field.due").to_string()).child(
+                                DatePicker::new(&project_due)
+                                    .placeholder(t!("todo.project.due_placeholder").to_string()),
+                            ),
                         ),
                 )
                 .footer(
                     DialogFooter::new()
+                        .child(DialogClose::new().child(
+                            Button::new("cancel").label(t!("todo.cancel").to_string()).outline(),
+                        ))
                         .child(
-                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
-                        )
-                        .child(
-                            DialogAction::new().child(Button::new("add").primary().label("添加")),
+                            DialogAction::new().child(
+                                Button::new("add").primary().label(t!("todo.add").to_string()),
+                            ),
                         ),
                 )
                 .on_ok({

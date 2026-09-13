@@ -9,6 +9,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     Board, BoardContainer, CompletedBoard, InboxBoard, ItemEvent, LabelEvent, LabelsBoard,
@@ -79,7 +80,8 @@ impl BoardPanel {
     }
 
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("筛选看板..."));
+        let search_input = cx
+            .new(|cx| InputState::new(window, cx).placeholder(t!("todo.board.filter").to_string()));
         // 🚀 7.0修复后：恢复所有 6 个 Board（InboxBoard 已使用延迟注册）
         let boards = vec![
             BoardContainer::panel::<InboxBoard>(window, cx),

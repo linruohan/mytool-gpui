@@ -13,6 +13,7 @@ use gpui_component::{
     input::{Input, InputState},
     list::{List, ListEvent, ListState},
 };
+use rust_i18n::t;
 use todos::entity::LabelModel;
 
 use super::LabelEvent;
@@ -148,7 +149,9 @@ impl LabelsPanel {
         cx: &mut Context<Self>,
         is_edit: bool,
     ) {
-        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("标签名称"));
+        let name_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.label.name_placeholder").to_string())
+        });
         let ori_label = self.initialize_label_model(is_edit, window, cx);
         if is_edit {
             name_input.update(cx, |is, cx| {
@@ -158,28 +161,42 @@ impl LabelsPanel {
         };
 
         let view = cx.entity().clone();
-        let dialog_title = if is_edit { "编辑标签" } else { "新建标签" };
-        let button_label = if is_edit { "保存" } else { "添加" };
+        let dialog_title = if is_edit {
+            t!("todo.label.edit").to_string()
+        } else {
+            t!("todo.label.new").to_string()
+        };
+        let button_label =
+            if is_edit { t!("todo.save").to_string() } else { t!("todo.add").to_string() };
         let color = self.color.clone();
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title(dialog_title)
+                .title(dialog_title.clone())
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)
                 .child(
                     v_form()
-                        .child(field().label("名称").required(true).child(Input::new(&name_input)))
-                        .child(field().label("颜色").child(todo_color_picker(&color))),
+                        .child(
+                            field()
+                                .label(t!("todo.field.name").to_string())
+                                .required(true)
+                                .child(Input::new(&name_input)),
+                        )
+                        .child(
+                            field()
+                                .label(t!("todo.field.color").to_string())
+                                .child(todo_color_picker(&color)),
+                        ),
                 )
                 .footer(
                     DialogFooter::new()
-                        .child(
-                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
-                        )
+                        .child(DialogClose::new().child(
+                            Button::new("cancel").label(t!("todo.cancel").to_string()).outline(),
+                        ))
                         .child(
                             DialogAction::new()
-                                .child(Button::new("save").primary().label(button_label)),
+                                .child(Button::new("save").primary().label(button_label.clone())),
                         ),
                 )
                 .on_ok({
@@ -215,7 +232,7 @@ impl LabelsPanel {
                     dialog
                         .overlay(true)
                         .overlay_closable(true)
-                        .child("确定删除这个标签吗？")
+                        .child(t!("todo.label.delete_confirm").to_string())
                         .on_ok({
                             let view = view.clone();
                             let label = label.clone();
@@ -226,12 +243,12 @@ impl LabelsPanel {
                                     cx.emit(LabelEvent::Deleted(label));
                                     cx.notify();
                                 });
-                                window.push_notification("已删除标签。", cx);
+                                window.push_notification(t!("todo.label.deleted").to_string(), cx);
                                 true
                             }
                         })
                         .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification("已取消。", cx);
+                            window.push_notification(t!("todo.item.cancelled").to_string(), cx);
                             true
                         })
                 });

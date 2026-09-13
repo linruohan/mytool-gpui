@@ -9,6 +9,7 @@ use gpui_component::{
     input::{Input, InputState},
     v_flex,
 };
+use rust_i18n::t;
 
 use crate::ui::components::{ItemInfo, dialog::dialog::DialogConfig};
 
@@ -78,20 +79,26 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
             .child((content_fn)())
             .footer(
                 DialogFooter::new()
-                    .child(DialogClose::new().child(
-                        Button::new("cancel").label("取消").outline().on_click(
-                            move |_, window, cx| {
-                                window.push_notification("已取消。", cx);
-                                window.close_sheet(cx);
-                            },
+                    .child(
+                        DialogClose::new().child(
+                            Button::new("cancel")
+                                .label(t!("todo.cancel").to_string())
+                                .outline()
+                                .on_click(move |_, window, cx| {
+                                    window.push_notification(
+                                        t!("todo.item.cancelled").to_string(),
+                                        cx,
+                                    );
+                                    window.close_sheet(cx);
+                                }),
                         ),
-                    ))
+                    )
                     .child(DialogAction::new().child(
                         Button::new("ok").label(&config.button_label).primary().on_click(
                             move |_, window, cx| {
                                 // Call save function with App reference
                                 (save_fn)(cx);
-                                window.push_notification("已保存。", cx);
+                                window.push_notification(t!("todo.notify.saved").to_string(), cx);
                                 window.close_sheet(cx);
                             },
                         ),
@@ -139,13 +146,16 @@ pub fn show_item_dialog<T, F>(
             })
             .footer(
                 DialogFooter::new()
-                    .child(DialogClose::new().child(
-                        Button::new("cancel").label("取消").outline().on_click(
-                            move |_, _window, _cx| {
-                                // 取消按钮不需要做任何事，DialogClose 会自动处理关闭
-                            },
+                    .child(
+                        DialogClose::new().child(
+                            Button::new("cancel")
+                                .label(t!("todo.cancel").to_string())
+                                .outline()
+                                .on_click(move |_, _window, _cx| {
+                                    // 取消按钮不需要做任何事，DialogClose 会自动处理关闭
+                                }),
                         ),
-                    ))
+                    )
                     .child(DialogAction::new().child(
                         Button::new("ok").label(&config.button_label).primary().on_click(
                             move |_, window, cx| {
@@ -182,7 +192,7 @@ pub fn show_new_item_dialog<T>(
         window,
         cx,
         item_info,
-        EditDialogConfig::new("新建任务", "添加", false),
+        EditDialogConfig::new(&t!("todo.item.new"), &t!("todo.add"), false),
         |_item, _cx| {},
     );
 }
@@ -200,7 +210,7 @@ pub fn show_existing_item_dialog<T>(
         window,
         cx,
         item_info,
-        EditDialogConfig::new("编辑任务", "保存", true),
+        EditDialogConfig::new(&t!("todo.item.edit"), &t!("todo.save"), true),
         |_item, _cx| {},
     );
 }
@@ -267,19 +277,25 @@ where
         dialog
             .overlay(true)
             .overlay_closable(true)
-            .child(Alert::error("delete-alert", message.clone()).title("删除"))
+            .child(Alert::error("delete-alert", message.clone()).title(t!("todo.dialog.delete")))
             .footer(
                 DialogFooter::new()
-                    .child(DialogClose::new().child(Button::new("cancel").label("取消").outline()))
-                    .child(DialogAction::new().child(Button::new("ok").label("确认").primary())),
+                    .child(DialogClose::new().child(
+                        Button::new("cancel").label(t!("todo.cancel").to_string()).outline(),
+                    ))
+                    .child(
+                        DialogAction::new().child(
+                            Button::new("ok").label(t!("todo.confirm").to_string()).primary(),
+                        ),
+                    ),
             )
             .on_ok(move |_, window, cx| {
                 on_ok(cx);
-                window.push_notification("已删除。", cx);
+                window.push_notification(t!("todo.notify.deleted").to_string(), cx);
                 true
             })
             .on_cancel(|_, window, cx| {
-                window.push_notification("已取消删除。", cx);
+                window.push_notification(t!("todo.item.delete_cancel").to_string(), cx);
                 true
             })
     });

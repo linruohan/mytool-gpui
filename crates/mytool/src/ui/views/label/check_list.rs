@@ -9,6 +9,7 @@ use gpui_component::{
     list::{ListDelegate, ListItem, ListState},
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::entity::LabelModel;
 
 use crate::{label_color, label_color_dot};
@@ -205,7 +206,11 @@ impl ListDelegate for LabelCheckListDelegate {
             .justify_center()
             .text_sm()
             .text_color(cx.theme().muted_foreground)
-            .child(if self.query.is_empty() { "还没有标签" } else { "没有匹配的标签" })
+            .child(if self.query.is_empty() {
+                t!("todo.empty.labels_title").to_string()
+            } else {
+                t!("todo.label.no_match").to_string()
+            })
     }
 
     fn render_item(

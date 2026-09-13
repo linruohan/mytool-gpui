@@ -16,6 +16,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::entity::SectionModel;
 
 use crate::{
@@ -112,7 +113,11 @@ impl ListDelegate for ManageSectionListDelegate {
                             )
                             .child(section.name.clone())
                             .when(is_archived, |this| {
-                                this.child(Tag::secondary().small().child("已归档"))
+                                this.child(
+                                    Tag::secondary()
+                                        .small()
+                                        .child(t!("todo.section.archived_badge").to_string()),
+                                )
                             }),
                     )
                     .child(
@@ -241,13 +246,13 @@ impl ManageSectionsPanel {
         let section_clone = section.clone();
 
         let name_input = cx.new(|cx| {
-            let mut input =
-                gpui_component::input::InputState::new(window, cx).placeholder("分区名称");
+            let mut input = gpui_component::input::InputState::new(window, cx)
+                .placeholder(t!("todo.section.name_placeholder").to_string());
             input.set_value(&section_name, window, cx);
             input
         });
 
-        let config = SectionDialogConfig::new("编辑分区", "保存", true);
+        let config = SectionDialogConfig::new(&t!("todo.section.edit"), &t!("todo.save"), true);
 
         show_section_dialog(window, cx, name_input, config, move |new_name, cx| {
             // 更新 section
@@ -271,7 +276,7 @@ impl ManageSectionsPanel {
         show_section_delete_dialog(
             window,
             cx,
-            &format!("确定要删除分区 \"{}\" 吗？", section_name),
+            &t!("todo.section.delete_named", name => section_name.as_str()),
             move |cx| {
                 delete_section(section_clone.clone(), cx);
             },
@@ -280,10 +285,12 @@ impl ManageSectionsPanel {
 
     /// 显示新建 Section 对话框
     pub fn show_new_section_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let name_input =
-            cx.new(|cx| gpui_component::input::InputState::new(window, cx).placeholder("分区名称"));
+        let name_input = cx.new(|cx| {
+            gpui_component::input::InputState::new(window, cx)
+                .placeholder(t!("todo.section.name_placeholder").to_string())
+        });
 
-        let config = SectionDialogConfig::new("新建分区", "添加", false);
+        let config = SectionDialogConfig::new(&t!("todo.section.new"), &t!("todo.add"), false);
 
         show_section_dialog(window, cx, name_input, config, move |name, cx| {
             let new_section = Arc::new(SectionModel {
@@ -324,13 +331,20 @@ impl Render for ManageSectionsPanel {
         v_flex().size_full().gap_2().child(
             GroupBox::new()
                 .outline()
-                .title(h_flex().justify_between().w_full().child("分区").child(
-                    Button::new("new-section").label("新建分区").icon(IconName::Plus).on_click(
-                        cx.listener(|this, _, window, cx| {
-                            this.show_new_section_dialog(window, cx);
-                        }),
-                    ),
-                ))
+                .title(
+                    h_flex()
+                        .justify_between()
+                        .w_full()
+                        .child(t!("todo.section.panel").to_string())
+                        .child(
+                            Button::new("new-section")
+                                .label(t!("todo.section.new").to_string())
+                                .icon(IconName::Plus)
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.show_new_section_dialog(window, cx);
+                                })),
+                        ),
+                )
                 .child(List::new(&self.section_list).flex_1().w_full().h(px(360.))),
         )
     }

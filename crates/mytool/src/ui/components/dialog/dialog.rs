@@ -11,11 +11,11 @@ pub struct DialogConfig {
 impl Default for DialogConfig {
     fn default() -> Self {
         Self {
-            title: "对话框".to_string(),
+            title: rust_i18n::t!("todo.dialog.title").to_string(),
             overlay: true,
             keyboard: true,
             overlay_closable: true,
-            cancel_label: "取消".to_string(),
+            cancel_label: rust_i18n::t!("todo.cancel").to_string(),
         }
     }
 }

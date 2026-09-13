@@ -9,6 +9,7 @@ use gpui_component::{
     searchable_list::SearchableVec,
     select::{Select, SelectEvent, SelectState},
 };
+use rust_i18n::t;
 use todos::entity::SectionModel;
 
 use crate::{create_button_wrapper, todo_state::TodoStore, ui::components::drop_btn::NamedOption};
@@ -38,8 +39,8 @@ impl Render for SectionState {
         Select::new(&self.select)
             .small()
             .appearance(false)
-            .placeholder("无分区")
-            .search_placeholder("搜索分区")
+            .placeholder(t!("todo.section.ungrouped").to_string())
+            .search_placeholder(t!("todo.section.search").to_string())
             .w_full()
     }
 }
@@ -69,7 +70,8 @@ impl SectionState {
     }
 
     fn options(sections: Option<&[Arc<SectionModel>]>, cx: &App) -> Vec<NamedOption> {
-        let mut options = vec![NamedOption::new(String::new(), "无分区")];
+        let mut options =
+            vec![NamedOption::new(String::new(), t!("todo.section.ungrouped").to_string())];
         match sections {
             Some(sections) => {
                 for section in sections {
