@@ -15,7 +15,7 @@ use gpui_component::{
     v_flex,
 };
 use rust_i18n::t;
-use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
+use todos::{DueDate, entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{
     core::shortcuts::{ShortcutCategory, get_shortcuts_by_category},
@@ -269,6 +269,10 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
             | "DuplicateTask"
             | "ToggleTaskPin"
             | "SetDueDate"
+            | "ScheduleToday"
+            | "ScheduleTomorrow"
+            | "ScheduleNextWeek"
+            | "ClearDueDate"
             | "SelectPreviousTask"
             | "SelectNextTask"
             | "ToggleSidebar"
@@ -302,6 +306,51 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
     )
 }
 
+#[derive(Clone, Copy)]
+pub enum DueQuickPreset {
+    Today,
+    Tomorrow,
+    NextWeek,
+    Clear,
+}
+
+pub fn apply_due_quick_preset(
+    items: Vec<Arc<ItemModel>>,
+    preset: DueQuickPreset,
+    cx: &mut App,
+) -> usize {
+    if items.is_empty() {
+        return 0;
+    }
+    let today = chrono::Local::now().naive_local().date();
+    let updated: Vec<Arc<ItemModel>> = items
+        .into_iter()
+        .map(|item| {
+            let mut model = (*item).clone();
+            match preset {
+                DueQuickPreset::Clear => model.set_due_date(None),
+                _ => {
+                    let date = match preset {
+                        DueQuickPreset::Today => today,
+                        DueQuickPreset::Tomorrow => today.succ_opt().unwrap_or(today),
+                        DueQuickPreset::NextWeek => today + chrono::Duration::days(7),
+                        DueQuickPreset::Clear => unreachable!(),
+                    };
+                    let due = model
+                        .due_date()
+                        .unwrap_or_else(DueDate::default)
+                        .replacing_calendar_date(date);
+                    model.set_due_date(Some(due));
+                },
+            }
+            Arc::new(model)
+        })
+        .collect();
+    let n = updated.len();
+    batch_update_items(updated, cx);
+    n
+}
+
 pub fn show_set_due_dialog<T: Render>(
     window: &mut Window,
     cx: &mut Context<T>,
@@ -330,16 +379,14 @@ pub fn show_set_due_dialog<T: Render>(
                 move |_, window, cx| {
                     let ymd = picker.read(cx).date().format("%Y-%m-%d").map(|s| s.to_string());
                     let mut updated = (*item).clone();
-                    match ymd {
-                        Some(ymd) => {
-                            let mut due = item.due_date().unwrap_or_default();
-                            let time = due
-                                .date
-                                .split_once(' ')
-                                .map(|(_, t)| t)
-                                .filter(|t| !t.is_empty())
-                                .unwrap_or("00:00:00");
-                            due.date = format!("{ymd} {time}");
+                    match ymd
+                        .and_then(|ymd| chrono::NaiveDate::parse_from_str(&ymd, "%Y-%m-%d").ok())
+                    {
+                        Some(date) => {
+                            let due = item
+                                .due_date()
+                                .unwrap_or_else(DueDate::default)
+                                .replacing_calendar_date(date);
                             updated.set_due_date(Some(due));
                         },
                         None => updated.set_due_date(None),

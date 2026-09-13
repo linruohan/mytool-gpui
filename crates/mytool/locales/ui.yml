@@ -2592,6 +2592,70 @@ todo:
     es: Borrar fecha
     fr: Effacer la date
     de: Datum löschen
+  due.quick_today:
+    en: Schedule for today
+    zh-CN: 设为今天
+    zh-HK: 設為今天
+    it: Pianifica oggi
+    es: Programar para hoy
+    fr: Planifier aujourd'hui
+    de: Auf heute setzen
+  due.quick_tomorrow:
+    en: Schedule for tomorrow
+    zh-CN: 设为明天
+    zh-HK: 設為明天
+    it: Pianifica domani
+    es: Programar para mañana
+    fr: Planifier demain
+    de: Auf morgen setzen
+  due.quick_next_week:
+    en: Schedule for next week
+    zh-CN: 设为下周
+    zh-HK: 設為下週
+    it: Pianifica settimana prossima
+    es: Programar para la próxima semana
+    fr: Planifier la semaine prochaine
+    de: Auf nächste Woche setzen
+  due.quick_clear:
+    en: Clear due date
+    zh-CN: 清除截止日期
+    zh-HK: 清除截止日期
+    it: Cancella scadenza
+    es: Quitar fecha de vencimiento
+    fr: Effacer l'échéance
+    de: Fälligkeit löschen
+  due.scheduled_today:
+    en: Scheduled for today.
+    zh-CN: 已设为今天。
+    zh-HK: 已設為今天。
+    it: Pianificato per oggi.
+    es: Programado para hoy.
+    fr: Planifié pour aujourd'hui.
+    de: Auf heute gesetzt.
+  due.scheduled_tomorrow:
+    en: Scheduled for tomorrow.
+    zh-CN: 已设为明天。
+    zh-HK: 已設為明天。
+    it: Pianificato per domani.
+    es: Programado para mañana.
+    fr: Planifié pour demain.
+    de: Auf morgen gesetzt.
+  due.scheduled_next_week:
+    en: Scheduled for next week.
+    zh-CN: 已设为下周。
+    zh-HK: 已設為下週。
+    it: Pianificato per la settimana prossima.
+    es: Programado para la próxima semana.
+    fr: Planifié pour la semaine prochaine.
+    de: Auf nächste Woche gesetzt.
+  due.cleared:
+    en: Due date cleared.
+    zh-CN: 已清除截止日期。
+    zh-HK: 已清除截止日期。
+    it: Scadenza rimossa.
+    es: Fecha de vencimiento eliminada.
+    fr: Échéance effacée.
+    de: Fälligkeit gelöscht.
   due.label:
     en: Date
     zh-CN: 日期

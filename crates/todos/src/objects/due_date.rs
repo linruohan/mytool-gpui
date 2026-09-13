@@ -113,6 +113,14 @@ impl DueDate {
         self.recurrency_end = "".to_string();
     }
 
+    /// 换成日历日，保留原有时分秒；没有时间则用 `00:00:00`。
+    pub fn replacing_calendar_date(&self, date: chrono::NaiveDate) -> Self {
+        let time = time_suffix(&self.date);
+        let mut due = self.clone();
+        due.date = format!("{} {time}", date.format("%Y-%m-%d"));
+        due
+    }
+
     pub fn duplicate(&self) -> DueDate {
         DueDate {
             date: self.date.clone(),
@@ -171,6 +179,20 @@ impl DueDate {
         Some(next_due)
     }
 }
+fn time_suffix(date: &str) -> &str {
+    if let Some((_, rest)) = date.split_once(' ')
+        && !rest.is_empty()
+    {
+        return rest;
+    }
+    if let Some((_, rest)) = date.split_once('T')
+        && !rest.is_empty()
+    {
+        return rest;
+    }
+    "00:00:00"
+}
+
 impl fmt::Display for DueDate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(self).unwrap())
@@ -232,5 +254,25 @@ mod tests {
         due.recurrency_count = 4;
         let next = due.next_due_after_completion().unwrap();
         assert_eq!(next.recurrency_count, 3);
+    }
+
+    #[test]
+    fn replacing_calendar_date_keeps_time() {
+        let due = DueDate { date: "2026-01-01 17:30:00".into(), ..DueDate::default() };
+        let next =
+            due.replacing_calendar_date(chrono::NaiveDate::from_ymd_opt(2026, 2, 3).unwrap());
+        assert_eq!(next.date, "2026-02-03 17:30:00");
+    }
+
+    #[test]
+    fn replacing_calendar_date_iso_and_date_only() {
+        let iso = DueDate { date: "2026-01-01T09:15:00".into(), ..DueDate::default() };
+        let next =
+            iso.replacing_calendar_date(chrono::NaiveDate::from_ymd_opt(2026, 3, 4).unwrap());
+        assert_eq!(next.date, "2026-03-04 09:15:00");
+        let bare = DueDate { date: "2026-01-01".into(), ..DueDate::default() };
+        let next =
+            bare.replacing_calendar_date(chrono::NaiveDate::from_ymd_opt(2026, 3, 4).unwrap());
+        assert_eq!(next.date, "2026-03-04 00:00:00");
     }
 }

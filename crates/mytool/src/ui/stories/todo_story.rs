@@ -17,21 +17,23 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
-    BoardPanel, ClearFilters, CompletedBoard, DeleteProject, DeleteSection, DeleteTask,
-    DeselectAll, DuplicateTask, EditProject, EditSection, EditTask, FilterByLabel,
+    BoardPanel, ClearDueDate, ClearFilters, CompletedBoard, DeleteProject, DeleteSection,
+    DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask, FilterByLabel,
     FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem, MoveTaskDown,
     MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView, OpenHelp,
     OpenSettings, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
-    ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduledBoard, SearchTasks,
-    SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks,
-    ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, TodayBoard,
-    ToggleFullscreen, ToggleLabelFavorite, ToggleProjectFavorite, ToggleSidebar,
-    ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
+    ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduleNextWeek, ScheduleToday,
+    ScheduleTomorrow, ScheduledBoard, SearchTasks, SelectAllTasks, SelectNextTask,
+    SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox,
+    ShowLabels, ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen,
+    ToggleLabelFavorite, ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin,
+    UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
-        show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
-        show_filter_project_dialog, show_move_to_project_dialog, show_new_item_dialog,
-        show_set_due_dialog, show_todo_help_dialog, show_todo_settings_dialog,
+        DueQuickPreset, apply_due_quick_preset, show_existing_item_dialog,
+        show_filter_label_dialog, show_filter_priority_dialog, show_filter_project_dialog,
+        show_move_to_project_dialog, show_new_item_dialog, show_set_due_dialog,
+        show_todo_help_dialog, show_todo_settings_dialog,
     },
 };
 
@@ -544,6 +546,75 @@ impl TodoStory {
         if let Some(item) = self.primary_item(cx) {
             show_set_due_dialog(window, cx, item);
         }
+    }
+
+    fn selected_or_primary_items(&self, cx: &App) -> Vec<Arc<ItemModel>> {
+        let ids: Vec<String> =
+            cx.global::<crate::core::state::ItemSelection>().ids().iter().cloned().collect();
+        let store = cx.global::<TodoStore>();
+        let mut items: Vec<_> = ids.iter().filter_map(|id| store.get_item(id)).collect();
+        if items.is_empty() {
+            if let Some(item) = self.primary_item(cx) {
+                items.push(item);
+            }
+        }
+        items
+    }
+
+    fn apply_due_preset(
+        &mut self,
+        preset: DueQuickPreset,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let items = self.selected_or_primary_items(cx);
+        let n = apply_due_quick_preset(items, preset, cx);
+        if n == 0 {
+            return;
+        }
+        let msg = if n > 1 {
+            t!("todo.today.rescheduled_n", count => n).to_string()
+        } else {
+            match preset {
+                DueQuickPreset::Today => t!("todo.due.scheduled_today").to_string(),
+                DueQuickPreset::Tomorrow => t!("todo.due.scheduled_tomorrow").to_string(),
+                DueQuickPreset::NextWeek => t!("todo.due.scheduled_next_week").to_string(),
+                DueQuickPreset::Clear => t!("todo.due.cleared").to_string(),
+            }
+        };
+        window.push_notification(msg, cx);
+        cx.notify();
+    }
+
+    fn on_schedule_today(
+        &mut self,
+        _: &ScheduleToday,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_due_preset(DueQuickPreset::Today, window, cx);
+    }
+
+    fn on_schedule_tomorrow(
+        &mut self,
+        _: &ScheduleTomorrow,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_due_preset(DueQuickPreset::Tomorrow, window, cx);
+    }
+
+    fn on_schedule_next_week(
+        &mut self,
+        _: &ScheduleNextWeek,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_due_preset(DueQuickPreset::NextWeek, window, cx);
+    }
+
+    fn on_clear_due_date(&mut self, _: &ClearDueDate, window: &mut Window, cx: &mut Context<Self>) {
+        self.apply_due_preset(DueQuickPreset::Clear, window, cx);
     }
 
     fn on_select_previous(
@@ -1101,6 +1172,10 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_duplicate_task))
             .on_action(cx.listener(Self::on_toggle_pin))
             .on_action(cx.listener(Self::on_set_due_date))
+            .on_action(cx.listener(Self::on_schedule_today))
+            .on_action(cx.listener(Self::on_schedule_tomorrow))
+            .on_action(cx.listener(Self::on_schedule_next_week))
+            .on_action(cx.listener(Self::on_clear_due_date))
             .on_action(cx.listener(Self::on_select_previous))
             .on_action(cx.listener(Self::on_select_next))
             .on_action(cx.listener(Self::on_toggle_sidebar))

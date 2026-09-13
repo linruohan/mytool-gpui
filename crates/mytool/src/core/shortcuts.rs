@@ -33,6 +33,14 @@ actions!(task_shortcuts, [
     AddLabel,
     /// 设置截止日期 (Cmd/Ctrl + T)
     SetDueDate,
+    /// 设为今天 (Cmd/Ctrl + Shift + T)
+    ScheduleToday,
+    /// 设为明天 (Cmd/Ctrl + Alt + T)
+    ScheduleTomorrow,
+    /// 设为下周 (Cmd/Ctrl + Alt + W)
+    ScheduleNextWeek,
+    /// 清除截止日期 (Cmd/Ctrl + Shift + U)
+    ClearDueDate,
     /// 撤销最近一次任务操作 (Cmd/Ctrl + Z)
     UndoLastTask,
     /// 重做 (Cmd/Ctrl + Shift + Z)
@@ -194,6 +202,10 @@ impl ShortcutConfig {
             "DuplicateTask" => t!("todo.shortcut.duplicate").to_string(),
             "AddLabel" => t!("todo.shortcut.add_label").to_string(),
             "SetDueDate" => t!("todo.due.set_title").to_string(),
+            "ScheduleToday" => t!("todo.due.quick_today").to_string(),
+            "ScheduleTomorrow" => t!("todo.due.quick_tomorrow").to_string(),
+            "ScheduleNextWeek" => t!("todo.due.quick_next_week").to_string(),
+            "ClearDueDate" => t!("todo.due.quick_clear").to_string(),
             "SetTaskPriority" => t!("todo.shortcut.cycle_priority").to_string(),
             "MoveTaskToProject" => t!("todo.project.move_title").to_string(),
             "UndoLastTask" => t!("todo.shortcut.undo").to_string(),
@@ -295,6 +307,30 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "SetDueDate",
             key: "cmd-t",
             description: "设置截止日期",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "ScheduleToday",
+            key: "cmd-shift-t",
+            description: "设为今天",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "ScheduleTomorrow",
+            key: "cmd-alt-t",
+            description: "设为明天",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "ScheduleNextWeek",
+            key: "cmd-alt-w",
+            description: "设为下周",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "ClearDueDate",
+            key: "cmd-shift-u",
+            description: "清除截止日期",
             category: ShortcutCategory::Task,
         },
         ShortcutConfig {
@@ -671,6 +707,22 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-t", SetDueDate, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-t", SetDueDate, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-t", ScheduleToday, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-t", ScheduleToday, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-alt-t", ScheduleTomorrow, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-t", ScheduleTomorrow, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-alt-w", ScheduleNextWeek, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-w", ScheduleNextWeek, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-u", ClearDueDate, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-u", ClearDueDate, CTX),
         KeyBinding::new("up", SelectPreviousTask, CTX),
         KeyBinding::new("down", SelectNextTask, CTX),
         #[cfg(target_os = "macos")]
