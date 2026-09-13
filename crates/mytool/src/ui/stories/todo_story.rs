@@ -16,7 +16,8 @@ use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteProject,
+    AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
+    BoardPanel, ClearFilters, DeleteProject,
     DeleteSection, DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask,
     FilterByLabel, FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem,
     MoveTaskToProject, NewProject, NewSection, NewTask, NextView, OpenHelp, OpenSettings,
@@ -700,6 +701,22 @@ impl TodoStory {
         });
     }
 
+    fn on_archive_project(
+        &mut self,
+        _: &ArchiveProject,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(project) = self.active_project.clone() else {
+            return;
+        };
+        let mut archived = (*project).clone();
+        archived.is_archived = true;
+        crate::todo_actions::update_project(Arc::new(archived), cx);
+        window.push_notification(t!("todo.project.archived").to_string(), cx);
+        self.show_board(0, cx);
+    }
+
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
         self.show_board(0, cx);
     }
@@ -768,8 +785,33 @@ impl TodoStory {
         cx: &mut Context<Self>,
     ) {
         if let Some(item) = self.primary_item(cx) {
-            show_move_to_project_dialog(window, cx, item);
+            show_move_to_project_dialog(window, cx, vec![item]);
         }
+    }
+
+    fn on_batch_move_selected(
+        &mut self,
+        _: &BatchMoveSelected,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let ids: Vec<String> = cx
+            .global::<crate::core::state::ItemSelection>()
+            .ids()
+            .iter()
+            .cloned()
+            .collect();
+        let store = cx.global::<TodoStore>();
+        let mut items: Vec<_> = ids.iter().filter_map(|id| store.get_item(id)).collect();
+        if items.is_empty() {
+            if let Some(item) = self.primary_item(cx) {
+                items.push(item);
+            }
+        }
+        if items.is_empty() {
+            return;
+        }
+        show_move_to_project_dialog(window, cx, items);
     }
 
     fn on_next_view(&mut self, _: &NextView, _: &mut Window, cx: &mut Context<Self>) {
@@ -976,6 +1018,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_delete_section))
             .on_action(cx.listener(Self::on_edit_project))
             .on_action(cx.listener(Self::on_delete_project))
+            .on_action(cx.listener(Self::on_archive_project))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))
@@ -985,6 +1028,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_add_label))
             .on_action(cx.listener(Self::on_set_priority))
             .on_action(cx.listener(Self::on_move_to_project))
+            .on_action(cx.listener(Self::on_batch_move_selected))
             .on_action(cx.listener(Self::on_next_view))
             .on_action(cx.listener(Self::on_previous_view))
             .on_action(cx.listener(Self::on_go_back))

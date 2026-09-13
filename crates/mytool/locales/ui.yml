@@ -832,6 +832,14 @@ todo:
     es: Se eliminaron %{count} tareas
     fr: "%{count} tâches supprimées"
     de: "%{count} Aufgaben gelöscht"
+  batch.move:
+    en: Move selected tasks
+    zh-CN: 批量移动选中任务
+    zh-HK: 批量移動選中任務
+    it: Sposta selezionate
+    es: Mover seleccionadas
+    fr: Déplacer la sélection
+    de: Auswahl verschieben
   date.filter:
     en: Filter by date
     zh-CN: 按日期筛选
@@ -1144,6 +1152,14 @@ todo:
     es: Movida a Bandeja
     fr: Déplacée vers la boîte de réception
     de: In den Eingang verschoben
+  project.moved_inbox_n:
+    en: Moved %{count} tasks to Inbox
+    zh-CN: 已将 %{count} 个任务移到收件箱
+    zh-HK: 已將 %{count} 個任務移到收件箱
+    it: Spostate %{count} attività in Posta in arrivo
+    es: Se movieron %{count} tareas a Bandeja
+    fr: "%{count} tâches déplacées vers la boîte de réception"
+    de: "%{count} Aufgaben in den Eingang verschoben"
   project.moved:
     en: "Moved to %{name}"
     zh-CN: "已移到 %{name}"
@@ -1152,6 +1168,14 @@ todo:
     es: "Movida a %{name}"
     fr: "Déplacée vers %{name}"
     de: "Verschoben nach %{name}"
+  project.moved_n:
+    en: "Moved %{count} tasks to %{name}"
+    zh-CN: "已将 %{count} 个任务移到 %{name}"
+    zh-HK: "已將 %{count} 個任務移到 %{name}"
+    it: "Spostate %{count} attività in %{name}"
+    es: "Se movieron %{count} tareas a %{name}"
+    fr: "%{count} tâches déplacées vers %{name}"
+    de: "%{count} Aufgaben nach %{name} verschoben"
   project.new:
     en: New project
     zh-CN: 新建项目
@@ -2248,6 +2272,22 @@ todo:
     es: ¿Eliminar este proyecto? También se eliminarán tareas y secciones.
     fr: Supprimer ce projet ? Les tâches et sections seront aussi supprimées.
     de: Dieses Projekt löschen? Aufgaben und Abschnitte werden ebenfalls gelöscht.
+  project.archive:
+    en: Archive project
+    zh-CN: 归档项目
+    zh-HK: 封存項目
+    it: Archivia progetto
+    es: Archivar proyecto
+    fr: Archiver le projet
+    de: Projekt archivieren
+  project.archived:
+    en: Project archived.
+    zh-CN: 项目已归档。
+    zh-HK: 項目已封存。
+    it: Progetto archiviato.
+    es: Proyecto archivado.
+    fr: Projet archivé.
+    de: Projekt archiviert.
   project.add_to_section:
     en: Add to section
     zh-CN: 添加到分区

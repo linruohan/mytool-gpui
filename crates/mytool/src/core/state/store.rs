@@ -189,6 +189,11 @@ fn cmp_project_child_order(a: &ProjectModel, b: &ProjectModel) -> std::cmp::Orde
 }
 
 fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<ProjectModel>, bool)> {
+    let projects: Vec<Arc<ProjectModel>> = projects
+        .iter()
+        .filter(|project| !project.is_deleted && !project.is_archived)
+        .cloned()
+        .collect();
     let ids: HashSet<&str> = projects.iter().map(|p| p.id.as_str()).collect();
     let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
     let mut roots = Vec::new();
@@ -1078,7 +1083,11 @@ impl TodoStore {
     }
 
     pub fn has_child_projects(&self, parent_id: &str) -> bool {
-        self.projects.iter().any(|project| project_parent_id(project) == Some(parent_id))
+        self.projects.iter().any(|project| {
+            !project.is_deleted
+                && !project.is_archived
+                && project_parent_id(project) == Some(parent_id)
+        })
     }
 
     /// 增量更新单个分区
@@ -1615,6 +1624,22 @@ mod tests {
         let ids: Vec<(&str, bool)> =
             rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
         assert_eq!(ids, vec![("other", false), ("root", false), ("c1", true), ("c2", true)]);
+    }
+
+    #[test]
+    fn sidebar_hides_archived_and_promotes_orphans() {
+        let mut store = TodoStore::new();
+        let mut root = project("root", None, 0);
+        root.is_archived = true;
+        store.set_projects(vec![
+            root,
+            project("child", Some("root"), 0),
+            project("other", None, 1),
+        ]);
+        let rows = store.projects_for_sidebar();
+        let ids: Vec<(&str, bool)> =
+            rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
+        assert_eq!(ids, vec![("child", false), ("other", false)]);
     }
 
     #[test]

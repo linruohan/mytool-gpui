@@ -19,7 +19,7 @@ use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{
     core::shortcuts::{ShortcutCategory, get_shortcuts_by_category},
-    todo_actions::update_item_optimistic,
+    todo_actions::{batch_update_items, update_item_optimistic},
     todo_state::{TodoPrefs, TodoStore},
 };
 
@@ -339,8 +339,12 @@ pub fn show_set_due_dialog<T: Render>(
 pub fn show_move_to_project_dialog<T: Render>(
     window: &mut Window,
     cx: &mut Context<T>,
-    item: Arc<ItemModel>,
+    items: Vec<Arc<ItemModel>>,
 ) {
+    if items.is_empty() {
+        return;
+    }
+    let count = items.len();
     let projects = cx.global::<TodoStore>().projects_for_sidebar();
     window.open_dialog(cx, move |dialog, _, _cx| {
         dialog
@@ -354,25 +358,26 @@ pub fn show_move_to_project_dialog<T: Render>(
                     .w(px(280.))
                     .max_h(px(360.))
                     .child({
-                        let item = item.clone();
+                        let items = items.clone();
                         Button::new("move-inbox")
                             .small()
                             .ghost()
                             .label(t!("todo.board.inbox").to_string())
                             .on_click(move |_, window, cx| {
-                                let mut updated = (*item).clone();
-                                updated.project_id = None;
-                                updated.section_id = None;
-                                update_item_optimistic(Arc::new(updated), cx);
+                                apply_move_to_project(&items, None, cx);
                                 window.push_notification(
-                                    t!("todo.project.moved_inbox").to_string(),
+                                    if count == 1 {
+                                        t!("todo.project.moved_inbox").to_string()
+                                    } else {
+                                        t!("todo.project.moved_inbox_n", count => count).to_string()
+                                    },
                                     cx,
                                 );
                                 window.close_dialog(cx);
                             })
                     })
                     .children(projects.iter().enumerate().map(|(ix, (project, nested))| {
-                        let item = item.clone();
+                        let items = items.clone();
                         let project = project.clone();
                         let label = if *nested {
                             format!("  {}", project.name)
@@ -381,13 +386,15 @@ pub fn show_move_to_project_dialog<T: Render>(
                         };
                         Button::new(("move-project", ix)).small().ghost().label(label).on_click(
                             move |_, window, cx| {
-                                let mut updated = (*item).clone();
-                                updated.project_id = Some(project.id.clone());
-                                updated.section_id = None;
-                                update_item_optimistic(Arc::new(updated), cx);
+                                apply_move_to_project(&items, Some(project.id.clone()), cx);
                                 window.push_notification(
-                                    t!("todo.project.moved", name => project.name.as_str())
-                                        .to_string(),
+                                    if count == 1 {
+                                        t!("todo.project.moved", name => project.name.as_str())
+                                            .to_string()
+                                    } else {
+                                        t!("todo.project.moved_n", count => count, name => project.name.as_str())
+                                            .to_string()
+                                    },
                                     cx,
                                 );
                                 window.close_dialog(cx);
@@ -396,6 +403,19 @@ pub fn show_move_to_project_dialog<T: Render>(
                     })),
             )
     });
+}
+
+fn apply_move_to_project(items: &[Arc<ItemModel>], project_id: Option<String>, cx: &mut App) {
+    let updated = items
+        .iter()
+        .map(|item| {
+            let mut next = (**item).clone();
+            next.project_id = project_id.clone();
+            next.section_id = None;
+            Arc::new(next)
+        })
+        .collect();
+    batch_update_items(updated, cx);
 }
 
 pub fn show_filter_label_dialog<T: Render, F>(window: &mut Window, cx: &mut Context<T>, on_pick: F)

@@ -215,11 +215,13 @@ impl ShortcutConfig {
             "SelectNextTask" => t!("todo.shortcut.select_next").to_string(),
             "BatchCompleteSelected" => t!("todo.batch.complete").to_string(),
             "BatchDeleteSelected" => t!("todo.batch.delete").to_string(),
+            "BatchMoveSelected" => t!("todo.batch.move").to_string(),
             "MoveTaskUp" => t!("todo.shortcut.move_up").to_string(),
             "MoveTaskDown" => t!("todo.shortcut.move_down").to_string(),
             "NewProject" => t!("todo.project.new").to_string(),
             "EditProject" => t!("todo.shortcut.edit_project").to_string(),
             "DeleteProject" => t!("todo.shortcut.delete_project").to_string(),
+            "ArchiveProject" => t!("todo.project.archive").to_string(),
             "NewSection" => t!("todo.section.new").to_string(),
             "EditSection" => t!("todo.section.edit").to_string(),
             "DeleteSection" => t!("todo.section.delete").to_string(),
@@ -442,6 +444,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             category: ShortcutCategory::Selection,
         },
         ShortcutConfig {
+            action: "BatchMoveSelected",
+            key: "cmd-shift-m",
+            description: "批量移动选中任务",
+            category: ShortcutCategory::Selection,
+        },
+        ShortcutConfig {
             action: "MoveTaskUp",
             key: "alt-up",
             description: "当前任务上移",
@@ -488,6 +496,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "DeleteProject",
             key: "cmd-shift-delete",
             description: "删除项目",
+            category: ShortcutCategory::Project,
+        },
+        ShortcutConfig {
+            action: "ArchiveProject",
+            key: "cmd-shift-a",
+            description: "归档项目",
             category: ShortcutCategory::Project,
         },
         // 视图和窗口
@@ -663,6 +677,10 @@ pub fn bind_todo_keys(cx: &mut App) {
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-shift-delete", DeleteProject, CTX),
         #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-a", ArchiveProject, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-a", ArchiveProject, CTX),
+        #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-l", AddLabel, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-l", AddLabel, CTX),
@@ -671,6 +689,10 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-m", MoveTaskToProject, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-m", MoveTaskToProject, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-m", BatchMoveSelected, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-m", BatchMoveSelected, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-]", NextView, CTX),
         #[cfg(not(target_os = "macos"))]
