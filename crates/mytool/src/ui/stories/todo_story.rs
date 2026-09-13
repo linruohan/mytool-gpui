@@ -17,8 +17,9 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteProject,
-    DeleteTask, DeselectAll, DuplicateTask, EditProject, EditTask, FilterByLabel, FilterByPriority,
-    FilterByProject, InboxBoard, ItemListItem, MoveTaskToProject, NewProject, NewSection, NewTask,
+    DeleteSection, DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask,
+    FilterByLabel, FilterByPriority, FilterByProject, InboxBoard, ItemListItem, MoveTaskToProject,
+    NewProject, NewSection, NewTask,
     NextView, OpenHelp, OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent,
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
     SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted,
@@ -526,6 +527,55 @@ impl TodoStory {
         self.open_new_project(window, cx);
     }
 
+    fn current_section_id(&self, cx: &App) -> Option<String> {
+        let store = cx.global::<TodoStore>();
+        if let Some(sid) = self
+            .primary_item(cx)
+            .and_then(|item| item.section_id.clone())
+            .filter(|id| !id.is_empty())
+        {
+            if let Some(section) = store.get_section(&sid) {
+                if !section.is_archived && !section.is_deleted && !section.hidded {
+                    return Some(sid);
+                }
+            }
+        }
+        let mut sections = if let Some(project) = &self.active_project {
+            store.sections_for_project(&project.id)
+        } else if self.board_panel.read(cx).active_index == Some(0) {
+            store
+                .sections
+                .iter()
+                .filter(|s| s.project_id.as_deref().unwrap_or("").is_empty())
+                .cloned()
+                .collect()
+        } else {
+            return None;
+        };
+        sections.retain(|s| !s.is_archived && !s.is_deleted && !s.hidded);
+        crate::todo_state::sort_sections_by_order(&mut sections);
+        sections.first().map(|s| s.id.clone())
+    }
+
+    fn with_inbox_board(
+        &self,
+        cx: &mut Context<Self>,
+        f: impl FnOnce(Entity<InboxBoard>, &mut Context<Self>),
+    ) {
+        if self.board_panel.read(cx).active_index != Some(0) {
+            return;
+        }
+        let Some(container) = self.board_panel.read(cx).boards.first().cloned() else {
+            return;
+        };
+        let Some(board) = container.read(cx).inner_board() else {
+            return;
+        };
+        if let Ok(inbox) = board.downcast::<InboxBoard>() {
+            f(inbox, cx);
+        }
+    }
+
     fn on_new_section(&mut self, _: &NewSection, window: &mut Window, cx: &mut Context<Self>) {
         if self.active_project.is_some() {
             self.project_items_panel.update(cx, |panel, cx| {
@@ -533,21 +583,50 @@ impl TodoStory {
             });
             return;
         }
-        if self.board_panel.read(cx).active_index != Some(0) {
-            return;
-        }
-        let inbox = self.board_panel.read(cx).boards.first().cloned();
-        let Some(container) = inbox else {
-            return;
-        };
-        let Some(board) = container.read(cx).inner_board() else {
-            return;
-        };
-        if let Ok(inbox) = board.downcast::<InboxBoard>() {
+        self.with_inbox_board(cx, |inbox, cx| {
             inbox.update(cx, |panel, cx| {
                 panel.show_section_dialog(window, cx, None, false);
             });
+        });
+    }
+
+    fn on_edit_section(&mut self, _: &EditSection, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(section_id) = self.current_section_id(cx) else {
+            return;
+        };
+        if self.active_project.is_some() {
+            self.project_items_panel.update(cx, |panel, cx| {
+                panel.show_section_dialog(window, cx, Some(section_id), true);
+            });
+            return;
         }
+        self.with_inbox_board(cx, |inbox, cx| {
+            inbox.update(cx, |panel, cx| {
+                panel.show_section_dialog(window, cx, Some(section_id), true);
+            });
+        });
+    }
+
+    fn on_delete_section(
+        &mut self,
+        _: &DeleteSection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(section_id) = self.current_section_id(cx) else {
+            return;
+        };
+        if self.active_project.is_some() {
+            self.project_items_panel.update(cx, |panel, cx| {
+                panel.show_section_delete_dialog(window, cx, section_id);
+            });
+            return;
+        }
+        self.with_inbox_board(cx, |inbox, cx| {
+            inbox.update(cx, |panel, cx| {
+                panel.show_section_delete_dialog(window, cx, section_id);
+            });
+        });
     }
 
     fn on_edit_project(&mut self, _: &EditProject, window: &mut Window, cx: &mut Context<Self>) {
@@ -831,6 +910,8 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_toggle_fullscreen))
             .on_action(cx.listener(Self::on_new_project))
             .on_action(cx.listener(Self::on_new_section))
+            .on_action(cx.listener(Self::on_edit_section))
+            .on_action(cx.listener(Self::on_delete_section))
             .on_action(cx.listener(Self::on_edit_project))
             .on_action(cx.listener(Self::on_delete_project))
             .on_action(cx.listener(Self::on_show_inbox))

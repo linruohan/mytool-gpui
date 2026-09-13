@@ -219,6 +219,8 @@ impl ShortcutConfig {
             "EditProject" => t!("todo.shortcut.edit_project").to_string(),
             "DeleteProject" => t!("todo.shortcut.delete_project").to_string(),
             "NewSection" => t!("todo.section.new").to_string(),
+            "EditSection" => t!("todo.section.edit").to_string(),
+            "DeleteSection" => t!("todo.section.delete").to_string(),
             "ToggleSidebar" => t!("todo.shortcut.toggle_sidebar").to_string(),
             "ToggleFullscreen" => t!("todo.shortcut.toggle_fullscreen").to_string(),
             "ZoomIn" => t!("todo.shortcut.zoom_in").to_string(),
@@ -451,6 +453,18 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             category: ShortcutCategory::Project,
         },
         ShortcutConfig {
+            action: "EditSection",
+            key: "cmd-alt-e",
+            description: "编辑分区",
+            category: ShortcutCategory::Project,
+        },
+        ShortcutConfig {
+            action: "DeleteSection",
+            key: "cmd-alt-d",
+            description: "删除分区",
+            category: ShortcutCategory::Project,
+        },
+        ShortcutConfig {
             action: "EditProject",
             key: "cmd-shift-e",
             description: "编辑项目",
@@ -618,6 +632,14 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-alt-n", NewSection, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-alt-n", NewSection, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-alt-e", EditSection, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-e", EditSection, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-alt-d", DeleteSection, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-d", DeleteSection, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-shift-e", EditProject, CTX),
         #[cfg(not(target_os = "macos"))]
