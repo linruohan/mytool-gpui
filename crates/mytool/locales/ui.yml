@@ -968,3 +968,532 @@ todo:
     es: Sa
     fr: Sa
     de: Sa
+  settings.title:
+    en: Todo settings
+    zh-CN: Todo 设置
+    zh-HK: Todo 設定
+    it: Impostazioni Todo
+    es: Ajustes de Todo
+    fr: Paramètres Todo
+    de: Todo-Einstellungen
+  settings.reminders:
+    en: Due-date reminder toasts
+    zh-CN: 到期弹出提醒
+    zh-HK: 到期彈出提醒
+    it: Promemoria in scadenza
+    es: Avisos de vencimiento
+    fr: "Rappels d'échéance"
+    de: Fälligkeitserinnerungen
+  settings.confirm_delete:
+    en: Confirm before deleting
+    zh-CN: 删除前确认
+    zh-HK: 刪除前確認
+    it: Conferma prima di eliminare
+    es: Confirmar antes de eliminar
+    fr: Confirmer avant de supprimer
+    de: Vor dem Löschen bestätigen
+  settings.complete_sound:
+    en: Play a sound when completing a task
+    zh-CN: 完成任务时播放提示音
+    zh-HK: 完成任務時播放提示音
+    it: Suono al completamento
+    es: Sonido al completar
+    fr: "Son à la fin d'une tâche"
+    de: Ton beim Erledigen
+  settings.startup:
+    en: Open on startup
+    zh-CN: 启动时打开
+    zh-HK: 啟動時開啟
+    it: Apri all'avvio
+    es: Abrir al iniciar
+    fr: Ouvrir au démarrage
+    de: Beim Start öffnen
+  settings.startup_opened:
+    en: "Next launch opens: %{name}"
+    zh-CN: "下次启动打开：%{name}"
+    zh-HK: "下次啟動開啟：%{name}"
+    it: "Al prossimo avvio: %{name}"
+    es: "En el próximo inicio: %{name}"
+    fr: "Prochain démarrage : %{name}"
+    de: "Nächster Start: %{name}"
+  help.title:
+    en: Keyboard shortcuts
+    zh-CN: 快捷键
+    zh-HK: 快捷鍵
+    it: Scorciatoie
+    es: Atajos
+    fr: Raccourcis
+    de: Tastenkürzel
+  due.set_title:
+    en: Set due date
+    zh-CN: 设置截止日期
+    zh-HK: 設定截止日期
+    it: Imposta scadenza
+    es: Establecer fecha
+    fr: "Définir l'échéance"
+    de: Fälligkeitsdatum setzen
+  due.placeholder:
+    en: Due date
+    zh-CN: 截止日期
+    zh-HK: 截止日期
+    it: Scadenza
+    es: Fecha de vencimiento
+    fr: Échéance
+    de: Fälligkeitsdatum
+  due.updated:
+    en: Date updated
+    zh-CN: 已更新日期
+    zh-HK: 已更新日期
+    it: Data aggiornata
+    es: Fecha actualizada
+    fr: Date mise à jour
+    de: Datum aktualisiert
+  project.search:
+    en: Search projects
+    zh-CN: 搜索项目
+    zh-HK: 搜尋項目
+    it: Cerca progetti
+    es: Buscar proyectos
+    fr: Rechercher des projets
+    de: Projekte suchen
+  project.move_title:
+    en: Move to project
+    zh-CN: 移动到项目
+    zh-HK: 移至項目
+    it: Sposta nel progetto
+    es: Mover a proyecto
+    fr: Déplacer vers le projet
+    de: In Projekt verschieben
+  project.moved_inbox:
+    en: Moved to Inbox
+    zh-CN: 已移到收件箱
+    zh-HK: 已移到收件箱
+    it: Spostata in Posta in arrivo
+    es: Movida a Bandeja
+    fr: Déplacée vers la boîte de réception
+    de: In den Eingang verschoben
+  project.moved:
+    en: "Moved to %{name}"
+    zh-CN: "已移到 %{name}"
+    zh-HK: "已移到 %{name}"
+    it: "Spostata in %{name}"
+    es: "Movida a %{name}"
+    fr: "Déplacée vers %{name}"
+    de: "Verschoben nach %{name}"
+  project.new:
+    en: New project
+    zh-CN: 新建项目
+    zh-HK: 新增項目
+    it: Nuovo progetto
+    es: Nuevo proyecto
+    fr: Nouveau projet
+    de: Neues Projekt
+  project.empty:
+    en: No projects yet
+    zh-CN: 还没有项目
+    zh-HK: 還沒有項目
+    it: Nessun progetto
+    es: Aún no hay proyectos
+    fr: Pas encore de projets
+    de: Noch keine Projekte
+  filter.labels:
+    en: Filter by label
+    zh-CN: 按标签过滤
+    zh-HK: 按標籤篩選
+    it: Filtra per etichetta
+    es: Filtrar por etiqueta
+    fr: Filtrer par étiquette
+    de: Nach Label filtern
+  filter.projects:
+    en: Filter by project
+    zh-CN: 按项目过滤
+    zh-HK: 按項目篩選
+    it: Filtra per progetto
+    es: Filtrar por proyecto
+    fr: Filtrer par projet
+    de: Nach Projekt filtern
+  filter.priority:
+    en: Filter by priority
+    zh-CN: 按优先级过滤
+    zh-HK: 按優先級篩選
+    it: Filtra per priorità
+    es: Filtrar por prioridad
+    fr: Filtrer par priorité
+    de: Nach Priorität filtern
+  priority.high:
+    en: High priority
+    zh-CN: 高优先级
+    zh-HK: 高優先級
+    it: Priorità alta
+    es: Prioridad alta
+    fr: Priorité haute
+    de: Hohe Priorität
+  priority.medium:
+    en: Medium priority
+    zh-CN: 中优先级
+    zh-HK: 中優先級
+    it: Priorità media
+    es: Prioridad media
+    fr: Priorité moyenne
+    de: Mittlere Priorität
+  priority.low:
+    en: Low priority
+    zh-CN: 低优先级
+    zh-HK: 低優先級
+    it: Priorità bassa
+    es: Prioridad baja
+    fr: Priorité basse
+    de: Niedrige Priorität
+  priority.none:
+    en: No priority
+    zh-CN: 无优先级
+    zh-HK: 無優先級
+    it: Nessuna priorità
+    es: Sin prioridad
+    fr: Sans priorité
+    de: Keine Priorität
+  search.placeholder:
+    en: Search tasks...
+    zh-CN: 搜索任务...
+    zh-HK: 搜尋任務...
+    it: Cerca attività...
+    es: Buscar tareas...
+    fr: Rechercher des tâches...
+    de: Aufgaben suchen...
+  search.hint:
+    en: Title, description, label, project; p1–p4 by priority. Esc to close
+    zh-CN: 标题、描述、标签、项目；p1–p4 按优先级。Esc 关闭
+    zh-HK: 標題、描述、標籤、項目；p1–p4 按優先級。Esc 關閉
+    it: Titolo, descrizione, etichetta, progetto; p1–p4 per priorità. Esc per chiudere
+    es: Título, descripción, etiqueta, proyecto; p1–p4 por prioridad. Esc para cerrar
+    fr: Titre, description, étiquette, projet ; p1–p4 par priorité. Échap pour fermer
+    de: Titel, Beschreibung, Label, Projekt; p1–p4 nach Priorität. Esc zum Schließen
+  search.empty:
+    en: No matching tasks
+    zh-CN: 没有匹配的任务
+    zh-HK: 沒有匹配的任務
+    it: Nessuna attività corrispondente
+    es: No hay tareas coincidentes
+    fr: Aucune tâche correspondante
+    de: Keine passenden Aufgaben
+  sidebar.this_computer:
+    en: This computer
+    zh-CN: 此电脑
+    zh-HK: 此電腦
+    it: Questo computer
+    es: Este equipo
+    fr: Cet ordinateur
+    de: Dieser Computer
+  shortcut.help_title:
+    en: Keyboard shortcuts
+    zh-CN: 键盘快捷键
+    zh-HK: 鍵盤快捷鍵
+    it: Scorciatoie da tastiera
+    es: Atajos de teclado
+    fr: Raccourcis clavier
+    de: Tastenkürzel
+  shortcut.cat.task:
+    en: Tasks
+    zh-CN: 任务操作
+    zh-HK: 任務操作
+    it: Attività
+    es: Tareas
+    fr: Tâches
+    de: Aufgaben
+  shortcut.cat.navigation:
+    en: Navigation
+    zh-CN: 导航
+    zh-HK: 導航
+    it: Navigazione
+    es: Navegación
+    fr: Navigation
+    de: Navigation
+  shortcut.cat.search:
+    en: Search and filters
+    zh-CN: 搜索和过滤
+    zh-HK: 搜尋和篩選
+    it: Ricerca e filtri
+    es: Búsqueda y filtros
+    fr: Recherche et filtres
+    de: Suche und Filter
+  shortcut.cat.selection:
+    en: Selection and batch
+    zh-CN: 选择和批量操作
+    zh-HK: 選擇和批量操作
+    it: Selezione e azioni in blocco
+    es: Selección y lote
+    fr: Sélection et lot
+    de: Auswahl und Stapel
+  shortcut.cat.project:
+    en: Projects and sections
+    zh-CN: 项目和分区
+    zh-HK: 項目和分區
+    it: Progetti e sezioni
+    es: Proyectos y secciones
+    fr: Projets et sections
+    de: Projekte und Abschnitte
+  shortcut.cat.view:
+    en: View and window
+    zh-CN: 视图和窗口
+    zh-HK: 檢視和視窗
+    it: Vista e finestra
+    es: Vista y ventana
+    fr: Vue et fenêtre
+    de: Ansicht und Fenster
+  shortcut.toggle_complete:
+    en: Complete / incomplete
+    zh-CN: 完成/取消完成任务
+    zh-HK: 完成/取消完成任務
+    it: Completa / incompleta
+    es: Completar / incompleta
+    fr: Terminer / non terminée
+    de: Erledigen / unerledigt
+  shortcut.toggle_pin:
+    en: Pin / unpin
+    zh-CN: 置顶/取消置顶任务
+    zh-HK: 置頂/取消置頂任務
+    it: Fissa / togli
+    es: Fijar / desfijar
+    fr: Épingler / désépingler
+    de: Anheften / lösen
+  shortcut.duplicate:
+    en: Duplicate task
+    zh-CN: 复制任务
+    zh-HK: 複製任務
+    it: Duplica attività
+    es: Duplicar tarea
+    fr: Dupliquer la tâche
+    de: Aufgabe duplizieren
+  shortcut.add_label:
+    en: Add label
+    zh-CN: 添加标签
+    zh-HK: 新增標籤
+    it: Aggiungi etichetta
+    es: Añadir etiqueta
+    fr: Ajouter une étiquette
+    de: Label hinzufügen
+  shortcut.cycle_priority:
+    en: Cycle task priority
+    zh-CN: 循环任务优先级
+    zh-HK: 循環任務優先級
+    it: Cicla priorità
+    es: Cambiar prioridad
+    fr: Faire défiler la priorité
+    de: Priorität wechseln
+  shortcut.undo:
+    en: Undo task action
+    zh-CN: 撤销任务操作
+    zh-HK: 撤銷任務操作
+    it: Annulla azione
+    es: Deshacer acción
+    fr: "Annuler l'action"
+    de: Aktion rückgängig
+  shortcut.redo:
+    en: Redo task action
+    zh-CN: 重做任务操作
+    zh-HK: 重做任務操作
+    it: Ripeti azione
+    es: Rehacer acción
+    fr: "Rétablir l'action"
+    de: Aktion wiederholen
+  shortcut.show_inbox:
+    en: Show Inbox
+    zh-CN: 显示收件箱
+    zh-HK: 顯示收件箱
+    it: Mostra Posta in arrivo
+    es: Mostrar Bandeja
+    fr: Afficher la boîte de réception
+    de: Eingang anzeigen
+  shortcut.show_today:
+    en: Show Today
+    zh-CN: 显示今日任务
+    zh-HK: 顯示今日任務
+    it: Mostra Oggi
+    es: Mostrar Hoy
+    fr: "Afficher Aujourd'hui"
+    de: Heute anzeigen
+  shortcut.show_scheduled:
+    en: Show Scheduled
+    zh-CN: 显示计划任务
+    zh-HK: 顯示計劃任務
+    it: Mostra Programmate
+    es: Mostrar Programadas
+    fr: Afficher Planifiées
+    de: Geplante anzeigen
+  shortcut.show_completed:
+    en: Show Completed
+    zh-CN: 显示已完成任务
+    zh-HK: 顯示已完成任務
+    it: Mostra Completate
+    es: Mostrar Completadas
+    fr: Afficher Terminées
+    de: Erledigte anzeigen
+  shortcut.show_pinned:
+    en: Show Pinned
+    zh-CN: 显示置顶任务
+    zh-HK: 顯示置頂任務
+    it: Mostra Fissate
+    es: Mostrar Fijadas
+    fr: Afficher Épinglées
+    de: Angeheftete anzeigen
+  shortcut.show_labels:
+    en: Show Labels
+    zh-CN: 显示标签视图
+    zh-HK: 顯示標籤檢視
+    it: Mostra Etichette
+    es: Mostrar Etiquetas
+    fr: Afficher Étiquettes
+    de: Labels anzeigen
+  shortcut.next_view:
+    en: Next board
+    zh-CN: 下一个看板
+    zh-HK: 下一個看板
+    it: Scheda successiva
+    es: Siguiente tablero
+    fr: Tableau suivant
+    de: Nächste Tafel
+  shortcut.prev_view:
+    en: Previous board
+    zh-CN: 上一个看板
+    zh-HK: 上一個看板
+    it: Scheda precedente
+    es: Tablero anterior
+    fr: Tableau précédent
+    de: Vorherige Tafel
+  shortcut.search:
+    en: Search tasks
+    zh-CN: 搜索任务
+    zh-HK: 搜尋任務
+    it: Cerca attività
+    es: Buscar tareas
+    fr: Rechercher des tâches
+    de: Aufgaben suchen
+  shortcut.clear_filters:
+    en: Clear filters
+    zh-CN: 清除过滤器
+    zh-HK: 清除篩選器
+    it: Cancella filtri
+    es: Borrar filtros
+    fr: Effacer les filtres
+    de: Filter löschen
+  shortcut.select_all:
+    en: Select all tasks
+    zh-CN: 选择所有任务
+    zh-HK: 選擇所有任務
+    it: Seleziona tutte
+    es: Seleccionar todas
+    fr: Tout sélectionner
+    de: Alle auswählen
+  shortcut.deselect:
+    en: Deselect
+    zh-CN: 取消选择
+    zh-HK: 取消選擇
+    it: Deseleziona
+    es: Deseleccionar
+    fr: Désélectionner
+    de: Auswahl aufheben
+  shortcut.select_prev:
+    en: Select previous task
+    zh-CN: 选择上一个任务
+    zh-HK: 選擇上一個任務
+    it: Seleziona precedente
+    es: Seleccionar anterior
+    fr: Sélectionner la précédente
+    de: Vorherige auswählen
+  shortcut.select_next:
+    en: Select next task
+    zh-CN: 选择下一个任务
+    zh-HK: 選擇下一個任務
+    it: Seleziona successiva
+    es: Seleccionar siguiente
+    fr: Sélectionner la suivante
+    de: Nächste auswählen
+  shortcut.move_up:
+    en: Move task up
+    zh-CN: 当前任务上移
+    zh-HK: 目前任務上移
+    it: Sposta su
+    es: Mover arriba
+    fr: Déplacer vers le haut
+    de: Aufgabe nach oben
+  shortcut.move_down:
+    en: Move task down
+    zh-CN: 当前任务下移
+    zh-HK: 目前任務下移
+    it: Sposta giù
+    es: Mover abajo
+    fr: Déplacer vers le bas
+    de: Aufgabe nach unten
+  shortcut.edit_project:
+    en: Edit project
+    zh-CN: 编辑项目
+    zh-HK: 編輯項目
+    it: Modifica progetto
+    es: Editar proyecto
+    fr: Modifier le projet
+    de: Projekt bearbeiten
+  shortcut.delete_project:
+    en: Delete project
+    zh-CN: 删除项目
+    zh-HK: 刪除項目
+    it: Elimina progetto
+    es: Eliminar proyecto
+    fr: Supprimer le projet
+    de: Projekt löschen
+  shortcut.toggle_sidebar:
+    en: Toggle sidebar
+    zh-CN: 切换侧边栏
+    zh-HK: 切換側邊欄
+    it: Mostra/nascondi barra laterale
+    es: Alternar barra lateral
+    fr: Afficher/masquer la barre latérale
+    de: Seitenleiste umschalten
+  shortcut.zoom_in:
+    en: Zoom in
+    zh-CN: 放大
+    zh-HK: 放大
+    it: Ingrandisci
+    es: Acercar
+    fr: Zoom avant
+    de: Vergrößern
+  shortcut.zoom_out:
+    en: Zoom out
+    zh-CN: 缩小
+    zh-HK: 縮小
+    it: Riduci
+    es: Alejar
+    fr: Zoom arrière
+    de: Verkleinern
+  shortcut.reset_zoom:
+    en: Reset zoom
+    zh-CN: 重置缩放
+    zh-HK: 重設縮放
+    it: Reimposta zoom
+    es: Restablecer zoom
+    fr: Réinitialiser le zoom
+    de: Zoom zurücksetzen
+  shortcut.refresh:
+    en: Refresh view
+    zh-CN: 刷新视图
+    zh-HK: 重新整理檢視
+    it: Aggiorna vista
+    es: Actualizar vista
+    fr: Actualiser la vue
+    de: Ansicht aktualisieren
+  shortcut.open_settings:
+    en: Open settings
+    zh-CN: 打开设置
+    zh-HK: 開啟設定
+    it: Apri impostazioni
+    es: Abrir ajustes
+    fr: Ouvrir les paramètres
+    de: Einstellungen öffnen
+  shortcut.open_help:
+    en: Open help
+    zh-CN: 打开帮助
+    zh-HK: 開啟說明
+    it: Apri aiuto
+    es: Abrir ayuda
+    fr: "Ouvrir l'aide"
+    de: Hilfe öffnen
+

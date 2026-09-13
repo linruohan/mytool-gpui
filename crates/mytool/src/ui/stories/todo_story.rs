@@ -11,6 +11,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
@@ -77,7 +78,9 @@ impl TodoStory {
         let project_panel = ProjectsPanel::view(window, cx);
         let project_items_panel = ProjectItemsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
-        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("搜索任务..."));
+        let search_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.search.placeholder").to_string())
+        });
         let mut _subscriptions = vec![
             cx.subscribe(&search_input, |_, _, e, cx| {
                 if let InputEvent::Change = e {
@@ -745,7 +748,7 @@ impl Render for TodoStory {
                                         div()
                                             .text_xs()
                                             .text_color(cx.theme().muted_foreground)
-                                            .child("此电脑"),
+                                            .child(t!("todo.sidebar.this_computer").to_string()),
                                     )
                                     .child(
                                         Button::new("add-project")
@@ -753,7 +756,7 @@ impl Render for TodoStory {
                                             .ghost()
                                             .compact()
                                             .icon(IconName::Plus)
-                                            .tooltip("新建项目")
+                                            .tooltip(t!("todo.project.new").to_string())
                                             .on_click(cx.listener(|this, ev, window, cx| {
                                                 this.add_project(ev, window, cx);
                                             })),
@@ -766,7 +769,7 @@ impl Render for TodoStory {
                                         .py_1()
                                         .text_xs()
                                         .text_color(cx.theme().muted_foreground)
-                                        .child("还没有项目"),
+                                        .child(t!("todo.project.empty").to_string()),
                                 )
                             })
                             .children(project_list.iter().enumerate().map(
@@ -844,9 +847,7 @@ impl Render for TodoStory {
                                         div()
                                             .text_xs()
                                             .text_color(cx.theme().muted_foreground)
-                                            .child(
-                                                "标题、描述、标签、项目；p1–p4 按优先级。Esc 关闭",
-                                            ),
+                                            .child(t!("todo.search.hint").to_string()),
                                     )
                                 })
                                 .when(
@@ -856,7 +857,7 @@ impl Render for TodoStory {
                                             div()
                                                 .text_xs()
                                                 .text_color(cx.theme().muted_foreground)
-                                                .child("没有匹配的任务"),
+                                                .child(t!("todo.search.empty").to_string()),
                                         )
                                     },
                                 )

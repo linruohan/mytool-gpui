@@ -8,6 +8,7 @@
 /// - 搜索和过滤：快速查找任务
 /// - 窗口管理：关闭、最小化等
 use gpui::{App, KeyBinding, actions};
+use rust_i18n::t;
 
 // ==================== 任务操作快捷键 ====================
 
@@ -166,14 +167,65 @@ pub enum ShortcutCategory {
 }
 
 impl ShortcutCategory {
-    pub fn name(&self) -> &'static str {
+    pub fn name(&self) -> String {
         match self {
-            Self::Task => "任务操作",
-            Self::Navigation => "导航",
-            Self::Search => "搜索和过滤",
-            Self::Selection => "选择和批量操作",
-            Self::Project => "项目和分区",
-            Self::View => "视图和窗口",
+            Self::Task => t!("todo.shortcut.cat.task").to_string(),
+            Self::Navigation => t!("todo.shortcut.cat.navigation").to_string(),
+            Self::Search => t!("todo.shortcut.cat.search").to_string(),
+            Self::Selection => t!("todo.shortcut.cat.selection").to_string(),
+            Self::Project => t!("todo.shortcut.cat.project").to_string(),
+            Self::View => t!("todo.shortcut.cat.view").to_string(),
+        }
+    }
+}
+
+impl ShortcutConfig {
+    pub fn localized_description(&self) -> String {
+        match self.action {
+            "NewTask" => t!("todo.item.new").to_string(),
+            "EditTask" => t!("todo.item.edit").to_string(),
+            "DeleteTask" => t!("todo.item.delete").to_string(),
+            "ToggleTaskComplete" => t!("todo.shortcut.toggle_complete").to_string(),
+            "ToggleTaskPin" => t!("todo.shortcut.toggle_pin").to_string(),
+            "DuplicateTask" => t!("todo.shortcut.duplicate").to_string(),
+            "AddLabel" => t!("todo.shortcut.add_label").to_string(),
+            "SetDueDate" => t!("todo.due.set_title").to_string(),
+            "SetTaskPriority" => t!("todo.shortcut.cycle_priority").to_string(),
+            "MoveTaskToProject" => t!("todo.project.move_title").to_string(),
+            "UndoLastTask" => t!("todo.shortcut.undo").to_string(),
+            "RedoLastTask" => t!("todo.shortcut.redo").to_string(),
+            "ShowInbox" => t!("todo.shortcut.show_inbox").to_string(),
+            "ShowToday" => t!("todo.shortcut.show_today").to_string(),
+            "ShowScheduled" => t!("todo.shortcut.show_scheduled").to_string(),
+            "ShowCompleted" => t!("todo.shortcut.show_completed").to_string(),
+            "ShowPinned" => t!("todo.shortcut.show_pinned").to_string(),
+            "ShowLabels" => t!("todo.shortcut.show_labels").to_string(),
+            "NextView" => t!("todo.shortcut.next_view").to_string(),
+            "PreviousView" => t!("todo.shortcut.prev_view").to_string(),
+            "SearchTasks" => t!("todo.shortcut.search").to_string(),
+            "FilterByLabel" => t!("todo.filter.labels").to_string(),
+            "FilterByProject" => t!("todo.filter.projects").to_string(),
+            "FilterByPriority" => t!("todo.filter.priority").to_string(),
+            "ClearFilters" => t!("todo.shortcut.clear_filters").to_string(),
+            "SelectAllTasks" => t!("todo.shortcut.select_all").to_string(),
+            "DeselectAll" => t!("todo.shortcut.deselect").to_string(),
+            "SelectPreviousTask" => t!("todo.shortcut.select_prev").to_string(),
+            "SelectNextTask" => t!("todo.shortcut.select_next").to_string(),
+            "BatchCompleteSelected" => t!("todo.batch.complete").to_string(),
+            "BatchDeleteSelected" => t!("todo.batch.delete").to_string(),
+            "MoveTaskUp" => t!("todo.shortcut.move_up").to_string(),
+            "MoveTaskDown" => t!("todo.shortcut.move_down").to_string(),
+            "NewProject" => t!("todo.project.new").to_string(),
+            "EditProject" => t!("todo.shortcut.edit_project").to_string(),
+            "DeleteProject" => t!("todo.shortcut.delete_project").to_string(),
+            "ToggleSidebar" => t!("todo.shortcut.toggle_sidebar").to_string(),
+            "ZoomIn" => t!("todo.shortcut.zoom_in").to_string(),
+            "ZoomOut" => t!("todo.shortcut.zoom_out").to_string(),
+            "ResetZoom" => t!("todo.shortcut.reset_zoom").to_string(),
+            "RefreshView" => t!("todo.shortcut.refresh").to_string(),
+            "OpenSettings" => t!("todo.shortcut.open_settings").to_string(),
+            "OpenHelp" => t!("todo.shortcut.open_help").to_string(),
+            _ => self.description.to_string(),
         }
     }
 }
@@ -595,7 +647,7 @@ pub fn get_shortcuts_by_category(category: ShortcutCategory) -> Vec<ShortcutConf
 
 /// 生成快捷键帮助文档
 pub fn generate_shortcuts_help() -> String {
-    let mut help = String::from("# 键盘快捷键\n\n");
+    let mut help = format!("# {}\n\n", t!("todo.shortcut.help_title"));
 
     for category in [
         ShortcutCategory::Task,
@@ -610,7 +662,7 @@ pub fn generate_shortcuts_help() -> String {
         for shortcut in get_shortcuts_by_category(category) {
             help.push_str(&format!(
                 "- **{}**: {} ({})\n",
-                shortcut.description,
+                shortcut.localized_description(),
                 shortcut.key.replace("cmd", "Cmd/Ctrl"),
                 shortcut.action
             ));
@@ -646,8 +698,8 @@ mod tests {
     #[test]
     fn test_generate_shortcuts_help() {
         let help = generate_shortcuts_help();
-        assert!(help.contains("# 键盘快捷键"));
-        assert!(help.contains("## 任务操作"));
-        assert!(help.contains("## 导航"));
+        assert!(help.contains(&format!("# {}", t!("todo.shortcut.help_title"))));
+        assert!(help.contains(&format!("## {}", ShortcutCategory::Task.name())));
+        assert!(help.contains(&format!("## {}", ShortcutCategory::Navigation.name())));
     }
 }

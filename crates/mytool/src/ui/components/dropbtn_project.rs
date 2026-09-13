@@ -7,6 +7,7 @@ use gpui_component::{
     searchable_list::SearchableVec,
     select::{Select, SelectEvent, SelectState},
 };
+use rust_i18n::t;
 
 use crate::{create_button_wrapper, todo_state::TodoStore, ui::components::drop_btn::NamedOption};
 
@@ -34,8 +35,8 @@ impl Render for ProjectButtonState {
         Select::new(&self.select)
             .small()
             .appearance(false)
-            .placeholder("收件箱")
-            .search_placeholder("搜索项目")
+            .placeholder(t!("todo.board.inbox").to_string())
+            .search_placeholder(t!("todo.project.search").to_string())
             .w_full()
     }
 }
@@ -65,7 +66,7 @@ impl ProjectButtonState {
     }
 
     fn options(cx: &App) -> Vec<NamedOption> {
-        let mut options = vec![NamedOption::new(String::new(), "收件箱")];
+        let mut options = vec![NamedOption::new(String::new(), t!("todo.board.inbox").to_string())];
         for project in cx.global::<TodoStore>().projects.iter() {
             options.push(NamedOption::new(project.id.clone(), project.name.clone()));
         }
