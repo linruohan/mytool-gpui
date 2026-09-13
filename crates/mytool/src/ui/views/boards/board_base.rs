@@ -123,6 +123,79 @@ pub fn reorder_sibling_pairs(
     )
 }
 
+/// 将 `from_id` 拖到 `to_id` 处：插入到目标前方，并重写同级 `child_order`。
+/// 仅处理同一父任务、分区、项目、置顶与完成状态的兄弟项。
+pub fn reorder_drop_among_siblings(
+    items: &[Arc<todos::entity::ItemModel>],
+    from_id: &str,
+    to_id: &str,
+) -> Option<Vec<Arc<todos::entity::ItemModel>>> {
+    if from_id == to_id {
+        return None;
+    }
+    let from = items.iter().find(|item| item.id == from_id)?;
+    let to = items.iter().find(|item| item.id == to_id)?;
+    if from.parent_id != to.parent_id
+        || from.section_id != to.section_id
+        || from.project_id != to.project_id
+        || from.pinned != to.pinned
+        || from.checked != to.checked
+    {
+        return None;
+    }
+    let parent = from.parent_id.clone();
+    let section = from.section_id.clone();
+    let project = from.project_id.clone();
+    let pinned = from.pinned;
+    let checked = from.checked;
+    let mut siblings: Vec<Arc<todos::entity::ItemModel>> = items
+        .iter()
+        .filter(|item| {
+            !item.is_deleted
+                && item.parent_id == parent
+                && item.section_id == section
+                && item.project_id == project
+                && item.pinned == pinned
+                && item.checked == checked
+        })
+        .cloned()
+        .collect();
+    siblings.sort_by(|a, b| {
+        a.child_order
+            .unwrap_or(i32::MAX)
+            .cmp(&b.child_order.unwrap_or(i32::MAX))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    let from_pos = siblings.iter().position(|item| item.id == from_id)?;
+    let to_pos = siblings.iter().position(|item| item.id == to_id)?;
+    let moved = siblings.remove(from_pos);
+    let insert_at = if from_pos < to_pos { to_pos - 1 } else { to_pos };
+    siblings.insert(insert_at, moved);
+    Some(
+        siblings
+            .into_iter()
+            .enumerate()
+            .map(|(ord, item)| {
+                let mut item = (*item).clone();
+                item.child_order = Some(ord as i32);
+                Arc::new(item)
+            })
+            .collect(),
+    )
+}
+
+/// 拖放到目标行后，按兄弟关系重写 `child_order` 并批量保存。
+pub fn drop_reorder_items(from_id: &str, to_id: &str, cx: &mut App) {
+    let updated = {
+        let store = cx.global::<TodoStore>();
+        reorder_drop_among_siblings(&store.all_items, from_id, to_id)
+    };
+    let Some(updated) = updated else {
+        return;
+    };
+    crate::core::actions::batch::batch_update_items(updated, cx);
+}
+
 /// 在多个分组中找到包含 `active_index` 的那一组再排序。
 pub fn reorder_in_groups(
     groups: &[&[(usize, Arc<todos::entity::ItemModel>)]],
@@ -667,6 +740,43 @@ mod tests {
         assert_eq!(updated[0].child_order, Some(0));
         assert_eq!(updated[1].id, "a");
         assert_eq!(updated[1].child_order, Some(1));
+    }
+
+    fn ordered(id: &str, order: i32) -> Arc<ItemModel> {
+        let mut model = item(id, false, false, None);
+        Arc::make_mut(&mut model).child_order = Some(order);
+        model
+    }
+
+    #[test]
+    fn drop_inserts_before_target_when_dragging_down() {
+        let items = vec![ordered("a", 0), ordered("b", 1), ordered("c", 2)];
+        let updated = reorder_drop_among_siblings(&items, "a", "c").expect("drop");
+        assert_eq!(updated.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), vec![
+            "b", "a", "c"
+        ]);
+        assert_eq!(updated.iter().map(|item| item.child_order).collect::<Vec<_>>(), vec![
+            Some(0),
+            Some(1),
+            Some(2)
+        ]);
+    }
+
+    #[test]
+    fn drop_inserts_before_target_when_dragging_up() {
+        let items = vec![ordered("a", 0), ordered("b", 1), ordered("c", 2)];
+        let updated = reorder_drop_among_siblings(&items, "c", "a").expect("drop");
+        assert_eq!(updated.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), vec![
+            "c", "a", "b"
+        ]);
+    }
+
+    #[test]
+    fn drop_rejects_different_parent() {
+        let mut child = ordered("child", 0);
+        Arc::make_mut(&mut child).parent_id = Some("p".into());
+        let items = vec![ordered("root", 0), child];
+        assert!(reorder_drop_among_siblings(&items, "child", "root").is_none());
     }
 
     #[test]

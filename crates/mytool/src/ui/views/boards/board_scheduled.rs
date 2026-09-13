@@ -424,17 +424,15 @@ impl Render for ScheduledBoard {
                                                     "sched-day",
                                                     ymd.num_days_from_ce() as usize,
                                                 ))
-                                                    .small()
-                                                    .when(selected, |this| this.primary())
-                                                    .when(!selected, |this| this.ghost())
-                                                    .label(label)
-                                                    .on_click(cx.listener(
-                                                        move |this, _, window, cx| {
-                                                            this.select_filter_date(
-                                                                ymd, window, cx,
-                                                            );
-                                                        },
-                                                    )),
+                                                .small()
+                                                .when(selected, |this| this.primary())
+                                                .when(!selected, |this| this.ghost())
+                                                .label(label)
+                                                .on_click(cx.listener(
+                                                    move |this, _, window, cx| {
+                                                        this.select_filter_date(ymd, window, cx);
+                                                    },
+                                                )),
                                             )
                                         }),
                                     )),

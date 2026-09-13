@@ -6,9 +6,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, BorrowAppContext, ClickEvent, Entity, Hsla, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Render, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
-    px,
+    App, AppContext, BorrowAppContext, ClickEvent, Context, Entity, Hsla, InteractiveElement,
+    IntoElement, MouseButton, ParentElement, Render, StatefulInteractiveElement, Styled, Window,
+    div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, Sizable, StyledExt,
@@ -20,10 +20,39 @@ use gpui_component::{
 use gpui_kit::assets::IconName;
 use todos::entity::ItemModel;
 
-use super::{board_base::BoardView, board_common::BoardSectionActions};
-use crate::{
-    ItemRow, ItemRowState, ScheduleButtonState, board_section, core::state::ItemSelection,
+use super::{
+    board_base::{BoardView, drop_reorder_items},
+    board_common::BoardSectionActions,
 };
+use crate::{
+    ItemRow, ItemRowState, ScheduleButtonState, board_section,
+    core::state::{ItemSelection, TodoStore},
+};
+
+/// 任务行拖拽载荷，同时作为拖影预览。
+#[derive(Clone)]
+pub struct ItemDragPayload {
+    pub item_id: String,
+    pub content: String,
+}
+
+impl Render for ItemDragPayload {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let label =
+            if self.content.is_empty() { self.item_id.clone() } else { self.content.clone() };
+        div()
+            .px_3()
+            .py_1()
+            .rounded_md()
+            .bg(cx.theme().popover)
+            .border_1()
+            .border_color(cx.theme().border)
+            .shadow_md()
+            .text_sm()
+            .max_w(px(280.))
+            .child(label)
+    }
+}
 
 fn click_is_multi(event: &ClickEvent) -> bool {
     event.modifiers().secondary()
@@ -66,10 +95,39 @@ pub fn render_item_row<V>(
 where
     V: BoardView + Render,
 {
+    let drag_id = item_id.clone();
+    let drop_id = item_id.clone();
+    let can_drop_id = item_id.clone();
     div()
         .id(("item", i))
         .rounded_md()
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .when(!item_id.is_empty(), |this| {
+            this.on_drag(
+                ItemDragPayload { item_id: drag_id, content: String::new() },
+                |drag, _, _, cx| {
+                    let mut preview = drag.clone();
+                    if preview.content.is_empty() {
+                        preview.content = cx
+                            .global::<TodoStore>()
+                            .get_item(&preview.item_id)
+                            .map(|item| item.content.clone())
+                            .unwrap_or_default();
+                    }
+                    cx.new(|_| preview)
+                },
+            )
+            .drag_over::<ItemDragPayload>(|style, _, _, cx| {
+                style.bg(cx.theme().accent.opacity(0.18))
+            })
+            .can_drop(move |drag, _, _| {
+                drag.downcast_ref::<ItemDragPayload>()
+                    .is_some_and(|payload| payload.item_id != can_drop_id)
+            })
+            .on_drop(move |drag: &ItemDragPayload, _, cx| {
+                drop_reorder_items(&drag.item_id, &drop_id, cx);
+            })
+        })
         .on_click(move |event, _, cx| {
             cx.stop_propagation();
             let multi = click_is_multi(event);

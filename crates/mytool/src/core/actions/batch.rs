@@ -42,6 +42,12 @@ pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
     let item_count = items.len();
     debug!("Batch updating {} items", item_count);
 
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        for item in &items {
+            todo_store.update_item(item.clone());
+        }
+    });
+
     let db_state = cx.global::<DBState>().clone();
     cx.spawn(async move |cx| {
         match db_state
