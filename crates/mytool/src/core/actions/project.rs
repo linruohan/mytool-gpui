@@ -198,3 +198,46 @@ pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
     })
     .detach();
 }
+
+pub fn set_project_collapsed(project: Arc<ProjectModel>, collapsed: bool, cx: &mut App) {
+    if project.collapsed == collapsed {
+        return;
+    }
+    let original = project.clone();
+    let mut updated = (*project).clone();
+    updated.collapsed = collapsed;
+    let after = Arc::new(updated);
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        todo_store.update_project(after.clone());
+    });
+
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        match db_state
+            .spawn_store_op({
+                let after = after.clone();
+                move |store| async move { store.update_project(after.as_ref().clone()).await }
+            })
+            .await
+        {
+            Ok(Ok(saved)) => {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_project(Arc::new(saved));
+                });
+            },
+            Ok(Err(e)) => {
+                error!("set_project_collapsed failed: {:?}", e);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_project(original.clone());
+                });
+            },
+            Err(join_err) => {
+                error!("set_project_collapsed task panicked: {:?}", join_err);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_project(original);
+                });
+            },
+        }
+    })
+    .detach();
+}

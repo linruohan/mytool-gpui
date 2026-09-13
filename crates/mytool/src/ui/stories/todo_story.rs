@@ -827,6 +827,10 @@ impl Render for TodoStory {
                                 let drop_id = project.id.clone();
                                 let can_drop_id = project.id.clone();
                                 let drag_name = project.name.clone();
+                                let has_children =
+                                    cx.global::<TodoStore>().has_child_projects(&project.id);
+                                let collapsed = project.collapsed;
+                                let collapse_id = project.id.clone();
                                 h_flex()
                                     .id(SharedString::from(format!(
                                         "sidebar-project-{}",
@@ -867,6 +871,48 @@ impl Render for TodoStory {
                                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                         this.activate_project(story.clone(), cx);
                                     }))
+                                    .when(has_children, |this| {
+                                        this.child(
+                                            div()
+                                                .id(SharedString::from(format!(
+                                                    "collapse-project-{collapse_id}"
+                                                )))
+                                                .flex_shrink_0()
+                                                .on_mouse_down(
+                                                    gpui::MouseButton::Left,
+                                                    |_, _, cx| cx.stop_propagation(),
+                                                )
+                                                .on_click({
+                                                    let project = project.clone();
+                                                    move |_, _, cx| {
+                                                        cx.stop_propagation();
+                                                        crate::todo_actions::set_project_collapsed(
+                                                            project.clone(),
+                                                            !project.collapsed,
+                                                            cx,
+                                                        );
+                                                    }
+                                                })
+                                                .child(
+                                                    Button::new(format!(
+                                                        "collapse-project-btn-{collapse_id}"
+                                                    ))
+                                                    .small()
+                                                    .ghost()
+                                                    .compact()
+                                                    .icon(if collapsed {
+                                                        IconName::ChevronRight
+                                                    } else {
+                                                        IconName::ChevronDown
+                                                    })
+                                                    .tooltip(if collapsed {
+                                                        t!("todo.project.expand").to_string()
+                                                    } else {
+                                                        t!("todo.project.collapse").to_string()
+                                                    }),
+                                                ),
+                                        )
+                                    })
                                     .child(
                                         div()
                                             .flex_1()

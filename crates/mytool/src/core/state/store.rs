@@ -209,6 +209,9 @@ fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<Proj
     let mut out = Vec::with_capacity(projects.len());
     for i in roots {
         out.push((projects[i].clone(), false));
+        if projects[i].collapsed {
+            continue;
+        }
         if let Some(child_ix) = children.get(projects[i].id.as_str()) {
             for &cix in child_ix {
                 out.push((projects[cix].clone(), true));
@@ -1074,6 +1077,10 @@ impl TodoStore {
         flatten_projects_for_sidebar(&self.projects)
     }
 
+    pub fn has_child_projects(&self, parent_id: &str) -> bool {
+        self.projects.iter().any(|project| project_parent_id(project) == Some(parent_id))
+    }
+
     /// 增量更新单个分区
     pub fn update_section(&mut self, section: Arc<SectionModel>) {
         let id = section.id.clone();
@@ -1608,6 +1615,18 @@ mod tests {
         let ids: Vec<(&str, bool)> =
             rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
         assert_eq!(ids, vec![("other", false), ("root", false), ("c1", true), ("c2", true)]);
+    }
+
+    #[test]
+    fn sidebar_hides_children_when_parent_is_collapsed() {
+        let mut store = TodoStore::new();
+        let mut root = project("root", None, 0);
+        root.collapsed = true;
+        store.set_projects(vec![root, project("c1", Some("root"), 0), project("other", None, 1)]);
+        let rows = store.projects_for_sidebar();
+        let ids: Vec<(&str, bool)> =
+            rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
+        assert_eq!(ids, vec![("root", false), ("other", false)]);
     }
 
     #[test]

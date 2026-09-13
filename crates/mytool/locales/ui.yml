@@ -1112,6 +1112,22 @@ todo:
     es: Aún no hay proyectos
     fr: Pas encore de projets
     de: Noch keine Projekte
+  project.collapse:
+    en: Collapse subprojects
+    zh-CN: 折叠子项目
+    zh-HK: 摺疊子項目
+    it: Comprimi sottoprogetti
+    es: Contraer subproyectos
+    fr: Réduire les sous-projets
+    de: Unterprojekte einklappen
+  project.expand:
+    en: Expand subprojects
+    zh-CN: 展开子项目
+    zh-HK: 展開子項目
+    it: Espandi sottoprogetti
+    es: Expandir subproyectos
+    fr: Développer les sous-projets
+    de: Unterprojekte ausklappen
   filter.labels:
     en: Filter by label
     zh-CN: 按标签过滤
