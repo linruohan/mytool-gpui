@@ -310,6 +310,29 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
     }
 }
 
+fn section_is_collapsed(section_id: &str, cx: &App) -> bool {
+    cx.global::<TodoStore>().get_section(section_id).is_some_and(|section| section.collapsed)
+}
+
+fn render_section_collapse_button(section_id: String, collapsed: bool) -> impl IntoElement {
+    Button::new(format!("collapse-section-{section_id}"))
+        .small()
+        .ghost()
+        .compact()
+        .icon(if collapsed { IconName::ChevronRight } else { IconName::ChevronDown })
+        .tooltip(if collapsed {
+            t!("todo.section.expand").to_string()
+        } else {
+            t!("todo.section.collapse").to_string()
+        })
+        .on_click(move |_, _, cx| {
+            if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
+                let next = !section.collapsed;
+                crate::todo_actions::set_section_collapsed(section, next, cx);
+            }
+        })
+}
+
 /// 渲染带分区的 Section 区块（标题 + 工具栏 + 任务列表）
 ///
 /// 参数较多是 GPUI 渲染函数的固有特点：需同时聚合视图实体、任务数据、
@@ -351,21 +374,23 @@ pub fn render_section_block<V: BoardSectionActions>(
         .tooltip(t!("todo.more").to_string())
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
+    let collapsed = section_is_collapsed(&section_id, cx);
+    let collapse_button = render_section_collapse_button(section_id.clone(), collapsed);
     let mut block = board_section(section_name.clone());
-    block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
-
-    wrap_section_dnd(
-        section_id,
-        section_name,
-        block.child(render_item_list(
+    block = block
+        .sub_title(h_flex().gap_1().child(collapse_button).child(add_button).child(more_button));
+    if !collapsed {
+        block = block.child(render_item_list(
             items,
             item_rows,
             active_index,
             active_border,
             view_clone,
             cx,
-        )),
-    )
+        ));
+    }
+
+    wrap_section_dnd(section_id, section_name, block)
 }
 
 /// 渲染「No Section」区块
@@ -483,13 +508,23 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .tooltip(t!("todo.more").to_string())
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
-    wrap_section_dnd(
-        section_id,
-        section_name.clone(),
-        board_section(section_name)
-            .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
-            .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx)),
-    )
+    let collapsed = section_is_collapsed(&section_id, cx);
+    let collapse_button = render_section_collapse_button(section_id.clone(), collapsed);
+    let mut block = board_section(section_name.clone()).sub_title(
+        h_flex().gap_1().child(collapse_button).child(leading).child(add_button).child(more_button),
+    );
+    if !collapsed {
+        block = block.child(render_item_list(
+            items,
+            item_rows,
+            active_index,
+            active_border,
+            view_clone,
+            cx,
+        ));
+    }
+
+    wrap_section_dnd(section_id, section_name, block)
 }
 
 #[cfg(test)]

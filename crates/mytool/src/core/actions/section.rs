@@ -132,3 +132,46 @@ pub fn batch_update_sections(sections: Vec<Arc<SectionModel>>, cx: &mut App) {
     })
     .detach();
 }
+
+pub fn set_section_collapsed(section: Arc<SectionModel>, collapsed: bool, cx: &mut App) {
+    if section.collapsed == collapsed {
+        return;
+    }
+    let original = section.clone();
+    let mut updated = (*section).clone();
+    updated.collapsed = collapsed;
+    let after = Arc::new(updated);
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        todo_store.update_section(after.clone());
+    });
+
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        match db_state
+            .spawn_store_op({
+                let after = after.clone();
+                move |store| async move { store.update_section(after.as_ref().clone()).await }
+            })
+            .await
+        {
+            Ok(Ok(saved)) => {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_section(Arc::new(saved));
+                });
+            },
+            Ok(Err(e)) => {
+                tracing::error!("set_section_collapsed failed: {:?}", e);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_section(original.clone());
+                });
+            },
+            Err(join_err) => {
+                tracing::error!("set_section_collapsed task panicked: {:?}", join_err);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_section(original);
+                });
+            },
+        }
+    })
+    .detach();
+}

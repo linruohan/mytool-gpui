@@ -352,6 +352,22 @@ todo:
     es: Sin sección
     fr: Sans section
     de: Ohne Abschnitt
+  section.collapse:
+    en: Collapse section
+    zh-CN: 折叠分区
+    zh-HK: 摺疊分區
+    it: Comprimi sezione
+    es: Contraer sección
+    fr: Réduire la section
+    de: Abschnitt einklappen
+  section.expand:
+    en: Expand section
+    zh-CN: 展开分区
+    zh-HK: 展開分區
+    it: Espandi sezione
+    es: Expandir sección
+    fr: Développer la section
+    de: Abschnitt ausklappen
   section.delete_confirm:
     en: Delete this section?
     zh-CN: 确定删除这个分区吗？
