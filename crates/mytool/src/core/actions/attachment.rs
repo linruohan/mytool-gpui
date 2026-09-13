@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use gpui::App;
+use rust_i18n::t;
 use todos::entity::AttachmentModel;
 
 use crate::todo_state::{DBState, ErrorNotifier};
@@ -25,9 +26,11 @@ pub fn copy_into_app_dir(
     original_name: &str,
 ) -> Result<PathBuf, String> {
     let dir = attachments_root().join(if item_id.is_empty() { "pending" } else { item_id });
-    std::fs::create_dir_all(&dir).map_err(|e| format!("创建附件目录失败: {e}"))?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| t!("todo.error.attach_mkdir", error => e.to_string()).to_string())?;
     let dest = dir.join(format!("{attachment_id}_{}", safe_file_name(original_name)));
-    std::fs::copy(src, &dest).map_err(|e| format!("复制附件失败: {e}"))?;
+    std::fs::copy(src, &dest)
+        .map_err(|e| t!("todo.error.attach_copy", error => e.to_string()).to_string())?;
     Ok(dest)
 }
 
@@ -95,7 +98,10 @@ pub fn add_attachment(attachment: AttachmentModel, cx: &mut App) {
             Ok(Ok(_)) => {},
             Ok(Err(e)) => {
                 tracing::error!("add_attachment failed: {:?}", e);
-                notify_error(cx, format!("添加附件失败：{e}"));
+                notify_error(
+                    cx,
+                    t!("todo.error.add_attachment", error => e.to_string()).to_string(),
+                );
             },
             Err(join_err) => tracing::error!("add_attachment task panicked: {:?}", join_err),
         }
@@ -116,7 +122,10 @@ pub fn delete_attachment(attachment_id: String, file_path: String, cx: &mut App)
             Ok(Ok(_)) => {},
             Ok(Err(e)) => {
                 tracing::error!("delete_attachment failed: {:?}", e);
-                notify_error(cx, format!("删除附件失败：{e}"));
+                notify_error(
+                    cx,
+                    t!("todo.error.delete_attachment", error => e.to_string()).to_string(),
+                );
             },
             Err(join_err) => tracing::error!("delete_attachment task panicked: {:?}", join_err),
         }

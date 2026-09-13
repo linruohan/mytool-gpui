@@ -12,6 +12,7 @@ pub use events::*;
 use gpui::App;
 pub use pending_tasks::*;
 pub use prefs::*;
+use rust_i18n::t;
 use sea_orm::DatabaseConnection;
 pub use store::*;
 use tracing::error;
@@ -94,19 +95,19 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         let mut load_failures: Vec<String> = Vec::new();
         if let Err(ref e) = items_r {
             error!(error = %e, "get_all_items failed during startup");
-            load_failures.push(format!("任务加载失败: {e}"));
+            load_failures.push(t!("todo.error.load_items", error => e.to_string()).to_string());
         }
         if let Err(ref e) = projects_r {
             error!(error = %e, "get_all_projects failed during startup");
-            load_failures.push(format!("项目加载失败: {e}"));
+            load_failures.push(t!("todo.error.load_projects", error => e.to_string()).to_string());
         }
         if let Err(ref e) = sections_r {
             error!(error = %e, "get_all_sections failed during startup");
-            load_failures.push(format!("分区加载失败: {e}"));
+            load_failures.push(t!("todo.error.load_sections", error => e.to_string()).to_string());
         }
         if let Err(ref e) = labels_r {
             error!(error = %e, "get_all_labels failed during startup");
-            load_failures.push(format!("标签加载失败: {e}"));
+            load_failures.push(t!("todo.error.load_labels", error => e.to_string()).to_string());
         }
 
         // 仅应用成功的查询，避免把失败误呈现为「空列表」
