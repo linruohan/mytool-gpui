@@ -220,6 +220,7 @@ impl ShortcutConfig {
             "DeleteProject" => t!("todo.shortcut.delete_project").to_string(),
             "NewSection" => t!("todo.section.new").to_string(),
             "ToggleSidebar" => t!("todo.shortcut.toggle_sidebar").to_string(),
+            "ToggleFullscreen" => t!("todo.shortcut.toggle_fullscreen").to_string(),
             "ZoomIn" => t!("todo.shortcut.zoom_in").to_string(),
             "ZoomOut" => t!("todo.shortcut.zoom_out").to_string(),
             "ResetZoom" => t!("todo.shortcut.reset_zoom").to_string(),
@@ -469,6 +470,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             category: ShortcutCategory::View,
         },
         ShortcutConfig {
+            action: "ToggleFullscreen",
+            key: "cmd-shift-f",
+            description: "切换全屏",
+            category: ShortcutCategory::View,
+        },
+        ShortcutConfig {
             action: "ZoomIn",
             key: "cmd-=",
             description: "放大",
@@ -672,6 +679,11 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-0", ResetZoom, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-0", ResetZoom, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-f", ToggleFullscreen, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-f", ToggleFullscreen, CTX),
+        KeyBinding::new("f11", ToggleFullscreen, CTX),
     ]);
 }
 

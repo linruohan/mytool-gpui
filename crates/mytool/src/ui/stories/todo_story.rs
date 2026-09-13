@@ -22,8 +22,8 @@ use crate::{
     NextView, OpenHelp, OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent,
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
     SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted,
-    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleSidebar, ToggleTaskComplete,
-    ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
+    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleFullscreen, ToggleSidebar,
+    ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -513,6 +513,15 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn on_toggle_fullscreen(
+        &mut self,
+        _: &ToggleFullscreen,
+        window: &mut Window,
+        _: &mut Context<Self>,
+    ) {
+        window.toggle_fullscreen();
+    }
+
     fn on_new_project(&mut self, _: &NewProject, window: &mut Window, cx: &mut Context<Self>) {
         self.open_new_project(window, cx);
     }
@@ -819,6 +828,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_select_previous))
             .on_action(cx.listener(Self::on_select_next))
             .on_action(cx.listener(Self::on_toggle_sidebar))
+            .on_action(cx.listener(Self::on_toggle_fullscreen))
             .on_action(cx.listener(Self::on_new_project))
             .on_action(cx.listener(Self::on_new_section))
             .on_action(cx.listener(Self::on_edit_project))

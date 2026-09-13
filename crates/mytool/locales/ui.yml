@@ -1520,6 +1520,14 @@ todo:
     es: Alternar barra lateral
     fr: Afficher/masquer la barre latérale
     de: Seitenleiste umschalten
+  shortcut.toggle_fullscreen:
+    en: Toggle fullscreen
+    zh-CN: 切换全屏
+    zh-HK: 切換全螢幕
+    it: Schermo intero
+    es: Pantalla completa
+    fr: Plein écran
+    de: Vollbild umschalten
   shortcut.zoom_in:
     en: Zoom in
     zh-CN: 放大
