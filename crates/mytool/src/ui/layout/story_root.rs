@@ -41,6 +41,10 @@ impl StoryRoot {
         });
         let reminder_sub = cx.observe_global_in::<ReminderNotifier>(window, |_, window, cx| {
             let notices = cx.global::<ReminderNotifier>().take_all();
+            if notices.is_empty() {
+                return;
+            }
+            window.activate_window();
             for notice in notices {
                 let reminder_id = notice.reminder_id.clone();
                 window.push_notification(

@@ -1,5 +1,6 @@
 use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
 use gpui::App;
+use rust_i18n::t;
 use todos::entity::ReminderModel;
 
 use crate::todo_state::{DBState, ErrorNotifier, ReminderNotice, ReminderNotifier, TodoPrefs};
@@ -20,7 +21,7 @@ pub fn add_reminder(reminder: ReminderModel, cx: &mut App) {
             Ok(Ok(_)) => {},
             Ok(Err(e)) => {
                 tracing::error!("add_reminder failed: {:?}", e);
-                notify_error(cx, format!("添加提醒失败：{e}"));
+                notify_error(cx, t!("todo.error.add_reminder", error => e.to_string()).to_string());
             },
             Err(join_err) => tracing::error!("add_reminder task panicked: {:?}", join_err),
         }
@@ -38,7 +39,10 @@ pub fn delete_reminder(reminder_id: String, cx: &mut App) {
             Ok(Ok(_)) => {},
             Ok(Err(e)) => {
                 tracing::error!("delete_reminder failed: {:?}", e);
-                notify_error(cx, format!("删除提醒失败：{e}"));
+                notify_error(
+                    cx,
+                    t!("todo.error.delete_reminder", error => e.to_string()).to_string(),
+                );
             },
             Err(join_err) => tracing::error!("delete_reminder task panicked: {:?}", join_err),
         }
@@ -101,12 +105,14 @@ pub fn start_reminder_watcher(cx: &mut App) {
                                     .get_item(&item_id)
                                     .await
                                     .map(|item| item.content)
-                                    .unwrap_or_else(|| "任务".to_string()))
+                                    .unwrap_or_else(|| {
+                                        t!("todo.reminder.task_fallback").to_string()
+                                    }))
                             })
                             .await
                             .ok()
                             .and_then(Result::ok)
-                            .unwrap_or_else(|| "任务".to_string())
+                            .unwrap_or_else(|| t!("todo.reminder.task_fallback").to_string())
                     };
 
                     let _ =
@@ -152,7 +158,10 @@ pub fn snooze_reminder(reminder_id: String, minutes: i64, cx: &mut App) {
             Ok(Ok(())) => {},
             Ok(Err(e)) => {
                 tracing::error!("snooze_reminder failed: {:?}", e);
-                notify_error(cx, format!("延后提醒失败：{e}"));
+                notify_error(
+                    cx,
+                    t!("todo.error.snooze_reminder", error => e.to_string()).to_string(),
+                );
             },
             Err(join_err) => tracing::error!("snooze_reminder task panicked: {:?}", join_err),
         }

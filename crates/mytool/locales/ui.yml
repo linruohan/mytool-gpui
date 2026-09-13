@@ -1560,6 +1560,38 @@ todo:
     es: Pospuesto 15 minutos
     fr: Reporté de 15 minutes
     de: 15 Minuten verschoben
+  reminder.task_fallback:
+    en: Task
+    zh-CN: 任务
+    zh-HK: 任務
+    it: Attività
+    es: Tarea
+    fr: Tâche
+    de: Aufgabe
+  error.add_reminder:
+    en: "Could not add reminder: %{error}"
+    zh-CN: "添加提醒失败：%{error}"
+    zh-HK: "新增提醒失敗：%{error}"
+    it: "Impossibile aggiungere il promemoria: %{error}"
+    es: "No se pudo añadir el recordatorio: %{error}"
+    fr: "Impossible d'ajouter le rappel : %{error}"
+    de: "Erinnerung hinzufügen fehlgeschlagen: %{error}"
+  error.delete_reminder:
+    en: "Could not delete reminder: %{error}"
+    zh-CN: "删除提醒失败：%{error}"
+    zh-HK: "刪除提醒失敗：%{error}"
+    it: "Impossibile eliminare il promemoria: %{error}"
+    es: "No se pudo eliminar el recordatorio: %{error}"
+    fr: "Impossible de supprimer le rappel : %{error}"
+    de: "Erinnerung löschen fehlgeschlagen: %{error}"
+  error.snooze_reminder:
+    en: "Could not snooze reminder: %{error}"
+    zh-CN: "延后提醒失败：%{error}"
+    zh-HK: "延後提醒失敗：%{error}"
+    it: "Impossibile posticipare il promemoria: %{error}"
+    es: "No se pudo posponer el recordatorio: %{error}"
+    fr: "Impossible de reporter le rappel : %{error}"
+    de: "Erinnerung verschieben fehlgeschlagen: %{error}"
   error.add_failed:
     en: "Could not add the task: %{error}. Please retry."
     zh-CN: "添加任务失败：%{error}。请稍后重试。"

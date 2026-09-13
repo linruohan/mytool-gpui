@@ -227,7 +227,7 @@ where
     ))
 }
 
-fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> {
+pub(crate) fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> {
     let ids: std::collections::HashSet<&str> =
         items.iter().map(|(_, item)| item.id.as_str()).collect();
     let mut nested_pos = std::collections::HashSet::new();
@@ -240,6 +240,16 @@ fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> 
             by_parent.entry(pid).or_default().push(pos);
             nested_pos.insert(pos);
         }
+    }
+    for children in by_parent.values_mut() {
+        children.sort_by(|&a, &b| {
+            items[a]
+                .1
+                .child_order
+                .unwrap_or(i32::MAX)
+                .cmp(&items[b].1.child_order.unwrap_or(i32::MAX))
+                .then_with(|| items[a].1.id.cmp(&items[b].1.id))
+        });
     }
     let mut out = Vec::with_capacity(items.len());
     for (pos, (_, item)) in items.iter().enumerate() {
@@ -477,4 +487,29 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
             .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
             .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx)),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item(id: &str, parent: Option<&str>, order: i32) -> Arc<ItemModel> {
+        let mut model = ItemModel::default();
+        model.id = id.to_string();
+        model.parent_id = parent.map(str::to_string);
+        model.child_order = Some(order);
+        Arc::new(model)
+    }
+
+    #[test]
+    fn flatten_nests_children_and_sorts_by_child_order() {
+        let items = vec![
+            (0, item("p", None, 0)),
+            (1, item("c2", Some("p"), 1)),
+            (2, item("c1", Some("p"), 0)),
+            (3, item("s", None, 1)),
+        ];
+        let out = flatten_with_indent(&items);
+        assert_eq!(out, vec![(0, false), (2, true), (1, true), (3, false)]);
+    }
 }
