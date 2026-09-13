@@ -23,10 +23,10 @@ use crate::{
     MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView,
     OpenHelp, OpenSettings, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent,
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
-    SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted,
-    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ScheduledBoard, TodayBoard,
-    ToggleFullscreen, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn,
-    ZoomOut, play_ogg_file,
+    SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks,
+    ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ScheduledBoard,
+    TodayBoard, ToggleFullscreen, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask,
+    ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -940,6 +940,12 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn on_show_all_tasks(&mut self, _: &ShowAllTasks, window: &mut Window, cx: &mut Context<Self>) {
+        self.on_clear_filters(&ClearFilters, window, cx);
+        cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.clear());
+        self.show_board(0, cx);
+    }
+
     fn on_refresh_view(&mut self, _: &RefreshView, window: &mut Window, cx: &mut Context<Self>) {
         window.push_notification(t!("todo.notify.refreshed").to_string(), cx);
         cx.notify();
@@ -1089,6 +1095,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_filter_project))
             .on_action(cx.listener(Self::on_filter_priority))
             .on_action(cx.listener(Self::on_clear_filters))
+            .on_action(cx.listener(Self::on_show_all_tasks))
             .on_action(cx.listener(Self::on_refresh_view))
             .on_action(cx.listener(Self::on_zoom_in))
             .on_action(cx.listener(Self::on_zoom_out))

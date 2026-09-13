@@ -77,7 +77,7 @@ actions!(search_shortcuts, [
     FilterByPriority,
     /// 清除过滤器 (Cmd/Ctrl + Shift + C)
     ClearFilters,
-    /// 显示所有任务 (Cmd/Ctrl + Shift + A)
+    /// 显示所有任务 / 关闭过滤 (Cmd/Ctrl + Shift + H)
     ShowAllTasks,
 ]);
 
@@ -209,6 +209,7 @@ impl ShortcutConfig {
             "FilterByProject" => t!("todo.filter.projects").to_string(),
             "FilterByPriority" => t!("todo.filter.priority").to_string(),
             "ClearFilters" => t!("todo.shortcut.clear_filters").to_string(),
+            "ShowAllTasks" => t!("todo.shortcut.show_all").to_string(),
             "SelectAllTasks" => t!("todo.shortcut.select_all").to_string(),
             "DeselectAll" => t!("todo.shortcut.deselect").to_string(),
             "SelectPreviousTask" => t!("todo.shortcut.select_prev").to_string(),
@@ -398,6 +399,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "ClearFilters",
             key: "cmd-shift-c",
             description: "清除过滤器",
+            category: ShortcutCategory::Search,
+        },
+        ShortcutConfig {
+            action: "ShowAllTasks",
+            key: "cmd-shift-h",
+            description: "显示全部并关闭过滤",
             category: ShortcutCategory::Search,
         },
         ShortcutConfig {
@@ -722,9 +729,21 @@ pub fn bind_todo_keys(cx: &mut App) {
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-shift-1", FilterByPriority, CTX),
         #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-2", FilterByPriority, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-2", FilterByPriority, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-3", FilterByPriority, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-3", FilterByPriority, CTX),
+        #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-shift-c", ClearFilters, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-shift-c", ClearFilters, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-h", ShowAllTasks, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-h", ShowAllTasks, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-r", RefreshView, CTX),
         #[cfg(not(target_os = "macos"))]

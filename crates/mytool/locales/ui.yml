@@ -1504,6 +1504,14 @@ todo:
     es: Borrar filtros
     fr: Effacer les filtres
     de: Filter löschen
+  shortcut.show_all:
+    en: Show all tasks
+    zh-CN: 显示全部任务
+    zh-HK: 顯示全部任務
+    it: Mostra tutte
+    es: Mostrar todas
+    fr: Afficher toutes
+    de: Alle Aufgaben anzeigen
   shortcut.select_all:
     en: Select all tasks
     zh-CN: 选择所有任务
