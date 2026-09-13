@@ -18,7 +18,9 @@ use rust_i18n::t;
 use todos::{entity::ItemModel, utils::datetime::DateTime};
 
 use crate::{
-    SemanticColors, label_chip, todo_actions::complete_item_optimistic, todo_state::TodoStore,
+    SemanticColors, label_chip,
+    todo_actions::{complete_item_optimistic, set_item_collapsed_optimistic},
+    todo_state::TodoStore,
 };
 
 actions!(item, [SelectedItem]);
@@ -81,8 +83,10 @@ impl RenderOnce for ItemListItem {
             .map(|label| label_chip(label.name.clone(), &label.color).xsmall())
             .collect();
         let recurring = self.item.due_date().is_some_and(|due| due.is_recurring);
-
+        let has_children = cx.global::<TodoStore>().has_child_items(&self.item.id);
+        let collapsed = self.item.collapsed;
         let item_for_check = self.item.clone();
+        let item_for_collapse = self.item.clone();
 
         self.base.px_1().py_0p5().flex_1().child(
             h_flex()
@@ -91,6 +95,40 @@ impl RenderOnce for ItemListItem {
                 .w_full()
                 .min_w_0()
                 .text_color(text_color)
+                .when(has_children, |this| {
+                    this.child(
+                        div()
+                            .id(format!("item-collapse-wrap-{}", self.item.id))
+                            .flex_shrink_0()
+                            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                                cx.stop_propagation();
+                            })
+                            .on_click(|_, _, cx| cx.stop_propagation())
+                            .child(
+                                Button::new(format!("item-collapse-{}", self.item.id))
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(if collapsed {
+                                        IconName::ChevronRight
+                                    } else {
+                                        IconName::ChevronDown
+                                    })
+                                    .tooltip(if collapsed {
+                                        t!("todo.item.expand_subtasks").to_string()
+                                    } else {
+                                        t!("todo.item.collapse_subtasks").to_string()
+                                    })
+                                    .on_click(move |_, _, cx| {
+                                        set_item_collapsed_optimistic(
+                                            item_for_collapse.clone(),
+                                            !collapsed,
+                                            cx,
+                                        );
+                                    }),
+                            ),
+                    )
+                })
                 .child(
                     div()
                         .id(format!("item-check-wrap-{}", self.item.id))

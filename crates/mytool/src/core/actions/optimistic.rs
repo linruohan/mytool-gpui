@@ -367,6 +367,66 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
     .detach();
 }
 
+/// 折叠/展开子任务列表（不写入撤销栈）
+pub fn set_item_collapsed_optimistic(item: Arc<ItemModel>, collapsed: bool, cx: &mut App) {
+    if item.collapsed == collapsed {
+        return;
+    }
+
+    let item_id = item.id.clone();
+    let old_collapsed = item.collapsed;
+    let mut updated_item = (*item).clone();
+    updated_item.collapsed = collapsed;
+    let after = Arc::new(updated_item.clone());
+
+    cx.update_global::<TodoStore, _>(|store, _| {
+        store.update_item(after.clone());
+    });
+
+    let db_state = cx.global::<DBState>().clone();
+    let item_for_db = after;
+
+    cx.spawn(async move |cx| {
+        match db_state
+            .spawn_store_op(move |store| async move {
+                store.update_item(item_for_db.as_ref().clone(), "").await
+            })
+            .await
+        {
+            Ok(Ok(_)) => {
+                debug!("Successfully saved collapsed status: {}", item_id);
+            },
+            Ok(Err(e)) => {
+                let context = ErrorHandler::handle_with_resource(
+                    AppError::Database(Box::new(e)),
+                    "set_item_collapsed_optimistic",
+                    &item_id,
+                );
+                error!("{}", context.format_user_message());
+
+                let mut reverted_item = updated_item.clone();
+                reverted_item.collapsed = old_collapsed;
+                cx.update_global::<TodoStore, _>(|store, _| {
+                    store.update_item(Arc::new(reverted_item));
+                });
+                cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+                    notifier.set_error(
+                        t!(
+                            "todo.error.toggle_subtasks",
+                            error => context.format_user_message()
+                        )
+                        .to_string(),
+                    );
+                });
+            },
+            Err(join_err) => {
+                error!("Item collapsed task panicked: {:?}", join_err);
+            },
+        }
+    })
+    .detach();
+}
+
 /// 乐观完成任务
 pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut App) {
     let item_id = item.id.clone();

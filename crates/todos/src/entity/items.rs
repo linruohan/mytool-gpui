@@ -127,6 +127,7 @@ impl Model {
             && self.section_id == other.section_id
             && self.labels == other.labels
             && self.due == other.due
+            && self.collapsed == other.collapsed
     }
 
     /// 检查是否在指定日期到期

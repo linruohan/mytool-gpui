@@ -1840,6 +1840,30 @@ todo:
     es: Contraer (Enter)
     fr: Réduire (Entrée)
     de: Einklappen (Enter)
+  item.collapse_subtasks:
+    en: Collapse subtasks
+    zh-CN: 折叠子任务
+    zh-HK: 摺疊子任務
+    it: Comprimi sotto-attività
+    es: Contraer subtareas
+    fr: Réduire les sous-tâches
+    de: Unteraufgaben einklappen
+  item.expand_subtasks:
+    en: Expand subtasks
+    zh-CN: 展开子任务
+    zh-HK: 展開子任務
+    it: Espandi sotto-attività
+    es: Expandir subtareas
+    fr: Développer les sous-tâches
+    de: Unteraufgaben ausklappen
+  error.toggle_subtasks:
+    en: "Could not update subtask list: %{error}"
+    zh-CN: "更新子任务折叠状态失败：%{error}"
+    zh-HK: "更新子任務摺疊狀態失敗：%{error}"
+    it: "Impossibile aggiornare le sotto-attività: %{error}"
+    es: "No se pudo actualizar las subtareas: %{error}"
+    fr: "Impossible de mettre à jour les sous-tâches : %{error}"
+    de: "Unteraufgaben konnten nicht aktualisiert werden: %{error}"
   item.add_subtask:
     en: Add subtask
     zh-CN: 添加子任务

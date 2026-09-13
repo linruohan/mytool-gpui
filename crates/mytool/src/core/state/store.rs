@@ -785,6 +785,10 @@ impl TodoStore {
         self.project_index.get(project_id).map(Vec::as_slice).unwrap_or(&[])
     }
 
+    pub fn has_child_items(&self, parent_id: &str) -> bool {
+        self.all_items.iter().any(|item| item.parent_id.as_deref() == Some(parent_id))
+    }
+
     /// 指定父任务下的子任务（保持 all_items 顺序）
     pub fn child_items(&self, parent_id: &str) -> Vec<Arc<ItemModel>> {
         let mut items = self

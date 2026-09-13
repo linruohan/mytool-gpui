@@ -257,6 +257,9 @@ pub(crate) fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usi
             continue;
         }
         out.push((items[pos].0, false));
+        if item.collapsed {
+            continue;
+        }
         if let Some(child_pos) = by_parent.get(item.id.as_str()) {
             for &cpos in child_pos {
                 out.push((items[cpos].0, true));
@@ -511,5 +514,16 @@ mod tests {
         ];
         let out = flatten_with_indent(&items);
         assert_eq!(out, vec![(0, false), (2, true), (1, true), (3, false)]);
+    }
+
+    #[test]
+    fn flatten_hides_children_when_parent_is_collapsed() {
+        let mut parent = ItemModel::default();
+        parent.id = "p".into();
+        parent.collapsed = true;
+        let items =
+            vec![(0, Arc::new(parent)), (1, item("c1", Some("p"), 0)), (2, item("s", None, 1))];
+        let out = flatten_with_indent(&items);
+        assert_eq!(out, vec![(0, false), (2, false)]);
     }
 }
