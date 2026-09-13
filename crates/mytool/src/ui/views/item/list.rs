@@ -6,19 +6,18 @@ use gpui::{
     prelude::FluentBuilder, px,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Placement, Selectable, WindowExt,
+    ActiveTheme, Icon, IndexPath, Placement, Selectable, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     checkbox::Checkbox,
     h_flex,
     label::Label,
     list::{ListDelegate, ListItem, ListState},
-    v_flex,
 };
+use gpui_kit::assets::IconName;
 use todos::{entity::ItemModel, utils::datetime::DateTime};
 
 use crate::{
-    SemanticColors, label_color, label_color_dot, todo_actions::complete_item_optimistic,
-    todo_state::TodoStore,
+    SemanticColors, label_chip, todo_actions::complete_item_optimistic, todo_state::TodoStore,
 };
 
 actions!(item, [SelectedItem]);
@@ -74,24 +73,19 @@ impl RenderOnce for ItemListItem {
             colors.status_scheduled
         };
 
-        let item_label_dots: Vec<_> = self
-            .item
-            .labels
-            .as_deref()
-            .unwrap_or("")
-            .split(';')
-            .filter(|id| !id.is_empty())
-            .filter_map(|id| cx.global::<TodoStore>().get_label(id))
-            .take(4)
-            .map(|label| label_color_dot(label_color(&label.color)))
+        let item_labels: Vec<_> = cx
+            .global::<TodoStore>()
+            .labels_for_item(&self.item)
+            .into_iter()
+            .map(|label| label_chip(label.name.clone(), &label.color).xsmall())
             .collect();
+        let recurring = self.item.due_date().is_some_and(|due| due.is_recurring);
 
         let item_for_check = self.item.clone();
 
-        self.base.px_1().py_0p5().flex_1().overflow_x_hidden().child(
+        self.base.px_1().py_0p5().flex_1().child(
             h_flex()
                 .items_center()
-                .justify_start()
                 .gap_2()
                 .w_full()
                 .min_w_0()
@@ -99,6 +93,7 @@ impl RenderOnce for ItemListItem {
                 .child(
                     div()
                         .id(format!("item-check-wrap-{}", self.item.id))
+                        .flex_shrink_0()
                         .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
@@ -112,18 +107,40 @@ impl RenderOnce for ItemListItem {
                         ),
                 )
                 .child(
-                    v_flex().flex_1().min_w_0().overflow_x_hidden().flex_nowrap().child(
-                        Label::new(self.item.content.clone())
-                            .w_full()
-                            .whitespace_nowrap()
-                            .when(self.item.checked, |this| {
-                                this.line_through().text_color(cx.theme().muted_foreground)
-                            }),
-                    ),
+                    Label::new(self.item.content.clone())
+                        .min_w_0()
+                        .flex_shrink(1.)
+                        .overflow_x_hidden()
+                        .whitespace_nowrap()
+                        .when(self.item.checked, |this| {
+                            this.line_through().text_color(cx.theme().muted_foreground)
+                        }),
                 )
-                .when(!item_label_dots.is_empty(), |this| {
+                .when(!item_labels.is_empty(), |this| {
                     this.child(
-                        h_flex().gap_1().flex_shrink_0().items_center().children(item_label_dots),
+                        h_flex()
+                            .gap_1()
+                            .flex_shrink_0()
+                            .flex_wrap()
+                            .items_center()
+                            .children(item_labels),
+                    )
+                })
+                .child(div().flex_1().min_w_0())
+                .when(self.item.pinned, |this| {
+                    this.child(
+                        Icon::new(IconName::PinSymbolic)
+                            .xsmall()
+                            .flex_shrink_0()
+                            .text_color(cx.theme().warning),
+                    )
+                })
+                .when(recurring, |this| {
+                    this.child(
+                        Icon::new(IconName::RefreshCw)
+                            .xsmall()
+                            .flex_shrink_0()
+                            .text_color(cx.theme().muted_foreground),
                     )
                 })
                 .when_some(due_label, |this, due_label| {

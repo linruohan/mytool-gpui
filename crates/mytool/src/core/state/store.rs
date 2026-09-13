@@ -1032,6 +1032,17 @@ impl TodoStore {
         self.label_by_id.get(id).cloned()
     }
 
+    /// 任务上挂的标签（按 labels 字段顺序，跳过已删标签）。
+    pub fn labels_for_item(&self, item: &ItemModel) -> Vec<Arc<LabelModel>> {
+        item.labels
+            .as_deref()
+            .unwrap_or("")
+            .split(';')
+            .filter(|id| !id.is_empty())
+            .filter_map(|id| self.get_label(id))
+            .collect()
+    }
+
     // ==================== 索引管理辅助方法 ====================
 
     /// 将任务添加到索引（使用统一的 trait 方法）
@@ -1474,6 +1485,23 @@ mod tests {
         let ids: Vec<(&str, bool)> =
             rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
         assert_eq!(ids, vec![("other", false), ("root", false), ("child", true)]);
+    }
+
+    #[test]
+    fn labels_for_item_keeps_order_and_skips_missing() {
+        let mut store = TodoStore::new();
+        let mut red = LabelModel::default();
+        red.id = "r".into();
+        red.name = "红".into();
+        let mut blue = LabelModel::default();
+        blue.id = "b".into();
+        blue.name = "蓝".into();
+        store.set_labels(vec![red, blue]);
+        let mut item = create_test_item("1", false, false, None);
+        item.labels = Some("b;gone;r".into());
+        let names: Vec<String> =
+            store.labels_for_item(&item).iter().map(|l| l.name.clone()).collect();
+        assert_eq!(names, vec!["蓝".to_string(), "红".to_string()]);
     }
 
     #[test]
