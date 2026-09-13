@@ -219,6 +219,14 @@ impl Store {
         self.reminder_service.mark_reminder_notified(reminder_id).await
     }
 
+    pub async fn reschedule_reminder(
+        &self,
+        reminder_id: &str,
+        due: String,
+    ) -> Result<(), TodoError> {
+        self.reminder_service.reschedule_reminder(reminder_id, due).await
+    }
+
     // ==================== Attachment Operations ====================
 
     pub async fn get_attachments_by_item(

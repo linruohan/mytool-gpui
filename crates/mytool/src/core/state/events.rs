@@ -113,8 +113,15 @@ impl ErrorNotifier {
 }
 
 /// 到期提醒通知器（后台轮询写入，UI 观察后弹出）
+#[derive(Clone, Debug)]
+pub struct ReminderNotice {
+    pub reminder_id: String,
+    pub item_id: String,
+    pub title: String,
+}
+
 pub struct ReminderNotifier {
-    pending: Mutex<Vec<String>>,
+    pending: Mutex<Vec<ReminderNotice>>,
 }
 impl Default for ReminderNotifier {
     fn default() -> Self {
@@ -127,11 +134,11 @@ impl ReminderNotifier {
         Self { pending: Mutex::new(Vec::new()) }
     }
 
-    pub fn push(&self, message: String) {
-        self.pending.lock().unwrap().push(message);
+    pub fn push(&self, notice: ReminderNotice) {
+        self.pending.lock().unwrap().push(notice);
     }
 
-    pub fn take_all(&self) -> Vec<String> {
+    pub fn take_all(&self) -> Vec<ReminderNotice> {
         std::mem::take(&mut *self.pending.lock().unwrap())
     }
 }

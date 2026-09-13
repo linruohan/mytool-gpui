@@ -73,4 +73,16 @@ impl ReminderService {
         active.update(&*self.db).await?;
         Ok(())
     }
+
+    /// 软删除后再次激活并改期（延后提醒）
+    pub async fn reschedule_reminder(&self, id: &str, due: String) -> Result<(), TodoError> {
+        let Some(model) = ReminderEntity::find_by_id(id).one(&*self.db).await? else {
+            return Ok(());
+        };
+        let mut active: ReminderActiveModel = model.into();
+        active.due = Set(Some(due));
+        active.is_deleted = Set(false);
+        active.update(&*self.db).await?;
+        Ok(())
+    }
 }

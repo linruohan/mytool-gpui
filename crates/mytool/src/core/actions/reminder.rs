@@ -1,8 +1,8 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
 use gpui::App;
 use todos::entity::ReminderModel;
 
-use crate::todo_state::{DBState, ErrorNotifier, ReminderNotifier, TodoPrefs};
+use crate::todo_state::{DBState, ErrorNotifier, ReminderNotice, ReminderNotifier, TodoPrefs};
 
 fn notify_error(cx: &mut gpui::AsyncApp, message: String) {
     let _ = cx.update_global::<ErrorNotifier, _>(|notifier, _| {
@@ -93,18 +93,21 @@ pub fn start_reminder_watcher(cx: &mut App) {
                 for reminder in list {
                     let reminder_id = reminder.id.clone();
                     let item_id = reminder.item_id.clone().unwrap_or_default();
-                    let title = db_state
-                        .spawn_store_op(move |store| async move {
-                            Ok(store
-                                .get_item(&item_id)
-                                .await
-                                .map(|item| item.content)
-                                .unwrap_or_else(|| "任务".to_string()))
-                        })
-                        .await
-                        .ok()
-                        .and_then(Result::ok)
-                        .unwrap_or_else(|| "任务".to_string());
+                    let title = {
+                        let item_id = item_id.clone();
+                        db_state
+                            .spawn_store_op(move |store| async move {
+                                Ok(store
+                                    .get_item(&item_id)
+                                    .await
+                                    .map(|item| item.content)
+                                    .unwrap_or_else(|| "任务".to_string()))
+                            })
+                            .await
+                            .ok()
+                            .and_then(Result::ok)
+                            .unwrap_or_else(|| "任务".to_string())
+                    };
 
                     let _ =
                         db_state
@@ -117,7 +120,7 @@ pub fn start_reminder_watcher(cx: &mut App) {
                             .await;
 
                     let _ = cx.update_global::<ReminderNotifier, _>(|notifier, _| {
-                        notifier.push(format!("提醒：{title}"));
+                        notifier.push(ReminderNotice { reminder_id, item_id, title });
                     });
                 }
             }
@@ -128,6 +131,30 @@ pub fn start_reminder_watcher(cx: &mut App) {
                     Ok(())
                 })
                 .await;
+        }
+    })
+    .detach();
+}
+
+/// 将已弹出的提醒改到若干分钟之后再次触发
+pub fn snooze_reminder(reminder_id: String, minutes: i64, cx: &mut App) {
+    let due = (Local::now().naive_local() + Duration::minutes(minutes.max(1)))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        match db_state
+            .spawn_store_op(move |store| async move {
+                store.reschedule_reminder(&reminder_id, due).await
+            })
+            .await
+        {
+            Ok(Ok(())) => {},
+            Ok(Err(e)) => {
+                tracing::error!("snooze_reminder failed: {:?}", e);
+                notify_error(cx, format!("延后提醒失败：{e}"));
+            },
+            Err(join_err) => tracing::error!("snooze_reminder task panicked: {:?}", join_err),
         }
     })
     .detach();

@@ -5,7 +5,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     MouseButton, ParentElement, Render, Styled, Subscription, Window, div, prelude::FluentBuilder,
@@ -14,7 +14,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
-    calendar::{Calendar, CalendarEvent, CalendarState},
+    calendar::{Calendar, CalendarEvent, CalendarState, Date},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dock::PanelControl,
     h_flex,
@@ -62,15 +62,25 @@ impl ScheduledBoard {
         let date_picker = cx.new(|cx| DatePickerState::new(window, cx));
         let calendar = cx.new(|cx| CalendarState::new(window, cx));
         let _date_subscription =
-            cx.subscribe(&date_picker, |this, _, event: &DatePickerEvent, cx| {
+            cx.subscribe_in(&date_picker, window, |this, _, event, window, cx| {
                 let DatePickerEvent::Change(date) = event;
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
+                if let Some(ymd) = this.filter_ymd() {
+                    this.calendar.update(cx, |cal, cx| {
+                        cal.set_date(ymd, window, cx);
+                    });
+                }
                 cx.notify();
             });
         let _calendar_subscription =
-            cx.subscribe(&calendar, |this, _, event: &CalendarEvent, cx| {
+            cx.subscribe_in(&calendar, window, |this, _, event, window, cx| {
                 let CalendarEvent::Selected(date) = event;
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
+                if let Some(ymd) = this.filter_ymd() {
+                    this.date_picker.update(cx, |picker, cx| {
+                        picker.set_date(ymd, window, cx);
+                    });
+                }
                 cx.notify();
             });
         Self {
@@ -82,6 +92,29 @@ impl ScheduledBoard {
             _date_subscription,
             _calendar_subscription,
         }
+    }
+
+    fn filter_ymd(&self) -> Option<NaiveDate> {
+        self.filter_date.as_deref().and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+    }
+
+    fn clear_date_filter(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.filter_date = None;
+        self.date_picker.update(cx, |picker, cx| {
+            picker.set_date(Date::Single(None), window, cx);
+        });
+        cx.notify();
+    }
+
+    fn select_filter_date(&mut self, ymd: NaiveDate, window: &mut Window, cx: &mut Context<Self>) {
+        self.filter_date = Some(ymd.format("%Y-%m-%d").to_string());
+        self.date_picker.update(cx, |picker, cx| {
+            picker.set_date(ymd, window, cx);
+        });
+        self.calendar.update(cx, |cal, cx| {
+            cal.set_date(ymd, window, cx);
+        });
+        cx.notify();
     }
 
     fn reorder_active(&self, delta: i32, cx: &mut Context<Self>) {
@@ -306,9 +339,8 @@ impl Render for ScheduledBoard {
                                 .small()
                                 .ghost()
                                 .label("全部")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.filter_date = None;
-                                    cx.notify();
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.clear_date_filter(window, cx);
                                 })),
                         )
                     })
@@ -361,9 +393,52 @@ impl Render for ScheduledBoard {
                     .min_h_0()
                     .items_start()
                     .child(
-                        v_flex().w(px(280.)).px_2().pt_1().child(
-                            Calendar::new(&calendar).first_day_of_week(chrono::Weekday::Mon),
-                        ),
+                        v_flex()
+                            .w(px(280.))
+                            .px_2()
+                            .pt_1()
+                            .gap_2()
+                            .child(Calendar::new(&calendar).first_day_of_week(chrono::Weekday::Mon))
+                            .child(
+                                v_flex()
+                                    .gap_1()
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child("有任务的日期"),
+                                    )
+                                    .child(h_flex().gap_1().flex_wrap().children(
+                                        grouped_by_date.iter().filter_map(|(date, items)| {
+                                            if date == "无日期" || items.is_empty() {
+                                                return None;
+                                            }
+                                            let ymd =
+                                                NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
+                                            let selected =
+                                                filter_date.as_deref() == Some(date.as_str());
+                                            let label =
+                                                format!("{}日 · {}", ymd.day(), items.len());
+                                            Some(
+                                                Button::new((
+                                                    "sched-day",
+                                                    ymd.num_days_from_ce() as usize,
+                                                ))
+                                                    .small()
+                                                    .when(selected, |this| this.primary())
+                                                    .when(!selected, |this| this.ghost())
+                                                    .label(label)
+                                                    .on_click(cx.listener(
+                                                        move |this, _, window, cx| {
+                                                            this.select_filter_date(
+                                                                ymd, window, cx,
+                                                            );
+                                                        },
+                                                    )),
+                                            )
+                                        }),
+                                    )),
+                            ),
                     )
                     .child(
                         v_flex().flex_1().overflow_y_scrollbar().child(

@@ -3,7 +3,12 @@ use gpui::{
     IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, div,
     prelude::FluentBuilder as _,
 };
-use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
+use gpui_component::{
+    Root, Sizable, WindowExt,
+    button::Button,
+    notification::{Notification, NotificationType},
+    v_flex,
+};
 use gpui_fps::fps_monitor;
 
 use crate::{
@@ -34,10 +39,30 @@ impl StoryRoot {
             window.push_notification(Notification::new().message(msg).id::<SaveError>(), cx);
         });
         let reminder_sub = cx.observe_global_in::<ReminderNotifier>(window, |_, window, cx| {
-            let messages = cx.global::<ReminderNotifier>().take_all();
-            for msg in messages {
-                struct DueReminder;
-                window.push_notification(Notification::new().message(msg).id::<DueReminder>(), cx);
+            let notices = cx.global::<ReminderNotifier>().take_all();
+            for notice in notices {
+                let reminder_id = notice.reminder_id.clone();
+                window.push_notification(
+                    Notification::new()
+                        .title("任务提醒")
+                        .message(notice.title)
+                        .with_type(NotificationType::Info)
+                        .action(move |_, _, _| {
+                            let reminder_id = reminder_id.clone();
+                            Button::new("snooze-15").small().label("15 分钟后再提醒").on_click(
+                                move |_, window, cx| {
+                                    crate::todo_actions::snooze_reminder(
+                                        reminder_id.clone(),
+                                        15,
+                                        cx,
+                                    );
+                                    window.push_notification("已延后 15 分钟", cx);
+                                },
+                            )
+                        }),
+                    cx,
+                );
+                let _ = crate::play_ogg_file("assets/sounds/success.ogg");
             }
         });
         Self {
