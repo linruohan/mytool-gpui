@@ -84,11 +84,43 @@ pub fn render_item_list<V>(
 where
     V: BoardView + Render,
 {
-    v_flex().gap(px(2.)).w_full().children(items.iter().map(|(i, _)| {
-        let item_row = item_rows.get(*i).cloned();
-        let is_active = active_index == Some(*i);
-        render_item_row(*i, item_row, is_active, active_border, view.clone())
-    }))
+    v_flex().gap(px(2.)).w_full().children(flatten_with_indent(items).into_iter().map(
+        |(i, indent)| {
+            let item_row = item_rows.get(i).cloned();
+            let is_active = active_index == Some(i);
+            let row = render_item_row(i, item_row, is_active, active_border, view.clone());
+            div().when(indent, |this| this.pl(px(22.))).child(row)
+        },
+    ))
+}
+
+fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> {
+    let ids: std::collections::HashSet<&str> =
+        items.iter().map(|(_, item)| item.id.as_str()).collect();
+    let mut nested_pos = std::collections::HashSet::new();
+    let mut by_parent: std::collections::HashMap<&str, Vec<usize>> =
+        std::collections::HashMap::new();
+    for (pos, (_, item)) in items.iter().enumerate() {
+        if let Some(pid) = item.parent_id.as_deref().filter(|id| !id.is_empty())
+            && ids.contains(pid)
+        {
+            by_parent.entry(pid).or_default().push(pos);
+            nested_pos.insert(pos);
+        }
+    }
+    let mut out = Vec::with_capacity(items.len());
+    for (pos, (_, item)) in items.iter().enumerate() {
+        if nested_pos.contains(&pos) {
+            continue;
+        }
+        out.push((items[pos].0, false));
+        if let Some(child_pos) = by_parent.get(item.id.as_str()) {
+            for &cpos in child_pos {
+                out.push((items[cpos].0, true));
+            }
+        }
+    }
+    out
 }
 
 /// 构建 Section 更多操作下拉菜单（编辑 / 复制 / 归档 / 删除）

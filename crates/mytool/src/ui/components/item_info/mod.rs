@@ -115,6 +115,7 @@ impl ItemInfoState {
             cx.subscribe_in(&schedule_button_state, window, Self::on_schedule_event),
             cx.subscribe_in(&recurrency_button_state, window, Self::on_recurrency_event),
             cx.subscribe_in(&reminder_state, window, Self::on_reminder_event),
+            cx.subscribe_in(&attachment_state, window, Self::on_attachment_event),
             // 异步保存结果写入 SaveResults 时刷新，否则失败不会把状态从 Saving 改成 Failed
             cx.observe_global::<SaveResults>(|this, cx| {
                 if this.apply_save_results(cx) {
@@ -594,6 +595,19 @@ impl Render for ItemInfoState {
                                     .gap_1()
                                     .items_center()
                                     .flex_shrink_0()
+                                    .when(!self.state_manager.item.is_subtask(), |this| {
+                                        this.child(
+                                            Button::new("add-subtask")
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::Plus)
+                                                .tooltip("添加子任务")
+                                                .on_click(cx.listener(|this, _, window, cx| {
+                                                    this.add_subtask(window, cx);
+                                                })),
+                                        )
+                                    })
                                     .child(AttachmentButton::new(&self.attachment_state))
                                     .child(self.label_popover_list.clone())
                                     .child(PriorityButton::new(&self.priority_state))

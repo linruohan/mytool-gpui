@@ -647,6 +647,15 @@ impl TodoStore {
         self.project_index.get(project_id).map(Vec::as_slice).unwrap_or(&[])
     }
 
+    /// 指定父任务下的子任务（保持 all_items 顺序）
+    pub fn child_items(&self, parent_id: &str) -> Vec<Arc<ItemModel>> {
+        self.all_items
+            .iter()
+            .filter(|item| item.parent_id.as_deref() == Some(parent_id))
+            .cloned()
+            .collect()
+    }
+
     /// 获取指定分区的任务（走 section_index，不复制 Vec）
     pub fn items_by_section(&self, section_id: &str) -> &[Arc<ItemModel>] {
         self.section_index.get(section_id).map(Vec::as_slice).unwrap_or(&[])

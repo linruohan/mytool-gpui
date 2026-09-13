@@ -349,9 +349,11 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     );
 
     let mut updated_item = (*item).clone();
-    if checked
-        && let Some(next_due) = updated_item.due_date().and_then(|d| d.next_due_after_completion())
-    {
+    let next_due = checked
+        .then(|| updated_item.due_date().and_then(|d| d.next_due_after_completion()))
+        .flatten();
+    let rolling = next_due.is_some();
+    if let Some(next_due) = next_due {
         updated_item.set_due_date(Some(next_due));
         updated_item.checked = false;
         updated_item.completed_at = None;
@@ -361,8 +363,22 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
             if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
     }
 
+    let complete_subitems = !rolling;
+    let children: Vec<Arc<ItemModel>> =
+        if complete_subitems { cx.global::<TodoStore>().child_items(&item_id) } else { Vec::new() };
+    let original_children = children.clone();
+
     cx.update_global::<TodoStore, _>(|store, _| {
         store.update_item(Arc::new(updated_item.clone()));
+        if complete_subitems {
+            for child in &children {
+                let mut child_item = (**child).clone();
+                child_item.checked = checked;
+                child_item.completed_at =
+                    if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+                store.update_item(Arc::new(child_item));
+            }
+        }
     });
 
     let db_state = cx.global::<DBState>().clone();
@@ -371,7 +387,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     cx.spawn(async move |cx| {
         match db_state
             .spawn_store_op(move |store| async move {
-                store.complete_item(&item_id_for_db, checked, false).await?;
+                store.complete_item(&item_id_for_db, checked, complete_subitems).await?;
                 Ok(store.get_item(&item_id_for_db).await)
             })
             .await
@@ -394,6 +410,9 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
 
                 cx.update_global::<TodoStore, _>(|store, _| {
                     store.update_item(original);
+                    for child in original_children {
+                        store.update_item(child);
+                    }
                 });
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {

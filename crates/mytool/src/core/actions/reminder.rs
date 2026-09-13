@@ -2,17 +2,26 @@ use chrono::{NaiveDate, NaiveDateTime};
 use gpui::App;
 use todos::entity::ReminderModel;
 
-use crate::todo_state::{DBState, ReminderNotifier};
+use crate::todo_state::{DBState, ErrorNotifier, ReminderNotifier};
+
+fn notify_error(cx: &mut gpui::AsyncApp, message: String) {
+    let _ = cx.update_global::<ErrorNotifier, _>(|notifier, _| {
+        notifier.set_error(message);
+    });
+}
 
 pub fn add_reminder(reminder: ReminderModel, cx: &mut App) {
     let db_state = cx.global::<DBState>().clone();
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         match db_state
             .spawn_store_op(move |store| async move { store.insert_reminder(reminder).await })
             .await
         {
             Ok(Ok(_)) => {},
-            Ok(Err(e)) => tracing::error!("add_reminder failed: {:?}", e),
+            Ok(Err(e)) => {
+                tracing::error!("add_reminder failed: {:?}", e);
+                notify_error(cx, format!("添加提醒失败：{e}"));
+            },
             Err(join_err) => tracing::error!("add_reminder task panicked: {:?}", join_err),
         }
     })
@@ -21,13 +30,16 @@ pub fn add_reminder(reminder: ReminderModel, cx: &mut App) {
 
 pub fn delete_reminder(reminder_id: String, cx: &mut App) {
     let db_state = cx.global::<DBState>().clone();
-    cx.spawn(async move |_cx| {
+    cx.spawn(async move |cx| {
         match db_state
             .spawn_store_op(move |store| async move { store.delete_reminder(&reminder_id).await })
             .await
         {
             Ok(Ok(_)) => {},
-            Ok(Err(e)) => tracing::error!("delete_reminder failed: {:?}", e),
+            Ok(Err(e)) => {
+                tracing::error!("delete_reminder failed: {:?}", e);
+                notify_error(cx, format!("删除提醒失败：{e}"));
+            },
             Err(join_err) => tracing::error!("delete_reminder task panicked: {:?}", join_err),
         }
     })

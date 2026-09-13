@@ -3,9 +3,10 @@ use gpui_component::input::{InputEvent, InputState, TextareaState};
 
 use super::{
     super::{
-        PriorityEvent, PriorityState, ProjectButtonEvent, ProjectButtonState,
-        RecurrencyButtonEvent, RecurrencyButtonState, ReminderButtonEvent, ReminderButtonState,
-        ScheduleButtonEvent, ScheduleButtonState, SectionEvent, SectionState,
+        AttachmentButtonEvent, AttachmentButtonState, PriorityEvent, PriorityState,
+        ProjectButtonEvent, ProjectButtonState, RecurrencyButtonEvent, RecurrencyButtonState,
+        ReminderButtonEvent, ReminderButtonState, ScheduleButtonEvent, ScheduleButtonState,
+        SectionEvent, SectionState,
     },
     ItemInfoEvent, ItemInfoState,
 };
@@ -257,6 +258,37 @@ impl ItemInfoState {
 
         cx.emit(ItemInfoEvent::Updated());
         cx.notify();
+    }
+
+    pub(super) fn on_attachment_event(
+        &mut self,
+        _state: &Entity<AttachmentButtonState>,
+        event: &AttachmentButtonEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            AttachmentButtonEvent::Added(_) | AttachmentButtonEvent::Removed(_) => {
+                NotificationSystem::debug("attachment list changed");
+            },
+            AttachmentButtonEvent::Error(error) => {
+                window.notify_error(format!("附件操作失败：{}", error), cx);
+            },
+        }
+        cx.notify();
+    }
+
+    pub(super) fn add_subtask(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let parent = self.state_manager.item.clone();
+        if parent.id.is_empty() || parent.is_subtask() {
+            window.notify_error("请先保存任务后再添加子任务", cx);
+            return;
+        }
+        let mut item = todos::entity::ItemModel::default();
+        item.parent_id = Some(parent.id.clone());
+        item.project_id = parent.project_id.clone();
+        item.section_id = parent.section_id.clone();
+        crate::ui::components::show_new_item_dialog(window, cx, item);
     }
 
     pub fn set_priority(&mut self, priority: i32) {

@@ -162,4 +162,8 @@ impl Model {
         let today = chrono::Utc::now().naive_utc().date();
         self.due_date_naive().is_some_and(|due| due < today)
     }
+
+    pub fn is_subtask(&self) -> bool {
+        self.parent_id.as_deref().is_some_and(|id| !id.is_empty())
+    }
 }

@@ -195,12 +195,29 @@ impl AttachmentButtonState {
 
             let file_type =
                 file_path.extension().and_then(|ext| ext.to_str()).map(|s| s.to_string());
+            let attachment_id = Uuid::new_v4().to_string();
+            let stored_path = match crate::todo_actions::copy_into_app_dir(
+                &file_path,
+                &item_id,
+                &attachment_id,
+                &file_name,
+            ) {
+                Ok(path) => path.to_string_lossy().to_string(),
+                Err(e) => {
+                    cx.update_entity(&view, |_this, cx| {
+                        cx.emit(AttachmentButtonEvent::Error(Box::new(
+                            AttachmentError::FileReadError(e),
+                        )));
+                    });
+                    return;
+                },
+            };
 
             let attachment = AttachmentModel {
-                id: Uuid::new_v4().to_string(),
+                id: attachment_id,
                 item_id,
                 file_name: file_name.to_string(),
-                file_path: file_path.to_string_lossy().to_string(),
+                file_path: stored_path,
                 file_type,
                 file_size,
             };
@@ -230,8 +247,15 @@ impl AttachmentButtonState {
     }
 
     fn on_remove_attachment(&mut self, attachment_id: &str, cx: &mut Context<Self>) {
+        let file_path = self
+            .items
+            .items
+            .iter()
+            .find(|a| a.id == attachment_id)
+            .map(|a| a.file_path.clone())
+            .unwrap_or_default();
         self.remove_attachment(attachment_id, cx);
-        delete_attachment(attachment_id.to_string(), cx);
+        delete_attachment(attachment_id.to_string(), file_path, cx);
     }
 }
 
