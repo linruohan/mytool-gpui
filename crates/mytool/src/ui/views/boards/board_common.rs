@@ -13,6 +13,7 @@ use gpui_component::{
     h_flex, v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::entity::ItemModel;
 
 use super::board_base::BoardView;
@@ -45,25 +46,40 @@ pub enum FinishItemDialogStyle {
 }
 
 impl FinishItemDialogStyle {
-    fn message(self) -> &'static str {
+    fn message(self) -> String {
         match self {
-            Self::Inbox => "确定完成这个任务吗？",
-            Self::Standard => "将此任务标记为已完成？",
+            Self::Inbox => t!("todo.item.finish_confirm_inbox").to_string(),
+            Self::Standard => t!("todo.item.finish_confirm").to_string(),
         }
     }
 
-    fn success_notification(self) -> &'static str {
+    fn success_notification(self) -> String {
         match self {
-            Self::Inbox => "已完成任务。",
-            Self::Standard => "任务已标记为完成。",
+            Self::Inbox => t!("todo.item.finished").to_string(),
+            Self::Standard => t!("todo.item.marked_complete").to_string(),
         }
     }
 
-    fn cancel_notification(self) -> &'static str {
+    fn cancel_notification(self) -> String {
         match self {
-            Self::Inbox => "已取消。",
-            Self::Standard => "已取消操作。",
+            Self::Inbox => t!("todo.item.cancelled").to_string(),
+            Self::Standard => t!("todo.item.op_cancelled").to_string(),
         }
+    }
+}
+
+/// 无日期任务在日程分组里的内部键（展示文案走 i18n）。
+pub const UNDATED_DATE_KEY: &str = "__undated__";
+
+pub fn weekday_short(n: u32) -> String {
+    match n % 7 {
+        0 => t!("todo.weekday.sun").to_string(),
+        1 => t!("todo.weekday.mon").to_string(),
+        2 => t!("todo.weekday.tue").to_string(),
+        3 => t!("todo.weekday.wed").to_string(),
+        4 => t!("todo.weekday.thu").to_string(),
+        5 => t!("todo.weekday.fri").to_string(),
+        _ => t!("todo.weekday.sat").to_string(),
     }
 }
 
@@ -93,7 +109,7 @@ pub fn show_confirm_dialog<T, F>(
         dialog
             .overlay(true)
             .overlay_closable(true)
-            .child(Alert::warning("confirm-alert", message.clone()).title("确认"))
+            .child(Alert::warning("confirm-alert", message.clone()).title(t!("todo.confirm")))
             .on_ok({
                 let on_confirm = on_confirm.clone();
                 let success_notification = success_notification.clone();
@@ -120,19 +136,19 @@ where
 {
     if !cx.global::<crate::core::state::TodoPrefs>().confirm_on_delete {
         delete_item_optimistic(item, cx);
-        window.push_notification("已删除任务。", cx);
+        window.push_notification(t!("todo.item.deleted").to_string(), cx);
         return;
     }
     show_confirm_dialog(
         window,
         cx,
-        "确定删除这个任务吗？",
-        "确认",
+        t!("todo.item.delete_confirm").to_string(),
+        &t!("todo.confirm"),
         move |cx| {
             delete_item_optimistic(item.clone(), cx);
         },
-        "已删除任务。",
-        "已取消删除。",
+        &t!("todo.item.deleted"),
+        &t!("todo.item.delete_cancel"),
     );
 }
 
@@ -146,7 +162,7 @@ pub fn show_finish_item_dialog<T>(
     T: Render + 'static,
 {
     let success = if item.due_date().and_then(|d| d.next_due_after_completion()).is_some() {
-        "已安排下一期"
+        t!("todo.item.next_occurrence").to_string()
     } else {
         style.success_notification()
     };
@@ -154,12 +170,12 @@ pub fn show_finish_item_dialog<T>(
         window,
         cx,
         style.message(),
-        "确认",
+        &t!("todo.confirm"),
         move |cx| {
             complete_item_optimistic(item.clone(), true, cx);
         },
-        success,
-        style.cancel_notification(),
+        &success,
+        &style.cancel_notification(),
     );
 }
 
@@ -168,19 +184,27 @@ pub fn show_pin_item_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: A
 where
     T: Render + 'static,
 {
-    let message = if item.pinned { "取消置顶这个任务？" } else { "置顶这个任务？" };
-    let success = if item.pinned { "已取消置顶。" } else { "已置顶任务。" };
+    let message = if item.pinned {
+        t!("todo.item.unpin_confirm").to_string()
+    } else {
+        t!("todo.item.pin_confirm").to_string()
+    };
+    let success = if item.pinned {
+        t!("todo.item.unpinned").to_string()
+    } else {
+        t!("todo.item.pinned").to_string()
+    };
 
     show_confirm_dialog(
         window,
         cx,
         message,
-        "确认",
+        &t!("todo.confirm"),
         move |cx| {
             set_item_pinned_optimistic(item.clone(), !item.pinned, cx);
         },
-        success,
-        "已取消操作。",
+        &success,
+        &t!("todo.item.op_cancelled"),
     );
 }
 
@@ -192,13 +216,13 @@ where
     show_confirm_dialog(
         window,
         cx,
-        "确定将此任务标记为未完成吗？",
-        "确认",
+        t!("todo.item.unfinish_confirm").to_string(),
+        &t!("todo.confirm"),
         move |cx| {
             complete_item_optimistic(item.clone(), false, cx);
         },
-        "已标记为未完成。",
-        "已取消。",
+        &t!("todo.item.unfinished"),
+        &t!("todo.item.cancelled"),
     );
 }
 
@@ -375,7 +399,7 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
         .collect();
 
     if section_items.is_empty() {
-        window.push_notification("这个分区里没有可安排的任务", cx);
+        window.push_notification(t!("todo.section.no_schedulable").to_string(), cx);
         return;
     }
 
@@ -383,24 +407,26 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
 
     window.open_dialog(cx, move |dialog, _, _| {
         dialog
-            .title("安排分区任务")
+            .title(t!("todo.section.schedule_title").to_string())
             .overlay(true)
             .overlay_closable(true)
             .child(
                 v_flex()
                     .gap_2()
-                    .child(gpui::div().child("为这个分区的所有任务选择日期："))
+                    .child(gpui::div().child(t!("todo.section.schedule_hint").to_string()))
                     .child(crate::ui::components::ScheduleButton::new(&schedule_state)),
             )
             .footer(
                 gpui_component::dialog::DialogFooter::new()
+                    .child(gpui_component::dialog::DialogClose::new().child(
+                        Button::new("cancel").label(t!("todo.cancel").to_string()).outline(),
+                    ))
                     .child(
-                        gpui_component::dialog::DialogClose::new()
-                            .child(Button::new("cancel").label("取消").outline()),
-                    )
-                    .child(
-                        gpui_component::dialog::DialogAction::new()
-                            .child(Button::new("schedule").label("安排").primary()),
+                        gpui_component::dialog::DialogAction::new().child(
+                            Button::new("schedule")
+                                .label(t!("todo.section.schedule").to_string())
+                                .primary(),
+                        ),
                     ),
             )
             .on_ok({
@@ -420,7 +446,10 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
 
                     batch_update_items(updated_items, cx);
 
-                    window.push_notification(format!("已为分区安排 {} 个任务", count), cx);
+                    window.push_notification(
+                        t!("todo.section.scheduled_n", count => count).to_string(),
+                        cx,
+                    );
                     true
                 }
             })
@@ -503,18 +532,21 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                 gpui::div()
                     .text_sm()
                     .text_color(cx.theme().muted_foreground)
-                    .child(format!("已选 {count} 项（Ctrl/Cmd+点击）")),
+                    .child(t!("todo.batch.selected", count => count).to_string()),
             )
             .child(
                 Button::new("batch-complete")
                     .small()
                     .ghost()
                     .icon(IconName::CheckSquare)
-                    .tooltip("批量完成")
+                    .tooltip(t!("todo.batch.complete").to_string())
                     .on_click(|_, window, cx| {
                         let n = batch_complete_selected(cx);
                         if n > 0 {
-                            window.push_notification(format!("已完成 {n} 个任务"), cx);
+                            window.push_notification(
+                                t!("todo.batch.completed_n", count => n).to_string(),
+                                cx,
+                            );
                         }
                     }),
             )
@@ -523,11 +555,14 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                     .small()
                     .ghost()
                     .icon(IconName::PinSymbolic)
-                    .tooltip("批量置顶")
+                    .tooltip(t!("todo.batch.pin").to_string())
                     .on_click(|_, window, cx| {
                         let n = batch_pin_selected(cx);
                         if n > 0 {
-                            window.push_notification(format!("已更新 {n} 个任务的置顶"), cx);
+                            window.push_notification(
+                                t!("todo.batch.pinned_n", count => n).to_string(),
+                                cx,
+                            );
                         }
                     }),
             )
@@ -536,7 +571,7 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                     .small()
                     .ghost()
                     .icon(IconName::UserTrashSymbolic)
-                    .tooltip("批量删除")
+                    .tooltip(t!("todo.batch.delete").to_string())
                     .on_click(|_, window, cx| {
                         let n = cx.global::<ItemSelection>().len();
                         if n == 0 {
@@ -549,22 +584,26 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                                 .child(
                                     Alert::warning(
                                         "batch-delete-alert",
-                                        format!("确定删除选中的 {n} 个任务吗？"),
+                                        t!("todo.batch.delete_confirm", count => n).to_string(),
                                     )
-                                    .title("确认"),
+                                    .title(t!("todo.confirm")),
                                 )
                                 .on_ok(move |_, window: &mut Window, cx| {
                                     let deleted = batch_delete_selected(cx);
                                     if deleted > 0 {
                                         window.push_notification(
-                                            format!("已删除 {deleted} 个任务"),
+                                            t!("todo.batch.deleted_n", count => deleted)
+                                                .to_string(),
                                             cx,
                                         );
                                     }
                                     true
                                 })
                                 .on_cancel(move |_, window: &mut Window, cx| {
-                                    window.push_notification("已取消删除。", cx);
+                                    window.push_notification(
+                                        t!("todo.item.delete_cancel").to_string(),
+                                        cx,
+                                    );
                                     true
                                 })
                         });
@@ -592,7 +631,7 @@ pub fn render_add_task_fab(
                 .primary()
                 .large()
                 .rounded(px(24.))
-                .tooltip("新建任务")
+                .tooltip(t!("todo.item.new").to_string())
                 .on_click(on_click),
         )
 }

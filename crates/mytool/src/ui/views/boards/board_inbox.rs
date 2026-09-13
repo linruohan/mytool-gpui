@@ -17,6 +17,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     BoardBase, VisualHierarchy, board_section,
@@ -104,8 +105,8 @@ impl Board for InboxBoard {
         store.inbox_items_cached(cache).len()
     }
 
-    fn title() -> &'static str {
-        "收件箱"
+    fn title() -> String {
+        t!("todo.board.inbox").to_string()
     }
 
     fn description() -> &'static str {
@@ -189,14 +190,14 @@ impl Render for InboxBoard {
                                 .small()
                                 .ghost()
                                 .compact()
-                                .tooltip("任务操作")
+                                .tooltip(t!("todo.item.actions").to_string())
                                 .icon(IconName::CheckSquare)
                                 .dropdown_menu({
                                     let view = view.clone();
                                     move |this, window, _cx| {
                                         let view = view.clone();
                                         this.item(
-                                            PopupMenuItem::new("编辑任务")
+                                            PopupMenuItem::new(t!("todo.item.edit").to_string())
                                                 .icon(IconName::EditSymbolic)
                                                 .on_click(window.listener_for(
                                                     &view,
@@ -210,7 +211,7 @@ impl Render for InboxBoard {
                                         )
                                         .separator()
                                         .item(
-                                            PopupMenuItem::new("删除任务")
+                                            PopupMenuItem::new(t!("todo.item.delete").to_string())
                                                 .icon(IconName::UserTrashSymbolic)
                                                 .on_click(window.listener_for(
                                                     &view,
@@ -230,7 +231,7 @@ impl Render for InboxBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::PlusLargeSymbolic)
-                            .tooltip("新建分区")
+                            .tooltip(t!("todo.section.new").to_string())
                             .on_click({
                                 let view = view.clone();
                                 move |_event, window, cx| {
@@ -251,7 +252,7 @@ impl Render for InboxBoard {
                         .pt_1()
                         .pb(FAB_BOTTOM_PAD)
                         .when(!pinned_items.is_empty(), |this| {
-                            this.child(board_section("置顶").child(
+                            this.child(board_section(t!("todo.group.pinned").to_string()).child(
                                 board_renderer::render_item_list(
                                     &pinned_items,
                                     item_rows,
@@ -266,8 +267,8 @@ impl Render for InboxBoard {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
                                 InboxBoard::icon(),
-                                "添加一些任务",
-                                "点击右下角 + 创建新任务",
+                                t!("todo.empty.add_tasks").to_string(),
+                                t!("todo.empty.add_hint").to_string(),
                             ))
                         })
                         .when(!no_section_items.is_empty(), |this| {

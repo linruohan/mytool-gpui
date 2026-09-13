@@ -23,6 +23,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     BoardBase, VisualHierarchy, section_with_title,
@@ -30,9 +31,9 @@ use crate::{
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, FAB_BOTTOM_PAD, FinishItemDialogStyle, render_board_header,
-            show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog,
-            with_selected_item,
+            BoardItemClickEvent, FAB_BOTTOM_PAD, FinishItemDialogStyle, UNDATED_DATE_KEY,
+            render_board_header, show_finish_item_dialog, show_item_delete_dialog,
+            show_pin_item_dialog, weekday_short, with_selected_item,
         },
         board_renderer,
         container_board::Board,
@@ -193,27 +194,38 @@ impl ScheduledBoard {
 }
 
 fn format_schedule_heading(date_key: &str, today: &str) -> String {
-    if date_key == "无日期" {
-        return "无日期".to_string();
+    if date_key == UNDATED_DATE_KEY {
+        return t!("todo.date.none").to_string();
     }
 
     let Ok(date) = chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d") else {
         return date_key.to_string();
     };
-    let weekday =
-        ["日", "一", "二", "三", "四", "五", "六"][date.weekday().num_days_from_sunday() as usize];
+    let weekday = weekday_short(date.weekday().num_days_from_sunday());
     let today_date = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d").ok();
 
     if Some(date) == today_date {
-        format!("今天 · 周{weekday}")
+        t!("todo.date.today_weekday", weekday => weekday.as_str()).to_string()
     } else if today_date.and_then(|d| d.succ_opt()) == Some(date) {
-        format!("明天 · 周{weekday}")
+        t!("todo.date.tomorrow_weekday", weekday => weekday.as_str()).to_string()
     } else if today_date.and_then(|d| d.pred_opt()) == Some(date) {
-        format!("昨天 · 周{weekday}")
+        t!("todo.date.yesterday_weekday", weekday => weekday.as_str()).to_string()
     } else if date.year() == chrono::Local::now().year() {
-        format!("周{weekday} · {}月{}日", date.month(), date.day())
+        t!(
+            "todo.date.weekday_md",
+            weekday => weekday.as_str(),
+            month => date.month(),
+            day => date.day()
+        )
+        .to_string()
     } else {
-        format!("{}年{}月{}日", date.year(), date.month(), date.day())
+        t!(
+            "todo.date.ymd",
+            year => date.year(),
+            month => date.month(),
+            day => date.day()
+        )
+        .to_string()
     }
 }
 
@@ -223,7 +235,7 @@ fn group_scheduled_by_date(
     let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
         HashMap::new();
     for (i, item) in items.iter().enumerate() {
-        let date_key = item.due_date_ymd().unwrap_or_else(|| "无日期".to_string());
+        let date_key = item.due_date_ymd().unwrap_or_else(|| UNDATED_DATE_KEY.to_string());
         items_by_date.entry(date_key).or_default().push((i, item.clone()));
     }
     let mut grouped: Vec<_> = items_by_date.into_iter().collect();
@@ -260,8 +272,8 @@ impl Board for ScheduledBoard {
         store.scheduled_items_cached(cache).len()
     }
 
-    fn title() -> &'static str {
-        "日程"
+    fn title() -> String {
+        t!("todo.board.scheduled").to_string()
     }
 
     fn description() -> &'static str {
@@ -332,13 +344,17 @@ impl Render for ScheduledBoard {
                 board_count,
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
-                    .child(DatePicker::new(&date_picker).cleanable(true).placeholder("按日期筛选"))
+                    .child(
+                        DatePicker::new(&date_picker)
+                            .cleanable(true)
+                            .placeholder(t!("todo.date.filter").to_string()),
+                    )
                     .when(has_filter, |this| {
                         this.child(
                             Button::new("clear-date-filter")
                                 .small()
                                 .ghost()
-                                .label("全部")
+                                .label(t!("todo.date.all").to_string())
                                 .on_click(cx.listener(|this, _, window, cx| {
                                     this.clear_date_filter(window, cx);
                                 })),
@@ -350,14 +366,14 @@ impl Render for ScheduledBoard {
                                 .small()
                                 .ghost()
                                 .compact()
-                                .tooltip("任务操作")
+                                .tooltip(t!("todo.item.actions").to_string())
                                 .icon(IconName::CheckSquare)
                                 .dropdown_menu({
                                     let view = view.clone();
                                     move |this, window, _cx| {
                                         let view = view.clone();
                                         this.item(
-                                            PopupMenuItem::new("编辑任务")
+                                            PopupMenuItem::new(t!("todo.item.edit").to_string())
                                                 .icon(IconName::EditSymbolic)
                                                 .on_click(window.listener_for(
                                                     &view,
@@ -371,7 +387,7 @@ impl Render for ScheduledBoard {
                                         )
                                         .separator()
                                         .item(
-                                            PopupMenuItem::new("删除任务")
+                                            PopupMenuItem::new(t!("todo.item.delete").to_string())
                                                 .icon(IconName::UserTrashSymbolic)
                                                 .on_click(window.listener_for(
                                                     &view,
@@ -406,19 +422,23 @@ impl Render for ScheduledBoard {
                                         div()
                                             .text_xs()
                                             .text_color(cx.theme().muted_foreground)
-                                            .child("有任务的日期"),
+                                            .child(t!("todo.date.with_tasks").to_string()),
                                     )
                                     .child(h_flex().gap_1().flex_wrap().children(
                                         grouped_by_date.iter().filter_map(|(date, items)| {
-                                            if date == "无日期" || items.is_empty() {
+                                            if date == UNDATED_DATE_KEY || items.is_empty() {
                                                 return None;
                                             }
                                             let ymd =
                                                 NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
                                             let selected =
                                                 filter_date.as_deref() == Some(date.as_str());
-                                            let label =
-                                                format!("{}日 · {}", ymd.day(), items.len());
+                                            let label = t!(
+                                                "todo.date.day_count",
+                                                day => ymd.day(),
+                                                count => items.len()
+                                            )
+                                            .to_string();
                                             Some(
                                                 Button::new((
                                                     "sched-day",
@@ -449,8 +469,8 @@ impl Render for ScheduledBoard {
                                     this.child(board_renderer::render_empty_placeholder(
                                         cx,
                                         ScheduledBoard::icon(),
-                                        "添加一些任务",
-                                        "设置日期后会按天分组显示",
+                                        t!("todo.empty.add_tasks").to_string(),
+                                        t!("todo.empty.scheduled_hint").to_string(),
                                     ))
                                 })
                                 .children(grouped_by_date.iter().filter_map(|(date, items)| {

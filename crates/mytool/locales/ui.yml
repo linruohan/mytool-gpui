@@ -384,3 +384,587 @@ todo:
     es: "%{name} (copia)"
     fr: "%{name} (copie)"
     de: "%{name} (Kopie)"
+  board.inbox:
+    en: Inbox
+    zh-CN: 收件箱
+    zh-HK: 收件箱
+    it: Posta in arrivo
+    es: Bandeja
+    fr: Boîte de réception
+    de: Eingang
+  board.today:
+    en: Today
+    zh-CN: 今天
+    zh-HK: 今天
+    it: Oggi
+    es: Hoy
+    fr: "Aujourd'hui"
+    de: Heute
+  board.scheduled:
+    en: Scheduled
+    zh-CN: 日程
+    zh-HK: 日程
+    it: Programmate
+    es: Programadas
+    fr: Planifiées
+    de: Geplant
+  board.labels:
+    en: Labels
+    zh-CN: 标签
+    zh-HK: 標籤
+    it: Etichette
+    es: Etiquetas
+    fr: Étiquettes
+    de: Labels
+  board.pin:
+    en: Pinned
+    zh-CN: 置顶
+    zh-HK: 置頂
+    it: Fissate
+    es: Fijadas
+    fr: Épinglées
+    de: Angeheftet
+  board.completed:
+    en: Completed
+    zh-CN: 已完成
+    zh-HK: 已完成
+    it: Completate
+    es: Completadas
+    fr: Terminées
+    de: Erledigt
+  confirm:
+    en: Confirm
+    zh-CN: 确认
+    zh-HK: 確認
+    it: Conferma
+    es: Confirmar
+    fr: Confirmer
+    de: Bestätigen
+  cancel:
+    en: Cancel
+    zh-CN: 取消
+    zh-HK: 取消
+    it: Annulla
+    es: Cancelar
+    fr: Annuler
+    de: Abbrechen
+  item.actions:
+    en: Task actions
+    zh-CN: 任务操作
+    zh-HK: 任務操作
+    it: Azioni attività
+    es: Acciones de tarea
+    fr: Actions de tâche
+    de: Aufgabenaktionen
+  item.delete:
+    en: Delete task
+    zh-CN: 删除任务
+    zh-HK: 刪除任務
+    it: Elimina attività
+    es: Eliminar tarea
+    fr: Supprimer la tâche
+    de: Aufgabe löschen
+  item.deleted:
+    en: Task deleted.
+    zh-CN: 已删除任务。
+    zh-HK: 已刪除任務。
+    it: Attività eliminata.
+    es: Tarea eliminada.
+    fr: Tâche supprimée.
+    de: Aufgabe gelöscht.
+  item.delete_confirm:
+    en: Delete this task?
+    zh-CN: 确定删除这个任务吗？
+    zh-HK: 確定刪除這個任務嗎？
+    it: Eliminare questa attività?
+    es: ¿Eliminar esta tarea?
+    fr: Supprimer cette tâche ?
+    de: Diese Aufgabe löschen?
+  item.delete_cancel:
+    en: Delete cancelled.
+    zh-CN: 已取消删除。
+    zh-HK: 已取消刪除。
+    it: Eliminazione annullata.
+    es: Eliminación cancelada.
+    fr: Suppression annulée.
+    de: Löschen abgebrochen.
+  item.finish_confirm_inbox:
+    en: Mark this task as done?
+    zh-CN: 确定完成这个任务吗？
+    zh-HK: 確定完成這個任務嗎？
+    it: Segnare questa attività come completata?
+    es: ¿Marcar esta tarea como hecha?
+    fr: Marquer cette tâche comme terminée ?
+    de: Diese Aufgabe als erledigt markieren?
+  item.finish_confirm:
+    en: Mark this task as completed?
+    zh-CN: 将此任务标记为已完成？
+    zh-HK: 將此任務標記為已完成？
+    it: Contrassegnare come completata?
+    es: ¿Marcar esta tarea como completada?
+    fr: Marquer cette tâche comme terminée ?
+    de: Diese Aufgabe als erledigt markieren?
+  item.finished:
+    en: Task completed.
+    zh-CN: 已完成任务。
+    zh-HK: 已完成任務。
+    it: Attività completata.
+    es: Tarea completada.
+    fr: Tâche terminée.
+    de: Aufgabe erledigt.
+  item.marked_complete:
+    en: Task marked complete.
+    zh-CN: 任务已标记为完成。
+    zh-HK: 任務已標記為完成。
+    it: Attività contrassegnata come completata.
+    es: Tarea marcada como completada.
+    fr: Tâche marquée comme terminée.
+    de: Aufgabe als erledigt markiert.
+  item.next_occurrence:
+    en: Next occurrence scheduled
+    zh-CN: 已安排下一期
+    zh-HK: 已安排下一期
+    it: Prossima occorrenza programmata
+    es: Siguiente repetición programada
+    fr: Occurrence suivante planifiée
+    de: Nächstes Vorkommen geplant
+  item.cancelled:
+    en: Cancelled.
+    zh-CN: 已取消。
+    zh-HK: 已取消。
+    it: Annullato.
+    es: Cancelado.
+    fr: Annulé.
+    de: Abgebrochen.
+  item.op_cancelled:
+    en: Action cancelled.
+    zh-CN: 已取消操作。
+    zh-HK: 已取消操作。
+    it: Azione annullata.
+    es: Acción cancelada.
+    fr: Action annulée.
+    de: Aktion abgebrochen.
+  item.unpin_confirm:
+    en: Unpin this task?
+    zh-CN: 取消置顶这个任务？
+    zh-HK: 取消置頂這個任務？
+    it: Togliere il fissaggio?
+    es: ¿Desfijar esta tarea?
+    fr: Désépingler cette tâche ?
+    de: Aufgabe lösen?
+  item.pin_confirm:
+    en: Pin this task?
+    zh-CN: 置顶这个任务？
+    zh-HK: 置頂這個任務？
+    it: Fissare questa attività?
+    es: ¿Fijar esta tarea?
+    fr: Épingler cette tâche ?
+    de: Aufgabe anheften?
+  item.unpinned:
+    en: Task unpinned.
+    zh-CN: 已取消置顶。
+    zh-HK: 已取消置頂。
+    it: Fissaggio rimosso.
+    es: Tarea desfijada.
+    fr: Tâche désépinglée.
+    de: Aufgabe gelöst.
+  item.pinned:
+    en: Task pinned.
+    zh-CN: 已置顶任务。
+    zh-HK: 已置頂任務。
+    it: Attività fissata.
+    es: Tarea fijada.
+    fr: Tâche épinglée.
+    de: Aufgabe angeheftet.
+  item.unfinish_confirm:
+    en: Mark this task as not completed?
+    zh-CN: 确定将此任务标记为未完成吗？
+    zh-HK: 確定將此任務標記為未完成嗎？
+    it: Segnare come non completata?
+    es: ¿Marcar como no completada?
+    fr: Marquer comme non terminée ?
+    de: Als nicht erledigt markieren?
+  item.unfinished:
+    en: Marked incomplete.
+    zh-CN: 已标记为未完成。
+    zh-HK: 已標記為未完成。
+    it: Contrassegnata come incompleta.
+    es: Marcada como incompleta.
+    fr: Marquée comme non terminée.
+    de: Als unerledigt markiert.
+  item.unpin:
+    en: Unpin
+    zh-CN: 取消置顶
+    zh-HK: 取消置頂
+    it: Rimuovi fissaggio
+    es: Desfijar
+    fr: Désépingler
+    de: Lösen
+  item.unfinish:
+    en: Mark incomplete
+    zh-CN: 恢复为未完成
+    zh-HK: 恢復為未完成
+    it: Segna incompleta
+    es: Marcar incompleta
+    fr: Marquer non terminée
+    de: Als unerledigt
+  empty.add_tasks:
+    en: Add some tasks
+    zh-CN: 添加一些任务
+    zh-HK: 新增一些任務
+    it: Aggiungi attività
+    es: Añade algunas tareas
+    fr: Ajoutez des tâches
+    de: Aufgaben hinzufügen
+  empty.add_hint:
+    en: Click the + button to create a task
+    zh-CN: 点击右下角 + 创建新任务
+    zh-HK: 點擊右下角 + 建立新任務
+    it: Fai clic su + per creare un'attività
+    es: Pulsa + para crear una tarea
+    fr: Cliquez sur + pour créer une tâche
+    de: Klicken Sie auf +, um eine Aufgabe zu erstellen
+  empty.pin_title:
+    en: No pinned tasks
+    zh-CN: 没有置顶任务
+    zh-HK: 沒有置頂任務
+    it: Nessuna attività fissata
+    es: No hay tareas fijadas
+    fr: Aucune tâche épinglée
+    de: Keine angehefteten Aufgaben
+  empty.pin_hint:
+    en: Pin important tasks to see them here
+    zh-CN: 把重要任务钉在这里，方便随时看到
+    zh-HK: 把重要任務釘在這裡，方便隨時看到
+    it: Fissa le attività importanti per vederle qui
+    es: Fija las tareas importantes para verlas aquí
+    fr: Épinglez les tâches importantes pour les voir ici
+    de: Heften Sie wichtige Aufgaben an, um sie hier zu sehen
+  empty.completed_title:
+    en: No completed tasks
+    zh-CN: 没有已完成的任务
+    zh-HK: 沒有已完成的任務
+    it: Nessuna attività completata
+    es: No hay tareas completadas
+    fr: Aucune tâche terminée
+    de: Keine erledigten Aufgaben
+  empty.completed_hint:
+    en: Completed tasks will appear here
+    zh-CN: 完成任务后会显示在这里
+    zh-HK: 完成任務後會顯示在這裡
+    it: Le attività completate appariranno qui
+    es: Las tareas completadas aparecerán aquí
+    fr: Les tâches terminées apparaîtront ici
+    de: Erledigte Aufgaben erscheinen hier
+  empty.labels_title:
+    en: No labels yet
+    zh-CN: 还没有标签
+    zh-HK: 還沒有標籤
+    it: Nessuna etichetta
+    es: Aún no hay etiquetas
+    fr: "Pas encore d'étiquettes"
+    de: Noch keine Labels
+  empty.labels_hint:
+    en: Click + in the top right to create a label
+    zh-CN: 点击右上角 + 创建标签
+    zh-HK: 點擊右上角 + 建立標籤
+    it: Fai clic su + in alto a destra
+    es: Pulsa + arriba a la derecha
+    fr: Cliquez sur + en haut à droite
+    de: Klicken Sie oben rechts auf +
+  empty.scheduled_hint:
+    en: Tasks with dates are grouped by day
+    zh-CN: 设置日期后会按天分组显示
+    zh-HK: 設定日期後會按天分組顯示
+    it: Le attività con data sono raggruppate per giorno
+    es: Las tareas con fecha se agrupan por día
+    fr: Les tâches datées sont groupées par jour
+    de: Aufgaben mit Datum werden nach Tag gruppiert
+  group.pinned:
+    en: Pinned
+    zh-CN: 置顶
+    zh-HK: 置頂
+    it: Fissate
+    es: Fijadas
+    fr: Épinglées
+    de: Angeheftet
+  group.overdue:
+    en: Overdue
+    zh-CN: 已过期
+    zh-HK: 已過期
+    it: Scadute
+    es: Vencidas
+    fr: En retard
+    de: Überfällig
+  section.schedule:
+    en: Schedule
+    zh-CN: 安排
+    zh-HK: 安排
+    it: Programma
+    es: Programar
+    fr: Planifier
+    de: Planen
+  section.no_schedulable:
+    en: No schedulable tasks in this section
+    zh-CN: 这个分区里没有可安排的任务
+    zh-HK: 這個分區裡沒有可安排的任務
+    it: Nessuna attività programmabile in questa sezione
+    es: No hay tareas programables en esta sección
+    fr: Aucune tâche planifiable dans cette section
+    de: Keine planbaren Aufgaben in diesem Abschnitt
+  section.schedule_title:
+    en: Schedule section tasks
+    zh-CN: 安排分区任务
+    zh-HK: 安排分區任務
+    it: Programma attività della sezione
+    es: Programar tareas de la sección
+    fr: Planifier les tâches de la section
+    de: Abschnittsaufgaben planen
+  section.schedule_hint:
+    en: "Choose a date for all tasks in this section:"
+    zh-CN: "为这个分区的所有任务选择日期："
+    zh-HK: "為這個分區的所有任務選擇日期："
+    it: "Scegli una data per tutte le attività:"
+    es: "Elige una fecha para todas las tareas:"
+    fr: "Choisissez une date pour toutes les tâches :"
+    de: "Wählen Sie ein Datum für alle Aufgaben:"
+  section.scheduled_n:
+    en: Scheduled %{count} tasks
+    zh-CN: 已为分区安排 %{count} 个任务
+    zh-HK: 已為分區安排 %{count} 個任務
+    it: Programmate %{count} attività
+    es: Se programaron %{count} tareas
+    fr: "Tâches planifiées : %{count}"
+    de: "%{count} Aufgaben geplant"
+  batch.selected:
+    en: "%{count} selected (Ctrl/Cmd+click)"
+    zh-CN: 已选 %{count} 项（Ctrl/Cmd+点击）
+    zh-HK: 已選 %{count} 項（Ctrl/Cmd+點擊）
+    it: "%{count} selezionate (Ctrl/Cmd+clic)"
+    es: "%{count} seleccionadas (Ctrl/Cmd+clic)"
+    fr: "%{count} sélectionnées (Ctrl/Cmd+clic)"
+    de: "%{count} ausgewählt (Strg/Cmd+Klick)"
+  batch.complete:
+    en: Complete selected
+    zh-CN: 批量完成
+    zh-HK: 批量完成
+    it: Completa selezionate
+    es: Completar seleccionadas
+    fr: Terminer la sélection
+    de: Auswahl erledigen
+  batch.pin:
+    en: Pin selected
+    zh-CN: 批量置顶
+    zh-HK: 批量置頂
+    it: Fissa selezionate
+    es: Fijar seleccionadas
+    fr: Épingler la sélection
+    de: Auswahl anheften
+  batch.delete:
+    en: Delete selected
+    zh-CN: 批量删除
+    zh-HK: 批量刪除
+    it: Elimina selezionate
+    es: Eliminar seleccionadas
+    fr: Supprimer la sélection
+    de: Auswahl löschen
+  batch.completed_n:
+    en: Completed %{count} tasks
+    zh-CN: 已完成 %{count} 个任务
+    zh-HK: 已完成 %{count} 個任務
+    it: Completate %{count} attività
+    es: Se completaron %{count} tareas
+    fr: "%{count} tâches terminées"
+    de: "%{count} Aufgaben erledigt"
+  batch.pinned_n:
+    en: Updated pin on %{count} tasks
+    zh-CN: 已更新 %{count} 个任务的置顶
+    zh-HK: 已更新 %{count} 個任務的置頂
+    it: Fissaggio aggiornato per %{count} attività
+    es: Se actualizó el fijado de %{count} tareas
+    fr: Épinglage mis à jour pour %{count} tâches
+    de: Anheften für %{count} Aufgaben aktualisiert
+  batch.delete_confirm:
+    en: Delete %{count} selected tasks?
+    zh-CN: 确定删除选中的 %{count} 个任务吗？
+    zh-HK: 確定刪除選中的 %{count} 個任務嗎？
+    it: Eliminare %{count} attività selezionate?
+    es: ¿Eliminar %{count} tareas seleccionadas?
+    fr: Supprimer %{count} tâches sélectionnées ?
+    de: "%{count} ausgewählte Aufgaben löschen?"
+  batch.deleted_n:
+    en: Deleted %{count} tasks
+    zh-CN: 已删除 %{count} 个任务
+    zh-HK: 已刪除 %{count} 個任務
+    it: Eliminate %{count} attività
+    es: Se eliminaron %{count} tareas
+    fr: "%{count} tâches supprimées"
+    de: "%{count} Aufgaben gelöscht"
+  date.filter:
+    en: Filter by date
+    zh-CN: 按日期筛选
+    zh-HK: 按日期篩選
+    it: Filtra per data
+    es: Filtrar por fecha
+    fr: Filtrer par date
+    de: Nach Datum filtern
+  date.all:
+    en: All
+    zh-CN: 全部
+    zh-HK: 全部
+    it: Tutte
+    es: Todas
+    fr: Toutes
+    de: Alle
+  date.with_tasks:
+    en: Days with tasks
+    zh-CN: 有任务的日期
+    zh-HK: 有任務的日期
+    it: Giorni con attività
+    es: Días con tareas
+    fr: Jours avec tâches
+    de: Tage mit Aufgaben
+  date.none:
+    en: No date
+    zh-CN: 无日期
+    zh-HK: 無日期
+    it: Senza data
+    es: Sin fecha
+    fr: Sans date
+    de: Kein Datum
+  date.today_weekday:
+    en: "Today · %{weekday}"
+    zh-CN: "今天 · 周%{weekday}"
+    zh-HK: "今天 · 週%{weekday}"
+    it: "Oggi · %{weekday}"
+    es: "Hoy · %{weekday}"
+    fr: "Aujourd'hui · %{weekday}"
+    de: "Heute · %{weekday}"
+  date.tomorrow_weekday:
+    en: "Tomorrow · %{weekday}"
+    zh-CN: "明天 · 周%{weekday}"
+    zh-HK: "明天 · 週%{weekday}"
+    it: "Domani · %{weekday}"
+    es: "Mañana · %{weekday}"
+    fr: "Demain · %{weekday}"
+    de: "Morgen · %{weekday}"
+  date.yesterday_weekday:
+    en: "Yesterday · %{weekday}"
+    zh-CN: "昨天 · 周%{weekday}"
+    zh-HK: "昨天 · 週%{weekday}"
+    it: "Ieri · %{weekday}"
+    es: "Ayer · %{weekday}"
+    fr: "Hier · %{weekday}"
+    de: "Gestern · %{weekday}"
+  date.weekday_md:
+    en: "%{weekday}, %{month}/%{day}"
+    zh-CN: "周%{weekday} · %{month}月%{day}日"
+    zh-HK: "週%{weekday} · %{month}月%{day}日"
+    it: "%{weekday} %{day}/%{month}"
+    es: "%{weekday} %{day}/%{month}"
+    fr: "%{weekday} %{day}/%{month}"
+    de: "%{weekday}, %{day}.%{month}."
+  date.ymd:
+    en: "%{year}-%{month}-%{day}"
+    zh-CN: "%{year}年%{month}月%{day}日"
+    zh-HK: "%{year}年%{month}月%{day}日"
+    it: "%{day}/%{month}/%{year}"
+    es: "%{day}/%{month}/%{year}"
+    fr: "%{day}/%{month}/%{year}"
+    de: "%{day}.%{month}.%{year}"
+  date.day_count:
+    en: "%{day} · %{count}"
+    zh-CN: "%{day}日 · %{count}"
+    zh-HK: "%{day}日 · %{count}"
+    it: "%{day} · %{count}"
+    es: "%{day} · %{count}"
+    fr: "%{day} · %{count}"
+    de: "%{day} · %{count}"
+  today.rescheduled_n:
+    en: Rescheduled %{count} tasks
+    zh-CN: 已为 %{count} 个任务改期
+    zh-HK: 已為 %{count} 個任務改期
+    it: Riprogrammate %{count} attività
+    es: Se reprogramaron %{count} tareas
+    fr: "%{count} tâches replanifiées"
+    de: "%{count} Aufgaben verschoben"
+  label.new:
+    en: New label
+    zh-CN: 新建标签
+    zh-HK: 新增標籤
+    it: Nuova etichetta
+    es: Nueva etiqueta
+    fr: Nouvelle étiquette
+    de: Neues Label
+  label.edit:
+    en: Edit label
+    zh-CN: 编辑标签
+    zh-HK: 編輯標籤
+    it: Modifica etichetta
+    es: Editar etiqueta
+    fr: "Modifier l'étiquette"
+    de: Label bearbeiten
+  label.delete:
+    en: Delete label
+    zh-CN: 删除标签
+    zh-HK: 刪除標籤
+    it: Elimina etichetta
+    es: Eliminar etiqueta
+    fr: "Supprimer l'étiquette"
+    de: Label löschen
+  weekday.sun:
+    en: Su
+    zh-CN: 日
+    zh-HK: 日
+    it: Do
+    es: Do
+    fr: Di
+    de: So
+  weekday.mon:
+    en: Mo
+    zh-CN: 一
+    zh-HK: 一
+    it: Lu
+    es: Lu
+    fr: Lu
+    de: Mo
+  weekday.tue:
+    en: Tu
+    zh-CN: 二
+    zh-HK: 二
+    it: Ma
+    es: Ma
+    fr: Ma
+    de: Di
+  weekday.wed:
+    en: We
+    zh-CN: 三
+    zh-HK: 三
+    it: Me
+    es: Mi
+    fr: Me
+    de: Mi
+  weekday.thu:
+    en: Th
+    zh-CN: 四
+    zh-HK: 四
+    it: Gi
+    es: Ju
+    fr: Je
+    de: Do
+  weekday.fri:
+    en: Fr
+    zh-CN: 五
+    zh-HK: 五
+    it: Ve
+    es: Vi
+    fr: Ve
+    de: Fr
+  weekday.sat:
+    en: Sa
+    zh-CN: 六
+    zh-HK: 六
+    it: Sa
+    es: Sa
+    fr: Sa
+    de: Sa

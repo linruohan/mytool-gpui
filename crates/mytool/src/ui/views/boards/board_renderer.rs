@@ -335,7 +335,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
 /// 渲染简单分组（标题 + 可选更多菜单 + 任务列表），用于 Pinned / Today 等虚拟分组
 #[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_simple_group_block<V: BoardView + Render>(
-    title: &str,
+    title: impl AsRef<str>,
     items: &[(usize, Arc<ItemModel>)],
     item_rows: &[Entity<ItemRowState>],
     active_index: Option<usize>,
@@ -344,7 +344,7 @@ pub fn render_simple_group_block<V: BoardView + Render>(
     _show_more_menu: bool,
     cx: &App,
 ) -> impl IntoElement {
-    board_section(title).child(render_item_list(
+    board_section(title.as_ref()).child(render_item_list(
         items,
         item_rows,
         active_index,
@@ -357,7 +357,7 @@ pub fn render_simple_group_block<V: BoardView + Render>(
 /// 渲染带 Schedule 按钮的简单分组，用于 Past Due 等
 #[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_group_with_schedule_button<V: BoardView + Render>(
-    title: &str,
+    title: impl AsRef<str>,
     items: &[(usize, Arc<ItemModel>)],
     item_rows: &[Entity<ItemRowState>],
     active_index: Option<usize>,
@@ -368,7 +368,7 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
 ) -> impl IntoElement {
     let view_clone = view.clone();
 
-    board_section(title)
+    board_section(title.as_ref())
         .sub_title(crate::ui::components::ScheduleButton::new(schedule_button))
         .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
 }

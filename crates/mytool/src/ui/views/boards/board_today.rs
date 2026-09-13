@@ -18,6 +18,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     BoardBase, ScheduleButtonEvent, ScheduleButtonState, VisualHierarchy,
@@ -72,7 +73,10 @@ impl TodayBoard {
                         }
                         let count = updated_items.len();
                         batch_update_items(updated_items, cx);
-                        window.push_notification(format!("已为 {count} 个任务改期"), cx);
+                        window.push_notification(
+                            t!("todo.today.rescheduled_n", count => count).to_string(),
+                            cx,
+                        );
                     },
                     ScheduleButtonEvent::Cleared => {
                         for item in &mut updated_items {
@@ -132,8 +136,8 @@ impl Board for TodayBoard {
         store.today_items_cached(cache).len()
     }
 
-    fn title() -> &'static str {
-        "今天"
+    fn title() -> String {
+        t!("todo.board.today").to_string()
     }
 
     fn description() -> &'static str {
@@ -181,9 +185,16 @@ impl Render for TodayBoard {
         let date_label = {
             use chrono::Datelike;
             let now = chrono::Local::now();
-            let weekday = ["日", "一", "二", "三", "四", "五", "六"]
-                [now.weekday().num_days_from_sunday() as usize];
-            format!("周{} · {}月{}日", weekday, now.month(), now.day())
+            let weekday = crate::ui::views::boards::board_common::weekday_short(
+                now.weekday().num_days_from_sunday(),
+            );
+            t!(
+                "todo.date.weekday_md",
+                weekday => weekday.as_str(),
+                month => now.month(),
+                day => now.day()
+            )
+            .to_string()
         };
 
         v_flex()
@@ -216,14 +227,14 @@ impl Render for TodayBoard {
                             .small()
                             .ghost()
                             .compact()
-                            .tooltip("任务操作")
+                            .tooltip(t!("todo.item.actions").to_string())
                             .icon(IconName::CheckSquare)
                             .dropdown_menu({
                                 let view = view.clone();
                                 move |this, window, _cx| {
                                     let view = view.clone();
                                     this.item(
-                                        PopupMenuItem::new("编辑任务")
+                                        PopupMenuItem::new(t!("todo.item.edit").to_string())
                                             .icon(IconName::EditSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -235,7 +246,7 @@ impl Render for TodayBoard {
                                     )
                                     .separator()
                                     .item(
-                                        PopupMenuItem::new("删除任务")
+                                        PopupMenuItem::new(t!("todo.item.delete").to_string())
                                             .icon(IconName::UserTrashSymbolic)
                                             .on_click(window.listener_for(
                                                 &view,
@@ -260,7 +271,7 @@ impl Render for TodayBoard {
                         .pb(FAB_BOTTOM_PAD)
                         .when(!pinned_items.is_empty(), |this| {
                             this.child(board_renderer::render_simple_group_block(
-                                "置顶",
+                                t!("todo.group.pinned").to_string(),
                                 &pinned_items,
                                 item_rows,
                                 active_index,
@@ -274,13 +285,13 @@ impl Render for TodayBoard {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
                                 TodayBoard::icon(),
-                                "添加一些任务",
-                                "点击右下角 + 创建新任务",
+                                t!("todo.empty.add_tasks").to_string(),
+                                t!("todo.empty.add_hint").to_string(),
                             ))
                         })
                         .when(!past_due_items.is_empty(), |this| {
                             this.child(board_renderer::render_group_with_schedule_button(
-                                "已过期",
+                                t!("todo.group.overdue").to_string(),
                                 &past_due_items,
                                 item_rows,
                                 active_index,
@@ -338,7 +349,7 @@ impl Render for TodayBoard {
                                     .ghost()
                                     .compact()
                                     .icon(IconName::Calendar)
-                                    .label("安排")
+                                    .label(t!("todo.section.schedule").to_string())
                                     .on_click({
                                         let section_id = section_id.clone();
                                         move |_, window, cx| {

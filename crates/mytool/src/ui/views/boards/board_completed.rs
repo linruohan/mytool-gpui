@@ -16,6 +16,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     BoardBase, VisualHierarchy,
@@ -103,8 +104,8 @@ impl Board for CompletedBoard {
         store.completed_items_cached(cache).len()
     }
 
-    fn title() -> &'static str {
-        "已完成"
+    fn title() -> String {
+        t!("todo.board.completed").to_string()
     }
 
     fn description() -> &'static str {
@@ -171,7 +172,7 @@ impl Render for CompletedBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::Undo)
-                            .tooltip("恢复为未完成")
+                            .tooltip(t!("todo.item.unfinish").to_string())
                             .on_click({
                                 let view = view.clone();
                                 move |_event, window, cx| {
@@ -195,8 +196,8 @@ impl Render for CompletedBoard {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
                                 CompletedBoard::icon(),
-                                "没有已完成的任务",
-                                "完成任务后会显示在这里",
+                                t!("todo.empty.completed_title").to_string(),
+                                t!("todo.empty.completed_hint").to_string(),
                             ))
                         })
                         .children(item_rows.iter().enumerate().map(move |(i, item_row)| {

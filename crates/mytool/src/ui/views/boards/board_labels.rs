@@ -11,6 +11,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     LabelEvent,
@@ -57,8 +58,8 @@ impl Board for LabelsBoard {
         cx.global::<TodoStore>().labels.len()
     }
 
-    fn title() -> &'static str {
-        "标签"
+    fn title() -> String {
+        t!("todo.board.labels").to_string()
     }
 
     fn description() -> &'static str {
@@ -108,7 +109,7 @@ impl Render for LabelsBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::PlusLargeSymbolic)
-                            .tooltip("新建标签")
+                            .tooltip(t!("todo.label.new").to_string())
                             .on_click({
                                 let labels_panel = labels_panel.clone();
                                 move |_event, window, cx| {
@@ -126,31 +127,31 @@ impl Render for LabelsBoard {
                                 .ghost()
                                 .compact()
                                 .icon(IconName::EllipsisVertical)
-                                .tooltip("更多")
+                                .tooltip(t!("todo.more").to_string())
                                 .dropdown_menu({
                                     let labels_panel = labels_panel.clone();
                                     move |this, window, _cx| {
                                         let labels_panel = labels_panel.clone();
-                                        this.item(PopupMenuItem::new("编辑标签").on_click(
-                                            window.listener_for(
-                                                &labels_panel,
-                                                |this, _, window, cx| {
-                                                    this.show_label_dialog(window, cx, true);
-                                                    cx.notify();
-                                                },
-                                            ),
-                                        ))
+                                        this.item(
+                                            PopupMenuItem::new(t!("todo.label.edit").to_string())
+                                                .on_click(window.listener_for(
+                                                    &labels_panel,
+                                                    |this, _, window, cx| {
+                                                        this.show_label_dialog(window, cx, true);
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
                                         .separator()
                                         .item(
-                                            PopupMenuItem::new("删除标签").on_click(
-                                                window.listener_for(
+                                            PopupMenuItem::new(t!("todo.label.delete").to_string())
+                                                .on_click(window.listener_for(
                                                     &labels_panel,
                                                     |this, _, window, cx| {
                                                         this.show_label_delete_dialog(window, cx);
                                                         cx.notify();
                                                     },
-                                                ),
-                                            ),
+                                                )),
                                         )
                                     }
                                 }),
@@ -161,8 +162,8 @@ impl Render for LabelsBoard {
                 this.child(board_renderer::render_empty_placeholder(
                     cx,
                     LabelsBoard::icon(),
-                    "还没有标签",
-                    "点击右上角 + 创建标签",
+                    t!("todo.empty.labels_title").to_string(),
+                    t!("todo.empty.labels_hint").to_string(),
                 ))
             })
             .when(board_count > 0, |this| this.child(self.labels_panel.clone()))

@@ -16,6 +16,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     BoardBase, VisualHierarchy,
@@ -103,8 +104,8 @@ impl Board for PinBoard {
         store.pinned_items_cached(cache).len()
     }
 
-    fn title() -> &'static str {
-        "置顶"
+    fn title() -> String {
+        t!("todo.board.pin").to_string()
     }
 
     fn description() -> &'static str {
@@ -173,7 +174,7 @@ impl Render for PinBoard {
                             .ghost()
                             .compact()
                             .icon(IconName::PinSymbolic)
-                            .tooltip("取消置顶")
+                            .tooltip(t!("todo.item.unpin").to_string())
                             .on_click({
                                 let view = view.clone();
                                 move |_event, window, cx| {
@@ -198,8 +199,8 @@ impl Render for PinBoard {
                             this.child(board_renderer::render_empty_placeholder(
                                 cx,
                                 PinBoard::icon(),
-                                "没有置顶任务",
-                                "把重要任务钉在这里，方便随时看到",
+                                t!("todo.empty.pin_title").to_string(),
+                                t!("todo.empty.pin_hint").to_string(),
                             ))
                         })
                         .when(!pinned_items.is_empty(), |this| {

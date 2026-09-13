@@ -36,7 +36,7 @@ pub trait Board: Render + Sized {
     fn klass() -> &'static str {
         std::any::type_name::<Self>().split("::").last().unwrap()
     }
-    fn title() -> &'static str;
+    fn title() -> String;
 
     fn description() -> &'static str {
         ""
