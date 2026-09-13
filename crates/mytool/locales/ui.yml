@@ -1752,6 +1752,318 @@ todo:
     es: "No se pudo marcar incompleta: %{error}."
     fr: "Marquage non terminé impossible : %{error}."
     de: "Unerledigt markieren fehlgeschlagen: %{error}."
+  error.user.database:
+    en: Database operation failed. Please retry later.
+    zh-CN: 数据库操作失败，请稍后重试
+    zh-HK: 資料庫操作失敗，請稍後重試
+    it: Operazione sul database non riuscita. Riprova più tardi.
+    es: Falló la operación de la base de datos. Reintenta más tarde.
+    fr: Échec de l'opération base de données. Réessayez plus tard.
+    de: Datenbankvorgang fehlgeschlagen. Bitte später erneut versuchen.
+  error.user.validation:
+    en: "Validation failed: %{detail}"
+    zh-CN: "输入验证失败：%{detail}"
+    zh-HK: "輸入驗證失敗：%{detail}"
+    it: "Convalida non riuscita: %{detail}"
+    es: "Validación fallida: %{detail}"
+    fr: "Validation échouée : %{detail}"
+    de: "Validierung fehlgeschlagen: %{detail}"
+  error.user.permission:
+    en: "Permission denied: %{detail}"
+    zh-CN: "权限不足：%{detail}"
+    zh-HK: "權限不足：%{detail}"
+    it: "Permesso negato: %{detail}"
+    es: "Permiso denegado: %{detail}"
+    fr: "Permission refusée : %{detail}"
+    de: "Berechtigung verweigert: %{detail}"
+  error.user.not_found:
+    en: "Not found: %{detail}"
+    zh-CN: "未找到：%{detail}"
+    zh-HK: "未找到：%{detail}"
+    it: "Non trovato: %{detail}"
+    es: "No encontrado: %{detail}"
+    fr: "Introuvable : %{detail}"
+    de: "Nicht gefunden: %{detail}"
+  error.user.network:
+    en: "Network error: %{detail}"
+    zh-CN: "网络错误：%{detail}"
+    zh-HK: "網絡錯誤：%{detail}"
+    it: "Errore di rete: %{detail}"
+    es: "Error de red: %{detail}"
+    fr: "Erreur réseau : %{detail}"
+    de: "Netzwerkfehler: %{detail}"
+  error.user.filesystem:
+    en: "File operation failed: %{detail}"
+    zh-CN: "文件操作失败：%{detail}"
+    zh-HK: "檔案操作失敗：%{detail}"
+    it: "Operazione sul file non riuscita: %{detail}"
+    es: "Falló la operación de archivo: %{detail}"
+    fr: "Opération fichier impossible : %{detail}"
+    de: "Dateivorgang fehlgeschlagen: %{detail}"
+  error.user.config:
+    en: "Configuration error: %{detail}"
+    zh-CN: "配置错误：%{detail}"
+    zh-HK: "設定錯誤：%{detail}"
+    it: "Errore di configurazione: %{detail}"
+    es: "Error de configuración: %{detail}"
+    fr: "Erreur de configuration : %{detail}"
+    de: "Konfigurationsfehler: %{detail}"
+  error.user.parse:
+    en: "Parse failed: %{detail}"
+    zh-CN: "解析失败：%{detail}"
+    zh-HK: "解析失敗：%{detail}"
+    it: "Analisi non riuscita: %{detail}"
+    es: "Error de análisis: %{detail}"
+    fr: "Analyse impossible : %{detail}"
+    de: "Parsen fehlgeschlagen: %{detail}"
+  error.user.concurrency:
+    en: "Concurrency conflict: %{detail}"
+    zh-CN: "并发冲突：%{detail}"
+    zh-HK: "並行衝突：%{detail}"
+    it: "Conflitto di concorrenza: %{detail}"
+    es: "Conflicto de concurrencia: %{detail}"
+    fr: "Conflit de concurrence : %{detail}"
+    de: "Nebenläufigkeitskonflikt: %{detail}"
+  error.user.internal:
+    en: An internal error occurred. Please contact support.
+    zh-CN: 应用内部错误，请联系技术支持
+    zh-HK: 應用程式內部錯誤，請聯絡技術支援
+    it: Errore interno. Contatta il supporto.
+    es: Error interno. Contacta con soporte.
+    fr: Erreur interne. Contactez l’assistance.
+    de: Interner Fehler. Bitte den Support kontaktieren.
+  error.user.cancelled:
+    en: The operation was cancelled.
+    zh-CN: 操作已取消
+    zh-HK: 操作已取消
+    it: Operazione annullata.
+    es: Operación cancelada.
+    fr: Opération annulée.
+    de: Vorgang abgebrochen.
+  error.user.timeout:
+    en: "The operation timed out: %{detail}"
+    zh-CN: "操作超时：%{detail}"
+    zh-HK: "操作逾時：%{detail}"
+    it: "Operazione scaduta: %{detail}"
+    es: "Tiempo de espera agotado: %{detail}"
+    fr: "Délai dépassé : %{detail}"
+    de: "Zeitüberschreitung: %{detail}"
+  error.suggestions_header:
+    en: "Suggestions:"
+    zh-CN: "建议："
+    zh-HK: "建議："
+    it: "Suggerimenti:"
+    es: "Sugerencias:"
+    fr: "Suggestions :"
+    de: "Vorschläge:"
+  error.hint.check_db:
+    en: Check that the database file exists
+    zh-CN: 检查数据库文件是否存在
+    zh-HK: 檢查資料庫檔案是否存在
+    it: Verifica che il file del database esista
+    es: Comprueba que el archivo de la base de datos existe
+    fr: Vérifiez que le fichier de base de données existe
+    de: Prüfen, ob die Datenbankdatei existiert
+  error.hint.restart:
+    en: Try restarting the app
+    zh-CN: 尝试重启应用
+    zh-HK: 嘗試重新啟動應用程式
+    it: Prova a riavviare l'app
+    es: Prueba a reiniciar la aplicación
+    fr: Essayez de redémarrer l’application
+    de: App neu starten
+  error.hint.support:
+    en: If the problem continues, contact support
+    zh-CN: 如果问题持续，请联系技术支持
+    zh-HK: 如果問題持續，請聯絡技術支援
+    it: Se il problema persiste, contatta il supporto
+    es: Si el problema continúa, contacta con soporte
+    fr: Si le problème continue, contactez l’assistance
+    de: Wenn das Problem bleibt, den Support kontaktieren
+  error.hint.check_input:
+    en: Check that the input meets the requirements
+    zh-CN: 请检查输入内容是否符合要求
+    zh-HK: 請檢查輸入內容是否符合要求
+    it: Controlla che l'input soddisfi i requisiti
+    es: Comprueba que la entrada cumple los requisitos
+    fr: Vérifiez que la saisie respecte les exigences
+    de: Eingabe auf Anforderungen prüfen
+  error.hint.check_permission:
+    en: Check your permission settings
+    zh-CN: 请检查您的权限设置
+    zh-HK: 請檢查您的權限設定
+    it: Controlla le impostazioni dei permessi
+    es: Revisa la configuración de permisos
+    fr: Vérifiez vos autorisations
+    de: Berechtigungen prüfen
+  error.hint.contact_admin:
+    en: Ask an administrator for the required permission
+    zh-CN: 联系管理员获取必要权限
+    zh-HK: 聯絡管理員以取得必要權限
+    it: Chiedi a un amministratore i permessi necessari
+    es: Pide a un administrador el permiso necesario
+    fr: Demandez l’autorisation à un administrateur
+    de: Administrator um die nötige Berechtigung bitten
+  error.hint.confirm_resource:
+    en: Confirm that the resource still exists
+    zh-CN: 请确认资源是否存在
+    zh-HK: 請確認資源是否存在
+    it: Conferma che la risorsa esiste ancora
+    es: Confirma que el recurso todavía existe
+    fr: Confirmez que la ressource existe encore
+    de: Prüfen, ob die Ressource noch existiert
+  error.hint.refresh:
+    en: Try refreshing the view
+    zh-CN: 尝试刷新页面
+    zh-HK: 嘗試重新整理畫面
+    it: Prova ad aggiornare la vista
+    es: Prueba a actualizar la vista
+    fr: Essayez d’actualiser la vue
+    de: Ansicht aktualisieren
+  error.hint.check_network:
+    en: Check the network connection
+    zh-CN: 检查网络连接
+    zh-HK: 檢查網絡連線
+    it: Controlla la connessione di rete
+    es: Comprueba la conexión de red
+    fr: Vérifiez la connexion réseau
+    de: Netzwerkverbindung prüfen
+  error.hint.retry:
+    en: Please retry later
+    zh-CN: 请稍后重试
+    zh-HK: 請稍後重試
+    it: Riprova più tardi
+    es: Reintenta más tarde
+    fr: Réessayez plus tard
+    de: Bitte später erneut versuchen
+  error.hint.check_firewall:
+    en: If it continues, check the firewall
+    zh-CN: 如果问题持续，请检查防火墙设置
+    zh-HK: 如果問題持續，請檢查防火牆設定
+    it: Se persiste, controlla il firewall
+    es: Si continúa, revisa el cortafuegos
+    fr: S’il continue, vérifiez le pare-feu
+    de: Bei Fortbestehen die Firewall prüfen
+  error.hint.check_path:
+    en: Check that the file path is correct
+    zh-CN: 检查文件路径是否正确
+    zh-HK: 檢查檔案路徑是否正確
+    it: Controlla che il percorso del file sia corretto
+    es: Comprueba que la ruta del archivo es correcta
+    fr: Vérifiez que le chemin du fichier est correct
+    de: Dateipfad prüfen
+  error.hint.disk_space:
+    en: Confirm there is enough disk space
+    zh-CN: 确认有足够的磁盘空间
+    zh-HK: 確認有足夠的磁碟空間
+    it: Verifica che ci sia spazio su disco
+    es: Confirma que hay espacio en disco
+    fr: Vérifiez qu’il y a assez d’espace disque
+    de: Ausreichend Speicherplatz prüfen
+  error.hint.file_permission:
+    en: Check the file permissions
+    zh-CN: 检查文件权限
+    zh-HK: 檢查檔案權限
+    it: Controlla i permessi del file
+    es: Revisa los permisos del archivo
+    fr: Vérifiez les permissions du fichier
+    de: Dateiberechtigungen prüfen
+  error.hint.check_config:
+    en: Check the configuration file format
+    zh-CN: 检查配置文件格式
+    zh-HK: 檢查設定檔格式
+    it: Controlla il formato del file di configurazione
+    es: Revisa el formato del archivo de configuración
+    fr: Vérifiez le format du fichier de configuration
+    de: Konfigurationsdateiformat prüfen
+  error.hint.reset_config:
+    en: Restore the default configuration
+    zh-CN: 恢复默认配置
+    zh-HK: 還原預設設定
+    it: Ripristina la configurazione predefinita
+    es: Restaura la configuración predeterminada
+    fr: Restaurez la configuration par défaut
+    de: Standardkonfiguration wiederherstellen
+  error.hint.reinstall:
+    en: Reinstall the app
+    zh-CN: 重新安装应用
+    zh-HK: 重新安裝應用程式
+    it: Reinstalla l'app
+    es: Reinstala la aplicación
+    fr: Réinstallez l’application
+    de: App neu installieren
+  error.hint.check_format:
+    en: Check that the data format is valid
+    zh-CN: 检查数据格式是否正确
+    zh-HK: 檢查資料格式是否正確
+    it: Controlla che il formato dei dati sia valido
+    es: Comprueba que el formato de datos es válido
+    fr: Vérifiez que le format des données est valide
+    de: Datenformat prüfen
+  error.hint.report:
+    en: If it continues, report this error
+    zh-CN: 如果问题持续，请报告此错误
+    zh-HK: 如果問題持續，請回報此錯誤
+    it: Se persiste, segnala questo errore
+    es: Si continúa, informa de este error
+    fr: S’il continue, signalez cette erreur
+    de: Bei Fortbestehen diesen Fehler melden
+  error.validate.empty_task:
+    en: Task content cannot be empty
+    zh-CN: 任务内容不能为空
+    zh-HK: 任務內容不能為空
+    it: Il contenuto dell'attività non può essere vuoto
+    es: El contenido de la tarea no puede estar vacío
+    fr: Le contenu de la tâche ne peut pas être vide
+    de: Aufgabeninhalt darf nicht leer sein
+  error.validate.task_too_long:
+    en: Task content is too long (max 10000 characters)
+    zh-CN: 任务内容过长（最多 10000 字符）
+    zh-HK: 任務內容過長（最多 10000 字元）
+    it: Contenuto troppo lungo (massimo 10000 caratteri)
+    es: El contenido es demasiado largo (máx. 10000 caracteres)
+    fr: Contenu trop long (10000 caractères max.)
+    de: Aufgabeninhalt zu lang (höchstens 10000 Zeichen)
+  error.validate.unsafe:
+    en: Task content contains unsafe characters
+    zh-CN: 任务内容包含不安全的字符
+    zh-HK: 任務內容包含不安全的字元
+    it: Il contenuto contiene caratteri non sicuri
+    es: El contenido contiene caracteres no seguros
+    fr: Le contenu contient des caractères non sûrs
+    de: Aufgabeninhalt enthält unsichere Zeichen
+  error.validate.empty_project:
+    en: Project name cannot be empty
+    zh-CN: 项目名称不能为空
+    zh-HK: 項目名稱不能為空
+    it: Il nome del progetto non può essere vuoto
+    es: El nombre del proyecto no puede estar vacío
+    fr: Le nom du projet ne peut pas être vide
+    de: Projektname darf nicht leer sein
+  error.validate.project_too_long:
+    en: Project name is too long (max 200 characters)
+    zh-CN: 项目名称过长（最多 200 字符）
+    zh-HK: 項目名稱過長（最多 200 字元）
+    it: Nome progetto troppo lungo (massimo 200 caratteri)
+    es: El nombre es demasiado largo (máx. 200 caracteres)
+    fr: Nom trop long (200 caractères max.)
+    de: Projektname zu lang (höchstens 200 Zeichen)
+  error.validate.empty_label:
+    en: Label name cannot be empty
+    zh-CN: 标签名称不能为空
+    zh-HK: 標籤名稱不能為空
+    it: Il nome dell'etichetta non può essere vuoto
+    es: El nombre de la etiqueta no puede estar vacío
+    fr: Le nom de l’étiquette ne peut pas être vide
+    de: Labelname darf nicht leer sein
+  error.validate.label_too_long:
+    en: Label name is too long (max 50 characters)
+    zh-CN: 标签名称过长（最多 50 字符）
+    zh-HK: 標籤名稱過長（最多 50 字元）
+    it: Nome etichetta troppo lungo (massimo 50 caratteri)
+    es: El nombre es demasiado largo (máx. 50 caracteres)
+    fr: Nom trop long (50 caractères max.)
+    de: Labelname zu lang (höchstens 50 Zeichen)
   notify.saved:
     en: Saved
     zh-CN: 已保存

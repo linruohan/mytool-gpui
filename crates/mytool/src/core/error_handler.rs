@@ -8,6 +8,7 @@
 /// - 用户友好的错误消息
 /// - 错误日志记录
 /// - 错误恢复建议
+use rust_i18n::t;
 use thiserror::Error;
 use tracing::{error, info, warn};
 
@@ -129,66 +130,89 @@ impl ErrorContext {
     pub fn new(error: AppError) -> Self {
         let (severity, user_message, recovery_suggestions) = match &error {
             AppError::Database(_e) => {
-                (ErrorSeverity::Error, "数据库操作失败，请稍后重试".to_string(), vec![
-                    "检查数据库文件是否存在".to_string(),
-                    "尝试重启应用".to_string(),
-                    "如果问题持续，请联系技术支持".to_string(),
+                (ErrorSeverity::Error, t!("todo.error.user.database").to_string(), vec![
+                    t!("todo.error.hint.check_db").to_string(),
+                    t!("todo.error.hint.restart").to_string(),
+                    t!("todo.error.hint.support").to_string(),
                 ])
             },
-            AppError::Validation(msg) => {
-                (ErrorSeverity::Warning, format!("输入验证失败: {}", msg), vec![
-                    "请检查输入内容是否符合要求".to_string(),
-                ])
-            },
-            AppError::Permission(msg) => {
-                (ErrorSeverity::Error, format!("权限不足: {}", msg), vec![
-                    "请检查您的权限设置".to_string(),
-                    "联系管理员获取必要权限".to_string(),
-                ])
-            },
-            AppError::NotFound(resource) => {
-                (ErrorSeverity::Warning, format!("未找到: {}", resource), vec![
-                    "请确认资源是否存在".to_string(),
-                    "尝试刷新页面".to_string(),
-                ])
-            },
-            AppError::Network(msg) => (ErrorSeverity::Error, format!("网络错误: {}", msg), vec![
-                "检查网络连接".to_string(),
-                "稍后重试".to_string(),
-                "如果问题持续，请检查防火墙设置".to_string(),
-            ]),
-            AppError::FileSystem(e) => {
-                (ErrorSeverity::Error, format!("文件操作失败: {}", e), vec![
-                    "检查文件路径是否正确".to_string(),
-                    "确认有足够的磁盘空间".to_string(),
-                    "检查文件权限".to_string(),
-                ])
-            },
-            AppError::Config(msg) => (ErrorSeverity::Critical, format!("配置错误: {}", msg), vec![
-                "检查配置文件格式".to_string(),
-                "恢复默认配置".to_string(),
-                "重新安装应用".to_string(),
-            ]),
-            AppError::Parse(msg) => (ErrorSeverity::Warning, format!("解析失败: {}", msg), vec![
-                "检查数据格式是否正确".to_string(),
-            ]),
-            AppError::Concurrency(msg) => {
-                (ErrorSeverity::Warning, format!("并发冲突: {}", msg), vec![
-                    "请稍后重试".to_string(),
-                ])
-            },
-            AppError::Internal(_msg) => (
-                ErrorSeverity::Critical,
-                "应用内部错误，请联系技术支持".to_string(),
-                vec!["尝试重启应用".to_string(), "如果问题持续，请报告此错误".to_string()],
+            AppError::Validation(msg) => (
+                ErrorSeverity::Warning,
+                t!("todo.error.user.validation", detail => msg.as_str()).to_string(),
+                vec![t!("todo.error.hint.check_input").to_string()],
             ),
-            AppError::Cancelled => (ErrorSeverity::Info, "操作已取消".to_string(), vec![]),
-            AppError::Timeout(msg) => (ErrorSeverity::Warning, format!("操作超时: {}", msg), vec![
-                "请稍后重试".to_string(),
-                "检查网络连接".to_string(),
-            ]),
+            AppError::Permission(msg) => (
+                ErrorSeverity::Error,
+                t!("todo.error.user.permission", detail => msg.as_str()).to_string(),
+                vec![
+                    t!("todo.error.hint.check_permission").to_string(),
+                    t!("todo.error.hint.contact_admin").to_string(),
+                ],
+            ),
+            AppError::NotFound(resource) => (
+                ErrorSeverity::Warning,
+                t!("todo.error.user.not_found", detail => resource.as_str()).to_string(),
+                vec![
+                    t!("todo.error.hint.confirm_resource").to_string(),
+                    t!("todo.error.hint.refresh").to_string(),
+                ],
+            ),
+            AppError::Network(msg) => (
+                ErrorSeverity::Error,
+                t!("todo.error.user.network", detail => msg.as_str()).to_string(),
+                vec![
+                    t!("todo.error.hint.check_network").to_string(),
+                    t!("todo.error.hint.retry").to_string(),
+                    t!("todo.error.hint.check_firewall").to_string(),
+                ],
+            ),
+            AppError::FileSystem(e) => (
+                ErrorSeverity::Error,
+                t!("todo.error.user.filesystem", detail => e.to_string()).to_string(),
+                vec![
+                    t!("todo.error.hint.check_path").to_string(),
+                    t!("todo.error.hint.disk_space").to_string(),
+                    t!("todo.error.hint.file_permission").to_string(),
+                ],
+            ),
+            AppError::Config(msg) => (
+                ErrorSeverity::Critical,
+                t!("todo.error.user.config", detail => msg.as_str()).to_string(),
+                vec![
+                    t!("todo.error.hint.check_config").to_string(),
+                    t!("todo.error.hint.reset_config").to_string(),
+                    t!("todo.error.hint.reinstall").to_string(),
+                ],
+            ),
+            AppError::Parse(msg) => (
+                ErrorSeverity::Warning,
+                t!("todo.error.user.parse", detail => msg.as_str()).to_string(),
+                vec![t!("todo.error.hint.check_format").to_string()],
+            ),
+            AppError::Concurrency(msg) => (
+                ErrorSeverity::Warning,
+                t!("todo.error.user.concurrency", detail => msg.as_str()).to_string(),
+                vec![t!("todo.error.hint.retry").to_string()],
+            ),
+            AppError::Internal(_msg) => {
+                (ErrorSeverity::Critical, t!("todo.error.user.internal").to_string(), vec![
+                    t!("todo.error.hint.restart").to_string(),
+                    t!("todo.error.hint.report").to_string(),
+                ])
+            },
+            AppError::Cancelled => {
+                (ErrorSeverity::Info, t!("todo.error.user.cancelled").to_string(), vec![])
+            },
+            AppError::Timeout(msg) => (
+                ErrorSeverity::Warning,
+                t!("todo.error.user.timeout", detail => msg.as_str()).to_string(),
+                vec![
+                    t!("todo.error.hint.retry").to_string(),
+                    t!("todo.error.hint.check_network").to_string(),
+                ],
+            ),
             AppError::Other(msg) => {
-                (ErrorSeverity::Error, msg.clone(), vec!["请稍后重试".to_string()])
+                (ErrorSeverity::Error, msg.clone(), vec![t!("todo.error.hint.retry").to_string()])
             },
         };
 
@@ -254,7 +278,8 @@ impl ErrorContext {
         let mut message = format!("{} {}\n\n", self.severity.icon(), self.user_message);
 
         if !self.recovery_suggestions.is_empty() {
-            message.push_str("建议：\n");
+            message.push_str(&t!("todo.error.suggestions_header").to_string());
+            message.push('\n');
             for (i, suggestion) in self.recovery_suggestions.iter().enumerate() {
                 message.push_str(&format!("{}. {}\n", i + 1, suggestion));
             }
@@ -325,16 +350,16 @@ pub mod validation {
     /// 验证任务内容
     pub fn validate_task_content(content: &str) -> AppResult<()> {
         if content.trim().is_empty() {
-            return Err(AppError::Validation("任务内容不能为空".to_string()));
+            return Err(AppError::Validation(t!("todo.error.validate.empty_task").to_string()));
         }
 
         if content.len() > 10000 {
-            return Err(AppError::Validation("任务内容过长（最多 10000 字符）".to_string()));
+            return Err(AppError::Validation(t!("todo.error.validate.task_too_long").to_string()));
         }
 
         // 检查危险字符
         if content.contains("<script>") || content.contains("javascript:") {
-            return Err(AppError::Validation("任务内容包含不安全的字符".to_string()));
+            return Err(AppError::Validation(t!("todo.error.validate.unsafe").to_string()));
         }
 
         Ok(())
@@ -343,11 +368,13 @@ pub mod validation {
     /// 验证项目名称
     pub fn validate_project_name(name: &str) -> AppResult<()> {
         if name.trim().is_empty() {
-            return Err(AppError::Validation("项目名称不能为空".to_string()));
+            return Err(AppError::Validation(t!("todo.error.validate.empty_project").to_string()));
         }
 
         if name.len() > 200 {
-            return Err(AppError::Validation("项目名称过长（最多 200 字符）".to_string()));
+            return Err(AppError::Validation(
+                t!("todo.error.validate.project_too_long").to_string(),
+            ));
         }
 
         Ok(())
@@ -356,11 +383,11 @@ pub mod validation {
     /// 验证标签名称
     pub fn validate_label_name(name: &str) -> AppResult<()> {
         if name.trim().is_empty() {
-            return Err(AppError::Validation("标签名称不能为空".to_string()));
+            return Err(AppError::Validation(t!("todo.error.validate.empty_label").to_string()));
         }
 
         if name.len() > 50 {
-            return Err(AppError::Validation("标签名称过长（最多 50 字符）".to_string()));
+            return Err(AppError::Validation(t!("todo.error.validate.label_too_long").to_string()));
         }
 
         Ok(())
@@ -383,11 +410,15 @@ mod tests {
 
     #[test]
     fn test_error_context_creation() {
+        rust_i18n::set_locale("zh-CN");
         let error = AppError::Validation("测试错误".to_string());
         let context = ErrorContext::new(error);
 
         assert_eq!(context.severity, ErrorSeverity::Warning);
-        assert!(context.user_message.contains("验证失败"));
+        assert!(
+            context.user_message.contains("验证失败")
+                || context.user_message.contains("Validation failed")
+        );
         assert!(!context.recovery_suggestions.is_empty());
     }
 
