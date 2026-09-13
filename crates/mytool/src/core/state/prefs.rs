@@ -11,6 +11,11 @@ pub struct TodoPrefs {
     pub reminders_enabled: bool,
     #[serde(default = "default_true")]
     pub confirm_on_delete: bool,
+    #[serde(default = "default_true")]
+    pub complete_sound: bool,
+    /// 启动时打开的看板：0 收件箱 … 5 已完成
+    #[serde(default)]
+    pub startup_board: u8,
 }
 
 fn default_true() -> bool {
@@ -19,7 +24,12 @@ fn default_true() -> bool {
 
 impl Default for TodoPrefs {
     fn default() -> Self {
-        Self { reminders_enabled: true, confirm_on_delete: true }
+        Self {
+            reminders_enabled: true,
+            confirm_on_delete: true,
+            complete_sound: true,
+            startup_board: 0,
+        }
     }
 }
 
@@ -59,5 +69,7 @@ mod tests {
         let prefs = TodoPrefs::default();
         assert!(prefs.reminders_enabled);
         assert!(prefs.confirm_on_delete);
+        assert!(prefs.complete_sound);
+        assert_eq!(prefs.startup_board, 0);
     }
 }

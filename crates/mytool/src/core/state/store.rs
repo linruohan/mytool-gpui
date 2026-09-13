@@ -578,18 +578,43 @@ impl TodoStore {
         })
     }
 
-    /// 按标题/描述搜索任务（大小写不敏感）
+    /// 按标题 / 描述 / 标签名 / 项目名搜索；`p1`–`p4` 按优先级过滤。
     pub fn search_items(&self, query: &str) -> Vec<Arc<ItemModel>> {
         let q = query.trim().to_lowercase();
         if q.is_empty() {
             return Vec::new();
         }
+        let priority_filter = match q.as_str() {
+            "p1" | "高" | "高优先级" => Some(1),
+            "p2" | "中" | "中优先级" => Some(2),
+            "p3" | "低" | "低优先级" => Some(3),
+            "p4" | "无" | "无优先级" => Some(4),
+            _ => None,
+        };
         self.all_items
             .iter()
             .filter(|item| !item.is_deleted)
             .filter(|item| {
-                item.content.to_lowercase().contains(&q)
-                    || item.description.as_deref().is_some_and(|d| d.to_lowercase().contains(&q))
+                if let Some(priority) = priority_filter {
+                    return item.priority.unwrap_or(4) == priority;
+                }
+                if item.content.to_lowercase().contains(&q) {
+                    return true;
+                }
+                if item.description.as_deref().is_some_and(|d| d.to_lowercase().contains(&q)) {
+                    return true;
+                }
+                if self
+                    .labels_for_item(item)
+                    .iter()
+                    .any(|label| label.name.to_lowercase().contains(&q))
+                {
+                    return true;
+                }
+                item.project_id
+                    .as_deref()
+                    .and_then(|id| self.get_project(id))
+                    .is_some_and(|project| project.name.to_lowercase().contains(&q))
             })
             .take(40)
             .cloned()
@@ -1502,6 +1527,38 @@ mod tests {
         let names: Vec<String> =
             store.labels_for_item(&item).iter().map(|l| l.name.clone()).collect();
         assert_eq!(names, vec!["蓝".to_string(), "红".to_string()]);
+    }
+
+    #[test]
+    fn search_items_matches_label_project_and_priority() {
+        let mut store = TodoStore::new();
+        let mut label = LabelModel::default();
+        label.id = "l1".into();
+        label.name = "紧急".into();
+        store.set_labels(vec![label]);
+        let mut project = ProjectModel::default();
+        project.id = "p1".into();
+        project.name = "工作".into();
+        store.set_projects(vec![project]);
+
+        let mut by_title = create_test_item("1", false, false, None);
+        by_title.content = "买菜".into();
+        let mut by_label = create_test_item("2", false, false, None);
+        by_label.content = "别的".into();
+        by_label.labels = Some("l1".into());
+        let mut by_project = create_test_item_with_project("3", false, false, None, "p1");
+        by_project.content = "周报".into();
+        let mut high = create_test_item("4", false, false, None);
+        high.content = "高优".into();
+        high.priority = Some(1);
+        store.set_items(vec![by_title, by_label, by_project, high]);
+
+        let titles =
+            |q: &str| store.search_items(q).into_iter().map(|i| i.id.clone()).collect::<Vec<_>>();
+        assert_eq!(titles("买"), vec!["1"]);
+        assert_eq!(titles("紧急"), vec!["2"]);
+        assert_eq!(titles("工作"), vec!["3"]);
+        assert_eq!(titles("p1"), vec!["4"]);
     }
 
     #[test]

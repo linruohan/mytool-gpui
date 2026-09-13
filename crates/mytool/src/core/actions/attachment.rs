@@ -42,6 +42,31 @@ pub fn remove_managed_file(path: &str) {
     }
 }
 
+/// 用系统默认程序打开附件（异步，避免卡住 UI）。
+pub fn open_attachment_path(path: &str, cx: &mut App) {
+    if path.trim().is_empty() {
+        return;
+    }
+    let path = std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
+    cx.spawn(async move |_cx| {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = tokio::process::Command::new("cmd")
+                .args(["/C", "start", "", &path.to_string_lossy()])
+                .spawn();
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = tokio::process::Command::new("open").arg(&path).spawn();
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            let _ = tokio::process::Command::new("xdg-open").arg(&path).spawn();
+        }
+    })
+    .detach();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

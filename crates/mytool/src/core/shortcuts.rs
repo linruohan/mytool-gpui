@@ -229,6 +229,18 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             category: ShortcutCategory::Task,
         },
         ShortcutConfig {
+            action: "SetTaskPriority",
+            key: "alt-p",
+            description: "循环任务优先级",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "MoveTaskToProject",
+            key: "cmd-m",
+            description: "移动任务到项目",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
             action: "UndoLastTask",
             key: "cmd-z",
             description: "撤销最近一次完成或删除",
@@ -271,6 +283,18 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             description: "显示标签视图",
             category: ShortcutCategory::Navigation,
         },
+        ShortcutConfig {
+            action: "NextView",
+            key: "cmd-]",
+            description: "下一个看板",
+            category: ShortcutCategory::Navigation,
+        },
+        ShortcutConfig {
+            action: "PreviousView",
+            key: "cmd-[",
+            description: "上一个看板",
+            category: ShortcutCategory::Navigation,
+        },
         // 搜索和过滤
         ShortcutConfig {
             action: "SearchTasks",
@@ -294,6 +318,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "ClearFilters",
             key: "cmd-shift-c",
             description: "清除过滤器",
+            category: ShortcutCategory::Search,
+        },
+        ShortcutConfig {
+            action: "FilterByPriority",
+            key: "cmd-shift-1",
+            description: "按优先级过滤",
             category: ShortcutCategory::Search,
         },
         // 选择和批量操作
@@ -504,6 +534,43 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-shift-n", NewProject, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-shift-n", NewProject, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-l", AddLabel, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-l", AddLabel, CTX),
+        KeyBinding::new("alt-p", SetTaskPriority, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-m", MoveTaskToProject, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-m", MoveTaskToProject, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-]", NextView, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-]", NextView, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-[", PreviousView, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-[", PreviousView, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-l", FilterByLabel, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-l", FilterByLabel, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-p", FilterByProject, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-p", FilterByProject, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-1", FilterByPriority, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-1", FilterByPriority, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-c", ClearFilters, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-c", ClearFilters, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-r", RefreshView, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-r", RefreshView, CTX),
     ]);
 }
 

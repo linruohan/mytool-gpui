@@ -15,16 +15,18 @@ use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeleteTask, DeselectAll, DuplicateTask,
-    EditTask, NewProject, NewTask, OpenHelp, OpenSettings, ProjectEvent, ProjectItemEvent,
-    ProjectItemsPanel, ProjectsPanel, SearchTasks, SelectAllTasks, SelectNextTask,
-    SelectPreviousTask, SetDueDate, ShowCompleted, ShowInbox, ShowLabels, ShowPinned,
-    ShowScheduled, ShowToday, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask,
-    play_ogg_file,
-    todo_state::TodoStore,
+    AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteTask,
+    DeselectAll, DuplicateTask, EditTask, FilterByLabel, FilterByPriority, FilterByProject,
+    ItemListItem, MoveTaskToProject, NewProject, NewTask, NextView, OpenHelp, OpenSettings,
+    PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, RefreshView,
+    SearchTasks, SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority,
+    ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleSidebar,
+    ToggleTaskComplete, ToggleTaskPin, UndoLastTask, play_ogg_file,
+    todo_state::{TodoPrefs, TodoStore},
     ui::components::{
-        show_existing_item_dialog, show_new_item_dialog, show_set_due_dialog,
-        show_todo_help_dialog, show_todo_settings_dialog,
+        show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
+        show_filter_project_dialog, show_move_to_project_dialog, show_new_item_dialog,
+        show_set_due_dialog, show_todo_help_dialog, show_todo_settings_dialog,
     },
 };
 
@@ -176,6 +178,10 @@ impl TodoStory {
                 }
             }),
         ];
+        let startup = (cx.global::<TodoPrefs>().startup_board as usize).min(5);
+        board_panel.update(cx, |panel, _| {
+            panel.update_active_index(Some(startup));
+        });
         Self {
             collapsed: false,
             active_project: None,
@@ -213,8 +219,58 @@ impl TodoStory {
     }
 
     fn on_search_tasks(&mut self, _: &SearchTasks, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_search_with("", window, cx);
+    }
+
+    fn open_search_with(&mut self, query: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.search_open = true;
+        self.search_input.update(cx, |input, cx| {
+            input.set_value(query, window, cx);
+        });
         self.search_input.read(cx).focus_handle(cx).focus(window, cx);
+        cx.notify();
+    }
+
+    fn activate_project(&mut self, project: Arc<ProjectModel>, cx: &mut Context<Self>) {
+        self.active_project = Some(project.clone());
+        let store_ix = cx.global::<TodoStore>().projects.iter().position(|p| p.id == project.id);
+        self.project_panel.update(cx, |panel, cx| {
+            panel.update_active_index(store_ix);
+            cx.notify();
+        });
+        self.project_items_panel.update(cx, |panel, cx| {
+            panel.set_project(project, cx);
+            cx.notify();
+        });
+        self.board_panel.update(cx, |panel, cx| {
+            panel.update_active_index(None);
+            cx.notify();
+        });
+        cx.notify();
+    }
+
+    fn jump_to_item(&mut self, item: Arc<ItemModel>, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = false;
+        if item.checked {
+            self.show_board(5, cx);
+        } else if let Some(pid) = item.project_id.as_deref().filter(|id| !id.is_empty()) {
+            if let Some(project) = cx.global::<TodoStore>().get_project(pid) {
+                self.activate_project(project, cx);
+            } else {
+                self.show_board(0, cx);
+            }
+        } else if item.pinned {
+            self.show_board(4, cx);
+        } else if item.is_due_today() {
+            self.show_board(1, cx);
+        } else if item.due_date().is_some() {
+            self.show_board(2, cx);
+        } else {
+            self.show_board(0, cx);
+        }
+        let id = item.id.clone();
+        cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.select_only(id));
+        show_existing_item_dialog(window, cx, item);
         cx.notify();
     }
 
@@ -435,6 +491,118 @@ impl TodoStory {
         self.show_board(5, cx);
     }
 
+    fn on_add_label(&mut self, _: &AddLabel, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = self.primary_item(cx) {
+            show_existing_item_dialog(window, cx, item);
+        }
+    }
+
+    fn on_set_priority(
+        &mut self,
+        _: &SetTaskPriority,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(item) = self.primary_item(cx) else {
+            return;
+        };
+        let next = match item.priority.unwrap_or(4) {
+            1 => 2,
+            2 => 3,
+            3 => 4,
+            _ => 1,
+        };
+        let label = match next {
+            1 => "高优先级",
+            2 => "中优先级",
+            3 => "低优先级",
+            _ => "无优先级",
+        };
+        let mut updated = (*item).clone();
+        updated.priority = Some(next);
+        crate::todo_actions::update_item_optimistic(Arc::new(updated), cx);
+        window.push_notification(format!("已设为{label}"), cx);
+        cx.notify();
+    }
+
+    fn on_move_to_project(
+        &mut self,
+        _: &MoveTaskToProject,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(item) = self.primary_item(cx) {
+            show_move_to_project_dialog(window, cx, item);
+        }
+    }
+
+    fn on_next_view(&mut self, _: &NextView, _: &mut Window, cx: &mut Context<Self>) {
+        self.cycle_board(1, cx);
+    }
+
+    fn on_previous_view(&mut self, _: &PreviousView, _: &mut Window, cx: &mut Context<Self>) {
+        self.cycle_board(-1, cx);
+    }
+
+    fn cycle_board(&mut self, delta: i32, cx: &mut Context<Self>) {
+        let current = self.board_panel.read(cx).active_index.unwrap_or(0);
+        let next = (current as i32 + delta).rem_euclid(6) as usize;
+        self.show_board(next, cx);
+    }
+
+    fn on_filter_label(&mut self, _: &FilterByLabel, window: &mut Window, cx: &mut Context<Self>) {
+        let view = cx.entity();
+        show_filter_label_dialog(window, cx, move |name, window, cx| {
+            view.update(cx, |this, cx| {
+                this.open_search_with(&name, window, cx);
+            });
+        });
+    }
+
+    fn on_filter_project(
+        &mut self,
+        _: &FilterByProject,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        show_filter_project_dialog(window, cx, {
+            let view = cx.entity();
+            move |project, _window, cx| {
+                view.update(cx, |this, cx| match project {
+                    Some(project) => this.activate_project(project, cx),
+                    None => this.show_board(0, cx),
+                });
+            }
+        });
+    }
+
+    fn on_filter_priority(
+        &mut self,
+        _: &FilterByPriority,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let view = cx.entity();
+        show_filter_priority_dialog(window, cx, move |token, window, cx| {
+            view.update(cx, |this, cx| {
+                this.open_search_with(token, window, cx);
+            });
+        });
+    }
+
+    fn on_clear_filters(&mut self, _: &ClearFilters, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = false;
+        self.search_input.update(cx, |input, cx| {
+            input.set_value("", window, cx);
+        });
+        cx.notify();
+    }
+
+    fn on_refresh_view(&mut self, _: &RefreshView, window: &mut Window, cx: &mut Context<Self>) {
+        window.push_notification("已刷新", cx);
+        cx.notify();
+    }
+
     #[allow(unused)]
     fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex().gap_3().child(
@@ -532,6 +700,16 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_show_labels))
             .on_action(cx.listener(Self::on_show_pinned))
             .on_action(cx.listener(Self::on_show_completed))
+            .on_action(cx.listener(Self::on_add_label))
+            .on_action(cx.listener(Self::on_set_priority))
+            .on_action(cx.listener(Self::on_move_to_project))
+            .on_action(cx.listener(Self::on_next_view))
+            .on_action(cx.listener(Self::on_previous_view))
+            .on_action(cx.listener(Self::on_filter_label))
+            .on_action(cx.listener(Self::on_filter_project))
+            .on_action(cx.listener(Self::on_filter_priority))
+            .on_action(cx.listener(Self::on_clear_filters))
+            .on_action(cx.listener(Self::on_refresh_view))
             .size_full()
             .bg(cx.theme().background)
             .child(
@@ -610,25 +788,7 @@ impl Render for TodoStory {
                                         .hover(|this| this.bg(cx.theme().sidebar_accent))
                                         .on_click(cx.listener(
                                             move |this, _: &ClickEvent, _, cx| {
-                                                this.active_project = Some(story.clone());
-                                                let store_ix = cx
-                                                    .global::<TodoStore>()
-                                                    .projects
-                                                    .iter()
-                                                    .position(|p| p.id == story.id);
-                                                this.project_panel.update(cx, |panel, cx| {
-                                                    panel.update_active_index(store_ix);
-                                                    cx.notify();
-                                                });
-                                                this.project_items_panel.update(cx, |panel, cx| {
-                                                    panel.set_project(story.clone(), cx);
-                                                    cx.notify();
-                                                });
-                                                this.board_panel.update(cx, |panel, cx| {
-                                                    panel.update_active_index(None);
-                                                    cx.notify();
-                                                });
-                                                cx.notify();
+                                                this.activate_project(story.clone(), cx);
                                             },
                                         ))
                                         .child(
@@ -673,7 +833,9 @@ impl Render for TodoStory {
                                         div()
                                             .text_xs()
                                             .text_color(cx.theme().muted_foreground)
-                                            .child("输入关键字，Esc 关闭"),
+                                            .child(
+                                                "标题、描述、标签、项目；p1–p4 按优先级。Esc 关闭",
+                                            ),
                                     )
                                 })
                                 .when(
@@ -688,35 +850,29 @@ impl Render for TodoStory {
                                     },
                                 )
                                 .children(search_hits.into_iter().enumerate().map(|(ix, item)| {
-                                    let label = item.content.clone();
-                                    let checked = item.checked;
-                                    h_flex()
+                                    let selected = cx
+                                        .global::<crate::core::state::ItemSelection>()
+                                        .contains(&item.id);
+                                    let item_for_click = item.clone();
+                                    div()
                                         .id(("search-hit", ix))
                                         .w_full()
-                                        .h_7()
-                                        .px_2()
                                         .rounded(cx.theme().radius)
-                                        .items_center()
-                                        .justify_between()
                                         .hover(|this| this.bg(cx.theme().sidebar_accent))
                                         .on_click(cx.listener(
                                             move |this, _: &ClickEvent, window, cx| {
-                                                this.search_open = false;
-                                                show_existing_item_dialog(window, cx, item.clone());
-                                                cx.notify();
+                                                this.jump_to_item(
+                                                    item_for_click.clone(),
+                                                    window,
+                                                    cx,
+                                                );
                                             },
                                         ))
-                                        .child(
-                                            div()
-                                                .flex_1()
-                                                .min_w_0()
-                                                .overflow_x_hidden()
-                                                .whitespace_nowrap()
-                                                .when(checked, |this| {
-                                                    this.text_color(cx.theme().muted_foreground)
-                                                })
-                                                .child(label),
-                                        )
+                                        .child(ItemListItem::new(
+                                            ("search-hit-item", ix),
+                                            item,
+                                            selected,
+                                        ))
                                 })),
                         )
                     })

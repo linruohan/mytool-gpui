@@ -257,6 +257,15 @@ impl AttachmentButtonState {
         self.remove_attachment(attachment_id, cx);
         delete_attachment(attachment_id.to_string(), file_path, cx);
     }
+
+    fn on_open_attachment(&mut self, attachment_id: &str, cx: &mut Context<Self>) {
+        let Some(path) =
+            self.items.items.iter().find(|a| a.id == attachment_id).map(|a| a.file_path.clone())
+        else {
+            return;
+        };
+        crate::todo_actions::open_attachment_path(&path, cx);
+    }
 }
 
 impl Render for AttachmentButtonState {
@@ -314,7 +323,9 @@ impl Render for AttachmentButtonState {
                     .child(v_flex().gap_1().children(filtered_attachments.iter().enumerate().map(
                         |(idx, attachment)| {
                             let attachment_id = attachment.id.clone();
-                            let view = view.clone();
+                            let open_id = attachment.id.clone();
+                            let view_open = view.clone();
+                            let view_remove = view.clone();
                             let file_name = attachment.file_name.clone();
 
                             Attachment::new()
@@ -324,18 +335,35 @@ impl Render for AttachmentButtonState {
                                     AttachmentContent::new().title(AttachmentTitle::new(file_name)),
                                 )
                                 .actions(
-                                    AttachmentActions::new().child(
-                                        Button::new(format!("remove-attachment-{}", idx))
-                                            .small()
-                                            .ghost()
-                                            .compact()
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .on_click(move |_event, _window, cx| {
-                                                cx.update_entity(&view, |this, cx| {
-                                                    this.on_remove_attachment(&attachment_id, cx);
-                                                });
-                                            }),
-                                    ),
+                                    AttachmentActions::new()
+                                        .child(
+                                            Button::new(format!("open-attachment-{}", idx))
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::FolderOpen)
+                                                .tooltip("打开")
+                                                .on_click(move |_event, _window, cx| {
+                                                    cx.update_entity(&view_open, |this, cx| {
+                                                        this.on_open_attachment(&open_id, cx);
+                                                    });
+                                                }),
+                                        )
+                                        .child(
+                                            Button::new(format!("remove-attachment-{}", idx))
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::UserTrashSymbolic)
+                                                .on_click(move |_event, _window, cx| {
+                                                    cx.update_entity(&view_remove, |this, cx| {
+                                                        this.on_remove_attachment(
+                                                            &attachment_id,
+                                                            cx,
+                                                        );
+                                                    });
+                                                }),
+                                        ),
                                 )
                         },
                     ))),
