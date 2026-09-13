@@ -130,7 +130,7 @@ impl Render for LabelsBoard {
                                 .tooltip(t!("todo.more").to_string())
                                 .dropdown_menu({
                                     let labels_panel = labels_panel.clone();
-                                    move |this, window, _cx| {
+                                    move |this, window, cx| {
                                         let labels_panel = labels_panel.clone();
                                         this.item(
                                             PopupMenuItem::new(t!("todo.label.edit").to_string())
@@ -142,6 +142,28 @@ impl Render for LabelsBoard {
                                                     },
                                                 )),
                                         )
+                                        .item({
+                                            let labels_panel = labels_panel.clone();
+                                            let favorite = labels_panel
+                                                .read(cx)
+                                                .selected_label(cx)
+                                                .map(|l| l.is_favorite)
+                                                .unwrap_or(false);
+                                            PopupMenuItem::new(if favorite {
+                                                t!("todo.label.unfavorite").to_string()
+                                            } else {
+                                                t!("todo.label.favorite").to_string()
+                                            })
+                                            .on_click(
+                                                window.listener_for(
+                                                    &labels_panel,
+                                                    |this, _, window, cx| {
+                                                        this.toggle_selected_favorite(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                ),
+                                            )
+                                        })
                                         .separator()
                                         .item(
                                             PopupMenuItem::new(t!("todo.label.delete").to_string())

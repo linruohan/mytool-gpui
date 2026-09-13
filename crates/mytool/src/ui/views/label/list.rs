@@ -1,13 +1,18 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Context, ElementId, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Task,
-    Window, actions, prelude::FluentBuilder,
+    App, Context, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce,
+    SharedString, StatefulInteractiveElement, Styled, Task, Window, actions, div,
+    prelude::FluentBuilder,
 };
 use gpui_component::{
-    ActiveTheme, IndexPath, Selectable, h_flex,
+    ActiveTheme, IndexPath, Selectable, Sizable, WindowExt,
+    button::{Button, ButtonVariants},
+    h_flex,
     list::{ListDelegate, ListItem, ListState},
 };
+use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::entity::LabelModel;
 
 use crate::{UnSelectedCheckLabel, VisualHierarchy, label_chip};
@@ -65,6 +70,9 @@ impl RenderOnce for LabelListItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
+        let favorite = self.label.is_favorite;
+        let favorite_id = self.label.id.clone();
+        let favorite_label = self.label.clone();
 
         self.base
             .px_2()
@@ -84,8 +92,50 @@ impl RenderOnce for LabelListItem {
                         h_flex()
                             .gap(VisualHierarchy::spacing(2.0))
                             .items_center()
-                            .justify_end()
+                            .min_w_0()
                             .child(label_chip(self.label.name.clone(), &self.label.color)),
+                    )
+                    .child(
+                        div()
+                            .id(SharedString::from(format!("favorite-label-{favorite_id}")))
+                            .flex_shrink_0()
+                            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                                cx.stop_propagation()
+                            })
+                            .on_click(move |_, window, cx| {
+                                cx.stop_propagation();
+                                let next = !favorite_label.is_favorite;
+                                crate::todo_actions::set_label_favorite(
+                                    favorite_label.clone(),
+                                    next,
+                                    cx,
+                                );
+                                window.push_notification(
+                                    if next {
+                                        t!("todo.label.favorited").to_string()
+                                    } else {
+                                        t!("todo.label.unfavorited").to_string()
+                                    },
+                                    cx,
+                                );
+                            })
+                            .child(
+                                Button::new(format!("favorite-label-btn-{favorite_id}"))
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::StarOutlineThickSymbolic)
+                                    .text_color(if favorite {
+                                        cx.theme().warning
+                                    } else {
+                                        cx.theme().muted_foreground
+                                    })
+                                    .tooltip(if favorite {
+                                        t!("todo.label.unfavorite").to_string()
+                                    } else {
+                                        t!("todo.label.favorite").to_string()
+                                    }),
+                            ),
                     ),
             )
     }
@@ -143,15 +193,14 @@ impl LabelListDelegate {
 
     fn prepare(&mut self, query: impl Into<SharedString>) {
         self.query = query.into();
-        let labels: Vec<Arc<LabelModel>> = self
+        let mut labels: Vec<Arc<LabelModel>> = self
             ._labels
             .iter()
             .filter(|label| label.name.to_lowercase().contains(&self.query.to_lowercase()))
             .cloned()
             .collect();
-        for label in labels.into_iter() {
-            self.matched_labels.push(vec![label]);
-        }
+        crate::todo_state::sort_labels_for_ui(&mut labels);
+        self.matched_labels = if labels.is_empty() { vec![] } else { vec![labels] };
     }
 
     pub fn update_labels(&mut self, labels: Vec<Arc<LabelModel>>) {

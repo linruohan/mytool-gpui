@@ -43,6 +43,11 @@ impl LabelsPanel {
             cx.new(|cx| ListState::new(LabelListDelegate::new(), window, cx).selectable(true));
         let color =
             cx.new(|cx| ColorPickerState::new(window, cx).default_value(cx.theme().primary));
+        let initial_labels = cx.global::<TodoStore>().labels_for_picker();
+        cx.update_entity(&label_list, |list, cx| {
+            list.delegate_mut().update_labels(initial_labels);
+            cx.notify();
+        });
         let label_list_clone = label_list.clone();
         let _subscriptions = vec![
             cx.observe_global::<TodoStore>(move |_this, cx| {
@@ -56,7 +61,7 @@ impl LabelsPanel {
                         store.version(),
                         store.labels.len()
                     );
-                    store.labels.clone()
+                    store.labels_for_picker()
                 };
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);
@@ -101,6 +106,27 @@ impl LabelsPanel {
             .get(ix.section)
             .and_then(|c| c.get(ix.row))
             .cloned()
+    }
+
+    pub fn selected_label(&self, cx: &App) -> Option<Arc<LabelModel>> {
+        let ix = self.active_index?;
+        self.get_selected_label(IndexPath::new(ix), cx)
+    }
+
+    pub fn toggle_selected_favorite(&self, window: &mut Window, cx: &mut App) {
+        let Some(label) = self.selected_label(cx) else {
+            return;
+        };
+        let next = !label.is_favorite;
+        crate::todo_actions::set_label_favorite(label, next, cx);
+        window.push_notification(
+            if next {
+                t!("todo.label.favorited").to_string()
+            } else {
+                t!("todo.label.unfavorited").to_string()
+            },
+            cx,
+        );
     }
 
     pub fn update_active_index(&mut self, value: Option<usize>) {

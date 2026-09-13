@@ -135,7 +135,7 @@ impl BoardContainer {
         self
     }
 
-    pub(crate) fn inner_board(&self) -> Option<AnyView> {
+    pub fn inner_board(&self) -> Option<AnyView> {
         self.board.clone()
     }
 }

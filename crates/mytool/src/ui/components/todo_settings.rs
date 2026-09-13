@@ -293,6 +293,7 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
             | "DeleteProject"
             | "ArchiveProject"
             | "ToggleProjectFavorite"
+            | "ToggleLabelFavorite"
             | "ToggleFullscreen"
             | "ZoomIn"
             | "ZoomOut"
@@ -437,7 +438,7 @@ pub fn show_filter_label_dialog<T: Render, F>(window: &mut Window, cx: &mut Cont
 where
     F: Fn(String, &mut Window, &mut App) + Clone + 'static,
 {
-    let labels = cx.global::<TodoStore>().labels.clone();
+    let labels = cx.global::<TodoStore>().labels_for_picker();
     if labels.is_empty() {
         window.push_notification(t!("todo.empty.labels_title").to_string(), cx);
         return;

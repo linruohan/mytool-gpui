@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::App;
+use gpui::{App, BorrowAppContext};
 use todos::entity::LabelModel;
 use tracing::{debug, error};
 
@@ -116,6 +116,49 @@ pub fn delete_label(label: Arc<LabelModel>, cx: &mut App) {
             },
             Err(join_err) => {
                 error!("delete_label task panicked: {:?}", join_err);
+            },
+        }
+    })
+    .detach();
+}
+
+pub fn set_label_favorite(label: Arc<LabelModel>, is_favorite: bool, cx: &mut App) {
+    if label.is_favorite == is_favorite {
+        return;
+    }
+    let original = label.clone();
+    let mut updated = (*label).clone();
+    updated.is_favorite = is_favorite;
+    let after = Arc::new(updated);
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        todo_store.update_label(after.clone());
+    });
+
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        match db_state
+            .spawn_store_op({
+                let after = after.clone();
+                move |store| async move { store.update_label(after.as_ref().clone()).await }
+            })
+            .await
+        {
+            Ok(Ok(saved)) => {
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_label(Arc::new(saved));
+                });
+            },
+            Ok(Err(e)) => {
+                error!("set_label_favorite failed: {:?}", e);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_label(original.clone());
+                });
+            },
+            Err(join_err) => {
+                error!("set_label_favorite task panicked: {:?}", join_err);
+                cx.update_global::<TodoStore, _>(|todo_store, _| {
+                    todo_store.update_label(original);
+                });
             },
         }
     })

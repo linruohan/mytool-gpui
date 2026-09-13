@@ -192,6 +192,10 @@ fn cmp_project_sidebar(a: &ProjectModel, b: &ProjectModel) -> std::cmp::Ordering
     b.is_favorite.cmp(&a.is_favorite).then_with(|| cmp_project_child_order(a, b))
 }
 
+pub(crate) fn sort_labels_for_ui(labels: &mut [Arc<LabelModel>]) {
+    labels.sort_by(|a, b| b.is_favorite.cmp(&a.is_favorite).then_with(|| a.name.cmp(&b.name)));
+}
+
 fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<ProjectModel>, bool)> {
     let projects: Vec<Arc<ProjectModel>> = projects
         .iter()
@@ -1156,6 +1160,13 @@ impl TodoStore {
         self.label_by_id.get(id).cloned()
     }
 
+    /// 标签选择器/看板用：收藏在前，再按名称。
+    pub fn labels_for_picker(&self) -> Vec<Arc<LabelModel>> {
+        let mut labels = self.labels.clone();
+        sort_labels_for_ui(&mut labels);
+        labels
+    }
+
     /// 任务上挂的标签（按 labels 字段顺序，跳过已删标签）。
     pub fn labels_for_item(&self, item: &ItemModel) -> Vec<Arc<LabelModel>> {
         item.labels
@@ -1719,6 +1730,21 @@ mod tests {
         let names: Vec<String> =
             store.labels_for_item(&item).iter().map(|l| l.name.clone()).collect();
         assert_eq!(names, vec!["蓝".to_string(), "红".to_string()]);
+    }
+
+    #[test]
+    fn labels_for_picker_favorites_sort_first() {
+        let mut store = TodoStore::new();
+        let mut zebra = LabelModel::default();
+        zebra.id = "z".into();
+        zebra.name = "斑马".into();
+        let mut apple = LabelModel::default();
+        apple.id = "a".into();
+        apple.name = "苹果".into();
+        apple.is_favorite = true;
+        store.set_labels(vec![zebra, apple]);
+        let names: Vec<String> = store.labels_for_picker().iter().map(|l| l.name.clone()).collect();
+        assert_eq!(names, vec!["苹果".to_string(), "斑马".to_string()]);
     }
 
     #[test]

@@ -952,6 +952,46 @@ todo:
     es: Eliminar etiqueta
     fr: "Supprimer l'étiquette"
     de: Label löschen
+  label.favorite:
+    en: Add to favorites
+    zh-CN: 收藏标签
+    zh-HK: 收藏標籤
+    it: Aggiungi ai preferiti
+    es: Añadir a favoritos
+    fr: Ajouter aux favoris
+    de: Zu Favoriten
+  label.unfavorite:
+    en: Remove from favorites
+    zh-CN: 取消收藏
+    zh-HK: 取消收藏
+    it: Rimuovi dai preferiti
+    es: Quitar de favoritos
+    fr: Retirer des favoris
+    de: Aus Favoriten
+  label.favorite_toggle:
+    en: Toggle label favorite
+    zh-CN: 收藏或取消收藏标签
+    zh-HK: 收藏或取消收藏標籤
+    it: Preferito etichetta
+    es: Alternar favorito
+    fr: Favori de l'étiquette
+    de: Label-Favorit
+  label.favorited:
+    en: Added to favorites.
+    zh-CN: 已收藏。
+    zh-HK: 已收藏。
+    it: Aggiunto ai preferiti.
+    es: Añadido a favoritos.
+    fr: Ajouté aux favoris.
+    de: Zu Favoriten hinzugefügt.
+  label.unfavorited:
+    en: Removed from favorites.
+    zh-CN: 已取消收藏。
+    zh-HK: 已取消收藏。
+    it: Rimosso dai preferiti.
+    es: Quitado de favoritos.
+    fr: Retiré des favoris.
+    de: Aus Favoriten entfernt.
   weekday.sun:
     en: Su
     zh-CN: 日

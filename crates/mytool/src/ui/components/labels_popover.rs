@@ -59,7 +59,7 @@ impl LabelsPopoverList {
         let label_list_clone = label_list.clone();
 
         // 初始化全局标签
-        let initial_labels = cx.global::<TodoStore>().labels.clone();
+        let initial_labels = cx.global::<TodoStore>().labels_for_picker();
         cx.update_entity(&label_list_clone, |list, cx| {
             list.delegate_mut().update_labels(initial_labels);
             // 初始化时设置空的 checked 状态，确保所有标签默认未选中
@@ -74,7 +74,7 @@ impl LabelsPopoverList {
                     if !store.peek_change_mask().affects_label_list() {
                         return;
                     }
-                    store.labels.clone()
+                    store.labels_for_picker()
                 };
                 cx.update_entity(&label_list_clone, |list, cx| {
                     list.delegate_mut().update_labels(labels);

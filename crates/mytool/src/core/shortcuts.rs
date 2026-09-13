@@ -117,6 +117,8 @@ actions!(project_shortcuts, [
     ArchiveProject,
     /// 收藏/取消收藏当前项目 (Cmd/Ctrl + Shift + S)
     ToggleProjectFavorite,
+    /// 收藏/取消收藏当前标签 (Cmd/Ctrl + Alt + F)
+    ToggleLabelFavorite,
     /// 新建分区 (Cmd/Ctrl + Alt + N)
     NewSection,
     /// 编辑分区 (Cmd/Ctrl + Alt + E)
@@ -226,6 +228,7 @@ impl ShortcutConfig {
             "DeleteProject" => t!("todo.shortcut.delete_project").to_string(),
             "ArchiveProject" => t!("todo.project.archive").to_string(),
             "ToggleProjectFavorite" => t!("todo.project.favorite_toggle").to_string(),
+            "ToggleLabelFavorite" => t!("todo.label.favorite_toggle").to_string(),
             "NewSection" => t!("todo.section.new").to_string(),
             "EditSection" => t!("todo.section.edit").to_string(),
             "DeleteSection" => t!("todo.section.delete").to_string(),
@@ -520,6 +523,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             description: "收藏当前项目",
             category: ShortcutCategory::Project,
         },
+        ShortcutConfig {
+            action: "ToggleLabelFavorite",
+            key: "cmd-alt-f",
+            description: "收藏当前标签",
+            category: ShortcutCategory::Project,
+        },
         // 视图和窗口
         ShortcutConfig {
             action: "ToggleSidebar",
@@ -700,6 +709,10 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-shift-s", ToggleProjectFavorite, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-shift-s", ToggleProjectFavorite, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-alt-f", ToggleLabelFavorite, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-alt-f", ToggleLabelFavorite, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-l", AddLabel, CTX),
         #[cfg(not(target_os = "macos"))]

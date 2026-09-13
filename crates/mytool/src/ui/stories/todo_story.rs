@@ -17,16 +17,16 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
-    BoardPanel, ClearFilters, CompletedBoard, DeleteProject,
-    DeleteSection, DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask,
-    FilterByLabel, FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem,
-    MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView,
-    OpenHelp, OpenSettings, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent,
-    ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
+    BoardPanel, ClearFilters, CompletedBoard, DeleteProject, DeleteSection, DeleteTask,
+    DeselectAll, DuplicateTask, EditProject, EditSection, EditTask, FilterByLabel,
+    FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem, MoveTaskDown,
+    MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView, OpenHelp,
+    OpenSettings, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
+    ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduledBoard, SearchTasks,
     SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks,
-    ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ScheduledBoard,
-    TodayBoard, ToggleFullscreen, ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete,
-    ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
+    ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, TodayBoard,
+    ToggleFullscreen, ToggleLabelFavorite, ToggleProjectFavorite, ToggleSidebar,
+    ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -743,6 +743,22 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn on_toggle_label_favorite(
+        &mut self,
+        _: &ToggleLabelFavorite,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(board) = self.board_panel.read(cx).labels_board(cx) else {
+            return;
+        };
+        let panel = board.read(cx).labels_panel.clone();
+        panel.update(cx, |panel, cx| {
+            panel.toggle_selected_favorite(window, cx);
+        });
+        cx.notify();
+    }
+
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
         self.show_board(0, cx);
     }
@@ -821,12 +837,8 @@ impl TodoStory {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let ids: Vec<String> = cx
-            .global::<crate::core::state::ItemSelection>()
-            .ids()
-            .iter()
-            .cloned()
-            .collect();
+        let ids: Vec<String> =
+            cx.global::<crate::core::state::ItemSelection>().ids().iter().cloned().collect();
         let store = cx.global::<TodoStore>();
         let mut items: Vec<_> = ids.iter().filter_map(|id| store.get_item(id)).collect();
         if items.is_empty() {
@@ -1101,6 +1113,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_delete_project))
             .on_action(cx.listener(Self::on_archive_project))
             .on_action(cx.listener(Self::on_toggle_project_favorite))
+            .on_action(cx.listener(Self::on_toggle_label_favorite))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))
@@ -1293,10 +1306,9 @@ impl Render for TodoStory {
                                                 "favorite-project-{favorite_id}"
                                             )))
                                             .flex_shrink_0()
-                                            .on_mouse_down(
-                                                gpui::MouseButton::Left,
-                                                |_, _, cx| cx.stop_propagation(),
-                                            )
+                                            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                                                cx.stop_propagation()
+                                            })
                                             .on_click({
                                                 move |_, window, cx| {
                                                     cx.stop_propagation();
@@ -1308,8 +1320,7 @@ impl Render for TodoStory {
                                                     );
                                                     window.push_notification(
                                                         if next {
-                                                            t!("todo.project.favorited")
-                                                                .to_string()
+                                                            t!("todo.project.favorited").to_string()
                                                         } else {
                                                             t!("todo.project.unfavorited")
                                                                 .to_string()

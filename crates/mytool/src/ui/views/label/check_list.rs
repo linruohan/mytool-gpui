@@ -128,7 +128,10 @@ impl LabelCheckListDelegate {
         labels.sort_by(|a, b| {
             let a_checked = self.checked_list.iter().any(|l| l.id == a.id);
             let b_checked = self.checked_list.iter().any(|l| l.id == b.id);
-            b_checked.cmp(&a_checked).then_with(|| a.name.cmp(&b.name))
+            b_checked
+                .cmp(&a_checked)
+                .then_with(|| b.is_favorite.cmp(&a.is_favorite))
+                .then_with(|| a.name.cmp(&b.name))
         });
         labels
     }

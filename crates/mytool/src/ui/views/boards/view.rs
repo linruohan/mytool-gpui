@@ -118,6 +118,12 @@ impl BoardPanel {
     pub fn update_active_index(&mut self, value: Option<usize>) {
         self.active_index = value;
     }
+
+    pub fn labels_board(&self, cx: &App) -> Option<Entity<LabelsBoard>> {
+        self.boards
+            .iter()
+            .find_map(|board| board.read(cx).inner_board()?.downcast::<LabelsBoard>().ok())
+    }
 }
 
 fn board_tile_colors(colors: &[Hsla]) -> (Hsla, Hsla) {
