@@ -448,6 +448,22 @@ todo:
     es: Completadas
     fr: Terminées
     de: Erledigt
+  story.title:
+    en: Tasks
+    zh-CN: 任务管理
+    zh-HK: 任務管理
+    it: Attività
+    es: Tareas
+    fr: Tâches
+    de: Aufgaben
+  story.description:
+    en: Sidebar boards, projects, and today's tasks
+    zh-CN: 侧栏看板、项目与今日任务
+    zh-HK: 側欄看板、專案與今日任務
+    it: Bacheche, progetti e attività di oggi
+    es: Tableros, proyectos y tareas de hoy
+    fr: Tableaux, projets et tâches du jour
+    de: Boards, Projekte und heutige Aufgaben
   confirm:
     en: Confirm
     zh-CN: 确认

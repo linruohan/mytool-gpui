@@ -76,12 +76,12 @@ pub struct TodoStory {
 }
 
 impl super::Mytool for TodoStory {
-    fn title() -> &'static str {
-        "Todoist 任务管理"
+    fn title() -> String {
+        t!("todo.story.title").to_string()
     }
 
-    fn description() -> &'static str {
-        "侧栏看板、项目与今日任务"
+    fn description() -> String {
+        t!("todo.story.description").to_string()
     }
 
     fn paddings() -> Pixels {

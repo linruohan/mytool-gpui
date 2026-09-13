@@ -20,12 +20,12 @@ impl WelcomeStory {
 }
 
 impl Mytool for WelcomeStory {
-    fn title() -> &'static str {
-        "Introduction 简介"
+    fn title() -> String {
+        "Introduction 简介".to_string()
     }
 
-    fn description() -> &'static str {
-        "UI components for building fantastic desktop application by using GPUI."
+    fn description() -> String {
+        "UI components for building fantastic desktop application by using GPUI.".to_string()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {

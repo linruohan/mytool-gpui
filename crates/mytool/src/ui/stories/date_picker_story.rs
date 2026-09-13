@@ -19,12 +19,12 @@ pub struct DatePickerStory {
 }
 
 impl Mytool for DatePickerStory {
-    fn title() -> &'static str {
-        "DatePicker"
+    fn title() -> String {
+        "DatePicker".to_string()
     }
 
-    fn description() -> &'static str {
-        "A date picker to select a date or date range."
+    fn description() -> String {
+        "A date picker to select a date or date range.".to_string()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {

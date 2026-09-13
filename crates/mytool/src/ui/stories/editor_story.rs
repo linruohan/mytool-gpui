@@ -95,12 +95,12 @@ impl Example {
 }
 
 impl Mytool for EditorStory {
-    fn title() -> &'static str {
-        "Editor 编辑器"
+    fn title() -> String {
+        "Editor 编辑器".to_string()
     }
 
-    fn description() -> &'static str {
-        "A simple code editor example with syntax highlighting"
+    fn description() -> String {
+        "A simple code editor example with syntax highlighting".to_string()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {

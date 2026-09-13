@@ -25,8 +25,8 @@ impl StoryState {
         window: &mut Window,
         cx: &mut App,
     ) -> (
-        &'static str,
-        &'static str,
+        String,
+        String,
         bool,
         Option<PanelControl>,
         AnyView,

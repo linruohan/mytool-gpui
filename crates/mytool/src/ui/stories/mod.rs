@@ -23,10 +23,10 @@ pub trait Mytool: Render + Sized {
         std::any::type_name::<Self>().split("::").last().unwrap()
     }
 
-    fn title() -> &'static str;
+    fn title() -> String;
 
-    fn description() -> &'static str {
-        ""
+    fn description() -> String {
+        String::new()
     }
 
     fn closable() -> bool {

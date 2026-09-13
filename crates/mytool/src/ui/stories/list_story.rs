@@ -31,12 +31,12 @@ pub struct ListStory {
 }
 
 impl super::Mytool for ListStory {
-    fn title() -> &'static str {
-        "labels 列表示例"
+    fn title() -> String {
+        "labels 列表示例".to_string()
     }
 
-    fn description() -> &'static str {
-        "A list displays a series of items."
+    fn description() -> String {
+        "A list displays a series of items.".to_string()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {

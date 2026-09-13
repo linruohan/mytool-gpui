@@ -16,12 +16,12 @@ pub struct CalendarStory {
 }
 
 impl super::Mytool for CalendarStory {
-    fn title() -> &'static str {
-        "Calendar 日历"
+    fn title() -> String {
+        "Calendar 日历".to_string()
     }
 
-    fn description() -> &'static str {
-        "A calendar to select a date or date range."
+    fn description() -> String {
+        "A calendar to select a date or date range.".to_string()
     }
 
     fn new_view(window: &mut Window, cx: &mut App) -> Entity<impl Render> {
