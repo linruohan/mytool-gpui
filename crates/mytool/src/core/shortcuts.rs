@@ -27,8 +27,16 @@ actions!(task_shortcuts, [
     DuplicateTask,
     /// 移动任务到项目 (Cmd/Ctrl + M)
     MoveTaskToProject,
-    /// 设置任务优先级 (Cmd/Ctrl + 1/2/3)
+    /// 循环任务优先级 (Alt + P)
     SetTaskPriority,
+    /// 高优先级 (Alt + 1)
+    SetPriorityHigh,
+    /// 中优先级 (Alt + 2)
+    SetPriorityMedium,
+    /// 低优先级 (Alt + 3)
+    SetPriorityLow,
+    /// 无优先级 (Alt + 4)
+    SetPriorityNone,
     /// 添加标签 (Cmd/Ctrl + L)
     AddLabel,
     /// 设置截止日期 (Cmd/Ctrl + T)
@@ -211,6 +219,10 @@ impl ShortcutConfig {
             "ScheduleNextWeek" => t!("todo.due.quick_next_week").to_string(),
             "ClearDueDate" => t!("todo.due.quick_clear").to_string(),
             "SetTaskPriority" => t!("todo.shortcut.cycle_priority").to_string(),
+            "SetPriorityHigh" => t!("todo.shortcut.priority_high").to_string(),
+            "SetPriorityMedium" => t!("todo.shortcut.priority_medium").to_string(),
+            "SetPriorityLow" => t!("todo.shortcut.priority_low").to_string(),
+            "SetPriorityNone" => t!("todo.shortcut.priority_none").to_string(),
             "MoveTaskToProject" => t!("todo.project.move_title").to_string(),
             "UndoLastTask" => t!("todo.shortcut.undo").to_string(),
             "RedoLastTask" => t!("todo.shortcut.redo").to_string(),
@@ -343,6 +355,30 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "SetTaskPriority",
             key: "alt-p",
             description: "循环任务优先级",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "SetPriorityHigh",
+            key: "alt-1",
+            description: "设为高优先级",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "SetPriorityMedium",
+            key: "alt-2",
+            description: "设为中优先级",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "SetPriorityLow",
+            key: "alt-3",
+            description: "设为低优先级",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "SetPriorityNone",
+            key: "alt-4",
+            description: "清除优先级",
             category: ShortcutCategory::Task,
         },
         ShortcutConfig {
@@ -790,6 +826,10 @@ pub fn bind_todo_keys(cx: &mut App) {
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-l", AddLabel, CTX),
         KeyBinding::new("alt-p", SetTaskPriority, CTX),
+        KeyBinding::new("alt-1", SetPriorityHigh, CTX),
+        KeyBinding::new("alt-2", SetPriorityMedium, CTX),
+        KeyBinding::new("alt-3", SetPriorityLow, CTX),
+        KeyBinding::new("alt-4", SetPriorityNone, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-m", MoveTaskToProject, CTX),
         #[cfg(not(target_os = "macos"))]

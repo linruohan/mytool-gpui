@@ -1472,6 +1472,38 @@ todo:
     es: Cambiar prioridad
     fr: Faire défiler la priorité
     de: Priorität wechseln
+  shortcut.priority_high:
+    en: Set high priority
+    zh-CN: 设为高优先级
+    zh-HK: 設為高優先級
+    it: Priorità alta
+    es: Prioridad alta
+    fr: Priorité haute
+    de: Hohe Priorität
+  shortcut.priority_medium:
+    en: Set medium priority
+    zh-CN: 设为中优先级
+    zh-HK: 設為中優先級
+    it: Priorità media
+    es: Prioridad media
+    fr: Priorité moyenne
+    de: Mittlere Priorität
+  shortcut.priority_low:
+    en: Set low priority
+    zh-CN: 设为低优先级
+    zh-HK: 設為低優先級
+    it: Priorità bassa
+    es: Prioridad baja
+    fr: Priorité basse
+    de: Niedrige Priorität
+  shortcut.priority_none:
+    en: Clear priority
+    zh-CN: 清除优先级
+    zh-HK: 清除優先級
+    it: Nessuna priorità
+    es: Quitar prioridad
+    fr: Effacer la priorité
+    de: Priorität entfernen
   shortcut.undo:
     en: Undo task action
     zh-CN: 撤销任务操作

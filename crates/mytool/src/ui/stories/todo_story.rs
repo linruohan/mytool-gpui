@@ -24,10 +24,11 @@ use crate::{
     OpenHelp, OpenSettings, OutdentTask, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent,
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduleNextWeek,
     ScheduleToday, ScheduleTomorrow, ScheduledBoard, SearchTasks, SelectAllTasks, SelectNextTask,
-    SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox,
-    ShowLabels, ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen,
-    ToggleLabelFavorite, ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin,
-    UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
+    SelectPreviousTask, SetDueDate, SetPriorityHigh, SetPriorityLow, SetPriorityMedium,
+    SetPriorityNone, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox, ShowLabels,
+    ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen, ToggleLabelFavorite,
+    ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn,
+    ZoomOut, play_ogg_file,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         DueQuickPreset, apply_due_quick_preset, show_existing_item_dialog,
@@ -866,24 +867,77 @@ impl TodoStory {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(item) = self.primary_item(cx) else {
-            return;
-        };
-        let next = match item.priority.unwrap_or(4) {
+        let current = self.primary_item(cx).map(|item| item.priority.unwrap_or(4)).unwrap_or(4);
+        let next = match current {
             1 => 2,
             2 => 3,
             3 => 4,
             _ => 1,
         };
+        self.apply_priority(next, window, cx);
+    }
+
+    fn on_set_priority_high(
+        &mut self,
+        _: &SetPriorityHigh,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_priority(1, window, cx);
+    }
+
+    fn on_set_priority_medium(
+        &mut self,
+        _: &SetPriorityMedium,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_priority(2, window, cx);
+    }
+
+    fn on_set_priority_low(
+        &mut self,
+        _: &SetPriorityLow,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_priority(3, window, cx);
+    }
+
+    fn on_set_priority_none(
+        &mut self,
+        _: &SetPriorityNone,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_priority(4, window, cx);
+    }
+
+    fn apply_priority(&mut self, next: i32, window: &mut Window, cx: &mut Context<Self>) {
+        let items = self.selected_or_primary_items(cx);
+        let updated: Vec<_> = items
+            .into_iter()
+            .filter(|item| item.priority.unwrap_or(4) != next)
+            .map(|item| {
+                let mut updated = (*item).clone();
+                updated.priority = Some(next);
+                Arc::new(updated)
+            })
+            .collect();
+        if updated.is_empty() {
+            return;
+        }
         let label = match next {
             1 => t!("todo.priority.high").to_string(),
             2 => t!("todo.priority.medium").to_string(),
             3 => t!("todo.priority.low").to_string(),
             _ => t!("todo.priority.none").to_string(),
         };
-        let mut updated = (*item).clone();
-        updated.priority = Some(next);
-        crate::todo_actions::update_item_optimistic(Arc::new(updated), cx);
+        if updated.len() == 1 {
+            crate::todo_actions::update_item_optimistic(updated.into_iter().next().unwrap(), cx);
+        } else {
+            crate::todo_actions::batch_update_items(updated, cx);
+        }
         window.push_notification(
             t!("todo.notify.set_priority", label => label.as_str()).to_string(),
             cx,
@@ -1219,6 +1273,10 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_show_completed))
             .on_action(cx.listener(Self::on_add_label))
             .on_action(cx.listener(Self::on_set_priority))
+            .on_action(cx.listener(Self::on_set_priority_high))
+            .on_action(cx.listener(Self::on_set_priority_medium))
+            .on_action(cx.listener(Self::on_set_priority_low))
+            .on_action(cx.listener(Self::on_set_priority_none))
             .on_action(cx.listener(Self::on_move_to_project))
             .on_action(cx.listener(Self::on_batch_move_selected))
             .on_action(cx.listener(Self::on_move_task_up))
