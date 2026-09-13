@@ -21,6 +21,7 @@ pub enum SaveStatus {
 #[derive(Default)]
 pub struct ItemSelection {
     ids: HashSet<String>,
+    primary: Option<String>,
 }
 
 impl Global for ItemSelection {}
@@ -32,6 +33,10 @@ impl ItemSelection {
 
     pub fn ids(&self) -> &HashSet<String> {
         &self.ids
+    }
+
+    pub fn primary_id(&self) -> Option<&str> {
+        self.primary.as_deref().or_else(|| self.ids.iter().next().map(String::as_str))
     }
 
     pub fn len(&self) -> usize {
@@ -48,9 +53,11 @@ impl ItemSelection {
 
     pub fn clear(&mut self) {
         self.ids.clear();
+        self.primary = None;
     }
 
     pub fn set_ids(&mut self, ids: HashSet<String>) {
+        self.primary = ids.iter().next().cloned();
         self.ids = ids;
     }
 
@@ -58,11 +65,15 @@ impl ItemSelection {
     pub fn apply_click(&mut self, id: String, multi: bool) {
         if multi {
             if !self.ids.remove(&id) {
-                self.ids.insert(id);
+                self.ids.insert(id.clone());
+                self.primary = Some(id);
+            } else if self.primary.as_deref() == Some(id.as_str()) {
+                self.primary = self.ids.iter().next().cloned();
             }
         } else {
             self.ids.clear();
-            self.ids.insert(id);
+            self.ids.insert(id.clone());
+            self.primary = Some(id);
         }
     }
 }

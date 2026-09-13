@@ -25,8 +25,8 @@ use todos::entity::{ItemModel, ProjectModel};
 use crate::{
     ItemEvent, ItemInfoEvent, ItemInfoState, ItemRowState, VisualHierarchy, board_section,
     todo_actions::{
-        add_section, delete_project, delete_project_item, delete_section, load_project_items,
-        update_project, update_project_item, update_section,
+        add_project, add_section, delete_project, delete_project_item, delete_section,
+        load_project_items, update_project, update_project_item, update_section,
     },
     todo_color_picker,
     todo_state::TodoStore,
@@ -397,7 +397,48 @@ impl ProjectItemsPanel {
         }
     }
 
-    /// 显示项目编辑对话框，支持修改项目名称、颜色和截止日期
+    /// 在当前项目下新建子项目
+    pub fn show_child_project_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let parent_id = self.project.id.clone();
+        let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("子项目名称"));
+        window.open_dialog(cx, move |modal, _, _| {
+            modal
+                .title("新建子项目")
+                .overlay(true)
+                .overlay_closable(true)
+                .child(
+                    v_form()
+                        .child(field().label("名称").required(true).child(Input::new(&name_input))),
+                )
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            DialogClose::new().child(Button::new("cancel").label("取消").outline()),
+                        )
+                        .child(
+                            DialogAction::new().child(Button::new("add").primary().label("添加")),
+                        ),
+                )
+                .on_ok({
+                    let input = name_input.clone();
+                    let parent_id = parent_id.clone();
+                    move |_, _, cx| {
+                        let name = input.read(cx).value().to_string();
+                        if name.trim().is_empty() {
+                            return false;
+                        }
+                        let project = Arc::new(ProjectModel {
+                            name,
+                            parent_id: Some(parent_id.clone()),
+                            ..ProjectModel::default()
+                        });
+                        add_project(project, cx);
+                        true
+                    }
+                })
+        });
+    }
+
     pub fn show_project_edit_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let name_input = cx.new(|cx| InputState::new(window, cx).placeholder("项目名称"));
         name_input.update(cx, |is, cx| {
@@ -686,6 +727,15 @@ impl Render for ProjectItemsPanel {
                                                     &view,
                                                     |this, _, window, cx| {
                                                         this.show_project_edit_dialog(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                ),
+                                            ))
+                                            .item(PopupMenuItem::new("新建子项目").on_click(
+                                                window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_child_project_dialog(window, cx);
                                                         cx.notify();
                                                     },
                                                 ),

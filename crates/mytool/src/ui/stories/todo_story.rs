@@ -15,10 +15,10 @@ use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeselectAll, NewTask, OpenHelp,
-    OpenSettings, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, SearchTasks,
-    SelectAllTasks, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday,
-    UndoLastTask, play_ogg_file,
+    BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeleteTask, DeselectAll, DuplicateTask,
+    EditTask, NewTask, OpenHelp, OpenSettings, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
+    ProjectsPanel, SearchTasks, SelectAllTasks, ShowCompleted, ShowInbox, ShowLabels, ShowPinned,
+    ShowScheduled, ShowToday, ToggleTaskComplete, UndoLastTask, play_ogg_file,
     todo_state::TodoStore,
     ui::components::{
         show_existing_item_dialog, show_new_item_dialog, show_todo_help_dialog,
@@ -295,6 +295,67 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn primary_item(&self, cx: &App) -> Option<Arc<ItemModel>> {
+        let id = cx.global::<crate::core::state::ItemSelection>().primary_id()?.to_string();
+        cx.global::<TodoStore>().get_item(&id)
+    }
+
+    fn on_edit_task(&mut self, _: &EditTask, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = self.primary_item(cx) {
+            show_existing_item_dialog(window, cx, item);
+        }
+    }
+
+    fn on_delete_task(&mut self, _: &DeleteTask, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(item) = self.primary_item(cx) else {
+            return;
+        };
+        if !cx.global::<crate::core::state::TodoPrefs>().confirm_on_delete {
+            crate::todo_actions::delete_item_optimistic(item, cx);
+            window.push_notification("已删除任务。", cx);
+            return;
+        }
+        crate::show_item_delete_dialog(
+            window,
+            cx,
+            "确定删除这个任务吗？",
+            move |cx| {
+                crate::todo_actions::delete_item_optimistic(item.clone(), cx);
+            },
+        );
+    }
+
+    fn on_toggle_complete(
+        &mut self,
+        _: &ToggleTaskComplete,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(item) = self.primary_item(cx) {
+            crate::todo_actions::complete_item_optimistic(item.clone(), !item.checked, cx);
+            window
+                .push_notification(if item.checked { "已标记为未完成" } else { "已完成任务" }, cx);
+        }
+    }
+
+    fn on_duplicate_task(
+        &mut self,
+        _: &DuplicateTask,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(item) = self.primary_item(cx) else {
+            return;
+        };
+        let mut copy = (*item).clone();
+        copy.id = uuid::Uuid::new_v4().to_string();
+        copy.content = format!("{}（副本）", copy.content);
+        copy.checked = false;
+        copy.completed_at = None;
+        crate::todo_actions::add_item_optimistic(Arc::new(copy), cx);
+        window.push_notification("已复制任务", cx);
+    }
+
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
         self.show_board(0, cx);
     }
@@ -362,10 +423,8 @@ impl Render for TodoStory {
         let board_panel = self.board_panel.read(cx);
         let boards = board_panel.boards.clone();
         let board_active_index = board_panel.active_index;
-        let project_panel = self.project_panel.read(cx);
-        let project_list = cx.global::<TodoStore>().projects.clone();
+        let project_list = cx.global::<TodoStore>().projects_for_sidebar();
         let _view = cx.entity();
-        let project_active_index = project_panel.active_index;
         let search_query = self.search_input.read(cx).value().to_string();
         let search_hits = if self.search_open {
             cx.global::<TodoStore>().search_items(&search_query)
@@ -398,6 +457,10 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_open_settings))
             .on_action(cx.listener(Self::on_open_help))
             .on_action(cx.listener(Self::on_undo_last))
+            .on_action(cx.listener(Self::on_edit_task))
+            .on_action(cx.listener(Self::on_delete_task))
+            .on_action(cx.listener(Self::on_toggle_complete))
+            .on_action(cx.listener(Self::on_duplicate_task))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))
@@ -452,62 +515,75 @@ impl Render for TodoStory {
                                         .child("还没有项目"),
                                 )
                             })
-                            .children(project_list.iter().enumerate().map(|(ix, project)| {
-                                let count = cx
-                                    .global::<TodoStore>()
-                                    .items_by_project(&project.id)
-                                    .iter()
-                                    .filter(|item| !item.checked)
-                                    .count();
-                                let active = project_active_index == Some(ix);
-                                let story = project.clone();
-                                h_flex()
-                                    .id(("sidebar-project", ix))
-                                    .w_full()
-                                    .h_7()
-                                    .px_2()
-                                    .items_center()
-                                    .justify_between()
-                                    .rounded(cx.theme().radius)
-                                    .text_sm()
-                                    .when(active, |this| {
-                                        this.bg(cx.theme().sidebar_accent)
-                                            .text_color(cx.theme().sidebar_accent_foreground)
-                                    })
-                                    .hover(|this| this.bg(cx.theme().sidebar_accent))
-                                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                                        this.active_project = Some(story.clone());
-                                        this.project_panel.update(cx, |panel, cx| {
-                                            panel.update_active_index(Some(ix));
-                                            cx.notify();
-                                        });
-                                        this.project_items_panel.update(cx, |panel, cx| {
-                                            panel.set_project(story.clone(), cx);
-                                            cx.notify();
-                                        });
-                                        this.board_panel.update(cx, |panel, cx| {
-                                            panel.update_active_index(None);
-                                            cx.notify();
-                                        });
-                                        cx.notify();
-                                    }))
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .min_w_0()
-                                            .overflow_x_hidden()
-                                            .whitespace_nowrap()
-                                            .child(project.name.clone()),
-                                    )
-                                    .when(count > 0, |this| {
-                                        this.child(
+                            .children(project_list.iter().enumerate().map(
+                                |(ix, (project, nested))| {
+                                    let count = cx
+                                        .global::<TodoStore>()
+                                        .items_by_project(&project.id)
+                                        .iter()
+                                        .filter(|item| !item.checked)
+                                        .count();
+                                    let active = self
+                                        .active_project
+                                        .as_ref()
+                                        .is_some_and(|p| p.id == project.id);
+                                    let story = project.clone();
+                                    h_flex()
+                                        .id(("sidebar-project", ix))
+                                        .w_full()
+                                        .h_7()
+                                        .px_2()
+                                        .when(*nested, |this| this.pl(px(22.)))
+                                        .items_center()
+                                        .justify_between()
+                                        .rounded(cx.theme().radius)
+                                        .text_sm()
+                                        .when(active, |this| {
+                                            this.bg(cx.theme().sidebar_accent)
+                                                .text_color(cx.theme().sidebar_accent_foreground)
+                                        })
+                                        .hover(|this| this.bg(cx.theme().sidebar_accent))
+                                        .on_click(cx.listener(
+                                            move |this, _: &ClickEvent, _, cx| {
+                                                this.active_project = Some(story.clone());
+                                                let store_ix = cx
+                                                    .global::<TodoStore>()
+                                                    .projects
+                                                    .iter()
+                                                    .position(|p| p.id == story.id);
+                                                this.project_panel.update(cx, |panel, cx| {
+                                                    panel.update_active_index(store_ix);
+                                                    cx.notify();
+                                                });
+                                                this.project_items_panel.update(cx, |panel, cx| {
+                                                    panel.set_project(story.clone(), cx);
+                                                    cx.notify();
+                                                });
+                                                this.board_panel.update(cx, |panel, cx| {
+                                                    panel.update_active_index(None);
+                                                    cx.notify();
+                                                });
+                                                cx.notify();
+                                            },
+                                        ))
+                                        .child(
                                             div()
-                                                .text_sm()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child(count.to_string()),
+                                                .flex_1()
+                                                .min_w_0()
+                                                .overflow_x_hidden()
+                                                .whitespace_nowrap()
+                                                .child(project.name.clone()),
                                         )
-                                    })
-                            })),
+                                        .when(count > 0, |this| {
+                                            this.child(
+                                                div()
+                                                    .text_sm()
+                                                    .text_color(cx.theme().muted_foreground)
+                                                    .child(count.to_string()),
+                                            )
+                                        })
+                                },
+                            )),
                     ),
             )
             .child(

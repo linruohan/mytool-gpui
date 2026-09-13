@@ -168,6 +168,37 @@ fn sort_items_by_child_order(items: &mut Vec<Arc<ItemModel>>) {
     items.sort_by(|a, b| cmp_child_order(a, b));
 }
 
+fn project_parent_id(project: &ProjectModel) -> Option<&str> {
+    project.parent_id.as_deref().filter(|id| !id.is_empty())
+}
+
+fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<ProjectModel>, bool)> {
+    let ids: HashSet<&str> = projects.iter().map(|p| p.id.as_str()).collect();
+    let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
+    for (i, project) in projects.iter().enumerate() {
+        if let Some(pid) = project_parent_id(project)
+            && ids.contains(pid)
+            && pid != project.id
+        {
+            children.entry(pid).or_default().push(i);
+        }
+    }
+    let mut out = Vec::with_capacity(projects.len());
+    for project in projects {
+        let parent = project_parent_id(project);
+        if parent.is_some_and(|pid| ids.contains(pid) && pid != project.id) {
+            continue;
+        }
+        out.push((project.clone(), false));
+        if let Some(child_ix) = children.get(project.id.as_str()) {
+            for &cix in child_ix {
+                out.push((projects[cix].clone(), true));
+            }
+        }
+    }
+    out
+}
+
 // ==================== 索引操作 Trait ====================
 
 /// 索引操作统一接口
@@ -938,6 +969,11 @@ impl TodoStore {
         self.project_by_id.get(id).cloned()
     }
 
+    /// 侧栏用：根项目在前，子项目紧随其后（一层缩进）。
+    pub fn projects_for_sidebar(&self) -> Vec<(Arc<ProjectModel>, bool)> {
+        flatten_projects_for_sidebar(&self.projects)
+    }
+
     /// 增量更新单个分区
     pub fn update_section(&mut self, section: Arc<SectionModel>) {
         let id = section.id.clone();
@@ -1418,6 +1454,26 @@ mod tests {
         assert!(labels_only.affects_label_list());
         assert!(labels_only.affects_item_editor());
         assert!(!labels_only.affects_project_list());
+    }
+
+    #[test]
+    fn sidebar_nests_child_projects() {
+        let mut store = TodoStore::new();
+        let mut root = ProjectModel::default();
+        root.id = "root".into();
+        root.name = "根".into();
+        let mut child = ProjectModel::default();
+        child.id = "child".into();
+        child.name = "子".into();
+        child.parent_id = Some("root".into());
+        let mut other = ProjectModel::default();
+        other.id = "other".into();
+        other.name = "其他".into();
+        store.set_projects(vec![child, other, root]);
+        let rows = store.projects_for_sidebar();
+        let ids: Vec<(&str, bool)> =
+            rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
+        assert_eq!(ids, vec![("other", false), ("root", false), ("child", true)]);
     }
 
     #[test]

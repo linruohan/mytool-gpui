@@ -169,7 +169,15 @@ impl ProjectsPanel {
         });
         let color = self.color.clone();
         let is_edit = false;
-        let ori_project = self.initialize_project_model(is_edit, window, cx);
+        let mut ori_project = (*_model).clone();
+        if ori_project.parent_id.as_deref().is_none_or(|id| id.is_empty()) {
+            ori_project = self.initialize_project_model(is_edit, window, cx);
+        }
+        let title = if ori_project.parent_id.as_deref().is_some_and(|id| !id.is_empty()) {
+            "新建子项目"
+        } else {
+            "新建项目"
+        };
         let _ = cx.subscribe(&project_due, |this, _, ev, _| match ev {
             DatePickerEvent::Change(date) => {
                 this.project_due = date.format("%Y-%m-%d").map(|s| s.to_string());
@@ -180,7 +188,7 @@ impl ProjectsPanel {
 
         window.open_dialog(cx, move |modal, _, _| {
             modal
-                .title("新建项目")
+                .title(title)
                 .overlay(false)
                 .keyboard(true)
                 .overlay_closable(true)

@@ -470,6 +470,22 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-z", UndoLastTask, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-z", UndoLastTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-e", EditTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-e", EditTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-d", DeleteTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-d", DeleteTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-enter", ToggleTaskComplete, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-enter", ToggleTaskComplete, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-d", DuplicateTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-d", DuplicateTask, CTX),
     ]);
 }
 
