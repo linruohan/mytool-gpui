@@ -202,6 +202,8 @@ impl ShortcutConfig {
             "ShowLabels" => t!("todo.shortcut.show_labels").to_string(),
             "NextView" => t!("todo.shortcut.next_view").to_string(),
             "PreviousView" => t!("todo.shortcut.prev_view").to_string(),
+            "GoBack" => t!("todo.shortcut.go_back").to_string(),
+            "GoForward" => t!("todo.shortcut.go_forward").to_string(),
             "SearchTasks" => t!("todo.shortcut.search").to_string(),
             "FilterByLabel" => t!("todo.filter.labels").to_string(),
             "FilterByProject" => t!("todo.filter.projects").to_string(),
@@ -357,6 +359,18 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "PreviousView",
             key: "cmd-[",
             description: "上一个看板",
+            category: ShortcutCategory::Navigation,
+        },
+        ShortcutConfig {
+            action: "GoBack",
+            key: "cmd-left",
+            description: "后退",
+            category: ShortcutCategory::Navigation,
+        },
+        ShortcutConfig {
+            action: "GoForward",
+            key: "cmd-right",
+            description: "前进",
             category: ShortcutCategory::Navigation,
         },
         // 搜索和过滤
@@ -665,6 +679,14 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-[", PreviousView, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-[", PreviousView, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-left", GoBack, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-left", GoBack, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-right", GoForward, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-right", GoForward, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-shift-l", FilterByLabel, CTX),
         #[cfg(not(target_os = "macos"))]

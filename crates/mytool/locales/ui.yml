@@ -1448,6 +1448,22 @@ todo:
     es: Tablero anterior
     fr: Tableau précédent
     de: Vorherige Tafel
+  shortcut.go_back:
+    en: Go back
+    zh-CN: 后退
+    zh-HK: 後退
+    it: Indietro
+    es: Atrás
+    fr: Retour
+    de: Zurück
+  shortcut.go_forward:
+    en: Go forward
+    zh-CN: 前进
+    zh-HK: 前進
+    it: Avanti
+    es: Adelante
+    fr: Avancer
+    de: Vorwärts
   shortcut.search:
     en: Search tasks
     zh-CN: 搜索任务

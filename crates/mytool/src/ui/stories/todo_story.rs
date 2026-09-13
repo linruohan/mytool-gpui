@@ -18,14 +18,14 @@ use todos::entity::{ItemModel, ProjectModel};
 use crate::{
     AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteProject,
     DeleteSection, DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask,
-    FilterByLabel, FilterByPriority, FilterByProject, InboxBoard, ItemListItem, MoveTaskToProject,
-    NewProject, NewSection, NewTask,
-    NextView, OpenHelp, OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent,
+    FilterByLabel, FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem,
+    MoveTaskToProject, NewProject, NewSection, NewTask, NextView, OpenHelp, OpenSettings,
+    PreviousView, ProjectEvent, ProjectItemEvent,
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
     SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted,
     ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleFullscreen, ToggleSidebar,
     ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
-    todo_state::{TodoPrefs, TodoStore},
+    todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
         show_filter_project_dialog, show_move_to_project_dialog, show_new_item_dialog,
@@ -74,6 +74,8 @@ pub struct TodoStory {
     project_items_panel: Entity<ProjectItemsPanel>,
     search_open: bool,
     search_input: Entity<InputState>,
+    nav: NavHistory,
+    nav_restoring: bool,
 }
 
 impl super::Mytool for TodoStory {
@@ -148,6 +150,10 @@ impl TodoStory {
 
                             // 提前克隆需要的数据，避免借用冲突
                             let active_project_clone = active_project.clone();
+                            this.remember_leaving(
+                                &NavPlace::Project(active_project_clone.id.clone()),
+                                cx,
+                            );
 
                             // 找到新项目在列表中的索引
                             let new_index = todo_store
@@ -185,6 +191,7 @@ impl TodoStory {
                         if this.active_project.is_some() {
                             tracing::debug!("TodoStory: 所有项目已删除，切换到 Inbox 视图");
 
+                            this.remember_leaving(&NavPlace::Board(0), cx);
                             // 清除 TodoStory 的 active_project
                             this.active_project = None;
 
@@ -222,10 +229,44 @@ impl TodoStory {
             side: Side::Left,
             search_open: false,
             search_input,
+            nav: NavHistory::default(),
+            nav_restoring: false,
         }
     }
 
+    fn current_place(&self, cx: &App) -> NavPlace {
+        if let Some(project) = &self.active_project {
+            NavPlace::Project(project.id.clone())
+        } else {
+            NavPlace::Board(self.board_panel.read(cx).active_index.unwrap_or(0))
+        }
+    }
+
+    fn remember_leaving(&mut self, arriving: &NavPlace, cx: &App) {
+        if self.nav_restoring {
+            return;
+        }
+        let leaving = self.current_place(cx);
+        self.nav.record_leaving(leaving, arriving);
+    }
+
+    fn apply_nav(&mut self, place: NavPlace, cx: &mut Context<Self>) {
+        self.nav_restoring = true;
+        match place {
+            NavPlace::Board(index) => self.show_board(index, cx),
+            NavPlace::Project(id) => {
+                if let Some(project) = cx.global::<TodoStore>().get_project(&id) {
+                    self.activate_project(project, cx);
+                } else {
+                    self.show_board(0, cx);
+                }
+            },
+        }
+        self.nav_restoring = false;
+    }
+
     fn show_board(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.remember_leaving(&NavPlace::Board(index), cx);
         self.active_project = None;
         self.project_panel.update(cx, |panel, cx| {
             panel.update_active_index(None);
@@ -234,6 +275,9 @@ impl TodoStory {
         self.board_panel.update(cx, |panel, cx| {
             panel.update_active_index(Some(index));
             cx.notify();
+        });
+        cx.update_global::<TodoStore, _>(|store, _| {
+            store.set_active_project(None);
         });
         cx.notify();
     }
@@ -260,6 +304,7 @@ impl TodoStory {
     }
 
     fn activate_project(&mut self, project: Arc<ProjectModel>, cx: &mut Context<Self>) {
+        self.remember_leaving(&NavPlace::Project(project.id.clone()), cx);
         self.active_project = Some(project.clone());
         let store_ix = cx.global::<TodoStore>().projects.iter().position(|p| p.id == project.id);
         self.project_panel.update(cx, |panel, cx| {
@@ -267,12 +312,15 @@ impl TodoStory {
             cx.notify();
         });
         self.project_items_panel.update(cx, |panel, cx| {
-            panel.set_project(project, cx);
+            panel.set_project(project.clone(), cx);
             cx.notify();
         });
         self.board_panel.update(cx, |panel, cx| {
             panel.update_active_index(None);
             cx.notify();
+        });
+        cx.update_global::<TodoStore, _>(|store, _| {
+            store.set_active_project(Some(project));
         });
         cx.notify();
     }
@@ -732,6 +780,20 @@ impl TodoStory {
         self.cycle_board(-1, cx);
     }
 
+    fn on_go_back(&mut self, _: &GoBack, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.current_place(cx);
+        if let Some(dest) = self.nav.go_back(current) {
+            self.apply_nav(dest, cx);
+        }
+    }
+
+    fn on_go_forward(&mut self, _: &GoForward, _: &mut Window, cx: &mut Context<Self>) {
+        let current = self.current_place(cx);
+        if let Some(dest) = self.nav.go_forward(current) {
+            self.apply_nav(dest, cx);
+        }
+    }
+
     fn cycle_board(&mut self, delta: i32, cx: &mut Context<Self>) {
         let current = self.board_panel.read(cx).active_index.unwrap_or(0);
         let next = (current as i32 + delta).rem_euclid(6) as usize;
@@ -925,6 +987,8 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_move_to_project))
             .on_action(cx.listener(Self::on_next_view))
             .on_action(cx.listener(Self::on_previous_view))
+            .on_action(cx.listener(Self::on_go_back))
+            .on_action(cx.listener(Self::on_go_forward))
             .on_action(cx.listener(Self::on_filter_label))
             .on_action(cx.listener(Self::on_filter_project))
             .on_action(cx.listener(Self::on_filter_priority))

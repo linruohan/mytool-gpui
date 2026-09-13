@@ -219,9 +219,50 @@ pub fn step_visible_id(ids: &[String], current: Option<&str>, delta: i32) -> Opt
     Some(ids[ix].clone())
 }
 
+const NAV_HISTORY_LIMIT: usize = 50;
+
+/// 侧栏看板或某个项目。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NavPlace {
+    Board(usize),
+    Project(String),
+}
+
+/// 看板/项目访问历史，供后退前进使用。
+#[derive(Clone, Debug, Default)]
+pub struct NavHistory {
+    back: Vec<NavPlace>,
+    forward: Vec<NavPlace>,
+}
+
+impl NavHistory {
+    pub fn record_leaving(&mut self, leaving: NavPlace, arriving: &NavPlace) {
+        if &leaving == arriving {
+            return;
+        }
+        self.back.push(leaving);
+        if self.back.len() > NAV_HISTORY_LIMIT {
+            self.back.remove(0);
+        }
+        self.forward.clear();
+    }
+
+    pub fn go_back(&mut self, current: NavPlace) -> Option<NavPlace> {
+        let dest = self.back.pop()?;
+        self.forward.push(current);
+        Some(dest)
+    }
+
+    pub fn go_forward(&mut self, current: NavPlace) -> Option<NavPlace> {
+        let dest = self.forward.pop()?;
+        self.back.push(current);
+        Some(dest)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::step_visible_id;
+    use super::{NavHistory, NavPlace, step_visible_id};
 
     #[test]
     fn step_visible_id_wraps_and_defaults() {
@@ -231,5 +272,24 @@ mod tests {
         assert_eq!(step_visible_id(&ids, Some("a"), 1).as_deref(), Some("b"));
         assert_eq!(step_visible_id(&ids, Some("c"), 1).as_deref(), Some("a"));
         assert_eq!(step_visible_id(&ids, Some("a"), -1).as_deref(), Some("c"));
+    }
+
+    #[test]
+    fn nav_history_back_forward_and_branch_clears_forward() {
+        let mut nav = NavHistory::default();
+        nav.record_leaving(NavPlace::Board(0), &NavPlace::Project("p1".into()));
+        nav.record_leaving(NavPlace::Project("p1".into()), &NavPlace::Board(1));
+        assert_eq!(nav.go_back(NavPlace::Board(1)), Some(NavPlace::Project("p1".into())));
+        assert_eq!(nav.go_forward(NavPlace::Project("p1".into())), Some(NavPlace::Board(1)));
+        nav.record_leaving(NavPlace::Board(1), &NavPlace::Board(2));
+        assert_eq!(nav.go_forward(NavPlace::Board(2)), None);
+        assert_eq!(nav.go_back(NavPlace::Board(2)), Some(NavPlace::Board(1)));
+    }
+
+    #[test]
+    fn nav_history_skips_same_place() {
+        let mut nav = NavHistory::default();
+        nav.record_leaving(NavPlace::Board(0), &NavPlace::Board(0));
+        assert_eq!(nav.go_back(NavPlace::Board(0)), None);
     }
 }
