@@ -342,7 +342,7 @@ impl TodoStory {
     ) {
         let n = crate::todo_actions::batch_complete_selected(cx);
         if n > 0 {
-            window.push_notification(format!("已完成 {n} 个任务"), cx);
+            window.push_notification(t!("todo.batch.completed_n", count => n).to_string(), cx);
         }
         cx.notify();
     }
@@ -355,7 +355,7 @@ impl TodoStory {
     ) {
         let n = crate::todo_actions::batch_delete_selected(cx);
         if n > 0 {
-            window.push_notification(format!("已删除 {n} 个任务"), cx);
+            window.push_notification(t!("todo.batch.deleted_n", count => n).to_string(), cx);
         }
         cx.notify();
     }
@@ -405,10 +405,10 @@ impl TodoStory {
         };
         if !cx.global::<crate::core::state::TodoPrefs>().confirm_on_delete {
             crate::todo_actions::delete_item_optimistic(item, cx);
-            window.push_notification("已删除任务。", cx);
+            window.push_notification(t!("todo.item.deleted").to_string(), cx);
             return;
         }
-        crate::show_item_delete_dialog(window, cx, "确定删除这个任务吗？", move |cx| {
+        crate::show_item_delete_dialog(window, cx, &t!("todo.item.delete_confirm"), move |cx| {
             crate::todo_actions::delete_item_optimistic(item.clone(), cx);
         });
     }
@@ -421,8 +421,14 @@ impl TodoStory {
     ) {
         if let Some(item) = self.primary_item(cx) {
             crate::todo_actions::complete_item_optimistic(item.clone(), !item.checked, cx);
-            window
-                .push_notification(if item.checked { "已标记为未完成" } else { "已完成任务" }, cx);
+            window.push_notification(
+                if item.checked {
+                    t!("todo.item.unfinished").to_string()
+                } else {
+                    t!("todo.item.finished").to_string()
+                },
+                cx,
+            );
         }
     }
 
@@ -437,18 +443,25 @@ impl TodoStory {
         };
         let mut copy = (*item).clone();
         copy.id = uuid::Uuid::new_v4().to_string();
-        copy.content = format!("{}（副本）", copy.content);
+        copy.content = t!("todo.section.copy_name", name => copy.content.as_str()).to_string();
         copy.checked = false;
         copy.completed_at = None;
         crate::todo_actions::add_item_optimistic(Arc::new(copy), cx);
-        window.push_notification("已复制任务", cx);
+        window.push_notification(t!("todo.item.copied").to_string(), cx);
     }
 
     fn on_toggle_pin(&mut self, _: &ToggleTaskPin, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = self.primary_item(cx) {
             let pinned = !item.pinned;
             crate::todo_actions::set_item_pinned_optimistic(item, pinned, cx);
-            window.push_notification(if pinned { "已置顶" } else { "已取消置顶" }, cx);
+            window.push_notification(
+                if pinned {
+                    t!("todo.item.pinned").to_string()
+                } else {
+                    t!("todo.item.unpinned").to_string()
+                },
+                cx,
+            );
         }
     }
 
@@ -526,15 +539,18 @@ impl TodoStory {
             _ => 1,
         };
         let label = match next {
-            1 => "高优先级",
-            2 => "中优先级",
-            3 => "低优先级",
-            _ => "无优先级",
+            1 => t!("todo.priority.high").to_string(),
+            2 => t!("todo.priority.medium").to_string(),
+            3 => t!("todo.priority.low").to_string(),
+            _ => t!("todo.priority.none").to_string(),
         };
         let mut updated = (*item).clone();
         updated.priority = Some(next);
         crate::todo_actions::update_item_optimistic(Arc::new(updated), cx);
-        window.push_notification(format!("已设为{label}"), cx);
+        window.push_notification(
+            t!("todo.notify.set_priority", label => label.as_str()).to_string(),
+            cx,
+        );
         cx.notify();
     }
 
@@ -612,7 +628,7 @@ impl TodoStory {
     }
 
     fn on_refresh_view(&mut self, _: &RefreshView, window: &mut Window, cx: &mut Context<Self>) {
-        window.push_notification("已刷新", cx);
+        window.push_notification(t!("todo.notify.refreshed").to_string(), cx);
         cx.notify();
     }
 

@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use gpui::{App, BorrowAppContext};
+use rust_i18n::t;
 use todos::entity::ItemModel;
 use tracing::{debug, error};
 
@@ -138,10 +139,13 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 error!("❌ 添加任务失败（重试耗尽）: {}", context.format_user_message());
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(format!(
-                        "添加任务失败：{}。请稍后重试。",
-                        context.format_user_message()
-                    ));
+                    notifier.set_error(
+                        t!(
+                            "todo.error.add_failed",
+                            error => context.format_user_message()
+                        )
+                        .to_string(),
+                    );
                 });
 
                 cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
@@ -152,7 +156,7 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
                 error!("❌ 添加任务异常（任务被取消或 panic）: {:?}", join_err);
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error("添加任务时发生内部错误。请稍后重试。".to_string());
+                    notifier.set_error(t!("todo.error.add_internal").to_string());
                 });
             },
         }
@@ -220,10 +224,13 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                 );
                 error!("{}", context.format_user_message());
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(format!(
-                        "更新任务失败：{}。您的更改已保存到本地，稍后会自动重试。",
-                        context.format_user_message()
-                    ));
+                    notifier.set_error(
+                        t!(
+                            "todo.error.update_failed",
+                            error => context.format_user_message()
+                        )
+                        .to_string(),
+                    );
                 });
                 cx.update_global::<crate::core::state::SaveResults, _>(|results, _| {
                     results.mark_failed(item_id);
@@ -279,10 +286,13 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
                 });
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(format!(
-                        "删除任务失败：{}。任务已恢复到列表中，请稍后重试。",
-                        context.format_user_message()
-                    ));
+                    notifier.set_error(
+                        t!(
+                            "todo.error.delete_failed",
+                            error => context.format_user_message()
+                        )
+                        .to_string(),
+                    );
                 });
             },
             Err(join_err) => {
@@ -340,11 +350,13 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
                 });
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(format!(
-                        "{}任务失败：{}。状态已恢复，请稍后重试。",
-                        if pinned { "置顶" } else { "取消置顶" },
-                        context.format_user_message()
-                    ));
+                    let error = context.format_user_message();
+                    let msg = if pinned {
+                        t!("todo.error.pin_failed", error => error).to_string()
+                    } else {
+                        t!("todo.error.unpin_failed", error => error).to_string()
+                    };
+                    notifier.set_error(msg);
                 });
             },
             Err(join_err) => {
@@ -454,11 +466,13 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
                 });
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {
-                    notifier.set_error(format!(
-                        "{}任务失败：{}。状态已恢复，请稍后重试。",
-                        if checked { "完成" } else { "取消完成" },
-                        context.format_user_message()
-                    ));
+                    let error = context.format_user_message();
+                    let msg = if checked {
+                        t!("todo.error.complete_failed", error => error).to_string()
+                    } else {
+                        t!("todo.error.uncomplete_failed", error => error).to_string()
+                    };
+                    notifier.set_error(msg);
                 });
             },
             Err(join_err) => {
@@ -470,16 +484,16 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
 }
 
 /// 撤销最近一次任务操作（可连续撤销）。
-pub fn undo_last_task(cx: &mut App) -> Option<&'static str> {
+pub fn undo_last_task(cx: &mut App) -> Option<String> {
     apply_history(true, cx)
 }
 
 /// 重做最近一次被撤销的任务操作。
-pub fn redo_last_task(cx: &mut App) -> Option<&'static str> {
+pub fn redo_last_task(cx: &mut App) -> Option<String> {
     apply_history(false, cx)
 }
 
-fn apply_history(undo: bool, cx: &mut App) -> Option<&'static str> {
+fn apply_history(undo: bool, cx: &mut App) -> Option<String> {
     let entry = cx.update_global::<UndoStack, _>(|stack, _| {
         stack.restoring = true;
         if undo { stack.pop_undo() } else { stack.pop_redo() }
@@ -493,7 +507,11 @@ fn apply_history(undo: bool, cx: &mut App) -> Option<&'static str> {
             stack.push_undo_silent(entry);
         }
     });
-    Some(if undo { "已撤销" } else { "已重做" })
+    Some(if undo {
+        t!("todo.notify.undone").to_string()
+    } else {
+        t!("todo.notify.redone").to_string()
+    })
 }
 
 fn apply_entry(entry: &UndoEntry, undo: bool, cx: &mut App) {

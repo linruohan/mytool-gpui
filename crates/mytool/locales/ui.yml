@@ -1496,4 +1496,132 @@ todo:
     es: Abrir ayuda
     fr: "Ouvrir l'aide"
     de: Hilfe öffnen
+  item.copied:
+    en: Task duplicated
+    zh-CN: 已复制任务
+    zh-HK: 已複製任務
+    it: Attività duplicata
+    es: Tarea duplicada
+    fr: Tâche dupliquée
+    de: Aufgabe dupliziert
+  notify.set_priority:
+    en: "Set to %{label}"
+    zh-CN: "已设为%{label}"
+    zh-HK: "已設為%{label}"
+    it: "Impostata: %{label}"
+    es: "Establecida: %{label}"
+    fr: "Définie : %{label}"
+    de: "Gesetzt: %{label}"
+  notify.refreshed:
+    en: Refreshed
+    zh-CN: 已刷新
+    zh-HK: 已重新整理
+    it: Aggiornato
+    es: Actualizado
+    fr: Actualisé
+    de: Aktualisiert
+  notify.undone:
+    en: Undone
+    zh-CN: 已撤销
+    zh-HK: 已撤銷
+    it: Annullato
+    es: Deshecho
+    fr: Annulé
+    de: Rückgängig
+  notify.redone:
+    en: Redone
+    zh-CN: 已重做
+    zh-HK: 已重做
+    it: Ripetuto
+    es: Rehecho
+    fr: Rétabli
+    de: Wiederholt
+  reminder.title:
+    en: Task reminder
+    zh-CN: 任务提醒
+    zh-HK: 任務提醒
+    it: Promemoria attività
+    es: Recordatorio
+    fr: Rappel de tâche
+    de: Aufgabenerinnerung
+  reminder.snooze:
+    en: Remind again in 15 minutes
+    zh-CN: 15 分钟后再提醒
+    zh-HK: 15 分鐘後再提醒
+    it: Ricorda tra 15 minuti
+    es: Recordar en 15 minutos
+    fr: Rappeler dans 15 minutes
+    de: In 15 Minuten erneut erinnern
+  reminder.snoozed:
+    en: Snoozed 15 minutes
+    zh-CN: 已延后 15 分钟
+    zh-HK: 已延後 15 分鐘
+    it: Posticipato di 15 minuti
+    es: Pospuesto 15 minutos
+    fr: Reporté de 15 minutes
+    de: 15 Minuten verschoben
+  error.add_failed:
+    en: "Could not add the task: %{error}. Please retry."
+    zh-CN: "添加任务失败：%{error}。请稍后重试。"
+    zh-HK: "新增任務失敗：%{error}。請稍後重試。"
+    it: "Impossibile aggiungere: %{error}. Riprova."
+    es: "No se pudo añadir: %{error}. Reintenta."
+    fr: "Ajout impossible : %{error}. Réessayez."
+    de: "Hinzufügen fehlgeschlagen: %{error}. Bitte erneut versuchen."
+  error.add_internal:
+    en: An internal error occurred while adding the task. Please retry.
+    zh-CN: 添加任务时发生内部错误。请稍后重试。
+    zh-HK: 新增任務時發生內部錯誤。請稍後重試。
+    it: "Errore interno durante l'aggiunta. Riprova."
+    es: Error interno al añadir. Reintenta.
+    fr: "Erreur interne lors de l'ajout. Réessayez."
+    de: Interner Fehler beim Hinzufügen. Bitte erneut versuchen.
+  error.update_failed:
+    en: "Could not save the task: %{error}. Changes are kept locally and will retry."
+    zh-CN: "更新任务失败：%{error}。您的更改已保存到本地，稍后会自动重试。"
+    zh-HK: "更新任務失敗：%{error}。您的變更已儲存到本機，稍後會自動重試。"
+    it: "Salvataggio non riuscito: %{error}. Modifiche locali, nuovo tentativo in seguito."
+    es: "No se pudo guardar: %{error}. Los cambios locales se reintentarán."
+    fr: "Enregistrement impossible : %{error}. Modifications locales, nouvel essai ensuite."
+    de: "Speichern fehlgeschlagen: %{error}. Lokal behalten, späterer Versuch."
+  error.delete_failed:
+    en: "Could not delete the task: %{error}. It was restored to the list."
+    zh-CN: "删除任务失败：%{error}。任务已恢复到列表中，请稍后重试。"
+    zh-HK: "刪除任務失敗：%{error}。任務已還原到列表，請稍後重試。"
+    it: "Eliminazione non riuscita: %{error}. Attività ripristinata."
+    es: "No se pudo eliminar: %{error}. Se restauró en la lista."
+    fr: "Suppression impossible : %{error}. Tâche restaurée."
+    de: "Löschen fehlgeschlagen: %{error}. Aufgabe wiederhergestellt."
+  error.pin_failed:
+    en: "Could not pin the task: %{error}. Restored, please retry."
+    zh-CN: "置顶任务失败：%{error}。状态已恢复，请稍后重试。"
+    zh-HK: "置頂任務失敗：%{error}。狀態已還原，請稍後重試。"
+    it: "Fissaggio non riuscito: %{error}. Stato ripristinato."
+    es: "No se pudo fijar: %{error}. Estado restaurado."
+    fr: "Épinglage impossible : %{error}. État restauré."
+    de: "Anheften fehlgeschlagen: %{error}. Zustand wiederhergestellt."
+  error.unpin_failed:
+    en: "Could not unpin the task: %{error}. Restored, please retry."
+    zh-CN: "取消置顶失败：%{error}。状态已恢复，请稍后重试。"
+    zh-HK: "取消置頂失敗：%{error}。狀態已還原，請稍後重試。"
+    it: "Rimozione fissaggio non riuscita: %{error}. Stato ripristinato."
+    es: "No se pudo desfijar: %{error}. Estado restaurado."
+    fr: "Désépinglage impossible : %{error}. État restauré."
+    de: "Lösen fehlgeschlagen: %{error}. Zustand wiederhergestellt."
+  error.complete_failed:
+    en: "Could not complete the task: %{error}. Restored, please retry."
+    zh-CN: "完成任务失败：%{error}。状态已恢复，请稍后重试。"
+    zh-HK: "完成任務失敗：%{error}。狀態已還原，請稍後重試。"
+    it: "Completamento non riuscito: %{error}. Stato ripristinato."
+    es: "No se pudo completar: %{error}. Estado restaurado."
+    fr: "Fin impossible : %{error}. État restauré."
+    de: "Erledigen fehlgeschlagen: %{error}. Zustand wiederhergestellt."
+  error.uncomplete_failed:
+    en: "Could not mark incomplete: %{error}. Restored, please retry."
+    zh-CN: "取消完成失败：%{error}。状态已恢复，请稍后重试。"
+    zh-HK: "取消完成失敗：%{error}。狀態已還原，請稍後重試。"
+    it: "Ripristino incompleto non riuscito: %{error}."
+    es: "No se pudo marcar incompleta: %{error}."
+    fr: "Marquage non terminé impossible : %{error}."
+    de: "Unerledigt markieren fehlgeschlagen: %{error}."
 

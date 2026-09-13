@@ -10,6 +10,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_fps::fps_monitor;
+use rust_i18n::t;
 
 use crate::{
     AppState, AppTitleBar, ShowPanelInfo, ToggleSearch,
@@ -44,21 +45,25 @@ impl StoryRoot {
                 let reminder_id = notice.reminder_id.clone();
                 window.push_notification(
                     Notification::new()
-                        .title("任务提醒")
+                        .title(t!("todo.reminder.title").to_string())
                         .message(notice.title)
                         .with_type(NotificationType::Info)
                         .action(move |_, _, _| {
                             let reminder_id = reminder_id.clone();
-                            Button::new("snooze-15").small().label("15 分钟后再提醒").on_click(
-                                move |_, window, cx| {
+                            Button::new("snooze-15")
+                                .small()
+                                .label(t!("todo.reminder.snooze").to_string())
+                                .on_click(move |_, window, cx| {
                                     crate::todo_actions::snooze_reminder(
                                         reminder_id.clone(),
                                         15,
                                         cx,
                                     );
-                                    window.push_notification("已延后 15 分钟", cx);
-                                },
-                            )
+                                    window.push_notification(
+                                        t!("todo.reminder.snoozed").to_string(),
+                                        cx,
+                                    );
+                                })
                         }),
                     cx,
                 );
