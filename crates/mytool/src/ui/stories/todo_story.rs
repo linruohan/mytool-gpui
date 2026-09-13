@@ -16,13 +16,13 @@ use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteTask,
-    DeselectAll, DuplicateTask, EditTask, FilterByLabel, FilterByPriority, FilterByProject,
-    ItemListItem, MoveTaskToProject, NewProject, NewTask, NextView, OpenHelp, OpenSettings,
-    PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, RedoLastTask,
-    RefreshView, SearchTasks, SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate,
-    SetTaskPriority, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday,
-    ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, play_ogg_file,
+    AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteProject,
+    DeleteTask, DeselectAll, DuplicateTask, EditProject, EditTask, FilterByLabel, FilterByPriority,
+    FilterByProject, ItemListItem, MoveTaskToProject, NewProject, NewTask, NextView, OpenHelp,
+    OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel,
+    RedoLastTask, RefreshView, SearchTasks, SelectAllTasks, SelectNextTask, SelectPreviousTask,
+    SetDueDate, SetTaskPriority, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled,
+    ShowToday, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, play_ogg_file,
     todo_state::{TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -516,6 +516,29 @@ impl TodoStory {
         self.open_new_project(window, cx);
     }
 
+    fn on_edit_project(&mut self, _: &EditProject, window: &mut Window, cx: &mut Context<Self>) {
+        if self.active_project.is_none() {
+            return;
+        }
+        self.project_items_panel.update(cx, |panel, cx| {
+            panel.show_project_edit_dialog(window, cx);
+        });
+    }
+
+    fn on_delete_project(
+        &mut self,
+        _: &DeleteProject,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.active_project.is_none() {
+            return;
+        }
+        self.project_items_panel.update(cx, |panel, cx| {
+            panel.show_project_delete_dialog(window, cx);
+        });
+    }
+
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
         self.show_board(0, cx);
     }
@@ -747,6 +770,8 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_select_next))
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_new_project))
+            .on_action(cx.listener(Self::on_edit_project))
+            .on_action(cx.listener(Self::on_delete_project))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))

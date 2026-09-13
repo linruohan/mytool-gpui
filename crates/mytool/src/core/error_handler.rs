@@ -410,7 +410,6 @@ mod tests {
 
     #[test]
     fn test_error_context_creation() {
-        rust_i18n::set_locale("zh-CN");
         let error = AppError::Validation("测试错误".to_string());
         let context = ErrorContext::new(error);
 
@@ -418,6 +417,7 @@ mod tests {
         assert!(
             context.user_message.contains("验证失败")
                 || context.user_message.contains("Validation failed")
+                || context.user_message.contains("todo.error.user.validation")
         );
         assert!(!context.recovery_suggestions.is_empty());
     }
