@@ -13,6 +13,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use serde::Deserialize;
 use todos::{DueDate, enums::RecurrencyType};
 
@@ -65,12 +66,12 @@ impl RecurrencyUnit {
     }
 
     /// 获取显示标签
-    pub fn to_label(self) -> &'static str {
+    pub fn to_label(self) -> String {
         match self {
-            Self::Days => "天",
-            Self::Weeks => "周",
-            Self::Months => "月",
-            Self::Years => "年",
+            Self::Days => t!("todo.recur.days").to_string(),
+            Self::Weeks => t!("todo.recur.weeks").to_string(),
+            Self::Months => t!("todo.recur.months").to_string(),
+            Self::Years => t!("todo.recur.years").to_string(),
         }
     }
 
@@ -96,11 +97,11 @@ impl RecurrencyEndOption {
         [Self::Never, Self::OnDate, Self::After]
     }
 
-    fn to_label(self) -> &'static str {
+    fn to_label(self) -> String {
         match self {
-            Self::Never => "永不",
-            Self::OnDate => "指定日期",
-            Self::After => "次数",
+            Self::Never => t!("todo.recur.never").to_string(),
+            Self::OnDate => t!("todo.recur.on_date").to_string(),
+            Self::After => t!("todo.recur.after").to_string(),
         }
     }
 
@@ -123,15 +124,15 @@ pub enum RecurrencyPreset {
 
 impl RecurrencyPreset {
     /// 获取显示标签
-    pub fn to_label(self) -> &'static str {
+    pub fn to_label(self) -> String {
         match self {
-            Self::Daily => "每天",
-            Self::Weekdays => "工作日",
-            Self::Weekends => "周末",
-            Self::Weekly => "每周",
-            Self::Monthly => "每月",
-            Self::Yearly => "每年",
-            Self::Custom => "自定义",
+            Self::Daily => t!("todo.recur.daily").to_string(),
+            Self::Weekdays => t!("todo.recur.weekdays").to_string(),
+            Self::Weekends => t!("todo.recur.weekends").to_string(),
+            Self::Weekly => t!("todo.recur.weekly").to_string(),
+            Self::Monthly => t!("todo.recur.monthly").to_string(),
+            Self::Yearly => t!("todo.recur.yearly").to_string(),
+            Self::Custom => t!("todo.recur.custom").to_string(),
         }
     }
 
@@ -473,22 +474,28 @@ impl Render for RecurrencyForm {
             .when(is_custom, |this| this.child(self.render_custom_panel(cx)))
             .when(is_custom || is_recurring, |this| this.child(Separator::horizontal()))
             .when(is_custom, |this| {
-                this.child(Button::new("done").w_full().primary().label("完成").on_click(
-                    cx.listener(move |this, _, _window, cx| {
-                        this.apply_custom(cx);
-                    }),
-                ))
+                this.child(
+                    Button::new("done")
+                        .w_full()
+                        .primary()
+                        .label(t!("todo.recur.done").to_string())
+                        .on_click(cx.listener(move |this, _, _window, cx| {
+                            this.apply_custom(cx);
+                        })),
+                )
             })
             .when(is_recurring, |this| {
                 this.child(
-                    Button::new("clear-recurrency").w_full().ghost().label("清除重复").on_click(
-                        cx.listener(|this, _, _, cx| {
+                    Button::new("clear-recurrency")
+                        .w_full()
+                        .ghost()
+                        .label(t!("todo.recur.clear").to_string())
+                        .on_click(cx.listener(|this, _, _, cx| {
                             this.parent.update(cx, |parent, cx| {
                                 parent.apply_recurrency_change(None, cx);
                             });
                             cx.emit(DismissEvent);
-                        }),
-                    ),
+                        })),
                 )
             })
     }
@@ -509,7 +516,7 @@ impl RecurrencyForm {
             .child(
                 v_flex()
                     .gap_1()
-                    .child(gpui::div().text_xs().child("重复间隔"))
+                    .child(gpui::div().text_xs().child(t!("todo.recur.interval").to_string()))
                     .child(
                         RadioGroup::horizontal("recurrency-unit")
                             .selected_index(Some(unit_index))
@@ -526,25 +533,33 @@ impl RecurrencyForm {
                     .child(NumberInput::new(&interval_input).small().w_full()),
             )
             .child(
-                v_flex().gap_1().child(gpui::div().text_xs().child("结束")).child(
-                    RadioGroup::horizontal("recurrency-end")
-                        .selected_index(Some(end_index))
-                        .on_click(cx.listener(|this, index, _, cx| {
-                            if let Some(&option) = RecurrencyEndOption::all().get(*index) {
-                                this.end_type = option;
-                                cx.notify();
-                            }
-                        }))
-                        .children(RecurrencyEndOption::all().into_iter().map(|option| {
-                            Radio::new(format!("end-{:?}", option)).label(option.to_label())
-                        })),
-                ),
+                v_flex()
+                    .gap_1()
+                    .child(gpui::div().text_xs().child(t!("todo.recur.end").to_string()))
+                    .child(
+                        RadioGroup::horizontal("recurrency-end")
+                            .selected_index(Some(end_index))
+                            .on_click(cx.listener(|this, index, _, cx| {
+                                if let Some(&option) = RecurrencyEndOption::all().get(*index) {
+                                    this.end_type = option;
+                                    cx.notify();
+                                }
+                            }))
+                            .children(RecurrencyEndOption::all().into_iter().map(|option| {
+                                Radio::new(format!("end-{:?}", option)).label(option.to_label())
+                            })),
+                    ),
             )
             .when(end_type == RecurrencyEndOption::OnDate, move |this| {
                 this.child(DatePicker::new(&end_date_picker).cleanable(true).w_full())
             })
             .when(end_type == RecurrencyEndOption::After, move |this| {
-                this.child(NumberInput::new(&count_input).small().suffix("次").w_full())
+                this.child(
+                    NumberInput::new(&count_input)
+                        .small()
+                        .suffix(t!("todo.recur.times_suffix").to_string())
+                        .w_full(),
+                )
             })
     }
 }
@@ -630,7 +645,7 @@ impl RecurrencyButtonState {
     /// 获取显示文本
     fn get_display_text(&self) -> String {
         if !self.due_date.is_recurring {
-            return "重复".to_string();
+            return t!("todo.recur.label").to_string();
         }
 
         let preset = RecurrencyPreset::from_recurrency_type(
@@ -651,7 +666,7 @@ impl Render for RecurrencyButtonState {
             .ghost()
             .compact()
             .icon(IconName::RefreshCw)
-            .tooltip("重复");
+            .tooltip(t!("todo.recur.label").to_string());
         if is_recurring {
             trigger = trigger.label(SharedString::from(display_text));
         }

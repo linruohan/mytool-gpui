@@ -1,5 +1,6 @@
 use gpui::{Context, Entity, Window};
 use gpui_component::input::{InputEvent, InputState, TextareaState};
+use rust_i18n::t;
 
 use super::{
     super::{
@@ -245,14 +246,17 @@ impl ItemInfoState {
         match event {
             ReminderButtonEvent::Added(reminder) => {
                 NotificationSystem::debug(format!("Reminder added: {:?}", reminder.id));
-                window.notify_success("已添加提醒", cx);
+                window.notify_success(t!("todo.reminder.added").to_string(), cx);
             },
             ReminderButtonEvent::Removed(reminder_id) => {
                 NotificationSystem::debug(format!("Reminder removed: {:?}", reminder_id));
-                window.notify_success("已移除提醒", cx);
+                window.notify_success(t!("todo.reminder.removed").to_string(), cx);
             },
             ReminderButtonEvent::Error(error) => {
-                window.notify_error(format!("提醒更新失败：{}", error), cx);
+                window.notify_error(
+                    t!("todo.reminder.update_failed", error => error.to_string()).to_string(),
+                    cx,
+                );
             },
         }
 
@@ -272,7 +276,10 @@ impl ItemInfoState {
                 NotificationSystem::debug("attachment list changed");
             },
             AttachmentButtonEvent::Error(error) => {
-                window.notify_error(format!("附件操作失败：{}", error), cx);
+                window.notify_error(
+                    t!("todo.attach.failed", error => error.to_string()).to_string(),
+                    cx,
+                );
             },
         }
         cx.notify();
@@ -281,7 +288,7 @@ impl ItemInfoState {
     pub(super) fn add_subtask(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let parent = self.state_manager.item.clone();
         if parent.id.is_empty() || parent.is_subtask() {
-            window.notify_error("请先保存任务后再添加子任务", cx);
+            window.notify_error(t!("todo.item.save_first_subtask").to_string(), cx);
             return;
         }
         let mut item = todos::entity::ItemModel::default();

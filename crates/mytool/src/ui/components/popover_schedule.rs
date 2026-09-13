@@ -16,6 +16,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use serde::Deserialize;
 use todos::DueDate;
 
@@ -37,12 +38,12 @@ pub enum SchedulePreset {
 }
 
 impl SchedulePreset {
-    pub fn to_label(self) -> &'static str {
+    pub fn to_label(self) -> String {
         match self {
-            Self::Today => "今天",
-            Self::Tomorrow => "明天",
-            Self::NextWeek => "下周",
-            Self::Custom => "选择日期...",
+            Self::Today => t!("todo.due.today").to_string(),
+            Self::Tomorrow => t!("todo.due.tomorrow").to_string(),
+            Self::NextWeek => t!("todo.due.next_week").to_string(),
+            Self::Custom => t!("todo.due.pick").to_string(),
         }
     }
 
@@ -244,31 +245,43 @@ impl Render for ScheduleForm {
                 this.child(DatePicker::new(&date_picker).cleanable(true).w_full())
             })
             .child(Separator::horizontal())
-            .child(v_form().child(
-                field().label("时间").child(Select::new(&time_select).small().placeholder("17:00")),
-            ))
+            .child(
+                v_form().child(
+                    field()
+                        .label(t!("todo.due.time").to_string())
+                        .child(Select::new(&time_select).small().placeholder("17:00")),
+                ),
+            )
             .child(Separator::horizontal())
-            .child(Button::new("apply-btn").w_full().primary().label("确定").on_click(cx.listener(
-                move |this, _, _window, cx| {
-                    if this.get_selected_preset() == SchedulePreset::Custom {
-                        this.apply_custom_date(cx);
-                    } else {
-                        let preset = this.get_selected_preset();
-                        this.apply_date_preset(preset, cx);
-                    }
-                    cx.emit(DismissEvent);
-                },
-            )))
-            .when(has_date, |this| {
-                this.child(Button::new("clear-date").w_full().ghost().label("清除日期").on_click(
-                    cx.listener(|this, _, _, cx| {
-                        this.parent.update(cx, |parent, cx| {
-                            parent.due_date.date.clear();
-                            cx.emit(ScheduleButtonEvent::Cleared);
-                        });
+            .child(
+                Button::new("apply-btn")
+                    .w_full()
+                    .primary()
+                    .label(t!("todo.confirm").to_string())
+                    .on_click(cx.listener(move |this, _, _window, cx| {
+                        if this.get_selected_preset() == SchedulePreset::Custom {
+                            this.apply_custom_date(cx);
+                        } else {
+                            let preset = this.get_selected_preset();
+                            this.apply_date_preset(preset, cx);
+                        }
                         cx.emit(DismissEvent);
-                    }),
-                ))
+                    })),
+            )
+            .when(has_date, |this| {
+                this.child(
+                    Button::new("clear-date")
+                        .w_full()
+                        .ghost()
+                        .label(t!("todo.due.clear").to_string())
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.parent.update(cx, |parent, cx| {
+                                parent.due_date.date.clear();
+                                cx.emit(ScheduleButtonEvent::Cleared);
+                            });
+                            cx.emit(DismissEvent);
+                        })),
+                )
             })
     }
 }
@@ -337,7 +350,7 @@ impl ScheduleButtonState {
 
     fn get_display_text(&self) -> String {
         if self.due_date.date.is_empty() {
-            "日期".to_string()
+            t!("todo.due.label").to_string()
         } else {
             let today = Local::now().naive_local().date();
             if let Some(dt) = self.due_date.datetime() {
@@ -346,14 +359,14 @@ impl ScheduleButtonState {
                 let time_str = time.format("%H:%M").to_string();
 
                 if date == today {
-                    format!("今天 {}", time_str)
+                    t!("todo.due.today_time", time => time_str.as_str()).to_string()
                 } else if date == today.succ_opt().unwrap_or(today) {
-                    format!("明天 {}", time_str)
+                    t!("todo.due.tomorrow_time", time => time_str.as_str()).to_string()
                 } else {
-                    format!("{}月{}日 {}", date.month(), date.day(), time_str)
+                    t!("todo.due.md_time", month => date.month().to_string(), day => date.day().to_string(), time => time_str.as_str()).to_string()
                 }
             } else {
-                "日期".to_string()
+                t!("todo.due.label").to_string()
             }
         }
     }
@@ -368,7 +381,7 @@ impl Render for ScheduleButtonState {
             .small()
             .ghost()
             .compact()
-            .tooltip("设置日期")
+            .tooltip(t!("todo.due.set_tooltip").to_string())
             .icon(IconName::Calendar);
         if has_date {
             trigger = trigger.label(SharedString::from(display_text));

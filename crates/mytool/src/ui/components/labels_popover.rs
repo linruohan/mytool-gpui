@@ -15,6 +15,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::entity::LabelModel;
 use tracing::info;
 
@@ -50,7 +51,9 @@ impl LabelsPopoverList {
         });
 
         // 创建新标签输入框
-        let new_label_input = cx.new(|cx| InputState::new(window, cx).placeholder("新标签名称"));
+        let new_label_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.label.new_name").to_string())
+        });
 
         cx.focus_self(window);
         let label_list_clone = label_list.clone();
@@ -317,9 +320,9 @@ impl Render for LabelsPopoverList {
                             .ghost()
                             .compact()
                             .tooltip(if selected_count > 0 {
-                                format!("已选 {} 个标签", selected_count)
+                                t!("todo.label.selected_n", count => selected_count).to_string()
                             } else {
-                                "设置标签".to_string()
+                                t!("todo.label.set").to_string()
                             })
                             .icon(IconName::TagOutlineSymbolic);
                         if selected_count > 0 {
@@ -334,7 +337,7 @@ impl Render for LabelsPopoverList {
                             .w_full()
                             .child(
                                 List::new(&self.label_list)
-                                    .search_placeholder("搜索标签")
+                                    .search_placeholder(t!("todo.label.search").to_string())
                                     .scrollbar_visible(false)
                                     .max_h(px(180.)),
                             )
@@ -346,7 +349,7 @@ impl Render for LabelsPopoverList {
                                         .ghost()
                                         .compact()
                                         .icon(IconName::Plus)
-                                        .tooltip("创建标签")
+                                        .tooltip(t!("todo.label.create").to_string())
                                         .on_click(cx.listener(|this, _event, window, cx| {
                                             let label_name =
                                                 this.new_label_input.read(cx).value().to_string();

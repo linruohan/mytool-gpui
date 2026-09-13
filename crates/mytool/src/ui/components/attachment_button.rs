@@ -13,6 +13,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use sea_orm::prelude::Uuid;
 use todos::entity::AttachmentModel;
 
@@ -71,7 +72,9 @@ impl Focusable for AttachmentButtonState {
 
 impl AttachmentButtonState {
     pub fn new(item_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("搜索附件..."));
+        let search_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("todo.attach.search").to_string())
+        });
 
         // Subscribe to search events directly
         let _ = cx.subscribe_in(&search_input, window, Self::on_search_event);
@@ -292,7 +295,7 @@ impl Render for AttachmentButtonState {
                     .ghost()
                     .compact()
                     .icon(IconName::MailAttachmentSymbolic)
-                    .tooltip("附件");
+                    .tooltip(t!("todo.attach.title").to_string());
                 if !filtered_attachments.is_empty() {
                     button = button.label(format!("{}", filtered_attachments.len()));
                 }
@@ -342,7 +345,7 @@ impl Render for AttachmentButtonState {
                                                 .ghost()
                                                 .compact()
                                                 .icon(IconName::FolderOpen)
-                                                .tooltip("打开")
+                                                .tooltip(t!("todo.attach.open").to_string())
                                                 .on_click(move |_event, _window, cx| {
                                                     cx.update_entity(&view_open, |this, cx| {
                                                         this.on_open_attachment(&open_id, cx);

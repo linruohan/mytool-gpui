@@ -13,6 +13,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use sea_orm::prelude::Uuid;
 use todos::entity::ReminderModel;
 
@@ -425,7 +426,7 @@ impl Render for ReminderButtonState {
                     .ghost()
                     .compact()
                     .icon(IconName::AlarmSymbolic)
-                    .tooltip("提醒");
+                    .tooltip(t!("todo.reminder.title").to_string());
                 if !reminders.is_empty() {
                     button = button.label(format!("{}", reminders.len()));
                 }
@@ -442,7 +443,7 @@ impl Render for ReminderButtonState {
                         Button::new("add-reminder-trigger")
                             .small()
                             .ghost()
-                            .label("添加提醒")
+                            .label(t!("todo.reminder.add").to_string())
                             .icon(IconName::Plus)
                             .on_click({
                                 let view = view.clone();
@@ -471,7 +472,7 @@ impl Render for ReminderButtonState {
                                 .py_2()
                                 .text_sm()
                                 .text_color(cx.theme().muted_foreground)
-                                .child("还没有提醒"),
+                                .child(t!("todo.reminder.empty").to_string()),
                         )
                     })
                     .when(!reminders.is_empty(), |this| {
@@ -482,7 +483,7 @@ impl Render for ReminderButtonState {
                                 let display_text = reminder
                                     .due
                                     .clone()
-                                    .unwrap_or_else(|| "无日期".to_string());
+                                    .unwrap_or_else(|| t!("todo.date.none").to_string());
 
                                 create_list_item_element(
                                     idx,

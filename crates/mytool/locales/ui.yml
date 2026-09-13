@@ -1872,4 +1872,372 @@ todo:
     es: Diálogo
     fr: Dialogue
     de: Dialog
+  due.today:
+    en: Today
+    zh-CN: 今天
+    zh-HK: 今天
+    it: Oggi
+    es: Hoy
+    fr: "Aujourd'hui"
+    de: Heute
+  due.tomorrow:
+    en: Tomorrow
+    zh-CN: 明天
+    zh-HK: 明天
+    it: Domani
+    es: Mañana
+    fr: Demain
+    de: Morgen
+  due.next_week:
+    en: Next week
+    zh-CN: 下周
+    zh-HK: 下週
+    it: Settimana prossima
+    es: Semana siguiente
+    fr: Semaine prochaine
+    de: Nächste Woche
+  due.pick:
+    en: Pick a date...
+    zh-CN: 选择日期...
+    zh-HK: 選擇日期...
+    it: Scegli una data...
+    es: Elige una fecha...
+    fr: Choisir une date...
+    de: Datum wählen...
+  due.time:
+    en: Time
+    zh-CN: 时间
+    zh-HK: 時間
+    it: Ora
+    es: Hora
+    fr: Heure
+    de: Uhrzeit
+  due.clear:
+    en: Clear date
+    zh-CN: 清除日期
+    zh-HK: 清除日期
+    it: Cancella data
+    es: Borrar fecha
+    fr: Effacer la date
+    de: Datum löschen
+  due.label:
+    en: Date
+    zh-CN: 日期
+    zh-HK: 日期
+    it: Data
+    es: Fecha
+    fr: Date
+    de: Datum
+  due.today_time:
+    en: "Today %{time}"
+    zh-CN: "今天 %{time}"
+    zh-HK: "今天 %{time}"
+    it: "Oggi %{time}"
+    es: "Hoy %{time}"
+    fr: "Aujourd'hui %{time}"
+    de: "Heute %{time}"
+  due.tomorrow_time:
+    en: "Tomorrow %{time}"
+    zh-CN: "明天 %{time}"
+    zh-HK: "明天 %{time}"
+    it: "Domani %{time}"
+    es: "Mañana %{time}"
+    fr: "Demain %{time}"
+    de: "Morgen %{time}"
+  due.md_time:
+    en: "%{month}/%{day} %{time}"
+    zh-CN: "%{month}月%{day}日 %{time}"
+    zh-HK: "%{month}月%{day}日 %{time}"
+    it: "%{day}/%{month} %{time}"
+    es: "%{day}/%{month} %{time}"
+    fr: "%{day}/%{month} %{time}"
+    de: "%{day}.%{month}. %{time}"
+  due.set_tooltip:
+    en: Set date
+    zh-CN: 设置日期
+    zh-HK: 設定日期
+    it: Imposta data
+    es: Establecer fecha
+    fr: Définir la date
+    de: Datum setzen
+  recur.days:
+    en: Days
+    zh-CN: 天
+    zh-HK: 天
+    it: Giorni
+    es: Días
+    fr: Jours
+    de: Tage
+  recur.weeks:
+    en: Weeks
+    zh-CN: 周
+    zh-HK: 週
+    it: Settimane
+    es: Semanas
+    fr: Semaines
+    de: Wochen
+  recur.months:
+    en: Months
+    zh-CN: 月
+    zh-HK: 月
+    it: Mesi
+    es: Meses
+    fr: Mois
+    de: Monate
+  recur.years:
+    en: Years
+    zh-CN: 年
+    zh-HK: 年
+    it: Anni
+    es: Años
+    fr: Années
+    de: Jahre
+  recur.never:
+    en: Never
+    zh-CN: 永不
+    zh-HK: 永不
+    it: Mai
+    es: Nunca
+    fr: Jamais
+    de: Nie
+  recur.on_date:
+    en: On date
+    zh-CN: 指定日期
+    zh-HK: 指定日期
+    it: In data
+    es: En fecha
+    fr: À une date
+    de: Am Datum
+  recur.after:
+    en: After
+    zh-CN: 次数
+    zh-HK: 次數
+    it: Dopo
+    es: Después
+    fr: Après
+    de: Nach
+  recur.daily:
+    en: Daily
+    zh-CN: 每天
+    zh-HK: 每天
+    it: Ogni giorno
+    es: Cada día
+    fr: Chaque jour
+    de: Täglich
+  recur.weekdays:
+    en: Weekdays
+    zh-CN: 工作日
+    zh-HK: 工作日
+    it: Giorni feriali
+    es: Días laborables
+    fr: Jours ouvrés
+    de: Wochentage
+  recur.weekends:
+    en: Weekends
+    zh-CN: 周末
+    zh-HK: 週末
+    it: Fine settimana
+    es: Fines de semana
+    fr: Week-ends
+    de: Wochenenden
+  recur.weekly:
+    en: Weekly
+    zh-CN: 每周
+    zh-HK: 每週
+    it: Ogni settimana
+    es: Cada semana
+    fr: Chaque semaine
+    de: Wöchentlich
+  recur.monthly:
+    en: Monthly
+    zh-CN: 每月
+    zh-HK: 每月
+    it: Ogni mese
+    es: Cada mes
+    fr: Chaque mois
+    de: Monatlich
+  recur.yearly:
+    en: Yearly
+    zh-CN: 每年
+    zh-HK: 每年
+    it: Ogni anno
+    es: Cada año
+    fr: Chaque année
+    de: Jährlich
+  recur.custom:
+    en: Custom
+    zh-CN: 自定义
+    zh-HK: 自訂
+    it: Personalizzato
+    es: Personalizado
+    fr: Personnalisé
+    de: Benutzerdefiniert
+  recur.done:
+    en: Done
+    zh-CN: 完成
+    zh-HK: 完成
+    it: Fatto
+    es: Listo
+    fr: Terminé
+    de: Fertig
+  recur.clear:
+    en: Clear repeat
+    zh-CN: 清除重复
+    zh-HK: 清除重複
+    it: Cancella ripetizione
+    es: Borrar repetición
+    fr: Effacer la répétition
+    de: Wiederholung löschen
+  recur.interval:
+    en: Repeat every
+    zh-CN: 重复间隔
+    zh-HK: 重複間隔
+    it: Ripeti ogni
+    es: Repetir cada
+    fr: Répéter tous les
+    de: Wiederholen alle
+  recur.end:
+    en: Ends
+    zh-CN: 结束
+    zh-HK: 結束
+    it: Fine
+    es: Termina
+    fr: Fin
+    de: Ende
+  recur.times_suffix:
+    en: times
+    zh-CN: 次
+    zh-HK: 次
+    it: volte
+    es: veces
+    fr: fois
+    de: mal
+  recur.label:
+    en: Repeat
+    zh-CN: 重复
+    zh-HK: 重複
+    it: Ripeti
+    es: Repetir
+    fr: Répéter
+    de: Wiederholen
+  reminder.add:
+    en: Add reminder
+    zh-CN: 添加提醒
+    zh-HK: 新增提醒
+    it: Aggiungi promemoria
+    es: Añadir recordatorio
+    fr: Ajouter un rappel
+    de: Erinnerung hinzufügen
+  reminder.empty:
+    en: No reminders yet
+    zh-CN: 还没有提醒
+    zh-HK: 還沒有提醒
+    it: Nessun promemoria
+    es: Aún no hay recordatorios
+    fr: Pas encore de rappels
+    de: Noch keine Erinnerungen
+  reminder.added:
+    en: Reminder added
+    zh-CN: 已添加提醒
+    zh-HK: 已新增提醒
+    it: Promemoria aggiunto
+    es: Recordatorio añadido
+    fr: Rappel ajouté
+    de: Erinnerung hinzugefügt
+  reminder.removed:
+    en: Reminder removed
+    zh-CN: 已移除提醒
+    zh-HK: 已移除提醒
+    it: Promemoria rimosso
+    es: Recordatorio eliminado
+    fr: Rappel retiré
+    de: Erinnerung entfernt
+  reminder.update_failed:
+    en: "Could not update reminder: %{error}"
+    zh-CN: "提醒更新失败：%{error}"
+    zh-HK: "提醒更新失敗：%{error}"
+    it: "Aggiornamento promemoria non riuscito: %{error}"
+    es: "No se pudo actualizar el recordatorio: %{error}"
+    fr: "Mise à jour du rappel impossible : %{error}"
+    de: "Erinnerung aktualisieren fehlgeschlagen: %{error}"
+  attach.search:
+    en: Search attachments...
+    zh-CN: 搜索附件...
+    zh-HK: 搜尋附件...
+    it: Cerca allegati...
+    es: Buscar adjuntos...
+    fr: Rechercher des pièces jointes...
+    de: Anhänge suchen...
+  attach.title:
+    en: Attachments
+    zh-CN: 附件
+    zh-HK: 附件
+    it: Allegati
+    es: Adjuntos
+    fr: Pièces jointes
+    de: Anhänge
+  attach.open:
+    en: Open
+    zh-CN: 打开
+    zh-HK: 開啟
+    it: Apri
+    es: Abrir
+    fr: Ouvrir
+    de: Öffnen
+  attach.failed:
+    en: "Attachment action failed: %{error}"
+    zh-CN: "附件操作失败：%{error}"
+    zh-HK: "附件操作失敗：%{error}"
+    it: "Azione allegato non riuscita: %{error}"
+    es: "La acción del adjunto falló: %{error}"
+    fr: "Action sur la pièce jointe impossible : %{error}"
+    de: "Anhangaktion fehlgeschlagen: %{error}"
+  label.selected_n:
+    en: "%{count} labels selected"
+    zh-CN: 已选 %{count} 个标签
+    zh-HK: 已選 %{count} 個標籤
+    it: "%{count} etichette selezionate"
+    es: "%{count} etiquetas seleccionadas"
+    fr: "%{count} étiquettes sélectionnées"
+    de: "%{count} Labels ausgewählt"
+  label.set:
+    en: Set labels
+    zh-CN: 设置标签
+    zh-HK: 設定標籤
+    it: Imposta etichette
+    es: Establecer etiquetas
+    fr: Définir les étiquettes
+    de: Labels setzen
+  label.search:
+    en: Search labels
+    zh-CN: 搜索标签
+    zh-HK: 搜尋標籤
+    it: Cerca etichette
+    es: Buscar etiquetas
+    fr: Rechercher des étiquettes
+    de: Labels suchen
+  label.create:
+    en: Create label
+    zh-CN: 创建标签
+    zh-HK: 建立標籤
+    it: Crea etichetta
+    es: Crear etiqueta
+    fr: Créer une étiquette
+    de: Label erstellen
+  label.new_name:
+    en: New label name
+    zh-CN: 新标签名称
+    zh-HK: 新標籤名稱
+    it: Nome nuova etichetta
+    es: Nombre de nueva etiqueta
+    fr: Nom de la nouvelle étiquette
+    de: Neuer Labelname
+  item.save_first_subtask:
+    en: Save the task before adding a subtask
+    zh-CN: 请先保存任务后再添加子任务
+    zh-HK: 請先儲存任務後再新增子任務
+    it: Salva l'attività prima di aggiungere una sotto-attività
+    es: Guarda la tarea antes de añadir una subtarea
+    fr: Enregistrez la tâche avant d'ajouter une sous-tâche
+    de: Aufgabe zuerst speichern, dann Unteraufgabe hinzufügen
 
