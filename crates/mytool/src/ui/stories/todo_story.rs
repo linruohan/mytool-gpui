@@ -15,11 +15,15 @@ use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeselectAll, NewTask, ProjectEvent,
-    ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, SearchTasks, SelectAllTasks, ShowCompleted,
-    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, play_ogg_file,
+    BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeselectAll, NewTask, OpenHelp,
+    OpenSettings, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, SearchTasks,
+    SelectAllTasks, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday,
+    UndoLastTask, play_ogg_file,
     todo_state::TodoStore,
-    ui::components::{show_existing_item_dialog, show_new_item_dialog},
+    ui::components::{
+        show_existing_item_dialog, show_new_item_dialog, show_todo_help_dialog,
+        show_todo_settings_dialog,
+    },
 };
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
@@ -273,6 +277,24 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn on_open_settings(&mut self, _: &OpenSettings, window: &mut Window, cx: &mut Context<Self>) {
+        show_todo_settings_dialog(window, cx);
+    }
+
+    fn on_open_help(&mut self, _: &OpenHelp, window: &mut Window, cx: &mut Context<Self>) {
+        show_todo_help_dialog(window, cx);
+    }
+
+    fn on_undo_last(&mut self, _: &UndoLastTask, window: &mut Window, cx: &mut Context<Self>) {
+        if self.search_open {
+            return;
+        }
+        if let Some(msg) = crate::todo_actions::undo_last_task(cx) {
+            window.push_notification(msg, cx);
+        }
+        cx.notify();
+    }
+
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
         self.show_board(0, cx);
     }
@@ -373,6 +395,9 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_select_all))
             .on_action(cx.listener(Self::on_batch_complete))
             .on_action(cx.listener(Self::on_batch_delete))
+            .on_action(cx.listener(Self::on_open_settings))
+            .on_action(cx.listener(Self::on_open_help))
+            .on_action(cx.listener(Self::on_undo_last))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))

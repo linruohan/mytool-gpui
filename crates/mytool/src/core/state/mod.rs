@@ -2,16 +2,20 @@ mod cache;
 mod database;
 mod events;
 mod pending_tasks;
+mod prefs;
 mod store;
+mod undo;
 
 pub use cache::*;
 pub use database::DBState;
 pub use events::*;
 use gpui::App;
 pub use pending_tasks::*;
+pub use prefs::*;
 use sea_orm::DatabaseConnection;
 pub use store::*;
 use tracing::error;
+pub use undo::*;
 
 /// 获取数据库连接的便捷函数
 ///
@@ -42,6 +46,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     cx.set_global(ReminderNotifier::new());
 
     cx.set_global(ItemSelection::new());
+
+    cx.set_global(TodoPrefs::load());
+    cx.set_global(UndoStack::new());
 
     // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());

@@ -14,6 +14,7 @@ mod popover_base;
 mod popover_schedule;
 mod recurrency_button;
 mod reminder_button;
+mod todo_settings;
 
 pub use attachment_button::*;
 pub use color::*;
@@ -31,3 +32,4 @@ pub use popover_base::*;
 pub use popover_schedule::*;
 pub use recurrency_button::*;
 pub use reminder_button::*;
+pub use todo_settings::*;

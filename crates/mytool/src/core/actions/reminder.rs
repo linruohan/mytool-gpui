@@ -2,7 +2,7 @@ use chrono::{NaiveDate, NaiveDateTime};
 use gpui::App;
 use todos::entity::ReminderModel;
 
-use crate::todo_state::{DBState, ErrorNotifier, ReminderNotifier};
+use crate::todo_state::{DBState, ErrorNotifier, ReminderNotifier, TodoPrefs};
 
 fn notify_error(cx: &mut gpui::AsyncApp, message: String) {
     let _ = cx.update_global::<ErrorNotifier, _>(|notifier, _| {
@@ -64,6 +64,18 @@ fn reminder_is_due(reminder: &ReminderModel, now: NaiveDateTime) -> bool {
 pub fn start_reminder_watcher(cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {
+            let enabled = cx.read_global::<TodoPrefs, _>(|prefs, _| prefs.reminders_enabled);
+            if !enabled {
+                let db_state = cx.read_global::<DBState, _>(|s, _| s.clone());
+                let _ = db_state
+                    .spawn_store_op(|_| async {
+                        tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+                        Ok(())
+                    })
+                    .await;
+                continue;
+            }
+
             let db_state = cx.read_global::<DBState, _>(|s, _| s.clone());
 
             let due_list = db_state

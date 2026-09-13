@@ -15,7 +15,7 @@ use tracing::{debug, error};
 use crate::{
     core::{
         error_handler::{AppError, ErrorHandler, validation},
-        state::{ErrorNotifier, TodoStore},
+        state::{ErrorNotifier, TodoStore, UndoEntry, UndoStack},
         utils::retry::{self, RetryConfig},
     },
     todo_state::DBState,
@@ -237,6 +237,10 @@ pub fn delete_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
 
     debug!("Optimistically deleting item: {}", item_id);
 
+    cx.update_global::<UndoStack, _>(|stack, _| {
+        stack.record(UndoEntry::Deleted(item.clone()));
+    });
+
     cx.update_global::<TodoStore, _>(|store, _| {
         store.remove_item(&item_id);
     });
@@ -348,6 +352,10 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         item_id
     );
 
+    cx.update_global::<UndoStack, _>(|stack, _| {
+        stack.record(UndoEntry::Completed { before: original.clone() });
+    });
+
     let mut updated_item = (*item).clone();
     let next_due = checked
         .then(|| updated_item.due_date().and_then(|d| d.next_due_after_completion()))
@@ -429,4 +437,27 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         }
     })
     .detach();
+}
+
+/// 撤销最近一次完成或删除。
+pub fn undo_last_task(cx: &mut App) -> Option<&'static str> {
+    let entry = cx.update_global::<UndoStack, _>(|stack, _| {
+        stack.restoring = true;
+        stack.last.take()
+    })?;
+    let msg = match entry {
+        UndoEntry::Deleted(item) => {
+            add_item_optimistic(item, cx);
+            "已撤销删除"
+        },
+        UndoEntry::Completed { before } => {
+            complete_item_optimistic(before.clone(), before.checked, cx);
+            "已撤销完成状态"
+        },
+    };
+    cx.update_global::<UndoStack, _>(|stack, _| {
+        stack.restoring = false;
+        stack.last = None;
+    });
+    Some(msg)
 }

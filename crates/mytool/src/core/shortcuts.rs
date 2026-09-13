@@ -32,6 +32,8 @@ actions!(task_shortcuts, [
     AddLabel,
     /// 设置截止日期 (Cmd/Ctrl + T)
     SetDueDate,
+    /// 撤销最近一次完成或删除 (Cmd/Ctrl + Z)
+    UndoLastTask,
 ]);
 
 // ==================== 导航快捷键 ====================
@@ -224,6 +226,12 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             action: "SetDueDate",
             key: "cmd-t",
             description: "设置截止日期",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "UndoLastTask",
+            key: "cmd-z",
+            description: "撤销最近一次完成或删除",
             category: ShortcutCategory::Task,
         },
         // 导航
@@ -453,6 +461,15 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("ctrl-shift-backspace", BatchDeleteSelected, CTX),
         KeyBinding::new("alt-up", MoveTaskUp, CTX),
         KeyBinding::new("alt-down", MoveTaskDown, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-,", OpenSettings, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-,", OpenSettings, CTX),
+        KeyBinding::new("f1", OpenHelp, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-z", UndoLastTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-z", UndoLastTask, CTX),
     ]);
 }
 

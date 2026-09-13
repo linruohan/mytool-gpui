@@ -118,6 +118,11 @@ pub fn show_item_delete_dialog<T>(window: &mut Window, cx: &mut Context<T>, item
 where
     T: Render + 'static,
 {
+    if !cx.global::<crate::core::state::TodoPrefs>().confirm_on_delete {
+        delete_item_optimistic(item, cx);
+        window.push_notification("已删除任务。", cx);
+        return;
+    }
     show_confirm_dialog(
         window,
         cx,
