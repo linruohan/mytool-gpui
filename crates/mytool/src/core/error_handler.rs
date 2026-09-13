@@ -9,65 +9,117 @@
 /// - 错误日志记录
 /// - 错误恢复建议
 use rust_i18n::t;
-use thiserror::Error;
 use tracing::{error, info, warn};
 
 // ==================== 错误类型定义 ====================
 
 /// 应用错误类型
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum AppError {
     /// 数据库错误（使用 Box 减小枚举大小）
-    #[error("数据库错误: {0}")]
-    Database(#[from] Box<todos::error::TodoError>),
+    Database(Box<todos::error::TodoError>),
 
     /// 验证错误
-    #[error("验证错误: {0}")]
     Validation(String),
 
     /// 权限错误
-    #[error("权限不足: {0}")]
     Permission(String),
 
     /// 资源未找到
-    #[error("未找到: {0}")]
     NotFound(String),
 
     /// 网络错误
-    #[error("网络错误: {0}")]
     Network(String),
 
     /// 文件系统错误
-    #[error("文件系统错误: {0}")]
-    FileSystem(#[from] std::io::Error),
+    FileSystem(std::io::Error),
 
     /// 配置错误
-    #[error("配置错误: {0}")]
     Config(String),
 
     /// 解析错误
-    #[error("解析错误: {0}")]
     Parse(String),
 
     /// 并发错误
-    #[error("并发错误: {0}")]
     Concurrency(String),
 
     /// 内部错误
-    #[error("内部错误: {0}")]
     Internal(String),
 
     /// 用户取消操作
-    #[error("操作已取消")]
     Cancelled,
 
     /// 超时错误
-    #[error("操作超时: {0}")]
     Timeout(String),
 
     /// 其他错误
-    #[error("错误: {0}")]
     Other(String),
+}
+
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Database(e) => {
+                write!(f, "{}: {e}", t!("todo.error.log.database"))
+            },
+            Self::Validation(msg) => {
+                write!(f, "{}", t!("todo.error.log.validation", detail => msg.as_str()))
+            },
+            Self::Permission(msg) => {
+                write!(f, "{}", t!("todo.error.log.permission", detail => msg.as_str()))
+            },
+            Self::NotFound(resource) => {
+                write!(f, "{}", t!("todo.error.log.not_found", detail => resource.as_str()))
+            },
+            Self::Network(msg) => {
+                write!(f, "{}", t!("todo.error.log.network", detail => msg.as_str()))
+            },
+            Self::FileSystem(e) => {
+                write!(f, "{}", t!("todo.error.log.filesystem", detail => e.to_string()))
+            },
+            Self::Config(msg) => {
+                write!(f, "{}", t!("todo.error.log.config", detail => msg.as_str()))
+            },
+            Self::Parse(msg) => {
+                write!(f, "{}", t!("todo.error.log.parse", detail => msg.as_str()))
+            },
+            Self::Concurrency(msg) => {
+                write!(f, "{}", t!("todo.error.log.concurrency", detail => msg.as_str()))
+            },
+            Self::Internal(msg) => {
+                write!(f, "{}", t!("todo.error.log.internal", detail => msg.as_str()))
+            },
+            Self::Cancelled => write!(f, "{}", t!("todo.error.log.cancelled")),
+            Self::Timeout(msg) => {
+                write!(f, "{}", t!("todo.error.log.timeout", detail => msg.as_str()))
+            },
+            Self::Other(msg) => {
+                write!(f, "{}", t!("todo.error.log.other", detail => msg.as_str()))
+            },
+        }
+    }
+}
+
+impl std::error::Error for AppError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Database(e) => Some(e.as_ref()),
+            Self::FileSystem(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+impl From<Box<todos::error::TodoError>> for AppError {
+    fn from(e: Box<todos::error::TodoError>) -> Self {
+        Self::Database(e)
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(e: std::io::Error) -> Self {
+        Self::FileSystem(e)
+    }
 }
 
 // ==================== 错误严重程度 ====================
@@ -86,12 +138,12 @@ pub enum ErrorSeverity {
 }
 
 impl ErrorSeverity {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> String {
         match self {
-            Self::Info => "信息",
-            Self::Warning => "警告",
-            Self::Error => "错误",
-            Self::Critical => "严重错误",
+            Self::Info => t!("todo.error.severity.info").to_string(),
+            Self::Warning => t!("todo.error.severity.warning").to_string(),
+            Self::Error => t!("todo.error.severity.error").to_string(),
+            Self::Critical => t!("todo.error.severity.critical").to_string(),
         }
     }
 
@@ -452,5 +504,22 @@ mod tests {
         let output = validation::sanitize_html(input);
         assert!(!output.contains("<script>"));
         assert!(output.contains("&lt;script&gt;"));
+    }
+
+    #[test]
+    fn app_error_display_uses_locale() {
+        let cancelled = AppError::Cancelled.to_string();
+        assert!(
+            cancelled == t!("todo.error.log.cancelled").to_string()
+                || cancelled.contains("cancelled")
+                || cancelled.contains("取消")
+        );
+        let validation = AppError::Validation("x".into()).to_string();
+        assert!(validation.contains('x'));
+        assert!(
+            validation.contains("Validation")
+                || validation.contains("验证")
+                || validation.contains("驗證")
+        );
     }
 }

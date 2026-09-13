@@ -2096,6 +2096,142 @@ todo:
     es: "Sugerencias:"
     fr: "Suggestions :"
     de: "Vorschläge:"
+  error.severity.info:
+    en: Info
+    zh-CN: 信息
+    zh-HK: 資訊
+    it: Info
+    es: Info
+    fr: Info
+    de: Info
+  error.severity.warning:
+    en: Warning
+    zh-CN: 警告
+    zh-HK: 警告
+    it: Avviso
+    es: Aviso
+    fr: Avertissement
+    de: Warnung
+  error.severity.error:
+    en: Error
+    zh-CN: 错误
+    zh-HK: 錯誤
+    it: Errore
+    es: Error
+    fr: Erreur
+    de: Fehler
+  error.severity.critical:
+    en: Critical
+    zh-CN: 严重错误
+    zh-HK: 嚴重錯誤
+    it: Critico
+    es: Crítico
+    fr: Critique
+    de: Kritisch
+  error.log.database:
+    en: Database error
+    zh-CN: 数据库错误
+    zh-HK: 資料庫錯誤
+    it: Errore database
+    es: Error de base de datos
+    fr: Erreur de base de données
+    de: Datenbankfehler
+  error.log.validation:
+    en: "Validation error: %{detail}"
+    zh-CN: "验证错误: %{detail}"
+    zh-HK: "驗證錯誤: %{detail}"
+    it: "Errore di convalida: %{detail}"
+    es: "Error de validación: %{detail}"
+    fr: "Erreur de validation : %{detail}"
+    de: "Validierungsfehler: %{detail}"
+  error.log.permission:
+    en: "Permission denied: %{detail}"
+    zh-CN: "权限不足: %{detail}"
+    zh-HK: "權限不足: %{detail}"
+    it: "Permesso negato: %{detail}"
+    es: "Permiso denegado: %{detail}"
+    fr: "Permission refusée : %{detail}"
+    de: "Berechtigung verweigert: %{detail}"
+  error.log.not_found:
+    en: "Not found: %{detail}"
+    zh-CN: "未找到: %{detail}"
+    zh-HK: "未找到: %{detail}"
+    it: "Non trovato: %{detail}"
+    es: "No encontrado: %{detail}"
+    fr: "Introuvable : %{detail}"
+    de: "Nicht gefunden: %{detail}"
+  error.log.network:
+    en: "Network error: %{detail}"
+    zh-CN: "网络错误: %{detail}"
+    zh-HK: "網絡錯誤: %{detail}"
+    it: "Errore di rete: %{detail}"
+    es: "Error de red: %{detail}"
+    fr: "Erreur réseau : %{detail}"
+    de: "Netzwerkfehler: %{detail}"
+  error.log.filesystem:
+    en: "File system error: %{detail}"
+    zh-CN: "文件系统错误: %{detail}"
+    zh-HK: "檔案系統錯誤: %{detail}"
+    it: "Errore file system: %{detail}"
+    es: "Error del sistema de archivos: %{detail}"
+    fr: "Erreur système de fichiers : %{detail}"
+    de: "Dateisystemfehler: %{detail}"
+  error.log.config:
+    en: "Configuration error: %{detail}"
+    zh-CN: "配置错误: %{detail}"
+    zh-HK: "設定錯誤: %{detail}"
+    it: "Errore di configurazione: %{detail}"
+    es: "Error de configuración: %{detail}"
+    fr: "Erreur de configuration : %{detail}"
+    de: "Konfigurationsfehler: %{detail}"
+  error.log.parse:
+    en: "Parse error: %{detail}"
+    zh-CN: "解析错误: %{detail}"
+    zh-HK: "解析錯誤: %{detail}"
+    it: "Errore di analisi: %{detail}"
+    es: "Error de análisis: %{detail}"
+    fr: "Erreur d'analyse : %{detail}"
+    de: "Parsefehler: %{detail}"
+  error.log.concurrency:
+    en: "Concurrency error: %{detail}"
+    zh-CN: "并发错误: %{detail}"
+    zh-HK: "並行錯誤: %{detail}"
+    it: "Errore di concorrenza: %{detail}"
+    es: "Error de concurrencia: %{detail}"
+    fr: "Erreur de concurrence : %{detail}"
+    de: "Nebenläufigkeitsfehler: %{detail}"
+  error.log.internal:
+    en: "Internal error: %{detail}"
+    zh-CN: "内部错误: %{detail}"
+    zh-HK: "內部錯誤: %{detail}"
+    it: "Errore interno: %{detail}"
+    es: "Error interno: %{detail}"
+    fr: "Erreur interne : %{detail}"
+    de: "Interner Fehler: %{detail}"
+  error.log.cancelled:
+    en: Operation cancelled
+    zh-CN: 操作已取消
+    zh-HK: 操作已取消
+    it: Operazione annullata
+    es: Operación cancelada
+    fr: Opération annulée
+    de: Vorgang abgebrochen
+  error.log.timeout:
+    en: "Operation timed out: %{detail}"
+    zh-CN: "操作超时: %{detail}"
+    zh-HK: "操作逾時: %{detail}"
+    it: "Operazione scaduta: %{detail}"
+    es: "Tiempo de espera agotado: %{detail}"
+    fr: "Délai dépassé : %{detail}"
+    de: "Zeitüberschreitung: %{detail}"
+  error.log.other:
+    en: "Error: %{detail}"
+    zh-CN: "错误: %{detail}"
+    zh-HK: "錯誤: %{detail}"
+    it: "Errore: %{detail}"
+    es: "Error: %{detail}"
+    fr: "Erreur : %{detail}"
+    de: "Fehler: %{detail}"
   error.hint.check_db:
     en: Check that the database file exists
     zh-CN: 检查数据库文件是否存在
