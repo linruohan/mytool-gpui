@@ -12,7 +12,7 @@ use super::optimistic::{
     complete_item_optimistic, delete_item_optimistic, set_item_pinned_optimistic,
 };
 use crate::{
-    core::state::{ItemSelection, TodoStore},
+    core::state::{ItemSelection, TodoStore, UndoEntry, UndoStack},
     todo_state::DBState,
 };
 
@@ -20,6 +20,23 @@ use crate::{
 pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
     if items.is_empty() {
         return;
+    }
+
+    let parts: Vec<UndoEntry> = {
+        let store = cx.global::<TodoStore>();
+        items
+            .iter()
+            .filter_map(|after| {
+                store
+                    .get_item(&after.id)
+                    .map(|before| UndoEntry::Updated { before, after: after.clone() })
+            })
+            .collect()
+    };
+    if !parts.is_empty() {
+        cx.update_global::<UndoStack, _>(|stack, _| {
+            stack.record(UndoEntry::Batch(parts));
+        });
     }
 
     let item_count = items.len();

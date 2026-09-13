@@ -150,6 +150,7 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
             | "OpenSettings"
             | "OpenHelp"
             | "UndoLastTask"
+            | "RedoLastTask"
             | "EditTask"
             | "DeleteTask"
             | "ToggleTaskComplete"

@@ -32,8 +32,10 @@ actions!(task_shortcuts, [
     AddLabel,
     /// 设置截止日期 (Cmd/Ctrl + T)
     SetDueDate,
-    /// 撤销最近一次完成或删除 (Cmd/Ctrl + Z)
+    /// 撤销最近一次任务操作 (Cmd/Ctrl + Z)
     UndoLastTask,
+    /// 重做 (Cmd/Ctrl + Shift + Z)
+    RedoLastTask,
 ]);
 
 // ==================== 导航快捷键 ====================
@@ -243,7 +245,13 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
         ShortcutConfig {
             action: "UndoLastTask",
             key: "cmd-z",
-            description: "撤销最近一次完成或删除",
+            description: "撤销任务操作",
+            category: ShortcutCategory::Task,
+        },
+        ShortcutConfig {
+            action: "RedoLastTask",
+            key: "cmd-shift-z",
+            description: "重做任务操作",
             category: ShortcutCategory::Task,
         },
         // 导航
@@ -500,6 +508,12 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-z", UndoLastTask, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-z", UndoLastTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-z", RedoLastTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-z", RedoLastTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-y", RedoLastTask, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-e", EditTask, CTX),
         #[cfg(not(target_os = "macos"))]

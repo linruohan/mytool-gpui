@@ -18,10 +18,10 @@ use crate::{
     AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteTask,
     DeselectAll, DuplicateTask, EditTask, FilterByLabel, FilterByPriority, FilterByProject,
     ItemListItem, MoveTaskToProject, NewProject, NewTask, NextView, OpenHelp, OpenSettings,
-    PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, RefreshView,
-    SearchTasks, SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority,
-    ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleSidebar,
-    ToggleTaskComplete, ToggleTaskPin, UndoLastTask, play_ogg_file,
+    PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, RedoLastTask,
+    RefreshView, SearchTasks, SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate,
+    SetTaskPriority, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday,
+    ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, play_ogg_file,
     todo_state::{TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -375,6 +375,16 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn on_redo_last(&mut self, _: &RedoLastTask, window: &mut Window, cx: &mut Context<Self>) {
+        if self.search_open {
+            return;
+        }
+        if let Some(msg) = crate::todo_actions::redo_last_task(cx) {
+            window.push_notification(msg, cx);
+        }
+        cx.notify();
+    }
+
     fn primary_item(&self, cx: &App) -> Option<Arc<ItemModel>> {
         let id = cx.global::<crate::core::state::ItemSelection>().primary_id()?.to_string();
         cx.global::<TodoStore>().get_item(&id)
@@ -684,6 +694,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_open_settings))
             .on_action(cx.listener(Self::on_open_help))
             .on_action(cx.listener(Self::on_undo_last))
+            .on_action(cx.listener(Self::on_redo_last))
             .on_action(cx.listener(Self::on_edit_task))
             .on_action(cx.listener(Self::on_delete_task))
             .on_action(cx.listener(Self::on_toggle_complete))

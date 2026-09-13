@@ -57,6 +57,9 @@ pub fn add_item_optimistic(item: Arc<ItemModel>, cx: &mut App) -> String {
     let db_state = cx.global::<DBState>().clone();
     let db_state_for_labels = db_state.clone();
     let item_for_save = Arc::new(optimistic_item);
+    cx.update_global::<UndoStack, _>(|stack, _| {
+        stack.record(UndoEntry::Created(item_for_save.clone()));
+    });
     let item_id_for_error = item_id.clone();
     let item_id_for_async = item_id.clone();
     let label_models: Vec<todos::entity::LabelModel> = {
@@ -170,9 +173,15 @@ pub fn update_item_optimistic(item: Arc<ItemModel>, cx: &mut App) {
         return;
     }
 
+    let before = cx.global::<TodoStore>().get_item(&item.id);
     cx.update_global::<TodoStore, _>(|store, _| {
         store.update_item(item.clone());
     });
+    if let Some(before) = before {
+        cx.update_global::<UndoStack, _>(|stack, _| {
+            stack.record(UndoEntry::Updated { before, after: item.clone() });
+        });
+    }
 
     let item_id = item.id.clone();
     let item_for_db = item.clone();
@@ -293,9 +302,14 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 
     let mut updated_item = (*item).clone();
     updated_item.pinned = pinned;
+    let after = Arc::new(updated_item.clone());
+
+    cx.update_global::<UndoStack, _>(|stack, _| {
+        stack.record(UndoEntry::Updated { before: item.clone(), after: after.clone() });
+    });
 
     cx.update_global::<TodoStore, _>(|store, _| {
-        store.update_item(Arc::new(updated_item.clone()));
+        store.update_item(after);
     });
 
     let db_state = cx.global::<DBState>().clone();
@@ -352,10 +366,6 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
         item_id
     );
 
-    cx.update_global::<UndoStack, _>(|stack, _| {
-        stack.record(UndoEntry::Completed { before: original.clone() });
-    });
-
     let mut updated_item = (*item).clone();
     let next_due = checked
         .then(|| updated_item.due_date().and_then(|d| d.next_due_after_completion()))
@@ -375,17 +385,33 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     let children: Vec<Arc<ItemModel>> =
         if complete_subitems { cx.global::<TodoStore>().child_items(&item_id) } else { Vec::new() };
     let original_children = children.clone();
+    let after_parent = Arc::new(updated_item.clone());
+    let mut undo_parts =
+        vec![UndoEntry::Updated { before: original.clone(), after: after_parent.clone() }];
+    let mut child_afters: Vec<Arc<ItemModel>> = Vec::new();
+    if complete_subitems {
+        for child in &children {
+            let mut child_item = (**child).clone();
+            child_item.checked = checked;
+            child_item.completed_at =
+                if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+            let after = Arc::new(child_item);
+            undo_parts.push(UndoEntry::Updated { before: child.clone(), after: after.clone() });
+            child_afters.push(after);
+        }
+    }
+    cx.update_global::<UndoStack, _>(|stack, _| {
+        if undo_parts.len() == 1 {
+            stack.record(undo_parts.pop().unwrap());
+        } else {
+            stack.record(UndoEntry::Batch(undo_parts));
+        }
+    });
 
     cx.update_global::<TodoStore, _>(|store, _| {
-        store.update_item(Arc::new(updated_item.clone()));
-        if complete_subitems {
-            for child in &children {
-                let mut child_item = (**child).clone();
-                child_item.checked = checked;
-                child_item.completed_at =
-                    if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
-                store.update_item(Arc::new(child_item));
-            }
+        store.update_item(after_parent);
+        for after in child_afters {
+            store.update_item(after);
         }
     });
 
@@ -443,25 +469,63 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     .detach();
 }
 
-/// 撤销最近一次完成或删除。
+/// 撤销最近一次任务操作（可连续撤销）。
 pub fn undo_last_task(cx: &mut App) -> Option<&'static str> {
+    apply_history(true, cx)
+}
+
+/// 重做最近一次被撤销的任务操作。
+pub fn redo_last_task(cx: &mut App) -> Option<&'static str> {
+    apply_history(false, cx)
+}
+
+fn apply_history(undo: bool, cx: &mut App) -> Option<&'static str> {
     let entry = cx.update_global::<UndoStack, _>(|stack, _| {
         stack.restoring = true;
-        stack.last.take()
+        if undo { stack.pop_undo() } else { stack.pop_redo() }
     })?;
-    let msg = match entry {
-        UndoEntry::Deleted(item) => {
-            add_item_optimistic(item, cx);
-            "已撤销删除"
-        },
-        UndoEntry::Completed { before } => {
-            complete_item_optimistic(before.clone(), before.checked, cx);
-            "已撤销完成状态"
-        },
-    };
+    apply_entry(&entry, undo, cx);
     cx.update_global::<UndoStack, _>(|stack, _| {
         stack.restoring = false;
-        stack.last = None;
+        if undo {
+            stack.push_redo(entry);
+        } else {
+            stack.push_undo_silent(entry);
+        }
     });
-    Some(msg)
+    Some(if undo { "已撤销" } else { "已重做" })
+}
+
+fn apply_entry(entry: &UndoEntry, undo: bool, cx: &mut App) {
+    match entry {
+        UndoEntry::Created(item) => {
+            if undo {
+                delete_item_optimistic(item.clone(), cx);
+            } else {
+                add_item_optimistic(item.clone(), cx);
+            }
+        },
+        UndoEntry::Deleted(item) => {
+            if undo {
+                add_item_optimistic(item.clone(), cx);
+            } else {
+                delete_item_optimistic(item.clone(), cx);
+            }
+        },
+        UndoEntry::Updated { before, after } => {
+            let target = if undo { before } else { after };
+            update_item_optimistic(target.clone(), cx);
+        },
+        UndoEntry::Batch(entries) => {
+            if undo {
+                for part in entries.iter().rev() {
+                    apply_entry(part, true, cx);
+                }
+            } else {
+                for part in entries {
+                    apply_entry(part, false, cx);
+                }
+            }
+        },
+    }
 }
