@@ -134,6 +134,10 @@ impl BoardContainer {
         self.on_active = Some(on_active);
         self
     }
+
+    pub(crate) fn inner_board(&self) -> Option<AnyView> {
+        self.board.clone()
+    }
 }
 impl EventEmitter<PanelEvent> for BoardContainer {}
 impl Focusable for BoardContainer {

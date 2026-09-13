@@ -18,12 +18,12 @@ use todos::entity::{ItemModel, ProjectModel};
 use crate::{
     AddLabel, BatchCompleteSelected, BatchDeleteSelected, BoardPanel, ClearFilters, DeleteProject,
     DeleteTask, DeselectAll, DuplicateTask, EditProject, EditTask, FilterByLabel, FilterByPriority,
-    FilterByProject, ItemListItem, MoveTaskToProject, NewProject, NewTask, NextView, OpenHelp,
-    OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel,
-    RedoLastTask, RefreshView, ResetZoom, SearchTasks, SelectAllTasks, SelectNextTask,
-    SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted, ShowInbox, ShowLabels,
-    ShowPinned, ShowScheduled, ShowToday, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin,
-    UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
+    FilterByProject, InboxBoard, ItemListItem, MoveTaskToProject, NewProject, NewSection, NewTask,
+    NextView, OpenHelp, OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent,
+    ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
+    SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted,
+    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleSidebar, ToggleTaskComplete,
+    ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -517,6 +517,30 @@ impl TodoStory {
         self.open_new_project(window, cx);
     }
 
+    fn on_new_section(&mut self, _: &NewSection, window: &mut Window, cx: &mut Context<Self>) {
+        if self.active_project.is_some() {
+            self.project_items_panel.update(cx, |panel, cx| {
+                panel.show_section_dialog(window, cx, None, false);
+            });
+            return;
+        }
+        if self.board_panel.read(cx).active_index != Some(0) {
+            return;
+        }
+        let inbox = self.board_panel.read(cx).boards.first().cloned();
+        let Some(container) = inbox else {
+            return;
+        };
+        let Some(board) = container.read(cx).inner_board() else {
+            return;
+        };
+        if let Ok(inbox) = board.downcast::<InboxBoard>() {
+            inbox.update(cx, |panel, cx| {
+                panel.show_section_dialog(window, cx, None, false);
+            });
+        }
+    }
+
     fn on_edit_project(&mut self, _: &EditProject, window: &mut Window, cx: &mut Context<Self>) {
         if self.active_project.is_none() {
             return;
@@ -796,6 +820,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_select_next))
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_new_project))
+            .on_action(cx.listener(Self::on_new_section))
             .on_action(cx.listener(Self::on_edit_project))
             .on_action(cx.listener(Self::on_delete_project))
             .on_action(cx.listener(Self::on_show_inbox))
