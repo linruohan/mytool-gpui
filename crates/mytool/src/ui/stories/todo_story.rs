@@ -2,7 +2,7 @@ use std::{option::Option, sync::Arc};
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme, Side, Sizable,
+    ActiveTheme, Side, Sizable, WindowExt,
     button::{Button, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -15,9 +15,9 @@ use serde::Deserialize;
 use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    BoardPanel, DeselectAll, NewTask, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
-    ProjectsPanel, SearchTasks, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled,
-    ShowToday, play_ogg_file,
+    BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeselectAll, NewTask, ProjectEvent,
+    ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, SearchTasks, SelectAllTasks, ShowCompleted,
+    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, play_ogg_file,
     todo_state::TodoStore,
     ui::components::{show_existing_item_dialog, show_new_item_dialog},
 };
@@ -215,8 +215,62 @@ impl TodoStory {
     fn on_deselect(&mut self, _: &DeselectAll, _: &mut Window, cx: &mut Context<Self>) {
         if self.search_open {
             self.search_open = false;
-            cx.notify();
         }
+        cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.clear());
+        cx.notify();
+    }
+
+    fn on_select_all(&mut self, _: &SelectAllTasks, _: &mut Window, cx: &mut Context<Self>) {
+        if self.search_open {
+            return;
+        }
+        let ids = {
+            let store = cx.global::<TodoStore>();
+            let cache = cx.global::<crate::core::state::QueryCache>();
+            let items = if let Some(ix) = self.board_panel.read(cx).active_index {
+                match ix {
+                    0 => store.inbox_items_cached(cache).as_ref().clone(),
+                    1 => store.today_items_cached(cache).as_ref().clone(),
+                    2 => store.scheduled_items_cached(cache).as_ref().clone(),
+                    4 => store.pinned_items_cached(cache).as_ref().clone(),
+                    5 => store.completed_items_cached(cache).as_ref().clone(),
+                    _ => Vec::new(),
+                }
+            } else if let Some(project) = &self.active_project {
+                store.items_by_project(&project.id).to_vec()
+            } else {
+                Vec::new()
+            };
+            items.into_iter().map(|item| item.id.clone()).collect()
+        };
+        cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.set_ids(ids));
+        cx.notify();
+    }
+
+    fn on_batch_complete(
+        &mut self,
+        _: &BatchCompleteSelected,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let n = crate::todo_actions::batch_complete_selected(cx);
+        if n > 0 {
+            window.push_notification(format!("已完成 {n} 个任务"), cx);
+        }
+        cx.notify();
+    }
+
+    fn on_batch_delete(
+        &mut self,
+        _: &BatchDeleteSelected,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let n = crate::todo_actions::batch_delete_selected(cx);
+        if n > 0 {
+            window.push_notification(format!("已删除 {n} 个任务"), cx);
+        }
+        cx.notify();
     }
 
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
@@ -316,6 +370,9 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_new_task))
             .on_action(cx.listener(Self::on_search_tasks))
             .on_action(cx.listener(Self::on_deselect))
+            .on_action(cx.listener(Self::on_select_all))
+            .on_action(cx.listener(Self::on_batch_complete))
+            .on_action(cx.listener(Self::on_batch_delete))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))

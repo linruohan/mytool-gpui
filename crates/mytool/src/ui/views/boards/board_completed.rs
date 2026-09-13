@@ -144,6 +144,12 @@ impl Render for CompletedBoard {
         v_flex()
             .id("completed-board")
             .track_focus(&self.base.focus_handle)
+            .on_action(cx.listener(|this, _: &crate::MoveTaskUp, window, cx| {
+                this.base.reorder_active(-1, window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &crate::MoveTaskDown, window, cx| {
+                this.base.reorder_active(1, window, cx);
+            }))
             .size_full()
             .on_mouse_down(
                 MouseButton::Left,
@@ -178,6 +184,7 @@ impl Render for CompletedBoard {
                     )
                 }),
             ))
+            .child(crate::ui::views::boards::board_common::render_batch_bar(cx))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
@@ -193,11 +200,15 @@ impl Render for CompletedBoard {
                             ))
                         })
                         .children(item_rows.iter().enumerate().map(move |(i, item_row)| {
-                            let is_active = active_index == Some(i);
+                            let item_id = item_row.read(cx).item.id.clone();
+                            let is_selected =
+                                cx.global::<crate::core::state::ItemSelection>().contains(&item_id);
                             board_renderer::render_item_row(
                                 i,
                                 Some(item_row.clone()),
-                                is_active,
+                                active_index == Some(i),
+                                is_selected,
+                                item_id,
                                 active_border,
                                 view.clone(),
                             )

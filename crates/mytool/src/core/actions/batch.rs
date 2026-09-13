@@ -4,11 +4,17 @@
 
 use std::sync::Arc;
 
-use gpui::App;
+use gpui::{App, BorrowAppContext};
 use todos::entity::ItemModel;
 use tracing::{debug, error};
 
-use crate::{core::state::TodoStore, todo_state::DBState};
+use super::optimistic::{
+    complete_item_optimistic, delete_item_optimistic, set_item_pinned_optimistic,
+};
+use crate::{
+    core::state::{ItemSelection, TodoStore},
+    todo_state::DBState,
+};
 
 /// 批量更新任务
 pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
@@ -45,4 +51,51 @@ pub fn batch_update_items(items: Vec<Arc<ItemModel>>, cx: &mut App) {
         }
     })
     .detach();
+}
+
+fn selected_items(cx: &App) -> Vec<Arc<ItemModel>> {
+    let ids = cx.global::<ItemSelection>().ids().clone();
+    let store = cx.global::<TodoStore>();
+    ids.iter().filter_map(|id| store.get_item(id)).collect()
+}
+
+/// 批量完成当前选中任务
+pub fn batch_complete_selected(cx: &mut App) -> usize {
+    let items = selected_items(cx);
+    let count = items.len();
+    for item in items {
+        if !item.checked {
+            complete_item_optimistic(item, true, cx);
+        }
+    }
+    cx.update_global::<ItemSelection, _>(|sel, _| sel.clear());
+    count
+}
+
+/// 批量删除当前选中任务
+pub fn batch_delete_selected(cx: &mut App) -> usize {
+    let items = selected_items(cx);
+    let count = items.len();
+    for item in items {
+        delete_item_optimistic(item, cx);
+    }
+    cx.update_global::<ItemSelection, _>(|sel, _| sel.clear());
+    count
+}
+
+/// 批量置顶 / 取消置顶（未置顶不少于一半时一律置顶）
+pub fn batch_pin_selected(cx: &mut App) -> usize {
+    let items = selected_items(cx);
+    let count = items.len();
+    if count == 0 {
+        return 0;
+    }
+    let pin = items.iter().filter(|item| !item.pinned).count() >= items.len().div_ceil(2);
+    for item in items {
+        if item.pinned != pin {
+            set_item_pinned_optimistic(item, pin, cx);
+        }
+    }
+    cx.update_global::<ItemSelection, _>(|sel, _| sel.clear());
+    count
 }

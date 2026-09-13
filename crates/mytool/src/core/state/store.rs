@@ -157,6 +157,17 @@ fn board_membership(item: &ItemModel, today: chrono::NaiveDate) -> BoardMembersh
     BoardMembership { inbox: no_project && !due_today, today: due_today, scheduled: due.is_some() }
 }
 
+pub(crate) fn cmp_child_order(a: &ItemModel, b: &ItemModel) -> std::cmp::Ordering {
+    a.child_order
+        .unwrap_or(i32::MAX)
+        .cmp(&b.child_order.unwrap_or(i32::MAX))
+        .then_with(|| a.id.cmp(&b.id))
+}
+
+fn sort_items_by_child_order(items: &mut Vec<Arc<ItemModel>>) {
+    items.sort_by(|a, b| cmp_child_order(a, b));
+}
+
 // ==================== 索引操作 Trait ====================
 
 /// 索引操作统一接口
@@ -424,6 +435,7 @@ impl TodoStore {
                 }
             }
         }
+        sort_items_by_child_order(&mut out);
         out
     }
 
@@ -517,7 +529,9 @@ impl TodoStore {
     /// let items = store.query_items(|item| !item.checked && item.pinned);
     /// ```
     fn query_items(&self, predicate: impl Fn(&ItemModel) -> bool) -> Vec<Arc<ItemModel>> {
-        self.all_items.iter().filter(|item| predicate(item)).cloned().collect()
+        let mut items = self.all_items.iter().filter(|item| predicate(item)).cloned().collect();
+        sort_items_by_child_order(&mut items);
+        items
     }
 
     /// 获取收件箱任务（未完成且无项目ID、且非今日到期）
@@ -649,11 +663,14 @@ impl TodoStore {
 
     /// 指定父任务下的子任务（保持 all_items 顺序）
     pub fn child_items(&self, parent_id: &str) -> Vec<Arc<ItemModel>> {
-        self.all_items
+        let mut items = self
+            .all_items
             .iter()
             .filter(|item| item.parent_id.as_deref() == Some(parent_id))
             .cloned()
-            .collect()
+            .collect();
+        sort_items_by_child_order(&mut items);
+        items
     }
 
     /// 获取指定分区的任务（走 section_index，不复制 Vec）

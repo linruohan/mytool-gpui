@@ -18,7 +18,12 @@ use todos::entity::ItemModel;
 use super::board_base::BoardView;
 use crate::{
     ScheduleButtonState, VisualHierarchy,
-    core::actions::batch::batch_update_items,
+    core::{
+        actions::batch::{
+            batch_complete_selected, batch_delete_selected, batch_pin_selected, batch_update_items,
+        },
+        state::ItemSelection,
+    },
     todo_actions::{complete_item_optimistic, delete_item_optimistic, set_item_pinned_optimistic},
     todo_state::TodoStore,
 };
@@ -480,6 +485,87 @@ pub fn render_board_header(
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .child(actions),
         )
+}
+
+/// 多选工具条：完成 / 置顶 / 删除
+pub fn render_batch_bar(cx: &App) -> impl IntoElement {
+    let count = cx.global::<ItemSelection>().len();
+    h_flex().w_full().px(px(16.)).when(count > 0, move |this| {
+        this.py(px(6.))
+            .gap(px(8.))
+            .items_center()
+            .child(
+                gpui::div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(format!("已选 {count} 项（Ctrl/Cmd+点击）")),
+            )
+            .child(
+                Button::new("batch-complete")
+                    .small()
+                    .ghost()
+                    .icon(IconName::CheckSquare)
+                    .tooltip("批量完成")
+                    .on_click(|_, window, cx| {
+                        let n = batch_complete_selected(cx);
+                        if n > 0 {
+                            window.push_notification(format!("已完成 {n} 个任务"), cx);
+                        }
+                    }),
+            )
+            .child(
+                Button::new("batch-pin")
+                    .small()
+                    .ghost()
+                    .icon(IconName::PinSymbolic)
+                    .tooltip("批量置顶")
+                    .on_click(|_, window, cx| {
+                        let n = batch_pin_selected(cx);
+                        if n > 0 {
+                            window.push_notification(format!("已更新 {n} 个任务的置顶"), cx);
+                        }
+                    }),
+            )
+            .child(
+                Button::new("batch-delete")
+                    .small()
+                    .ghost()
+                    .icon(IconName::UserTrashSymbolic)
+                    .tooltip("批量删除")
+                    .on_click(|_, window, cx| {
+                        let n = cx.global::<ItemSelection>().len();
+                        if n == 0 {
+                            return;
+                        }
+                        window.open_dialog(cx, move |dialog, _, _| {
+                            dialog
+                                .overlay(true)
+                                .overlay_closable(true)
+                                .child(
+                                    Alert::warning(
+                                        "batch-delete-alert",
+                                        format!("确定删除选中的 {n} 个任务吗？"),
+                                    )
+                                    .title("确认"),
+                                )
+                                .on_ok(move |_, window: &mut Window, cx| {
+                                    let deleted = batch_delete_selected(cx);
+                                    if deleted > 0 {
+                                        window.push_notification(
+                                            format!("已删除 {deleted} 个任务"),
+                                            cx,
+                                        );
+                                    }
+                                    true
+                                })
+                                .on_cancel(move |_, window: &mut Window, cx| {
+                                    window.push_notification("已取消删除。", cx);
+                                    true
+                                })
+                        });
+                    }),
+            )
+    })
 }
 
 /// 列表底部留白，避免最后几行被悬浮添加按钮挡住

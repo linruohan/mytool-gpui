@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
+    App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
     InteractiveElement as _, MouseButton, ParentElement, Render, Styled, Subscription, Window, div,
     prelude::FluentBuilder,
 };
@@ -32,7 +32,7 @@ use crate::{
     todo_state::TodoStore,
     ui::views::boards::{
         BoardView, PinnedLayout, board_common, board_renderer, clamp_active_index,
-        diff_update_item_rows, group_items,
+        diff_update_item_rows, group_items, reorder_in_groups,
     },
 };
 
@@ -121,6 +121,9 @@ impl ProjectItemsPanel {
                 ColorPickerEvent::Change(color) => {
                     this.selected_color = *color;
                 },
+            }),
+            cx.observe_global::<crate::core::state::ItemSelection>(|_, cx| {
+                cx.notify();
             }),
         ];
 
@@ -511,6 +514,23 @@ impl BoardView for ProjectItemsPanel {
     }
 }
 
+impl ProjectItemsPanel {
+    fn reorder_active(&self, delta: i32, cx: &mut Context<Self>) {
+        let Some(active_index) = self.active_index else {
+            return;
+        };
+        let mut groups: Vec<&[_]> =
+            vec![self.pinned_items.as_slice(), self.no_section_items.as_slice()];
+        for items in self.section_items_map.values() {
+            groups.push(items.as_slice());
+        }
+        let Some(updated) = reorder_in_groups(&groups, active_index, delta) else {
+            return;
+        };
+        crate::core::actions::batch::batch_update_items(updated, cx);
+    }
+}
+
 crate::impl_board_section_actions!(ProjectItemsPanel);
 
 impl Render for ProjectItemsPanel {
@@ -532,6 +552,12 @@ impl Render for ProjectItemsPanel {
         v_flex()
             .id("project-items")
             .track_focus(&self.focus_handle)
+            .on_action(cx.listener(|this, _: &crate::MoveTaskUp, _, cx| {
+                this.reorder_active(-1, cx);
+            }))
+            .on_action(cx.listener(|this, _: &crate::MoveTaskDown, _, cx| {
+                this.reorder_active(1, cx);
+            }))
             .relative()
             .size_full()
             .on_mouse_down(
@@ -540,7 +566,14 @@ impl Render for ProjectItemsPanel {
                     for row in this.item_rows.clone() {
                         row.update(cx, |row, cx| row.collapse_if_open(cx));
                     }
-                    if this.active_index.take().is_some() {
+                    let had_active = this.active_index.take().is_some();
+                    let had_multi = !cx.global::<crate::core::state::ItemSelection>().is_empty();
+                    if had_multi {
+                        cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| {
+                            sel.clear();
+                        });
+                    }
+                    if had_active || had_multi {
                         cx.notify();
                     }
                 }),
@@ -676,6 +709,7 @@ impl Render for ProjectItemsPanel {
                             ),
                     ),
             )
+            .child(board_common::render_batch_bar(cx))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
@@ -699,6 +733,7 @@ impl Render for ProjectItemsPanel {
                                     active_index,
                                     active_border,
                                     view.clone(),
+                                    cx,
                                 ),
                             ))
                         })
@@ -711,6 +746,7 @@ impl Render for ProjectItemsPanel {
                                     active_border,
                                     view.clone(),
                                     true,
+                                    cx,
                                 ))
                             } else {
                                 this.child(board_renderer::render_item_list(
@@ -719,6 +755,7 @@ impl Render for ProjectItemsPanel {
                                     active_index,
                                     active_border,
                                     view.clone(),
+                                    cx,
                                 ))
                             }
                         })
@@ -733,6 +770,7 @@ impl Render for ProjectItemsPanel {
                                 active_index,
                                 active_border,
                                 view.clone(),
+                                cx,
                             )
                         })),
                 ),

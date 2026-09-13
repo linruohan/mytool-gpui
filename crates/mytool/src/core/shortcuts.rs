@@ -93,6 +93,10 @@ actions!(selection_shortcuts, [
     BatchDeleteSelected,
     /// 批量移动选中任务 (Cmd/Ctrl + Shift + M)
     BatchMoveSelected,
+    /// 当前任务在分组内上移 (Alt + Up)
+    MoveTaskUp,
+    /// 当前任务在分组内下移 (Alt + Down)
+    MoveTaskDown,
 ]);
 
 // ==================== 项目和分区快捷键 ====================
@@ -321,6 +325,18 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             description: "批量删除选中任务",
             category: ShortcutCategory::Selection,
         },
+        ShortcutConfig {
+            action: "MoveTaskUp",
+            key: "alt-up",
+            description: "当前任务上移",
+            category: ShortcutCategory::Selection,
+        },
+        ShortcutConfig {
+            action: "MoveTaskDown",
+            key: "alt-down",
+            description: "当前任务下移",
+            category: ShortcutCategory::Selection,
+        },
         // 项目和分区
         ShortcutConfig {
             action: "NewProject",
@@ -423,6 +439,20 @@ pub fn bind_todo_keys(cx: &mut App) {
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-6", ShowCompleted, CTX),
         KeyBinding::new("escape", DeselectAll, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-a", SelectAllTasks, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-a", SelectAllTasks, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-enter", BatchCompleteSelected, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-enter", BatchCompleteSelected, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-backspace", BatchDeleteSelected, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-backspace", BatchDeleteSelected, CTX),
+        KeyBinding::new("alt-up", MoveTaskUp, CTX),
+        KeyBinding::new("alt-down", MoveTaskDown, CTX),
     ]);
 }
 

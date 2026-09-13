@@ -160,6 +160,12 @@ impl Render for InboxBoard {
         v_flex()
             .id("inbox-board")
             .track_focus(&self.base.focus_handle)
+            .on_action(cx.listener(|this, _: &crate::MoveTaskUp, window, cx| {
+                this.base.reorder_active(-1, window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &crate::MoveTaskDown, window, cx| {
+                this.base.reorder_active(1, window, cx);
+            }))
             .relative()
             .size_full()
             .on_mouse_down(
@@ -236,6 +242,7 @@ impl Render for InboxBoard {
                             }),
                     ),
             ))
+            .child(crate::ui::views::boards::board_common::render_batch_bar(cx))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
@@ -251,6 +258,7 @@ impl Render for InboxBoard {
                                     active_index,
                                     active_border,
                                     view.clone(),
+                                    cx,
                                 ),
                             ))
                         })
@@ -271,6 +279,7 @@ impl Render for InboxBoard {
                                     active_border,
                                     view.clone(),
                                     false,
+                                    cx,
                                 ))
                             } else {
                                 this.child(board_renderer::render_item_list(
@@ -279,6 +288,7 @@ impl Render for InboxBoard {
                                     active_index,
                                     active_border,
                                     view.clone(),
+                                    cx,
                                 ))
                             }
                         })
@@ -293,6 +303,7 @@ impl Render for InboxBoard {
                                 active_index,
                                 active_border,
                                 view.clone(),
+                                cx,
                             )
                         })),
                 ),

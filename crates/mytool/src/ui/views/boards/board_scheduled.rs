@@ -8,11 +8,12 @@ use std::{collections::HashMap, sync::Arc};
 use chrono::Datelike;
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
-    MouseButton, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder,
+    MouseButton, ParentElement, Render, Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
+    date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dock::PanelControl,
     h_flex,
     menu::{DropdownMenu, PopupMenuItem},
@@ -33,6 +34,7 @@ use crate::{
         },
         board_renderer,
         container_board::Board,
+        reorder_in_groups,
     },
 };
 
@@ -42,6 +44,9 @@ pub struct ScheduledBoard {
     base: BoardBase,
     /// 按日期分组的缓存（在 refresh 时构建，render 只读）
     grouped_by_date: Vec<(String, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
+    date_picker: Entity<DatePickerState>,
+    filter_date: Option<String>,
+    _date_subscription: Subscription,
 }
 
 impl ScheduledBoard {
@@ -50,7 +55,32 @@ impl ScheduledBoard {
     }
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { base: BoardBase::new(window, cx), grouped_by_date: Vec::new() }
+        let date_picker = cx.new(|cx| DatePickerState::new(window, cx));
+        let _date_subscription =
+            cx.subscribe(&date_picker, |this, _, event: &DatePickerEvent, cx| {
+                let DatePickerEvent::Change(date) = event;
+                this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
+                cx.notify();
+            });
+        Self {
+            base: BoardBase::new(window, cx),
+            grouped_by_date: Vec::new(),
+            date_picker,
+            filter_date: None,
+            _date_subscription,
+        }
+    }
+
+    fn reorder_active(&self, delta: i32, cx: &mut Context<Self>) {
+        let Some(active_index) = self.base.active_index else {
+            return;
+        };
+        let groups: Vec<&[_]> =
+            self.grouped_by_date.iter().map(|(_, items)| items.as_slice()).collect();
+        let Some(updated) = reorder_in_groups(&groups, active_index, delta) else {
+            return;
+        };
+        crate::core::actions::batch::batch_update_items(updated, cx);
     }
 
     fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -152,6 +182,14 @@ fn group_scheduled_by_date(
     }
     let mut grouped: Vec<_> = items_by_date.into_iter().collect();
     grouped.sort_by(|a, b| a.0.cmp(&b.0));
+    for (_, items) in &mut grouped {
+        items.sort_by(|a, b| {
+            a.1.child_order
+                .unwrap_or(i32::MAX)
+                .cmp(&b.1.child_order.unwrap_or(i32::MAX))
+                .then_with(|| a.1.id.cmp(&b.1.id))
+        });
+    }
     grouped
 }
 
@@ -215,12 +253,20 @@ impl Render for ScheduledBoard {
         let active_index = self.base.active_index;
 
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let filter_date = self.filter_date.clone();
         let grouped_by_date = &self.grouped_by_date;
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
+        let date_picker = self.date_picker.clone();
 
         v_flex()
             .id("scheduled-board")
             .track_focus(&self.base.focus_handle)
+            .on_action(cx.listener(|this, _: &crate::MoveTaskUp, _, cx| {
+                this.reorder_active(-1, cx);
+            }))
+            .on_action(cx.listener(|this, _: &crate::MoveTaskDown, _, cx| {
+                this.reorder_active(1, cx);
+            }))
             .relative()
             .size_full()
             .on_mouse_down(
@@ -236,46 +282,52 @@ impl Render for ScheduledBoard {
                 <ScheduledBoard as Board>::title(),
                 <ScheduledBoard as Board>::description(),
                 board_count,
-                h_flex().when(active_index.is_some(), |this| {
-                    this.child(
-                        Button::new("item-actions")
-                            .small()
-                            .ghost()
-                            .compact()
-                            .tooltip("任务操作")
-                            .icon(IconName::CheckSquare)
-                            .dropdown_menu({
-                                let view = view.clone();
-                                move |this, window, _cx| {
+                h_flex()
+                    .gap(VisualHierarchy::spacing(2.0))
+                    .child(DatePicker::new(&date_picker).cleanable(true).placeholder("按日期筛选"))
+                    .when(active_index.is_some(), |this| {
+                        this.child(
+                            Button::new("item-actions")
+                                .small()
+                                .ghost()
+                                .compact()
+                                .tooltip("任务操作")
+                                .icon(IconName::CheckSquare)
+                                .dropdown_menu({
                                     let view = view.clone();
-                                    this.item(
-                                        PopupMenuItem::new("编辑任务")
-                                            .icon(IconName::EditSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_dialog(window, cx, true, None);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                    .separator()
-                                    .item(
-                                        PopupMenuItem::new("删除任务")
-                                            .icon(IconName::UserTrashSymbolic)
-                                            .on_click(window.listener_for(
-                                                &view,
-                                                |this, _, window, cx| {
-                                                    this.show_item_delete_dialog(window, cx);
-                                                    cx.notify();
-                                                },
-                                            )),
-                                    )
-                                }
-                            }),
-                    )
-                }),
+                                    move |this, window, _cx| {
+                                        let view = view.clone();
+                                        this.item(
+                                            PopupMenuItem::new("编辑任务")
+                                                .icon(IconName::EditSymbolic)
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_item_dialog(
+                                                            window, cx, true, None,
+                                                        );
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
+                                        .separator()
+                                        .item(
+                                            PopupMenuItem::new("删除任务")
+                                                .icon(IconName::UserTrashSymbolic)
+                                                .on_click(window.listener_for(
+                                                    &view,
+                                                    |this, _, window, cx| {
+                                                        this.show_item_delete_dialog(window, cx);
+                                                        cx.notify();
+                                                    },
+                                                )),
+                                        )
+                                    }
+                                }),
+                        )
+                    }),
             ))
+            .child(crate::ui::views::boards::board_common::render_batch_bar(cx))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()
@@ -293,6 +345,11 @@ impl Render for ScheduledBoard {
                         })
                         .children(grouped_by_date.iter().filter_map(|(date, items)| {
                             if items.is_empty() {
+                                return None;
+                            }
+                            if let Some(filter) = filter_date.as_deref()
+                                && date.as_str() != filter
+                            {
                                 return None;
                             }
 
@@ -314,6 +371,7 @@ impl Render for ScheduledBoard {
                                         active_index,
                                         active_border,
                                         view_clone,
+                                        cx,
                                     ),
                                 ),
                             )

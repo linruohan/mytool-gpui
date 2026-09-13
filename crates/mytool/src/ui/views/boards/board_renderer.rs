@@ -6,8 +6,9 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Entity, Hsla, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    App, BorrowAppContext, ClickEvent, Entity, Hsla, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Render, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    px,
 };
 use gpui_component::{
     ActiveTheme, Icon, Sizable, StyledExt,
@@ -20,7 +21,13 @@ use gpui_kit::assets::IconName;
 use todos::entity::ItemModel;
 
 use super::{board_base::BoardView, board_common::BoardSectionActions};
-use crate::{ItemRow, ItemRowState, ScheduleButtonState, board_section};
+use crate::{
+    ItemRow, ItemRowState, ScheduleButtonState, board_section, core::state::ItemSelection,
+};
+
+fn click_is_multi(event: &ClickEvent) -> bool {
+    event.modifiers().secondary()
+}
 
 /// Board 空状态：居中大图标 + 标题 + 提示，无虚线框。
 pub fn render_empty_placeholder(
@@ -51,6 +58,8 @@ pub fn render_item_row<V>(
     i: usize,
     item_row: Option<Entity<ItemRowState>>,
     is_active: bool,
+    is_selected: bool,
+    item_id: String,
     active_border: gpui::Hsla,
     view: Entity<V>,
 ) -> impl IntoElement
@@ -61,14 +70,20 @@ where
         .id(("item", i))
         .rounded_md()
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .on_click(move |_, _, cx| {
+        .on_click(move |event, _, cx| {
             cx.stop_propagation();
+            let multi = click_is_multi(event);
+            let id = item_id.clone();
+            if !id.is_empty() {
+                cx.update_global::<ItemSelection, _>(|sel, _| sel.apply_click(id, multi));
+            }
             view.update(cx, |this, cx| {
                 this.set_active_index(Some(i));
                 cx.notify();
             });
         })
-        .when(is_active, |this| this.bg(active_border.opacity(0.12)).rounded_md())
+        .when(is_selected, |this| this.bg(active_border.opacity(0.22)).rounded_md())
+        .when(is_active && !is_selected, |this| this.bg(active_border.opacity(0.12)).rounded_md())
         .children(item_row.map(|row| ItemRow::new(&row)))
 }
 
@@ -80,15 +95,28 @@ pub fn render_item_list<V>(
     active_index: Option<usize>,
     active_border: gpui::Hsla,
     view: Entity<V>,
+    cx: &App,
 ) -> impl IntoElement
 where
     V: BoardView + Render,
 {
+    let selected = cx.global::<ItemSelection>().ids().clone();
     v_flex().gap(px(2.)).w_full().children(flatten_with_indent(items).into_iter().map(
         |(i, indent)| {
             let item_row = item_rows.get(i).cloned();
+            let item_id =
+                item_row.as_ref().map(|row| row.read(cx).item.id.clone()).unwrap_or_default();
             let is_active = active_index == Some(i);
-            let row = render_item_row(i, item_row, is_active, active_border, view.clone());
+            let is_selected = selected.contains(&item_id);
+            let row = render_item_row(
+                i,
+                item_row,
+                is_active,
+                is_selected,
+                item_id,
+                active_border,
+                view.clone(),
+            );
             div().when(indent, |this| this.pl(px(22.))).child(row)
         },
     ))
@@ -181,6 +209,7 @@ pub fn render_section_block<V: BoardSectionActions>(
     active_index: Option<usize>,
     active_border: Hsla,
     view: Entity<V>,
+    cx: &App,
 ) -> impl IntoElement {
     let view_clone = view.clone();
     let add_button = Button::new(format!("add-item-to-section-{}", section_id))
@@ -211,10 +240,11 @@ pub fn render_section_block<V: BoardSectionActions>(
     let mut block = board_section(section_name);
     block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
 
-    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone))
+    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
 }
 
 /// 渲染「No Section」区块
+#[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_no_section_block<V: BoardSectionActions>(
     items: &[(usize, Arc<ItemModel>)],
     item_rows: &[Entity<ItemRowState>],
@@ -222,6 +252,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
     active_border: Hsla,
     view: Entity<V>,
     _compact_toolbar: bool,
+    cx: &App,
 ) -> impl IntoElement {
     let view_clone = view.clone();
 
@@ -247,10 +278,12 @@ pub fn render_no_section_block<V: BoardSectionActions>(
         active_index,
         active_border,
         view_clone,
+        cx,
     ))
 }
 
 /// 渲染简单分组（标题 + 可选更多菜单 + 任务列表），用于 Pinned / Today 等虚拟分组
+#[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_simple_group_block<V: BoardView + Render>(
     title: &str,
     items: &[(usize, Arc<ItemModel>)],
@@ -259,6 +292,7 @@ pub fn render_simple_group_block<V: BoardView + Render>(
     active_border: Hsla,
     view: Entity<V>,
     _show_more_menu: bool,
+    cx: &App,
 ) -> impl IntoElement {
     board_section(title).child(render_item_list(
         items,
@@ -266,10 +300,12 @@ pub fn render_simple_group_block<V: BoardView + Render>(
         active_index,
         active_border,
         view,
+        cx,
     ))
 }
 
 /// 渲染带 Schedule 按钮的简单分组，用于 Past Due 等
+#[allow(clippy::too_many_arguments, reason = "渲染函数需聚合视图/数据/样式/交互等多类上下文")]
 pub fn render_group_with_schedule_button<V: BoardView + Render>(
     title: &str,
     items: &[(usize, Arc<ItemModel>)],
@@ -278,12 +314,13 @@ pub fn render_group_with_schedule_button<V: BoardView + Render>(
     active_border: Hsla,
     view: Entity<V>,
     schedule_button: &Entity<ScheduleButtonState>,
+    cx: &App,
 ) -> impl IntoElement {
     let view_clone = view.clone();
 
     board_section(title)
         .sub_title(crate::ui::components::ScheduleButton::new(schedule_button))
-        .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
+        .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
 }
 
 /// 渲染带前置工具栏元素的 Section 区块（如 Calendar Schedule 按钮 + Add + More）
@@ -297,6 +334,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
     active_border: Hsla,
     view: Entity<V>,
     leading: impl IntoElement,
+    cx: &App,
 ) -> impl IntoElement {
     let view_clone = view.clone();
 
@@ -327,5 +365,5 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
 
     board_section(section_name)
         .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
-        .child(render_item_list(items, item_rows, active_index, active_border, view_clone))
+        .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
 }

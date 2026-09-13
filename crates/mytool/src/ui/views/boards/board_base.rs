@@ -1,6 +1,6 @@
 use std::{cell::Cell, collections::HashMap, sync::Arc};
 
-use gpui::{App, AppContext, Context, Entity, FocusHandle, Subscription, Window};
+use gpui::{App, AppContext, BorrowAppContext, Context, Entity, FocusHandle, Subscription, Window};
 use gpui_component::{IndexPath, WindowExt};
 use sea_orm::sqlx::types::uuid;
 use todos::entity::SectionModel;
@@ -73,7 +73,68 @@ pub fn group_items(
         }
     }
 
+    sort_item_pairs(&mut grouped.pinned);
+    sort_item_pairs(&mut grouped.past_due);
+    sort_item_pairs(&mut grouped.due_today);
+    sort_item_pairs(&mut grouped.no_section);
+    for items in grouped.sections.values_mut() {
+        sort_item_pairs(items);
+    }
+
     grouped
+}
+
+fn sort_item_pairs(items: &mut Vec<(usize, Arc<todos::entity::ItemModel>)>) {
+    items.sort_by(|a, b| {
+        a.1.child_order
+            .unwrap_or(i32::MAX)
+            .cmp(&b.1.child_order.unwrap_or(i32::MAX))
+            .then_with(|| a.1.id.cmp(&b.1.id))
+    });
+}
+
+/// 在同一分组、同一父任务下按 `child_order` 交换相邻项。
+pub fn reorder_sibling_pairs(
+    group: &[(usize, Arc<todos::entity::ItemModel>)],
+    active_index: usize,
+    delta: i32,
+) -> Option<Vec<Arc<todos::entity::ItemModel>>> {
+    let active = group.iter().find(|(i, _)| *i == active_index)?.1.clone();
+    let parent = active.parent_id.clone();
+    let mut siblings: Vec<(usize, Arc<todos::entity::ItemModel>)> =
+        group.iter().filter(|(_, item)| item.parent_id == parent).cloned().collect();
+    sort_item_pairs(&mut siblings);
+    let pos = siblings.iter().position(|(i, _)| *i == active_index)?;
+    let new_pos = i32::try_from(pos).ok()?.saturating_add(delta);
+    if new_pos < 0 || new_pos >= siblings.len() as i32 {
+        return None;
+    }
+    siblings.swap(pos, new_pos as usize);
+    Some(
+        siblings
+            .into_iter()
+            .enumerate()
+            .map(|(ord, (_, item))| {
+                let mut item = (*item).clone();
+                item.child_order = Some(ord as i32);
+                Arc::new(item)
+            })
+            .collect(),
+    )
+}
+
+/// 在多个分组中找到包含 `active_index` 的那一组再排序。
+pub fn reorder_in_groups(
+    groups: &[&[(usize, Arc<todos::entity::ItemModel>)]],
+    active_index: usize,
+    delta: i32,
+) -> Option<Vec<Arc<todos::entity::ItemModel>>> {
+    for group in groups {
+        if group.iter().any(|(i, _)| *i == active_index) {
+            return reorder_sibling_pairs(group, active_index, delta);
+        }
+    }
+    None
 }
 
 /// 修正选中下标，避免越界；未选中时保持未选中。
@@ -390,16 +451,55 @@ impl BoardBase {
                 }
             });
             subscriptions.push(subscription);
+            subscriptions.push(cx.observe_global::<crate::core::state::ItemSelection>(|_, cx| {
+                cx.notify();
+            }));
         }
 
         Self::bootstrap_pending_if_needed(pending_refresh, item_rows_empty, has_store_data);
         Self::take_pending_refresh(pending_refresh)
     }
 
+    /// 当前看板各分组（用于上移/下移）。
+    pub fn reorder_groups(&self) -> Vec<&[(usize, Arc<todos::entity::ItemModel>)]> {
+        let mut groups: Vec<&[(usize, Arc<todos::entity::ItemModel>)]> = vec![
+            &self.pinned_items,
+            &self.past_due_items,
+            &self.due_today_items,
+            &self.no_section_items,
+        ];
+        for items in self.section_items_map.values() {
+            groups.push(items.as_slice());
+        }
+        groups
+    }
+
+    /// 在当前分组内上移/下移激活任务，并写回 `child_order`。
+    pub fn reorder_active<V: gpui::Render>(
+        &self,
+        delta: i32,
+        _window: &mut Window,
+        cx: &mut Context<V>,
+    ) {
+        let Some(active_index) = self.active_index else {
+            return;
+        };
+        let groups = self.reorder_groups();
+        let Some(updated) = reorder_in_groups(&groups, active_index, delta) else {
+            return;
+        };
+        crate::core::actions::batch::batch_update_items(updated, cx);
+    }
+
     /// 点击看板空白处时收起展开的任务，并取消选中
     pub fn on_background_click<V: gpui::Render>(&mut self, cx: &mut Context<V>) {
         self.collapse_open_rows(cx);
-        if self.active_index.take().is_some() {
+        let had_active = self.active_index.take().is_some();
+        let had_multi = !cx.global::<crate::core::state::ItemSelection>().is_empty();
+        if had_multi {
+            cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.clear());
+        }
+        if had_active || had_multi {
             cx.notify();
         }
     }
@@ -553,5 +653,30 @@ mod tests {
         idx = None;
         clamp_active_index(&mut idx, 2);
         assert_eq!(idx, None);
+    }
+
+    #[test]
+    fn reorder_swaps_child_order_among_siblings() {
+        let mut a = item("a", false, false, None);
+        let mut b = item("b", false, false, None);
+        Arc::make_mut(&mut a).child_order = Some(0);
+        Arc::make_mut(&mut b).child_order = Some(1);
+        let group = vec![(0, a), (1, b)];
+        let updated = reorder_sibling_pairs(&group, 0, 1).expect("swap");
+        assert_eq!(updated[0].id, "b");
+        assert_eq!(updated[0].child_order, Some(0));
+        assert_eq!(updated[1].id, "a");
+        assert_eq!(updated[1].child_order, Some(1));
+    }
+
+    #[test]
+    fn group_items_sorts_by_child_order() {
+        let mut first = item("z", false, false, None);
+        let mut second = item("a", false, false, None);
+        Arc::make_mut(&mut first).child_order = Some(0);
+        Arc::make_mut(&mut second).child_order = Some(1);
+        let grouped = group_items(&[second, first], PinnedLayout::Exclusive, false);
+        assert_eq!(grouped.no_section[0].1.id, "z");
+        assert_eq!(grouped.no_section[1].1.id, "a");
     }
 }

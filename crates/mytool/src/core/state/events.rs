@@ -2,7 +2,7 @@
 //!
 //! 邮箱字段用 Mutex，观察者消费时不必 `update_global`，避免再次通知自己卡死。
 
-use std::sync::Mutex;
+use std::{collections::HashSet, sync::Mutex};
 
 use gpui::Global;
 
@@ -15,6 +15,56 @@ pub enum SaveStatus {
     Saving,
     /// 保存错误
     HasError,
+}
+
+/// 看板多选（Ctrl/Cmd+点击）。独立 Global，避免误触发 TodoStore 全量刷新。
+#[derive(Default)]
+pub struct ItemSelection {
+    ids: HashSet<String>,
+}
+
+impl Global for ItemSelection {}
+
+impl ItemSelection {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn ids(&self) -> &HashSet<String> {
+        &self.ids
+    }
+
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
+    pub fn contains(&self, id: &str) -> bool {
+        self.ids.contains(id)
+    }
+
+    pub fn clear(&mut self) {
+        self.ids.clear();
+    }
+
+    pub fn set_ids(&mut self, ids: HashSet<String>) {
+        self.ids = ids;
+    }
+
+    /// 普通点击：只保留这一项。修饰键点击：切换该项。
+    pub fn apply_click(&mut self, id: String, multi: bool) {
+        if multi {
+            if !self.ids.remove(&id) {
+                self.ids.insert(id);
+            }
+        } else {
+            self.ids.clear();
+            self.ids.insert(id);
+        }
+    }
 }
 
 /// 错误通知器

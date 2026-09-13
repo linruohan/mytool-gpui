@@ -41,6 +41,8 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 到期提醒（由 watcher 写入，StoryRoot 弹出）
     cx.set_global(ReminderNotifier::new());
 
+    cx.set_global(ItemSelection::new());
+
     // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
 
