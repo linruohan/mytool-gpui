@@ -17,15 +17,16 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
-    BoardPanel, ClearFilters, DeleteProject,
+    BoardPanel, ClearFilters, CompletedBoard, DeleteProject,
     DeleteSection, DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask,
     FilterByLabel, FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem,
-    MoveTaskToProject, NewProject, NewSection, NewTask, NextView, OpenHelp, OpenSettings,
-    PreviousView, ProjectEvent, ProjectItemEvent,
+    MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView,
+    OpenHelp, OpenSettings, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent,
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
     SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted,
-    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ToggleFullscreen, ToggleSidebar,
-    ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
+    ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ScheduledBoard, TodayBoard,
+    ToggleFullscreen, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn,
+    ZoomOut, play_ogg_file,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -814,6 +815,55 @@ impl TodoStory {
         show_move_to_project_dialog(window, cx, items);
     }
 
+    fn reorder_active_task(&mut self, delta: i32, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(item) = self.primary_item(cx) else {
+            return;
+        };
+        let id = item.id.clone();
+        if self.active_project.is_some() {
+            self.project_items_panel.update(cx, |panel, cx| {
+                panel.reorder_by_item_id(&id, delta, cx);
+            });
+            return;
+        }
+        let Some(ix) = self.board_panel.read(cx).active_index else {
+            return;
+        };
+        let Some(container) = self.board_panel.read(cx).boards.get(ix).cloned() else {
+            return;
+        };
+        let Some(board) = container.read(cx).inner_board() else {
+            return;
+        };
+        if let Ok(view) = board.clone().downcast::<InboxBoard>() {
+            view.update(cx, |panel, cx| panel.reorder_by_item_id(&id, delta, window, cx));
+            return;
+        }
+        if let Ok(view) = board.clone().downcast::<TodayBoard>() {
+            view.update(cx, |panel, cx| panel.reorder_by_item_id(&id, delta, window, cx));
+            return;
+        }
+        if let Ok(view) = board.clone().downcast::<ScheduledBoard>() {
+            view.update(cx, |panel, cx| panel.reorder_by_item_id(&id, delta, window, cx));
+            return;
+        }
+        if let Ok(view) = board.clone().downcast::<PinBoard>() {
+            view.update(cx, |panel, cx| panel.reorder_by_item_id(&id, delta, window, cx));
+            return;
+        }
+        if let Ok(view) = board.downcast::<CompletedBoard>() {
+            view.update(cx, |panel, cx| panel.reorder_by_item_id(&id, delta, window, cx));
+        }
+    }
+
+    fn on_move_task_up(&mut self, _: &MoveTaskUp, window: &mut Window, cx: &mut Context<Self>) {
+        self.reorder_active_task(-1, window, cx);
+    }
+
+    fn on_move_task_down(&mut self, _: &MoveTaskDown, window: &mut Window, cx: &mut Context<Self>) {
+        self.reorder_active_task(1, window, cx);
+    }
+
     fn on_next_view(&mut self, _: &NextView, _: &mut Window, cx: &mut Context<Self>) {
         self.cycle_board(1, cx);
     }
@@ -1029,6 +1079,8 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_set_priority))
             .on_action(cx.listener(Self::on_move_to_project))
             .on_action(cx.listener(Self::on_batch_move_selected))
+            .on_action(cx.listener(Self::on_move_task_up))
+            .on_action(cx.listener(Self::on_move_task_down))
             .on_action(cx.listener(Self::on_next_view))
             .on_action(cx.listener(Self::on_previous_view))
             .on_action(cx.listener(Self::on_go_back))

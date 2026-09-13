@@ -627,6 +627,21 @@ impl BoardBase {
         crate::core::actions::batch::batch_update_items(updated, cx);
     }
 
+    /// 按任务 id 在当前分组内上移/下移（键盘选中时 `active_index` 可能尚未同步）。
+    pub fn reorder_by_item_id<V: gpui::Render>(
+        &mut self,
+        item_id: &str,
+        delta: i32,
+        window: &mut Window,
+        cx: &mut Context<V>,
+    ) {
+        let Some(active_index) = self.item_row_ids.iter().position(|id| id == item_id) else {
+            return;
+        };
+        self.active_index = Some(active_index);
+        self.reorder_active(delta, window, cx);
+    }
+
     /// 点击看板空白处时收起展开的任务，并取消选中
     pub fn on_background_click<V: gpui::Render>(&mut self, cx: &mut Context<V>) {
         self.collapse_open_rows(cx);

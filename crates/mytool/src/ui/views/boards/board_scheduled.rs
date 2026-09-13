@@ -59,6 +59,16 @@ impl ScheduledBoard {
         cx.new(|cx| Self::new(window, cx))
     }
 
+    pub fn reorder_by_item_id(
+        &mut self,
+        item_id: &str,
+        delta: i32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.base.reorder_by_item_id(item_id, delta, window, cx);
+    }
+
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let date_picker = cx.new(|cx| DatePickerState::new(window, cx));
         let calendar = cx.new(|cx| CalendarState::new(window, cx));

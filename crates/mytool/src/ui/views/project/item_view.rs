@@ -598,6 +598,14 @@ impl ProjectItemsPanel {
         };
         crate::core::actions::batch::batch_update_items(updated, cx);
     }
+
+    pub fn reorder_by_item_id(&mut self, item_id: &str, delta: i32, cx: &mut Context<Self>) {
+        let Some(active_index) = self.item_row_ids.iter().position(|id| id == item_id) else {
+            return;
+        };
+        self.active_index = Some(active_index);
+        self.reorder_active(delta, cx);
+    }
 }
 
 crate::impl_board_section_actions!(ProjectItemsPanel);

@@ -47,6 +47,16 @@ impl CompletedBoard {
         Self { base: BoardBase::new(window, cx) }
     }
 
+    pub fn reorder_by_item_id(
+        &mut self,
+        item_id: &str,
+        delta: i32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.base.reorder_by_item_id(item_id, delta, window, cx);
+    }
+
     fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.base.apply_store_refresh(
             window,
