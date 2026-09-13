@@ -1,10 +1,19 @@
 //! Todo 设置与快捷键帮助对话框
 
-use gpui::{BorrowAppContext, Context, ParentElement, Render, Styled, Window, div, px};
-use gpui_component::{ActiveTheme, WindowExt, switch::Switch, v_flex};
+use std::sync::Arc;
+
+use gpui::{AppContext, BorrowAppContext, Context, ParentElement, Render, Styled, Window, div, px};
+use gpui_component::{
+    ActiveTheme, WindowExt,
+    date_picker::{DatePicker, DatePickerState},
+    switch::Switch,
+    v_flex,
+};
+use todos::entity::ItemModel;
 
 use crate::{
     core::shortcuts::{ShortcutCategory, get_shortcuts_by_category},
+    todo_actions::update_item_optimistic,
     todo_state::TodoPrefs,
 };
 
@@ -50,6 +59,7 @@ pub fn show_todo_help_dialog<T: Render>(window: &mut Window, cx: &mut Context<T>
         ShortcutCategory::Search,
         ShortcutCategory::Selection,
         ShortcutCategory::View,
+        ShortcutCategory::Project,
     ]
     .into_iter()
     .flat_map(|cat| {
@@ -104,5 +114,57 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
             | "DeleteTask"
             | "ToggleTaskComplete"
             | "DuplicateTask"
+            | "ToggleTaskPin"
+            | "SetDueDate"
+            | "SelectPreviousTask"
+            | "SelectNextTask"
+            | "ToggleSidebar"
+            | "NewProject"
     )
+}
+
+pub fn show_set_due_dialog<T: Render>(
+    window: &mut Window,
+    cx: &mut Context<T>,
+    item: Arc<ItemModel>,
+) {
+    let picker = cx.new(|cx| {
+        let mut picker = DatePickerState::new(window, cx);
+        if let Some(date) = item.due_date_naive() {
+            picker.set_date(date, window, cx);
+        }
+        picker
+    });
+    window.open_dialog(cx, move |dialog, _, _| {
+        dialog
+            .title("设置截止日期")
+            .overlay(true)
+            .overlay_closable(true)
+            .child(DatePicker::new(&picker).cleanable(true).placeholder("截止日期"))
+            .on_ok({
+                let picker = picker.clone();
+                let item = item.clone();
+                move |_, window, cx| {
+                    let ymd = picker.read(cx).date().format("%Y-%m-%d").map(|s| s.to_string());
+                    let mut updated = (*item).clone();
+                    match ymd {
+                        Some(ymd) => {
+                            let mut due = item.due_date().unwrap_or_default();
+                            let time = due
+                                .date
+                                .split_once(' ')
+                                .map(|(_, t)| t)
+                                .filter(|t| !t.is_empty())
+                                .unwrap_or("00:00:00");
+                            due.date = format!("{ymd} {time}");
+                            updated.set_due_date(Some(due));
+                        },
+                        None => updated.set_due_date(None),
+                    }
+                    update_item_optimistic(Arc::new(updated), cx);
+                    window.push_notification("已更新日期", cx);
+                    true
+                }
+            })
+    });
 }

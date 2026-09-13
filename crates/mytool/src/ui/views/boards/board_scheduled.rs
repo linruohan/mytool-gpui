@@ -9,10 +9,12 @@ use chrono::Datelike;
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     MouseButton, ParentElement, Render, Styled, Subscription, Window, div, prelude::FluentBuilder,
+    px,
 };
 use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
+    calendar::{Calendar, CalendarEvent, CalendarState},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dock::PanelControl,
     h_flex,
@@ -45,8 +47,10 @@ pub struct ScheduledBoard {
     /// 按日期分组的缓存（在 refresh 时构建，render 只读）
     grouped_by_date: Vec<(String, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
     date_picker: Entity<DatePickerState>,
+    calendar: Entity<CalendarState>,
     filter_date: Option<String>,
     _date_subscription: Subscription,
+    _calendar_subscription: Subscription,
 }
 
 impl ScheduledBoard {
@@ -56,9 +60,16 @@ impl ScheduledBoard {
 
     pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let date_picker = cx.new(|cx| DatePickerState::new(window, cx));
+        let calendar = cx.new(|cx| CalendarState::new(window, cx));
         let _date_subscription =
             cx.subscribe(&date_picker, |this, _, event: &DatePickerEvent, cx| {
                 let DatePickerEvent::Change(date) = event;
+                this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
+                cx.notify();
+            });
+        let _calendar_subscription =
+            cx.subscribe(&calendar, |this, _, event: &CalendarEvent, cx| {
+                let CalendarEvent::Selected(date) = event;
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
                 cx.notify();
             });
@@ -66,8 +77,10 @@ impl ScheduledBoard {
             base: BoardBase::new(window, cx),
             grouped_by_date: Vec::new(),
             date_picker,
+            calendar,
             filter_date: None,
             _date_subscription,
+            _calendar_subscription,
         }
     }
 
@@ -257,6 +270,8 @@ impl Render for ScheduledBoard {
         let grouped_by_date = &self.grouped_by_date;
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
         let date_picker = self.date_picker.clone();
+        let calendar = self.calendar.clone();
+        let has_filter = filter_date.is_some();
 
         v_flex()
             .id("scheduled-board")
@@ -285,6 +300,18 @@ impl Render for ScheduledBoard {
                 h_flex()
                     .gap(VisualHierarchy::spacing(2.0))
                     .child(DatePicker::new(&date_picker).cleanable(true).placeholder("按日期筛选"))
+                    .when(has_filter, |this| {
+                        this.child(
+                            Button::new("clear-date-filter")
+                                .small()
+                                .ghost()
+                                .label("全部")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.filter_date = None;
+                                    cx.notify();
+                                })),
+                        )
+                    })
                     .when(active_index.is_some(), |this| {
                         this.child(
                             Button::new("item-actions")
@@ -329,54 +356,68 @@ impl Render for ScheduledBoard {
             ))
             .child(crate::ui::views::boards::board_common::render_batch_bar(cx))
             .child(
-                v_flex().flex_1().overflow_y_scrollbar().child(
-                    v_flex()
-                        .gap(VisualHierarchy::spacing(2.0))
-                        .px_4()
-                        .pt_1()
-                        .pb(FAB_BOTTOM_PAD)
-                        .when(item_rows.is_empty(), |this| {
-                            this.child(board_renderer::render_empty_placeholder(
-                                cx,
-                                ScheduledBoard::icon(),
-                                "添加一些任务",
-                                "设置日期后会按天分组显示",
-                            ))
-                        })
-                        .children(grouped_by_date.iter().filter_map(|(date, items)| {
-                            if items.is_empty() {
-                                return None;
-                            }
-                            if let Some(filter) = filter_date.as_deref()
-                                && date.as_str() != filter
-                            {
-                                return None;
-                            }
-
-                            let heading = format_schedule_heading(date, &today);
-                            let is_today = date.as_str() == today;
-                            let view_clone = view.clone();
-
-                            let title_color =
-                                if is_today { orange_color } else { cx.theme().foreground };
-
-                            Some(
-                                section_with_title(
-                                    div().text_base().text_color(title_color).child(heading),
-                                )
-                                .child(
-                                    board_renderer::render_item_list(
-                                        items,
-                                        item_rows,
-                                        active_index,
-                                        active_border,
-                                        view_clone,
+                h_flex()
+                    .flex_1()
+                    .min_h_0()
+                    .items_start()
+                    .child(
+                        v_flex().w(px(280.)).px_2().pt_1().child(
+                            Calendar::new(&calendar).first_day_of_week(chrono::Weekday::Mon),
+                        ),
+                    )
+                    .child(
+                        v_flex().flex_1().overflow_y_scrollbar().child(
+                            v_flex()
+                                .gap(VisualHierarchy::spacing(2.0))
+                                .px_4()
+                                .pt_1()
+                                .pb(FAB_BOTTOM_PAD)
+                                .when(item_rows.is_empty(), |this| {
+                                    this.child(board_renderer::render_empty_placeholder(
                                         cx,
-                                    ),
-                                ),
-                            )
-                        })),
-                ),
+                                        ScheduledBoard::icon(),
+                                        "添加一些任务",
+                                        "设置日期后会按天分组显示",
+                                    ))
+                                })
+                                .children(grouped_by_date.iter().filter_map(|(date, items)| {
+                                    if items.is_empty() {
+                                        return None;
+                                    }
+                                    if let Some(filter) = filter_date.as_deref()
+                                        && date.as_str() != filter
+                                    {
+                                        return None;
+                                    }
+
+                                    let heading = format_schedule_heading(date, &today);
+                                    let is_today = date.as_str() == today;
+                                    let view_clone = view.clone();
+
+                                    let title_color =
+                                        if is_today { orange_color } else { cx.theme().foreground };
+
+                                    Some(
+                                        section_with_title(
+                                            div()
+                                                .text_base()
+                                                .text_color(title_color)
+                                                .child(heading),
+                                        )
+                                        .child(
+                                            board_renderer::render_item_list(
+                                                items,
+                                                item_rows,
+                                                active_index,
+                                                active_border,
+                                                view_clone,
+                                                cx,
+                                            ),
+                                        ),
+                                    )
+                                })),
+                        ),
+                    ),
             )
             .child(crate::ui::views::boards::board_common::render_add_task_fab(
                 "fab-add-scheduled",

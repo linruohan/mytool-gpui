@@ -16,13 +16,15 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     BatchCompleteSelected, BatchDeleteSelected, BoardPanel, DeleteTask, DeselectAll, DuplicateTask,
-    EditTask, NewTask, OpenHelp, OpenSettings, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
-    ProjectsPanel, SearchTasks, SelectAllTasks, ShowCompleted, ShowInbox, ShowLabels, ShowPinned,
-    ShowScheduled, ShowToday, ToggleTaskComplete, UndoLastTask, play_ogg_file,
+    EditTask, NewProject, NewTask, OpenHelp, OpenSettings, ProjectEvent, ProjectItemEvent,
+    ProjectItemsPanel, ProjectsPanel, SearchTasks, SelectAllTasks, SelectNextTask,
+    SelectPreviousTask, SetDueDate, ShowCompleted, ShowInbox, ShowLabels, ShowPinned,
+    ShowScheduled, ShowToday, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask,
+    play_ogg_file,
     todo_state::TodoStore,
     ui::components::{
-        show_existing_item_dialog, show_new_item_dialog, show_todo_help_dialog,
-        show_todo_settings_dialog,
+        show_existing_item_dialog, show_new_item_dialog, show_set_due_dialog,
+        show_todo_help_dialog, show_todo_settings_dialog,
     },
 };
 
@@ -228,26 +230,48 @@ impl TodoStory {
         if self.search_open {
             return;
         }
-        let ids = {
-            let store = cx.global::<TodoStore>();
-            let cache = cx.global::<crate::core::state::QueryCache>();
-            let items = if let Some(ix) = self.board_panel.read(cx).active_index {
-                match ix {
-                    0 => store.inbox_items_cached(cache).as_ref().clone(),
-                    1 => store.today_items_cached(cache).as_ref().clone(),
-                    2 => store.scheduled_items_cached(cache).as_ref().clone(),
-                    4 => store.pinned_items_cached(cache).as_ref().clone(),
-                    5 => store.completed_items_cached(cache).as_ref().clone(),
-                    _ => Vec::new(),
-                }
-            } else if let Some(project) = &self.active_project {
-                store.items_by_project(&project.id).to_vec()
-            } else {
-                Vec::new()
-            };
-            items.into_iter().map(|item| item.id.clone()).collect()
-        };
+        let ids = self.visible_item_ids(cx).into_iter().collect();
         cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.set_ids(ids));
+        cx.notify();
+    }
+
+    fn visible_item_ids(&self, cx: &App) -> Vec<String> {
+        if self.search_open {
+            let q = self.search_input.read(cx).value().to_string();
+            return cx
+                .global::<TodoStore>()
+                .search_items(&q)
+                .into_iter()
+                .map(|item| item.id.clone())
+                .collect();
+        }
+        let store = cx.global::<TodoStore>();
+        let cache = cx.global::<crate::core::state::QueryCache>();
+        let items = if let Some(ix) = self.board_panel.read(cx).active_index {
+            match ix {
+                0 => store.inbox_items_cached(cache).as_ref().clone(),
+                1 => store.today_items_cached(cache).as_ref().clone(),
+                2 => store.scheduled_items_cached(cache).as_ref().clone(),
+                4 => store.pinned_items_cached(cache).as_ref().clone(),
+                5 => store.completed_items_cached(cache).as_ref().clone(),
+                _ => Vec::new(),
+            }
+        } else if let Some(project) = &self.active_project {
+            store.items_by_project(&project.id).to_vec()
+        } else {
+            Vec::new()
+        };
+        items.into_iter().map(|item| item.id.clone()).collect()
+    }
+
+    fn step_selection(&mut self, delta: i32, cx: &mut Context<Self>) {
+        let ids = self.visible_item_ids(cx);
+        let current =
+            cx.global::<crate::core::state::ItemSelection>().primary_id().map(str::to_string);
+        let Some(next) = crate::todo_state::step_visible_id(&ids, current.as_deref(), delta) else {
+            return;
+        };
+        cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.select_only(next));
         cx.notify();
     }
 
@@ -315,14 +339,9 @@ impl TodoStory {
             window.push_notification("已删除任务。", cx);
             return;
         }
-        crate::show_item_delete_dialog(
-            window,
-            cx,
-            "确定删除这个任务吗？",
-            move |cx| {
-                crate::todo_actions::delete_item_optimistic(item.clone(), cx);
-            },
-        );
+        crate::show_item_delete_dialog(window, cx, "确定删除这个任务吗？", move |cx| {
+            crate::todo_actions::delete_item_optimistic(item.clone(), cx);
+        });
     }
 
     fn on_toggle_complete(
@@ -354,6 +373,42 @@ impl TodoStory {
         copy.completed_at = None;
         crate::todo_actions::add_item_optimistic(Arc::new(copy), cx);
         window.push_notification("已复制任务", cx);
+    }
+
+    fn on_toggle_pin(&mut self, _: &ToggleTaskPin, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = self.primary_item(cx) {
+            let pinned = !item.pinned;
+            crate::todo_actions::set_item_pinned_optimistic(item, pinned, cx);
+            window.push_notification(if pinned { "已置顶" } else { "已取消置顶" }, cx);
+        }
+    }
+
+    fn on_set_due_date(&mut self, _: &SetDueDate, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(item) = self.primary_item(cx) {
+            show_set_due_dialog(window, cx, item);
+        }
+    }
+
+    fn on_select_previous(
+        &mut self,
+        _: &SelectPreviousTask,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.step_selection(-1, cx);
+    }
+
+    fn on_select_next(&mut self, _: &SelectNextTask, _: &mut Window, cx: &mut Context<Self>) {
+        self.step_selection(1, cx);
+    }
+
+    fn on_toggle_sidebar(&mut self, _: &ToggleSidebar, _: &mut Window, cx: &mut Context<Self>) {
+        self.collapsed = !self.collapsed;
+        cx.notify();
+    }
+
+    fn on_new_project(&mut self, _: &NewProject, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_new_project(window, cx);
     }
 
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
@@ -410,12 +465,16 @@ impl TodoStory {
         cx.new(|cx| Self::new(Some(""), window, cx))
     }
 
-    fn add_project(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+    fn open_new_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let _ = play_ogg_file("assets/sounds/success.ogg");
         self.project_panel.update(cx, |project_panel, cx| {
             project_panel.open_project_dialog(Arc::new(ProjectModel::default()), window, cx);
             cx.notify();
         });
+    }
+
+    fn add_project(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_new_project(window, cx);
     }
 }
 impl Render for TodoStory {
@@ -461,6 +520,12 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_delete_task))
             .on_action(cx.listener(Self::on_toggle_complete))
             .on_action(cx.listener(Self::on_duplicate_task))
+            .on_action(cx.listener(Self::on_toggle_pin))
+            .on_action(cx.listener(Self::on_set_due_date))
+            .on_action(cx.listener(Self::on_select_previous))
+            .on_action(cx.listener(Self::on_select_next))
+            .on_action(cx.listener(Self::on_toggle_sidebar))
+            .on_action(cx.listener(Self::on_new_project))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))

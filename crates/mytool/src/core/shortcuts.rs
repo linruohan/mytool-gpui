@@ -486,6 +486,24 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-shift-d", DuplicateTask, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-shift-d", DuplicateTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-p", ToggleTaskPin, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-p", ToggleTaskPin, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-t", SetDueDate, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-t", SetDueDate, CTX),
+        KeyBinding::new("up", SelectPreviousTask, CTX),
+        KeyBinding::new("down", SelectNextTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-b", ToggleSidebar, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-b", ToggleSidebar, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-n", NewProject, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-shift-n", NewProject, CTX),
     ]);
 }
 

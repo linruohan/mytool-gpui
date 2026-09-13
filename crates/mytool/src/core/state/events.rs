@@ -61,6 +61,10 @@ impl ItemSelection {
         self.ids = ids;
     }
 
+    pub fn select_only(&mut self, id: String) {
+        self.apply_click(id, false);
+    }
+
     /// 普通点击：只保留这一项。修饰键点击：切换该项。
     pub fn apply_click(&mut self, id: String, multi: bool) {
         if multi {
@@ -191,5 +195,34 @@ impl SaveResults {
     pub fn clear(&self) {
         self.succeeded.lock().unwrap().clear();
         self.failed.lock().unwrap().clear();
+    }
+}
+
+/// 在可见列表里按 delta 移动当前项（循环）。无选中时：向下取第一项，向上取最后一项。
+pub fn step_visible_id(ids: &[String], current: Option<&str>, delta: i32) -> Option<String> {
+    if ids.is_empty() {
+        return None;
+    }
+    let n = ids.len() as i32;
+    let ix = match current.and_then(|id| ids.iter().position(|x| x == id)) {
+        Some(i) => (i as i32 + delta).rem_euclid(n) as usize,
+        None if delta < 0 => ids.len() - 1,
+        None => 0,
+    };
+    Some(ids[ix].clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::step_visible_id;
+
+    #[test]
+    fn step_visible_id_wraps_and_defaults() {
+        let ids = vec!["a".into(), "b".into(), "c".into()];
+        assert_eq!(step_visible_id(&ids, None, 1).as_deref(), Some("a"));
+        assert_eq!(step_visible_id(&ids, None, -1).as_deref(), Some("c"));
+        assert_eq!(step_visible_id(&ids, Some("a"), 1).as_deref(), Some("b"));
+        assert_eq!(step_visible_id(&ids, Some("c"), 1).as_deref(), Some("a"));
+        assert_eq!(step_visible_id(&ids, Some("a"), -1).as_deref(), Some("c"));
     }
 }
