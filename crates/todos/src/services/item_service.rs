@@ -294,15 +294,28 @@ impl ItemService {
         checked: bool,
         complete_subitems: bool,
     ) -> Result<(), TodoError> {
+        let item = ItemEntity::find_by_id(item_id)
+            .one(&*self.db)
+            .await?
+            .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?;
+
+        if checked
+            && let Some(next_due) = item.due_date().and_then(|d| d.next_due_after_completion())
+        {
+            let mut active: ItemActiveModel = item.into();
+            active.checked = Set(false);
+            active.completed_at = Set(None);
+            active.due =
+                Set(Some(serde_json::to_value(next_due).unwrap_or(serde_json::Value::Null)));
+            active.update(&*self.db).await?;
+            return Ok(());
+        }
+
         let active_model = ItemActiveModel {
             id: Set(item_id.to_string()),
             checked: Set(checked),
             completed_at: Set(if checked { Some(chrono::Utc::now().naive_utc()) } else { None }),
-            ..ItemEntity::find_by_id(item_id)
-                .one(&*self.db)
-                .await?
-                .ok_or_else(|| TodoError::not_found("Item").with_entity("Item", item_id))?
-                .into()
+            ..item.into()
         };
         let item_model = active_model.update(&*self.db).await?;
 

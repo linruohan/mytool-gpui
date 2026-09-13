@@ -169,6 +169,42 @@ pub fn show_item_dialog<T, F>(
     });
 }
 
+/// 打开新建任务对话框
+pub fn show_new_item_dialog<T>(
+    window: &mut Window,
+    cx: &mut Context<T>,
+    item: todos::entity::ItemModel,
+) where
+    T: Render + 'static,
+{
+    let item_info = cx.new(|cx| crate::ItemInfoState::new(Arc::new(item), window, cx));
+    show_item_dialog(
+        window,
+        cx,
+        item_info,
+        EditDialogConfig::new("新建任务", "添加", false),
+        |_item, _cx| {},
+    );
+}
+
+/// 打开编辑已有任务对话框
+pub fn show_existing_item_dialog<T>(
+    window: &mut Window,
+    cx: &mut Context<T>,
+    item: Arc<todos::entity::ItemModel>,
+) where
+    T: Render + 'static,
+{
+    let item_info = cx.new(|cx| crate::ItemInfoState::new(item, window, cx));
+    show_item_dialog(
+        window,
+        cx,
+        item_info,
+        EditDialogConfig::new("编辑任务", "保存", true),
+        |_item, _cx| {},
+    );
+}
+
 /// 显示 Section 编辑对话框
 ///
 /// # 参数

@@ -7,7 +7,7 @@
 /// - 导航：在不同视图间切换
 /// - 搜索和过滤：快速查找任务
 /// - 窗口管理：关闭、最小化等
-use gpui::actions;
+use gpui::{App, KeyBinding, actions};
 
 // ==================== 任务操作快捷键 ====================
 
@@ -384,6 +384,46 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             category: ShortcutCategory::View,
         },
     ]
+}
+
+/// 将 Todo 视图快捷键绑到 `TodoStory` 键上下文（Gallery 入口保持不变）
+pub fn bind_todo_keys(cx: &mut App) {
+    const CTX: Option<&str> = Some("TodoStory");
+    cx.bind_keys([
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-n", NewTask, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-n", NewTask, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-f", SearchTasks, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-f", SearchTasks, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-1", ShowInbox, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-1", ShowInbox, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-2", ShowToday, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-2", ShowToday, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-3", ShowScheduled, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-3", ShowScheduled, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-4", ShowLabels, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-4", ShowLabels, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-5", ShowPinned, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-5", ShowPinned, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-6", ShowCompleted, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-6", ShowCompleted, CTX),
+        KeyBinding::new("escape", DeselectAll, CTX),
+    ]);
 }
 
 /// 按分类获取快捷键

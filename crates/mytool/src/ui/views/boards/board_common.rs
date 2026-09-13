@@ -135,6 +135,11 @@ pub fn show_finish_item_dialog<T>(
 ) where
     T: Render + 'static,
 {
+    let success = if item.due_date().and_then(|d| d.next_due_after_completion()).is_some() {
+        "已安排下一期"
+    } else {
+        style.success_notification()
+    };
     show_confirm_dialog(
         window,
         cx,
@@ -143,7 +148,7 @@ pub fn show_finish_item_dialog<T>(
         move |cx| {
             complete_item_optimistic(item.clone(), true, cx);
         },
-        style.success_notification(),
+        success,
         style.cancel_notification(),
     );
 }

@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use crate::{
     entity::{ReminderActiveModel, ReminderModel, prelude::*, reminders},
@@ -52,5 +52,25 @@ impl ReminderService {
     pub async fn delete_reminder(&self, id: &str) -> Result<u64, TodoError> {
         let result = ReminderEntity::delete_by_id(id).exec(&*self.db).await?;
         Ok(result.rows_affected)
+    }
+
+    /// 未删除的提醒
+    pub async fn get_active_reminders(&self) -> Result<Vec<ReminderModel>, TodoError> {
+        let reminders = ReminderEntity::find()
+            .filter(reminders::Column::IsDeleted.eq(false))
+            .all(&*self.db)
+            .await?;
+        Ok(reminders)
+    }
+
+    /// 标记提醒已触发（软删除，避免重复弹出）
+    pub async fn mark_reminder_notified(&self, id: &str) -> Result<(), TodoError> {
+        let Some(model) = ReminderEntity::find_by_id(id).one(&*self.db).await? else {
+            return Ok(());
+        };
+        let mut active: ReminderActiveModel = model.into();
+        active.is_deleted = Set(true);
+        active.update(&*self.db).await?;
+        Ok(())
     }
 }

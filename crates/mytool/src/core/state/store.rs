@@ -533,6 +533,24 @@ impl TodoStore {
         })
     }
 
+    /// 按标题/描述搜索任务（大小写不敏感）
+    pub fn search_items(&self, query: &str) -> Vec<Arc<ItemModel>> {
+        let q = query.trim().to_lowercase();
+        if q.is_empty() {
+            return Vec::new();
+        }
+        self.all_items
+            .iter()
+            .filter(|item| !item.is_deleted)
+            .filter(|item| {
+                item.content.to_lowercase().contains(&q)
+                    || item.description.as_deref().is_some_and(|d| d.to_lowercase().contains(&q))
+            })
+            .take(40)
+            .cloned()
+            .collect()
+    }
+
     fn cached_query(
         &self,
         cache: &crate::core::state::cache::QueryCache,

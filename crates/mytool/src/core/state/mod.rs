@@ -38,6 +38,9 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
     // 初始化错误通知器
     cx.set_global(ErrorNotifier::new());
 
+    // 到期提醒（由 watcher 写入，StoryRoot 弹出）
+    cx.set_global(ReminderNotifier::new());
+
     // 初始化待处理任务状态（用于跟踪异步保存操作）
     cx.set_global(PendingTasksState::new());
 
@@ -124,4 +127,6 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
         tracing::info!("Initial data load task finished, UI will be notified");
     })
     .detach();
+
+    crate::todo_actions::start_reminder_watcher(cx);
 }

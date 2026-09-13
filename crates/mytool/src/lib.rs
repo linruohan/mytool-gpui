@@ -227,6 +227,7 @@ pub fn init(cx: &mut App) {
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("alt-f4", Quit, None),
     ]);
+    crate::core::shortcuts::bind_todo_keys(cx);
 
     cx.on_action(|_: &Quit, cx: &mut App| {
         // 先等待 DB Runtime 中的异步任务完成

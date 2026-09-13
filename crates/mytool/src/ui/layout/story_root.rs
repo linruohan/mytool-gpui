@@ -6,7 +6,10 @@ use gpui::{
 use gpui_component::{Root, WindowExt, notification::Notification, v_flex};
 use gpui_fps::fps_monitor;
 
-use crate::{AppState, AppTitleBar, ShowPanelInfo, ToggleSearch, core::state::ErrorNotifier};
+use crate::{
+    AppState, AppTitleBar, ShowPanelInfo, ToggleSearch,
+    core::state::{ErrorNotifier, ReminderNotifier},
+};
 
 pub struct StoryRoot {
     pub(crate) focus_handle: FocusHandle,
@@ -30,11 +33,18 @@ impl StoryRoot {
             struct SaveError;
             window.push_notification(Notification::new().message(msg).id::<SaveError>(), cx);
         });
+        let reminder_sub = cx.observe_global_in::<ReminderNotifier>(window, |_, window, cx| {
+            let messages = cx.global::<ReminderNotifier>().take_all();
+            for msg in messages {
+                struct DueReminder;
+                window.push_notification(Notification::new().message(msg).id::<DueReminder>(), cx);
+            }
+        });
         Self {
             focus_handle: cx.focus_handle(),
             title_bar,
             view: view.into(),
-            _subscriptions: vec![error_sub],
+            _subscriptions: vec![error_sub, reminder_sub],
         }
     }
 

@@ -340,7 +340,7 @@ pub fn set_item_pinned_optimistic(item: Arc<ItemModel>, pinned: bool, cx: &mut A
 /// 乐观完成任务
 pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut App) {
     let item_id = item.id.clone();
-    let old_checked = item.checked;
+    let original = item.clone();
 
     debug!(
         "Optimistically {} item: {}",
@@ -349,8 +349,17 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     );
 
     let mut updated_item = (*item).clone();
-    updated_item.checked = checked;
-    updated_item.completed_at = if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+    if checked
+        && let Some(next_due) = updated_item.due_date().and_then(|d| d.next_due_after_completion())
+    {
+        updated_item.set_due_date(Some(next_due));
+        updated_item.checked = false;
+        updated_item.completed_at = None;
+    } else {
+        updated_item.checked = checked;
+        updated_item.completed_at =
+            if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+    }
 
     cx.update_global::<TodoStore, _>(|store, _| {
         store.update_item(Arc::new(updated_item.clone()));
@@ -383,12 +392,8 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
                 );
                 error!("{}", context.format_user_message());
 
-                let mut reverted_item = updated_item.clone();
-                reverted_item.checked = old_checked;
-                reverted_item.completed_at =
-                    if old_checked { Some(chrono::Utc::now().naive_utc()) } else { None };
                 cx.update_global::<TodoStore, _>(|store, _| {
-                    store.update_item(Arc::new(reverted_item));
+                    store.update_item(original);
                 });
 
                 cx.update_global::<ErrorNotifier, _>(|notifier, _| {

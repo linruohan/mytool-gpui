@@ -211,6 +211,14 @@ impl Store {
         self.reminder_service.delete_reminder(reminder_id).await
     }
 
+    pub async fn get_active_reminders(&self) -> Result<Vec<ReminderModel>, TodoError> {
+        self.reminder_service.get_active_reminders().await
+    }
+
+    pub async fn mark_reminder_notified(&self, reminder_id: &str) -> Result<(), TodoError> {
+        self.reminder_service.mark_reminder_notified(reminder_id).await
+    }
+
     // ==================== Attachment Operations ====================
 
     pub async fn get_attachments_by_item(

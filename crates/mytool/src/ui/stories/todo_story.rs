@@ -5,17 +5,21 @@ use gpui_component::{
     ActiveTheme, Side, Sizable,
     button::{Button, ButtonVariants},
     h_flex,
+    input::{Input, InputEvent, InputState},
     sidebar::{Sidebar, SidebarMenu},
     switch::Switch,
     v_flex,
 };
 use gpui_kit::assets::IconName;
 use serde::Deserialize;
-use todos::entity::ProjectModel;
+use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
-    BoardPanel, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, play_ogg_file,
+    BoardPanel, DeselectAll, NewTask, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
+    ProjectsPanel, SearchTasks, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled,
+    ShowToday, play_ogg_file,
     todo_state::TodoStore,
+    ui::components::{show_existing_item_dialog, show_new_item_dialog},
 };
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]
@@ -34,6 +38,8 @@ pub struct TodoStory {
     project_panel: Entity<ProjectsPanel>,
     active_project: Option<Arc<ProjectModel>>,
     project_items_panel: Entity<ProjectItemsPanel>,
+    search_open: bool,
+    search_input: Entity<InputState>,
 }
 
 impl super::Mytool for TodoStory {
@@ -63,7 +69,13 @@ impl TodoStory {
         let project_panel = ProjectsPanel::view(window, cx);
         let project_items_panel = ProjectItemsPanel::view(window, cx);
         let board_panel = BoardPanel::view(window, cx);
-        let _subscriptions = vec![
+        let search_input = cx.new(|cx| InputState::new(window, cx).placeholder("搜索任务..."));
+        let mut _subscriptions = vec![
+            cx.subscribe(&search_input, |_, _, e, cx| {
+                if let InputEvent::Change = e {
+                    cx.notify();
+                }
+            }),
             cx.subscribe(&project_panel, |this: &mut Self, _, event: &ProjectEvent, cx| {
                 this.project_panel.update(cx, |project_panel, cx| {
                     project_panel.handle_project_event(event, cx);
@@ -168,7 +180,67 @@ impl TodoStory {
             project_items_panel,
             click_to_open_submenu: false,
             side: Side::Left,
+            search_open: false,
+            search_input,
         }
+    }
+
+    fn show_board(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.active_project = None;
+        self.project_panel.update(cx, |panel, cx| {
+            panel.update_active_index(None);
+            cx.notify();
+        });
+        self.board_panel.update(cx, |panel, cx| {
+            panel.update_active_index(Some(index));
+            cx.notify();
+        });
+        cx.notify();
+    }
+
+    fn on_new_task(&mut self, _: &NewTask, window: &mut Window, cx: &mut Context<Self>) {
+        let mut item = ItemModel::default();
+        if let Some(project) = &self.active_project {
+            item.project_id = Some(project.id.clone());
+        }
+        show_new_item_dialog(window, cx, item);
+    }
+
+    fn on_search_tasks(&mut self, _: &SearchTasks, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = true;
+        self.search_input.read(cx).focus_handle(cx).focus(window, cx);
+        cx.notify();
+    }
+
+    fn on_deselect(&mut self, _: &DeselectAll, _: &mut Window, cx: &mut Context<Self>) {
+        if self.search_open {
+            self.search_open = false;
+            cx.notify();
+        }
+    }
+
+    fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_board(0, cx);
+    }
+
+    fn on_show_today(&mut self, _: &ShowToday, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_board(1, cx);
+    }
+
+    fn on_show_scheduled(&mut self, _: &ShowScheduled, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_board(2, cx);
+    }
+
+    fn on_show_labels(&mut self, _: &ShowLabels, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_board(3, cx);
+    }
+
+    fn on_show_pinned(&mut self, _: &ShowPinned, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_board(4, cx);
+    }
+
+    fn on_show_completed(&mut self, _: &ShowCompleted, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_board(5, cx);
     }
 
     #[allow(unused)]
@@ -218,6 +290,12 @@ impl Render for TodoStory {
         let project_list = cx.global::<TodoStore>().projects.clone();
         let _view = cx.entity();
         let project_active_index = project_panel.active_index;
+        let search_query = self.search_input.read(cx).value().to_string();
+        let search_hits = if self.search_open {
+            cx.global::<TodoStore>().search_items(&search_query)
+        } else {
+            Vec::new()
+        };
 
         let mut content = div().id("todos").flex_1().min_h_0().overflow_hidden();
 
@@ -232,6 +310,18 @@ impl Render for TodoStory {
         }
 
         h_flex()
+            .id("todo-story")
+            .key_context("TodoStory")
+            .track_focus(&self.focus_handle)
+            .on_action(cx.listener(Self::on_new_task))
+            .on_action(cx.listener(Self::on_search_tasks))
+            .on_action(cx.listener(Self::on_deselect))
+            .on_action(cx.listener(Self::on_show_inbox))
+            .on_action(cx.listener(Self::on_show_today))
+            .on_action(cx.listener(Self::on_show_scheduled))
+            .on_action(cx.listener(Self::on_show_labels))
+            .on_action(cx.listener(Self::on_show_pinned))
+            .on_action(cx.listener(Self::on_show_completed))
             .size_full()
             .bg(cx.theme().background)
             .child(
@@ -345,6 +435,68 @@ impl Render for TodoStory {
                     .min_w_0()
                     .bg(cx.theme().background)
                     .overflow_x_hidden()
+                    .when(self.search_open, |this| {
+                        this.child(
+                            v_flex()
+                                .w_full()
+                                .px_3()
+                                .py_2()
+                                .gap_1()
+                                .border_b_1()
+                                .border_color(cx.theme().border)
+                                .child(Input::new(&self.search_input).cleanable(true))
+                                .when(search_query.trim().is_empty(), |this| {
+                                    this.child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child("输入关键字，Esc 关闭"),
+                                    )
+                                })
+                                .when(
+                                    !search_query.trim().is_empty() && search_hits.is_empty(),
+                                    |this| {
+                                        this.child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(cx.theme().muted_foreground)
+                                                .child("没有匹配的任务"),
+                                        )
+                                    },
+                                )
+                                .children(search_hits.into_iter().enumerate().map(|(ix, item)| {
+                                    let label = item.content.clone();
+                                    let checked = item.checked;
+                                    h_flex()
+                                        .id(("search-hit", ix))
+                                        .w_full()
+                                        .h_7()
+                                        .px_2()
+                                        .rounded(cx.theme().radius)
+                                        .items_center()
+                                        .justify_between()
+                                        .hover(|this| this.bg(cx.theme().sidebar_accent))
+                                        .on_click(cx.listener(
+                                            move |this, _: &ClickEvent, window, cx| {
+                                                this.search_open = false;
+                                                show_existing_item_dialog(window, cx, item.clone());
+                                                cx.notify();
+                                            },
+                                        ))
+                                        .child(
+                                            div()
+                                                .flex_1()
+                                                .min_w_0()
+                                                .overflow_x_hidden()
+                                                .whitespace_nowrap()
+                                                .when(checked, |this| {
+                                                    this.text_color(cx.theme().muted_foreground)
+                                                })
+                                                .child(label),
+                                        )
+                                })),
+                        )
+                    })
                     .child(content),
             )
     }

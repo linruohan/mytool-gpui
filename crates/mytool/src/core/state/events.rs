@@ -47,6 +47,30 @@ impl ErrorNotifier {
     }
 }
 
+/// 到期提醒通知器（后台轮询写入，UI 观察后弹出）
+pub struct ReminderNotifier {
+    pending: Mutex<Vec<String>>,
+}
+impl Default for ReminderNotifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl Global for ReminderNotifier {}
+impl ReminderNotifier {
+    pub fn new() -> Self {
+        Self { pending: Mutex::new(Vec::new()) }
+    }
+
+    pub fn push(&self, message: String) {
+        self.pending.lock().unwrap().push(message);
+    }
+
+    pub fn take_all(&self) -> Vec<String> {
+        std::mem::take(&mut *self.pending.lock().unwrap())
+    }
+}
+
 /// 异步保存结果追踪器
 ///
 /// 用于记录异步保存操作的结果，让主线程能够在适当时机检查并处理。

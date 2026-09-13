@@ -126,9 +126,111 @@ impl DueDate {
             recurrency_supported: self.recurrency_supported,
         }
     }
+
+    pub fn is_active_recurrence(&self) -> bool {
+        self.is_recurring && self.recurrency_type != RecurrencyType::NONE
+    }
+
+    /// 完成本次重复后的下一期截止日期。
+    ///
+    /// 已到结束条件、无法解析日期或无法前进一步时返回 `None`，调用方应按普通完成处理。
+    /// 过期多期时会连跳到不早于今天的下一期，避免完成后仍停在过去。
+    pub fn next_due_after_completion(&self) -> Option<DueDate> {
+        if !self.is_active_recurrence() || self.is_recurrency_end() {
+            return None;
+        }
+        let start = self.datetime()?;
+        let mut next_due = self.clone();
+        if next_due.recurrency_interval < 1 {
+            next_due.recurrency_interval = 1;
+        }
+        let helper = DateTime::default();
+        let mut next_dt = helper.next_recurrency(start, next_due.clone());
+        if next_dt <= start {
+            return None;
+        }
+        let today = chrono::Local::now().naive_local().date();
+        let mut hops = 0;
+        while next_dt.date() < today && hops < 8000 {
+            let stepped = helper.next_recurrency(next_dt, next_due.clone());
+            if stepped <= next_dt {
+                break;
+            }
+            next_dt = stepped;
+            hops += 1;
+        }
+        if self.end_type() == RecurrencyEndType::OnDate
+            && self.end_datetime().is_some_and(|end| next_dt > end)
+        {
+            return None;
+        }
+        next_due.set_datetime(next_dt);
+        if self.end_type() == RecurrencyEndType::AFTER {
+            next_due.recurrency_count = self.recurrency_count.saturating_sub(1);
+        }
+        Some(next_due)
+    }
 }
 impl fmt::Display for DueDate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(self).unwrap())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, Local, NaiveTime};
+
+    use super::*;
+    use crate::enums::RecurrencyType;
+
+    fn daily_on(date: chrono::NaiveDate) -> DueDate {
+        DueDate {
+            date: date
+                .and_time(NaiveTime::from_hms_opt(9, 0, 0).unwrap())
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            is_recurring: true,
+            recurrency_type: RecurrencyType::EveryDay,
+            recurrency_interval: 1,
+            recurrency_supported: true,
+            ..DueDate::default()
+        }
+    }
+
+    #[test]
+    fn non_recurring_completes_normally() {
+        let due = DueDate { date: "2026-01-01 09:00:00".into(), ..DueDate::default() };
+        assert!(due.next_due_after_completion().is_none());
+    }
+
+    #[test]
+    fn last_counted_occurrence_completes_normally() {
+        let mut due = daily_on(Local::now().date_naive());
+        due.recurrency_count = 1;
+        assert!(due.next_due_after_completion().is_none());
+    }
+
+    #[test]
+    fn daily_from_today_rolls_to_tomorrow() {
+        let today = Local::now().date_naive();
+        let next = daily_on(today).next_due_after_completion().expect("should roll");
+        assert_eq!(next.datetime().unwrap().date(), today + Duration::days(1));
+        assert!(next.is_recurring);
+    }
+
+    #[test]
+    fn overdue_daily_skips_to_today_or_later() {
+        let old = chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+        let next = daily_on(old).next_due_after_completion().expect("should skip");
+        assert!(next.datetime().unwrap().date() >= Local::now().date_naive());
+    }
+
+    #[test]
+    fn after_count_decrements() {
+        let mut due = daily_on(Local::now().date_naive());
+        due.recurrency_count = 4;
+        let next = due.next_due_after_completion().unwrap();
+        assert_eq!(next.recurrency_count, 3);
     }
 }
