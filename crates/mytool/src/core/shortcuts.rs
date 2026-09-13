@@ -110,6 +110,10 @@ actions!(selection_shortcuts, [
     MoveTaskUp,
     /// 当前任务在分组内下移 (Alt + Down)
     MoveTaskDown,
+    /// 降为上一条任务的子任务 (Tab)
+    IndentTask,
+    /// 升为同级任务 (Shift + Tab)
+    OutdentTask,
 ]);
 
 // ==================== 项目和分区快捷键 ====================
@@ -235,6 +239,8 @@ impl ShortcutConfig {
             "BatchMoveSelected" => t!("todo.batch.move").to_string(),
             "MoveTaskUp" => t!("todo.shortcut.move_up").to_string(),
             "MoveTaskDown" => t!("todo.shortcut.move_down").to_string(),
+            "IndentTask" => t!("todo.shortcut.indent").to_string(),
+            "OutdentTask" => t!("todo.shortcut.outdent").to_string(),
             "NewProject" => t!("todo.project.new").to_string(),
             "EditProject" => t!("todo.shortcut.edit_project").to_string(),
             "DeleteProject" => t!("todo.shortcut.delete_project").to_string(),
@@ -510,6 +516,18 @@ pub fn get_all_shortcuts() -> Vec<ShortcutConfig> {
             description: "当前任务下移",
             category: ShortcutCategory::Selection,
         },
+        ShortcutConfig {
+            action: "IndentTask",
+            key: "tab",
+            description: "降为子任务",
+            category: ShortcutCategory::Selection,
+        },
+        ShortcutConfig {
+            action: "OutdentTask",
+            key: "shift-tab",
+            description: "升为同级任务",
+            category: ShortcutCategory::Selection,
+        },
         // 项目和分区
         ShortcutConfig {
             action: "NewProject",
@@ -668,6 +686,8 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("ctrl-shift-backspace", BatchDeleteSelected, CTX),
         KeyBinding::new("alt-up", MoveTaskUp, CTX),
         KeyBinding::new("alt-down", MoveTaskDown, CTX),
+        KeyBinding::new("tab", IndentTask, CTX),
+        KeyBinding::new("shift-tab", OutdentTask, CTX),
         #[cfg(target_os = "macos")]
         KeyBinding::new("cmd-,", OpenSettings, CTX),
         #[cfg(not(target_os = "macos"))]

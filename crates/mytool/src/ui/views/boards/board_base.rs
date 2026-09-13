@@ -197,6 +197,133 @@ pub fn drop_reorder_items(from_id: &str, to_id: &str, cx: &mut App) {
     crate::core::actions::batch::batch_update_items(updated, cx);
 }
 
+fn item_parent_id(item: &todos::entity::ItemModel) -> Option<&str> {
+    item.parent_id.as_deref().filter(|id| !id.is_empty())
+}
+
+fn sort_by_child_order(items: &mut [Arc<todos::entity::ItemModel>]) {
+    items.sort_by(|a, b| {
+        a.child_order
+            .unwrap_or(i32::MAX)
+            .cmp(&b.child_order.unwrap_or(i32::MAX))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+}
+
+fn collect_siblings(
+    items: &[Arc<todos::entity::ItemModel>],
+    parent: Option<&str>,
+    prototype: &todos::entity::ItemModel,
+) -> Vec<Arc<todos::entity::ItemModel>> {
+    let mut siblings: Vec<Arc<todos::entity::ItemModel>> = items
+        .iter()
+        .filter(|item| {
+            !item.is_deleted
+                && item_parent_id(item) == parent
+                && item.section_id == prototype.section_id
+                && item.project_id == prototype.project_id
+                && item.pinned == prototype.pinned
+                && item.checked == prototype.checked
+        })
+        .cloned()
+        .collect();
+    sort_by_child_order(&mut siblings);
+    siblings
+}
+
+fn rewrite_child_orders(
+    siblings: Vec<Arc<todos::entity::ItemModel>>,
+) -> Vec<Arc<todos::entity::ItemModel>> {
+    siblings
+        .into_iter()
+        .enumerate()
+        .map(|(ord, item)| {
+            let mut item = (*item).clone();
+            item.child_order = Some(ord as i32);
+            Arc::new(item)
+        })
+        .collect()
+}
+
+/// 将 `item_id` 降为上一条同级任务的子任务（仅一层）。
+pub fn indent_item_among(
+    items: &[Arc<todos::entity::ItemModel>],
+    item_id: &str,
+) -> Option<Vec<Arc<todos::entity::ItemModel>>> {
+    let item = items.iter().find(|item| item.id == item_id)?;
+    if item_parent_id(item).is_some() {
+        return None;
+    }
+    if items
+        .iter()
+        .any(|other| !other.is_deleted && item_parent_id(other) == Some(item.id.as_str()))
+    {
+        return None;
+    }
+    let roots = collect_siblings(items, None, item);
+    let pos = roots.iter().position(|root| root.id == item_id)?;
+    if pos == 0 {
+        return None;
+    }
+    let new_parent = roots[pos - 1].clone();
+    if item_parent_id(&new_parent).is_some() {
+        return None;
+    }
+    let remaining_roots: Vec<_> = roots.into_iter().filter(|root| root.id != item_id).collect();
+    let mut children = collect_siblings(items, Some(new_parent.id.as_str()), item);
+    let mut moved = item.as_ref().clone();
+    moved.parent_id = Some(new_parent.id.clone());
+    children.push(Arc::new(moved));
+    let mut updated = rewrite_child_orders(remaining_roots);
+    updated.extend(rewrite_child_orders(children));
+    Some(updated)
+}
+
+/// 将子任务升为原父任务的同级，插在父任务后面。
+pub fn outdent_item_among(
+    items: &[Arc<todos::entity::ItemModel>],
+    item_id: &str,
+) -> Option<Vec<Arc<todos::entity::ItemModel>>> {
+    let item = items.iter().find(|item| item.id == item_id)?;
+    let parent_id = item_parent_id(item)?;
+    let parent = items.iter().find(|item| item.id == parent_id)?;
+    let mut old_siblings = collect_siblings(items, Some(parent_id), item);
+    old_siblings.retain(|sibling| sibling.id != item_id);
+    let new_parent = item_parent_id(parent);
+    let mut new_siblings = collect_siblings(items, new_parent, parent);
+    let parent_pos = new_siblings.iter().position(|sibling| sibling.id == parent_id)?;
+    let mut moved = item.as_ref().clone();
+    moved.parent_id = new_parent.map(str::to_string);
+    new_siblings.insert(parent_pos + 1, Arc::new(moved));
+    let mut updated = rewrite_child_orders(old_siblings);
+    updated.extend(rewrite_child_orders(new_siblings));
+    Some(updated)
+}
+
+pub fn indent_item(item_id: &str, cx: &mut App) -> bool {
+    let updated = {
+        let store = cx.global::<TodoStore>();
+        indent_item_among(&store.all_items, item_id)
+    };
+    let Some(updated) = updated else {
+        return false;
+    };
+    crate::core::actions::batch::batch_update_items(updated, cx);
+    true
+}
+
+pub fn outdent_item(item_id: &str, cx: &mut App) -> bool {
+    let updated = {
+        let store = cx.global::<TodoStore>();
+        outdent_item_among(&store.all_items, item_id)
+    };
+    let Some(updated) = updated else {
+        return false;
+    };
+    crate::core::actions::batch::batch_update_items(updated, cx);
+    true
+}
+
 fn section_project_key(section: &SectionModel) -> Option<&str> {
     section.project_id.as_deref().filter(|id| !id.is_empty())
 }
@@ -855,6 +982,54 @@ mod tests {
         Arc::make_mut(&mut child).parent_id = Some("p".into());
         let items = vec![ordered("root", 0), child];
         assert!(reorder_drop_among_siblings(&items, "child", "root").is_none());
+    }
+
+    #[test]
+    fn indent_nests_under_previous_sibling() {
+        let items = vec![ordered("a", 0), ordered("b", 1), ordered("c", 2)];
+        let updated = indent_item_among(&items, "b").expect("indent");
+        let b = updated.iter().find(|item| item.id == "b").expect("b");
+        assert_eq!(b.parent_id.as_deref(), Some("a"));
+        assert_eq!(b.child_order, Some(0));
+        let roots: Vec<_> = updated
+            .iter()
+            .filter(|item| item.parent_id.as_deref().is_none_or(|id| id.is_empty()))
+            .map(|item| (item.id.as_str(), item.child_order))
+            .collect();
+        assert_eq!(roots, vec![("a", Some(0)), ("c", Some(1))]);
+    }
+
+    #[test]
+    fn indent_rejects_first_root_and_existing_subtask() {
+        let items = vec![ordered("a", 0), ordered("b", 1)];
+        assert!(indent_item_among(&items, "a").is_none());
+        let nested = indent_item_among(&items, "b").expect("indent");
+        assert!(indent_item_among(&nested, "b").is_none());
+    }
+
+    #[test]
+    fn indent_rejects_item_with_children() {
+        let mut child = ordered("child", 0);
+        Arc::make_mut(&mut child).parent_id = Some("a".into());
+        let items = vec![ordered("a", 0), ordered("b", 1), child];
+        assert!(indent_item_among(&items, "a").is_none());
+    }
+
+    #[test]
+    fn outdent_places_after_parent() {
+        let mut child = ordered("b", 0);
+        Arc::make_mut(&mut child).parent_id = Some("a".into());
+        let items = vec![ordered("a", 0), child, ordered("c", 1)];
+        let updated = outdent_item_among(&items, "b").expect("outdent");
+        let b = updated.iter().find(|item| item.id == "b").expect("b");
+        assert!(b.parent_id.as_deref().is_none_or(|id| id.is_empty()));
+        let roots: Vec<_> = updated
+            .iter()
+            .filter(|item| item.parent_id.as_deref().is_none_or(|id| id.is_empty()))
+            .map(|item| item.id.as_str())
+            .collect();
+        assert_eq!(roots, vec!["a", "b", "c"]);
+        assert!(outdent_item_among(&items, "a").is_none());
     }
 
     fn section(id: &str, project: Option<&str>, order: i32) -> Arc<SectionModel> {

@@ -259,6 +259,8 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
             | "BatchDeleteSelected"
             | "MoveTaskUp"
             | "MoveTaskDown"
+            | "IndentTask"
+            | "OutdentTask"
             | "OpenSettings"
             | "OpenHelp"
             | "UndoLastTask"

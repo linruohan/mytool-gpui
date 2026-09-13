@@ -1640,6 +1640,22 @@ todo:
     es: Mover abajo
     fr: Déplacer vers le bas
     de: Aufgabe nach unten
+  shortcut.indent:
+    en: Indent as subtask
+    zh-CN: 降为子任务
+    zh-HK: 降為子任務
+    it: Trasforma in sottoattività
+    es: Convertir en subtarea
+    fr: Transformer en sous-tâche
+    de: Als Unteraufgabe einrücken
+  shortcut.outdent:
+    en: Outdent to same level
+    zh-CN: 升为同级任务
+    zh-HK: 升為同級任務
+    it: Porta al livello superiore
+    es: Subir al mismo nivel
+    fr: Remonter au même niveau
+    de: Eine Ebene höher
   shortcut.edit_project:
     en: Edit project
     zh-CN: 编辑项目

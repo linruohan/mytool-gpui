@@ -12,7 +12,7 @@ pub mod view;
 
 pub use board_base::{
     BoardBase, BoardView, PinnedLayout, clamp_active_index, diff_update_item_rows, group_items,
-    reorder_in_groups,
+    indent_item, outdent_item, reorder_in_groups,
 };
 pub use board_common::{BoardItemClickEvent, BoardSectionActions, FinishItemDialogStyle};
 #[allow(unused_imports)]

@@ -7,7 +7,7 @@ pub use boards::{
     BoardBase, BoardItemClickEvent, BoardSectionActions, BoardView, FinishItemDialogStyle,
     board_completed::CompletedBoard, board_inbox::InboxBoard, board_labels::LabelsBoard,
     board_pin::PinBoard, board_scheduled::ScheduledBoard, board_today::TodayBoard,
-    container_board::*, view::*,
+    container_board::*, indent_item, outdent_item, view::*,
 };
 pub use item::*;
 pub use label::*;

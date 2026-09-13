@@ -19,11 +19,11 @@ use crate::{
     AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
     BoardPanel, ClearDueDate, ClearFilters, CompletedBoard, DeleteProject, DeleteSection,
     DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask, FilterByLabel,
-    FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, ItemListItem, MoveTaskDown,
-    MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView, OpenHelp,
-    OpenSettings, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel,
-    ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduleNextWeek, ScheduleToday,
-    ScheduleTomorrow, ScheduledBoard, SearchTasks, SelectAllTasks, SelectNextTask,
+    FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, IndentTask, ItemListItem,
+    MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView,
+    OpenHelp, OpenSettings, OutdentTask, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent,
+    ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduleNextWeek,
+    ScheduleToday, ScheduleTomorrow, ScheduledBoard, SearchTasks, SelectAllTasks, SelectNextTask,
     SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox,
     ShowLabels, ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen,
     ToggleLabelFavorite, ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin,
@@ -972,6 +972,28 @@ impl TodoStory {
         self.reorder_active_task(1, window, cx);
     }
 
+    fn on_indent_task(&mut self, _: &IndentTask, _: &mut Window, cx: &mut Context<Self>) {
+        if self.search_open {
+            return;
+        }
+        let Some(item) = self.primary_item(cx) else {
+            return;
+        };
+        crate::indent_item(&item.id, cx);
+        cx.notify();
+    }
+
+    fn on_outdent_task(&mut self, _: &OutdentTask, _: &mut Window, cx: &mut Context<Self>) {
+        if self.search_open {
+            return;
+        }
+        let Some(item) = self.primary_item(cx) else {
+            return;
+        };
+        crate::outdent_item(&item.id, cx);
+        cx.notify();
+    }
+
     fn on_next_view(&mut self, _: &NextView, _: &mut Window, cx: &mut Context<Self>) {
         self.cycle_board(1, cx);
     }
@@ -1201,6 +1223,8 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_batch_move_selected))
             .on_action(cx.listener(Self::on_move_task_up))
             .on_action(cx.listener(Self::on_move_task_down))
+            .on_action(cx.listener(Self::on_indent_task))
+            .on_action(cx.listener(Self::on_outdent_task))
             .on_action(cx.listener(Self::on_next_view))
             .on_action(cx.listener(Self::on_previous_view))
             .on_action(cx.listener(Self::on_go_back))
