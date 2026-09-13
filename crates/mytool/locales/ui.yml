@@ -1208,6 +1208,46 @@ todo:
     es: Expandir subproyectos
     fr: Développer les sous-projets
     de: Unterprojekte ausklappen
+  project.favorite:
+    en: Add to favorites
+    zh-CN: 收藏项目
+    zh-HK: 收藏項目
+    it: Aggiungi ai preferiti
+    es: Añadir a favoritos
+    fr: Ajouter aux favoris
+    de: Zu Favoriten
+  project.unfavorite:
+    en: Remove from favorites
+    zh-CN: 取消收藏
+    zh-HK: 取消收藏
+    it: Rimuovi dai preferiti
+    es: Quitar de favoritos
+    fr: Retirer des favoris
+    de: Aus Favoriten
+  project.favorite_toggle:
+    en: Toggle project favorite
+    zh-CN: 收藏或取消收藏项目
+    zh-HK: 收藏或取消收藏項目
+    it: Preferito progetto
+    es: Alternar favorito
+    fr: Favori du projet
+    de: Projekt-Favorit
+  project.favorited:
+    en: Added to favorites.
+    zh-CN: 已收藏。
+    zh-HK: 已收藏。
+    it: Aggiunto ai preferiti.
+    es: Añadido a favoritos.
+    fr: Ajouté aux favoris.
+    de: Zu Favoriten hinzugefügt.
+  project.unfavorited:
+    en: Removed from favorites.
+    zh-CN: 已取消收藏。
+    zh-HK: 已取消收藏。
+    it: Rimosso dai preferiti.
+    es: Quitado de favoritos.
+    fr: Retiré des favoris.
+    de: Aus Favoriten entfernt.
   filter.labels:
     en: Filter by label
     zh-CN: 按标签过滤

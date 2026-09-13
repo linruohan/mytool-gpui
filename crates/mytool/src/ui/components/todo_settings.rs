@@ -292,6 +292,7 @@ fn is_bound_shortcut(s: &crate::core::shortcuts::ShortcutConfig) -> bool {
             | "EditProject"
             | "DeleteProject"
             | "ArchiveProject"
+            | "ToggleProjectFavorite"
             | "ToggleFullscreen"
             | "ZoomIn"
             | "ZoomOut"

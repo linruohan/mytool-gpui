@@ -188,6 +188,10 @@ fn cmp_project_child_order(a: &ProjectModel, b: &ProjectModel) -> std::cmp::Orde
         .then_with(|| a.id.cmp(&b.id))
 }
 
+fn cmp_project_sidebar(a: &ProjectModel, b: &ProjectModel) -> std::cmp::Ordering {
+    b.is_favorite.cmp(&a.is_favorite).then_with(|| cmp_project_child_order(a, b))
+}
+
 fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<ProjectModel>, bool)> {
     let projects: Vec<Arc<ProjectModel>> = projects
         .iter()
@@ -207,9 +211,9 @@ fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<Proj
             roots.push(i);
         }
     }
-    roots.sort_by(|&ia, &ib| cmp_project_child_order(&projects[ia], &projects[ib]));
+    roots.sort_by(|&ia, &ib| cmp_project_sidebar(&projects[ia], &projects[ib]));
     for indices in children.values_mut() {
-        indices.sort_by(|&ia, &ib| cmp_project_child_order(&projects[ia], &projects[ib]));
+        indices.sort_by(|&ia, &ib| cmp_project_sidebar(&projects[ia], &projects[ib]));
     }
     let mut out = Vec::with_capacity(projects.len());
     for i in roots {
@@ -240,12 +244,16 @@ pub(crate) fn reorder_drop_among_projects(
     if project_parent_id(from) != project_parent_id(to) {
         return None;
     }
+    if from.is_favorite != to.is_favorite {
+        return None;
+    }
     let parent = project_parent_id(from).map(str::to_string);
     let ids: HashSet<&str> = projects.iter().map(|p| p.id.as_str()).collect();
+    let favorite = from.is_favorite;
     let mut siblings: Vec<Arc<ProjectModel>> = projects
         .iter()
         .filter(|project| {
-            if project.is_deleted || project.is_archived {
+            if project.is_deleted || project.is_archived || project.is_favorite != favorite {
                 return false;
             }
             let pid = project_parent_id(project);
@@ -1675,6 +1683,25 @@ mod tests {
         let projects =
             vec![Arc::new(project("a", Some("p1"), 0)), Arc::new(project("b", Some("p2"), 0))];
         assert!(reorder_drop_among_projects(&projects, "a", "b").is_none());
+    }
+
+    #[test]
+    fn sidebar_favorites_sort_before_others() {
+        let mut store = TodoStore::new();
+        let mut fav = project("fav", None, 2);
+        fav.is_favorite = true;
+        store.set_projects(vec![project("late", None, 0), fav, project("mid", None, 1)]);
+        let rows = store.projects_for_sidebar();
+        let ids: Vec<&str> = rows.iter().map(|(p, _)| p.id.as_str()).collect();
+        assert_eq!(ids, vec!["fav", "late", "mid"]);
+    }
+
+    #[test]
+    fn drop_projects_rejects_different_favorite() {
+        let mut fav = project("fav", None, 0);
+        fav.is_favorite = true;
+        let projects = vec![Arc::new(fav), Arc::new(project("plain", None, 1))];
+        assert!(reorder_drop_among_projects(&projects, "fav", "plain").is_none());
     }
 
     #[test]

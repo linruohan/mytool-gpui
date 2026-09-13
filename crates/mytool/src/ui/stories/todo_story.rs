@@ -25,8 +25,8 @@ use crate::{
     ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, SearchTasks,
     SelectAllTasks, SelectNextTask, SelectPreviousTask, SetDueDate, SetTaskPriority, ShowAllTasks,
     ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled, ShowToday, ScheduledBoard,
-    TodayBoard, ToggleFullscreen, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask,
-    ZoomIn, ZoomOut, play_ogg_file,
+    TodayBoard, ToggleFullscreen, ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete,
+    ToggleTaskPin, UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -718,6 +718,31 @@ impl TodoStory {
         self.show_board(0, cx);
     }
 
+    fn on_toggle_project_favorite(
+        &mut self,
+        _: &ToggleProjectFavorite,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(id) = self.active_project.as_ref().map(|p| p.id.clone()) else {
+            return;
+        };
+        let Some(project) = cx.global::<TodoStore>().get_project(&id) else {
+            return;
+        };
+        let next = !project.is_favorite;
+        crate::todo_actions::set_project_favorite(project, next, cx);
+        window.push_notification(
+            if next {
+                t!("todo.project.favorited").to_string()
+            } else {
+                t!("todo.project.unfavorited").to_string()
+            },
+            cx,
+        );
+        cx.notify();
+    }
+
     fn on_show_inbox(&mut self, _: &ShowInbox, _: &mut Window, cx: &mut Context<Self>) {
         self.show_board(0, cx);
     }
@@ -1075,6 +1100,7 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_edit_project))
             .on_action(cx.listener(Self::on_delete_project))
             .on_action(cx.listener(Self::on_archive_project))
+            .on_action(cx.listener(Self::on_toggle_project_favorite))
             .on_action(cx.listener(Self::on_show_inbox))
             .on_action(cx.listener(Self::on_show_today))
             .on_action(cx.listener(Self::on_show_scheduled))
@@ -1168,6 +1194,9 @@ impl Render for TodoStory {
                                     cx.global::<TodoStore>().has_child_projects(&project.id);
                                 let collapsed = project.collapsed;
                                 let collapse_id = project.id.clone();
+                                let favorite = project.is_favorite;
+                                let favorite_id = project.id.clone();
+                                let favorite_project = project.clone();
                                 h_flex()
                                     .id(SharedString::from(format!(
                                         "sidebar-project-{}",
@@ -1257,6 +1286,57 @@ impl Render for TodoStory {
                                             .overflow_x_hidden()
                                             .whitespace_nowrap()
                                             .child(project.name.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .id(SharedString::from(format!(
+                                                "favorite-project-{favorite_id}"
+                                            )))
+                                            .flex_shrink_0()
+                                            .on_mouse_down(
+                                                gpui::MouseButton::Left,
+                                                |_, _, cx| cx.stop_propagation(),
+                                            )
+                                            .on_click({
+                                                move |_, window, cx| {
+                                                    cx.stop_propagation();
+                                                    let next = !favorite_project.is_favorite;
+                                                    crate::todo_actions::set_project_favorite(
+                                                        favorite_project.clone(),
+                                                        next,
+                                                        cx,
+                                                    );
+                                                    window.push_notification(
+                                                        if next {
+                                                            t!("todo.project.favorited")
+                                                                .to_string()
+                                                        } else {
+                                                            t!("todo.project.unfavorited")
+                                                                .to_string()
+                                                        },
+                                                        cx,
+                                                    );
+                                                }
+                                            })
+                                            .child(
+                                                Button::new(format!(
+                                                    "favorite-project-btn-{favorite_id}"
+                                                ))
+                                                .small()
+                                                .ghost()
+                                                .compact()
+                                                .icon(IconName::StarOutlineThickSymbolic)
+                                                .text_color(if favorite {
+                                                    cx.theme().warning
+                                                } else {
+                                                    cx.theme().muted_foreground
+                                                })
+                                                .tooltip(if favorite {
+                                                    t!("todo.project.unfavorite").to_string()
+                                                } else {
+                                                    t!("todo.project.favorite").to_string()
+                                                }),
+                                            ),
                                     )
                                     .when(count > 0, |this| {
                                         this.child(
