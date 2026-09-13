@@ -22,7 +22,7 @@ use rust_i18n::t;
 use todos::entity::ItemModel;
 
 use super::{
-    board_base::{BoardView, drop_reorder_items},
+    board_base::{BoardView, drop_reorder_items, drop_reorder_sections},
     board_common::BoardSectionActions,
 };
 use crate::{
@@ -41,18 +41,36 @@ impl Render for ItemDragPayload {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let label =
             if self.content.is_empty() { self.item_id.clone() } else { self.content.clone() };
-        div()
-            .px_3()
-            .py_1()
-            .rounded_md()
-            .bg(cx.theme().popover)
-            .border_1()
-            .border_color(cx.theme().border)
-            .shadow_md()
-            .text_sm()
-            .max_w(px(280.))
-            .child(label)
+        drag_preview_label(label, cx)
     }
+}
+
+/// 分区拖拽载荷，同时作为拖影预览。
+#[derive(Clone)]
+pub struct SectionDragPayload {
+    pub section_id: String,
+    pub name: String,
+}
+
+impl Render for SectionDragPayload {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let label = if self.name.is_empty() { self.section_id.clone() } else { self.name.clone() };
+        drag_preview_label(label, cx)
+    }
+}
+
+fn drag_preview_label(label: String, cx: &App) -> impl IntoElement {
+    div()
+        .px_3()
+        .py_1()
+        .rounded_md()
+        .bg(cx.theme().popover)
+        .border_1()
+        .border_color(cx.theme().border)
+        .shadow_md()
+        .text_sm()
+        .max_w(px(280.))
+        .child(label)
 }
 
 fn click_is_multi(event: &ClickEvent) -> bool {
@@ -144,6 +162,34 @@ where
         .when(is_selected, |this| this.bg(active_border.opacity(0.22)).rounded_md())
         .when(is_active && !is_selected, |this| this.bg(active_border.opacity(0.12)).rounded_md())
         .children(item_row.map(|row| ItemRow::new(&row)))
+}
+
+fn wrap_section_dnd(
+    section_id: String,
+    section_name: String,
+    child: impl IntoElement,
+) -> impl IntoElement {
+    let drag_id = section_id.clone();
+    let drop_id = section_id.clone();
+    let can_drop_id = section_id.clone();
+    let preview_name = section_name;
+    div()
+        .id(gpui::SharedString::from(format!("section-block-{section_id}")))
+        .on_drag(
+            SectionDragPayload { section_id: drag_id, name: preview_name },
+            |drag, _, _, cx| cx.new(|_| drag.clone()),
+        )
+        .drag_over::<SectionDragPayload>(|style, _, _, cx| {
+            style.bg(cx.theme().accent.opacity(0.18))
+        })
+        .can_drop(move |drag, _, _| {
+            drag.downcast_ref::<SectionDragPayload>()
+                .is_some_and(|payload| payload.section_id != can_drop_id)
+        })
+        .on_drop(move |drag: &SectionDragPayload, _, cx| {
+            drop_reorder_sections(&drag.section_id, &drop_id, cx);
+        })
+        .child(child)
 }
 
 /// 仅渲染任务列表（v_flex 行），不包 section；用于已有 section 标题的区块（如 No
@@ -292,10 +338,21 @@ pub fn render_section_block<V: BoardSectionActions>(
         .tooltip(t!("todo.more").to_string())
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
-    let mut block = board_section(section_name);
+    let mut block = board_section(section_name.clone());
     block = block.sub_title(h_flex().gap_1().child(add_button).child(more_button));
 
-    block.child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
+    wrap_section_dnd(
+        section_id,
+        section_name,
+        block.child(render_item_list(
+            items,
+            item_rows,
+            active_index,
+            active_border,
+            view_clone,
+            cx,
+        )),
+    )
 }
 
 /// 渲染「No Section」区块
@@ -413,7 +470,11 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .tooltip(t!("todo.more").to_string())
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
-    board_section(section_name)
-        .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
-        .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
+    wrap_section_dnd(
+        section_id,
+        section_name.clone(),
+        board_section(section_name)
+            .sub_title(h_flex().gap_1().child(leading).child(add_button).child(more_button))
+            .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx)),
+    )
 }

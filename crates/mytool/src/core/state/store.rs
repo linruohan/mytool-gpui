@@ -168,6 +168,15 @@ fn sort_items_by_child_order(items: &mut Vec<Arc<ItemModel>>) {
     items.sort_by(|a, b| cmp_child_order(a, b));
 }
 
+pub(crate) fn sort_sections_by_order(sections: &mut [Arc<SectionModel>]) {
+    sections.sort_by(|a, b| {
+        a.section_order
+            .unwrap_or(i32::MAX)
+            .cmp(&b.section_order.unwrap_or(i32::MAX))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+}
+
 fn project_parent_id(project: &ProjectModel) -> Option<&str> {
     project.parent_id.as_deref().filter(|id| !id.is_empty())
 }
@@ -791,11 +800,14 @@ impl TodoStore {
 
     /// 指定项目下的分区（过滤时不先 clone 整表）
     pub fn sections_for_project(&self, project_id: &str) -> Vec<Arc<SectionModel>> {
-        self.sections
+        let mut sections: Vec<Arc<SectionModel>> = self
+            .sections
             .iter()
             .filter(|s| s.project_id.as_deref() == Some(project_id))
             .cloned()
-            .collect()
+            .collect();
+        sort_sections_by_order(&mut sections);
+        sections
     }
 
     /// 更新所有项目

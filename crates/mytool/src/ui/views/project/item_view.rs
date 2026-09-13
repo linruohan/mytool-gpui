@@ -605,12 +605,16 @@ crate::impl_board_section_actions!(ProjectItemsPanel);
 impl Render for ProjectItemsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
         let view = cx.entity().clone();
-        let project_sections: Vec<_> = cx
-            .global::<TodoStore>()
-            .sections_for_project(&self.project.id)
-            .into_iter()
-            .filter(|s| !s.is_archived && !s.is_deleted && !s.hidded)
-            .collect();
+        let project_sections: Vec<_> = {
+            let mut sections: Vec<_> = cx
+                .global::<TodoStore>()
+                .sections_for_project(&self.project.id)
+                .into_iter()
+                .filter(|s| !s.is_archived && !s.is_deleted && !s.hidded)
+                .collect();
+            crate::todo_state::sort_sections_by_order(&mut sections);
+            sections
+        };
         let has_project_sections = !project_sections.is_empty();
         let no_section_items = &self.no_section_items;
         let section_items_map = &self.section_items_map;

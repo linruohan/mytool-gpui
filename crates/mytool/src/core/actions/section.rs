@@ -97,3 +97,38 @@ pub fn delete_section(section: Arc<SectionModel>, cx: &mut App) {
     })
     .detach();
 }
+
+/// 批量更新分区（先写内存，再逐条落盘）。
+pub fn batch_update_sections(sections: Vec<Arc<SectionModel>>, cx: &mut App) {
+    if sections.is_empty() {
+        return;
+    }
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        for section in &sections {
+            todo_store.update_section(section.clone());
+        }
+    });
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        for section in sections {
+            match db_state
+                .spawn_store_op({
+                    let section = section.clone();
+                    move |store| async move { store.update_section(section.as_ref().clone()).await }
+                })
+                .await
+            {
+                Ok(Ok(updated)) => {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_section(Arc::new(updated));
+                    });
+                },
+                Ok(Err(e)) => tracing::error!("batch_update_sections failed: {:?}", e),
+                Err(join_err) => {
+                    tracing::error!("batch_update_sections task panicked: {:?}", join_err)
+                },
+            }
+        }
+    })
+    .detach();
+}

@@ -197,6 +197,66 @@ pub fn drop_reorder_items(from_id: &str, to_id: &str, cx: &mut App) {
     crate::core::actions::batch::batch_update_items(updated, cx);
 }
 
+fn section_project_key(section: &SectionModel) -> Option<&str> {
+    section.project_id.as_deref().filter(|id| !id.is_empty())
+}
+
+/// 将 `from_id` 分区拖到 `to_id` 处：插入到目标前方，并重写同项目 `section_order`。
+pub fn reorder_drop_among_sections(
+    sections: &[Arc<SectionModel>],
+    from_id: &str,
+    to_id: &str,
+) -> Option<Vec<Arc<SectionModel>>> {
+    if from_id == to_id {
+        return None;
+    }
+    let from = sections.iter().find(|section| section.id == from_id)?;
+    let to = sections.iter().find(|section| section.id == to_id)?;
+    if section_project_key(from) != section_project_key(to) {
+        return None;
+    }
+    let project = section_project_key(from).map(str::to_string);
+    let mut siblings: Vec<Arc<SectionModel>> = sections
+        .iter()
+        .filter(|section| {
+            !section.is_deleted
+                && !section.is_archived
+                && !section.hidded
+                && section_project_key(section).map(str::to_string) == project
+        })
+        .cloned()
+        .collect();
+    crate::todo_state::sort_sections_by_order(&mut siblings);
+    let from_pos = siblings.iter().position(|section| section.id == from_id)?;
+    let to_pos = siblings.iter().position(|section| section.id == to_id)?;
+    let moved = siblings.remove(from_pos);
+    let insert_at = if from_pos < to_pos { to_pos - 1 } else { to_pos };
+    siblings.insert(insert_at, moved);
+    Some(
+        siblings
+            .into_iter()
+            .enumerate()
+            .map(|(ord, section)| {
+                let mut section = (*section).clone();
+                section.section_order = Some(ord as i32);
+                Arc::new(section)
+            })
+            .collect(),
+    )
+}
+
+/// 拖放到目标分区后，按同项目关系重写 `section_order` 并保存。
+pub fn drop_reorder_sections(from_id: &str, to_id: &str, cx: &mut App) {
+    let updated = {
+        let store = cx.global::<TodoStore>();
+        reorder_drop_among_sections(&store.sections, from_id, to_id)
+    };
+    let Some(updated) = updated else {
+        return;
+    };
+    crate::todo_actions::batch_update_sections(updated, cx);
+}
+
 /// 在多个分组中找到包含 `active_index` 的那一组再排序。
 pub fn reorder_in_groups(
     groups: &[&[(usize, Arc<todos::entity::ItemModel>)]],
@@ -780,6 +840,36 @@ mod tests {
         Arc::make_mut(&mut child).parent_id = Some("p".into());
         let items = vec![ordered("root", 0), child];
         assert!(reorder_drop_among_siblings(&items, "child", "root").is_none());
+    }
+
+    fn section(id: &str, project: Option<&str>, order: i32) -> Arc<SectionModel> {
+        let mut model = SectionModel::default();
+        model.id = id.to_string();
+        model.project_id = project.map(str::to_string);
+        model.section_order = Some(order);
+        Arc::new(model)
+    }
+
+    #[test]
+    fn drop_sections_inserts_before_target() {
+        let sections = vec![
+            section("a", Some("p"), 0),
+            section("b", Some("p"), 1),
+            section("c", Some("p"), 2),
+        ];
+        let updated = reorder_drop_among_sections(&sections, "a", "c").expect("drop");
+        assert_eq!(updated.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), vec!["b", "a", "c"]);
+        assert_eq!(updated.iter().map(|s| s.section_order).collect::<Vec<_>>(), vec![
+            Some(0),
+            Some(1),
+            Some(2)
+        ]);
+    }
+
+    #[test]
+    fn drop_sections_rejects_different_project() {
+        let sections = vec![section("a", Some("p1"), 0), section("b", Some("p2"), 0)];
+        assert!(reorder_drop_among_sections(&sections, "a", "b").is_none());
     }
 
     #[test]
