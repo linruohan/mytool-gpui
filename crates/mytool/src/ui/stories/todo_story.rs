@@ -35,6 +35,29 @@ use crate::{
 #[action(namespace = todo_story, no_json)]
 pub struct SelectTodo(SharedString);
 
+#[derive(Clone)]
+struct ProjectDragPayload {
+    project_id: String,
+    name: String,
+}
+
+impl Render for ProjectDragPayload {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let label = if self.name.is_empty() { self.project_id.clone() } else { self.name.clone() };
+        div()
+            .px_3()
+            .py_1()
+            .rounded_md()
+            .bg(cx.theme().popover)
+            .border_1()
+            .border_color(cx.theme().border)
+            .shadow_md()
+            .text_sm()
+            .max_w(px(220.))
+            .child(label)
+    }
+}
+
 pub struct TodoStory {
     collapsed: bool,
     click_to_open_submenu: bool,
@@ -788,57 +811,79 @@ impl Render for TodoStory {
                                         .child(t!("todo.project.empty").to_string()),
                                 )
                             })
-                            .children(project_list.iter().enumerate().map(
-                                |(ix, (project, nested))| {
-                                    let count = cx
-                                        .global::<TodoStore>()
-                                        .items_by_project(&project.id)
-                                        .iter()
-                                        .filter(|item| !item.checked)
-                                        .count();
-                                    let active = self
-                                        .active_project
-                                        .as_ref()
-                                        .is_some_and(|p| p.id == project.id);
-                                    let story = project.clone();
-                                    h_flex()
-                                        .id(("sidebar-project", ix))
-                                        .w_full()
-                                        .h_7()
-                                        .px_2()
-                                        .when(*nested, |this| this.pl(px(22.)))
-                                        .items_center()
-                                        .justify_between()
-                                        .rounded(cx.theme().radius)
-                                        .text_sm()
-                                        .when(active, |this| {
-                                            this.bg(cx.theme().sidebar_accent)
-                                                .text_color(cx.theme().sidebar_accent_foreground)
-                                        })
-                                        .hover(|this| this.bg(cx.theme().sidebar_accent))
-                                        .on_click(cx.listener(
-                                            move |this, _: &ClickEvent, _, cx| {
-                                                this.activate_project(story.clone(), cx);
-                                            },
-                                        ))
-                                        .child(
-                                            div()
-                                                .flex_1()
-                                                .min_w_0()
-                                                .overflow_x_hidden()
-                                                .whitespace_nowrap()
-                                                .child(project.name.clone()),
+                            .children(project_list.iter().map(|(project, nested)| {
+                                let count = cx
+                                    .global::<TodoStore>()
+                                    .items_by_project(&project.id)
+                                    .iter()
+                                    .filter(|item| !item.checked)
+                                    .count();
+                                let active = self
+                                    .active_project
+                                    .as_ref()
+                                    .is_some_and(|p| p.id == project.id);
+                                let story = project.clone();
+                                let drag_id = project.id.clone();
+                                let drop_id = project.id.clone();
+                                let can_drop_id = project.id.clone();
+                                let drag_name = project.name.clone();
+                                h_flex()
+                                    .id(SharedString::from(format!(
+                                        "sidebar-project-{}",
+                                        project.id
+                                    )))
+                                    .w_full()
+                                    .h_7()
+                                    .px_2()
+                                    .when(*nested, |this| this.pl(px(22.)))
+                                    .items_center()
+                                    .justify_between()
+                                    .rounded(cx.theme().radius)
+                                    .text_sm()
+                                    .when(active, |this| {
+                                        this.bg(cx.theme().sidebar_accent)
+                                            .text_color(cx.theme().sidebar_accent_foreground)
+                                    })
+                                    .hover(|this| this.bg(cx.theme().sidebar_accent))
+                                    .on_drag(
+                                        ProjectDragPayload { project_id: drag_id, name: drag_name },
+                                        |drag, _, _, cx| cx.new(|_| drag.clone()),
+                                    )
+                                    .drag_over::<ProjectDragPayload>(|style, _, _, cx| {
+                                        style.bg(cx.theme().accent.opacity(0.18))
+                                    })
+                                    .can_drop(move |drag, _, _| {
+                                        drag.downcast_ref::<ProjectDragPayload>().is_some_and(
+                                            |payload| payload.project_id != can_drop_id,
                                         )
-                                        .when(count > 0, |this| {
-                                            this.child(
-                                                div()
-                                                    .text_sm()
-                                                    .text_color(cx.theme().muted_foreground)
-                                                    .child(count.to_string()),
-                                            )
-                                        })
-                                },
-                            )),
+                                    })
+                                    .on_drop(move |drag: &ProjectDragPayload, _, cx| {
+                                        crate::todo_actions::drop_reorder_projects(
+                                            &drag.project_id,
+                                            &drop_id,
+                                            cx,
+                                        );
+                                    })
+                                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                        this.activate_project(story.clone(), cx);
+                                    }))
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .min_w_0()
+                                            .overflow_x_hidden()
+                                            .whitespace_nowrap()
+                                            .child(project.name.clone()),
+                                    )
+                                    .when(count > 0, |this| {
+                                        this.child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(cx.theme().muted_foreground)
+                                                .child(count.to_string()),
+                                        )
+                                    })
+                            })),
                     ),
             )
             .child(

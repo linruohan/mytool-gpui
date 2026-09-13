@@ -181,31 +181,90 @@ fn project_parent_id(project: &ProjectModel) -> Option<&str> {
     project.parent_id.as_deref().filter(|id| !id.is_empty())
 }
 
+fn cmp_project_child_order(a: &ProjectModel, b: &ProjectModel) -> std::cmp::Ordering {
+    a.child_order
+        .unwrap_or(i32::MAX)
+        .cmp(&b.child_order.unwrap_or(i32::MAX))
+        .then_with(|| a.id.cmp(&b.id))
+}
+
 fn flatten_projects_for_sidebar(projects: &[Arc<ProjectModel>]) -> Vec<(Arc<ProjectModel>, bool)> {
     let ids: HashSet<&str> = projects.iter().map(|p| p.id.as_str()).collect();
     let mut children: HashMap<&str, Vec<usize>> = HashMap::new();
+    let mut roots = Vec::new();
     for (i, project) in projects.iter().enumerate() {
         if let Some(pid) = project_parent_id(project)
             && ids.contains(pid)
             && pid != project.id
         {
             children.entry(pid).or_default().push(i);
+        } else {
+            roots.push(i);
         }
     }
+    roots.sort_by(|&ia, &ib| cmp_project_child_order(&projects[ia], &projects[ib]));
+    for indices in children.values_mut() {
+        indices.sort_by(|&ia, &ib| cmp_project_child_order(&projects[ia], &projects[ib]));
+    }
     let mut out = Vec::with_capacity(projects.len());
-    for project in projects {
-        let parent = project_parent_id(project);
-        if parent.is_some_and(|pid| ids.contains(pid) && pid != project.id) {
-            continue;
-        }
-        out.push((project.clone(), false));
-        if let Some(child_ix) = children.get(project.id.as_str()) {
+    for i in roots {
+        out.push((projects[i].clone(), false));
+        if let Some(child_ix) = children.get(projects[i].id.as_str()) {
             for &cix in child_ix {
                 out.push((projects[cix].clone(), true));
             }
         }
     }
     out
+}
+
+/// 将 `from_id` 项目拖到 `to_id` 处：插入到目标前方，并重写同级 `child_order`。
+pub(crate) fn reorder_drop_among_projects(
+    projects: &[Arc<ProjectModel>],
+    from_id: &str,
+    to_id: &str,
+) -> Option<Vec<Arc<ProjectModel>>> {
+    if from_id == to_id {
+        return None;
+    }
+    let from = projects.iter().find(|project| project.id == from_id)?;
+    let to = projects.iter().find(|project| project.id == to_id)?;
+    if project_parent_id(from) != project_parent_id(to) {
+        return None;
+    }
+    let parent = project_parent_id(from).map(str::to_string);
+    let ids: HashSet<&str> = projects.iter().map(|p| p.id.as_str()).collect();
+    let mut siblings: Vec<Arc<ProjectModel>> = projects
+        .iter()
+        .filter(|project| {
+            if project.is_deleted || project.is_archived {
+                return false;
+            }
+            let pid = project_parent_id(project);
+            match parent.as_deref() {
+                Some(parent_id) => pid == Some(parent_id),
+                None => pid.is_none_or(|id| !ids.contains(id) || id == project.id),
+            }
+        })
+        .cloned()
+        .collect();
+    siblings.sort_by(|a, b| cmp_project_child_order(a, b));
+    let from_pos = siblings.iter().position(|project| project.id == from_id)?;
+    let to_pos = siblings.iter().position(|project| project.id == to_id)?;
+    let moved = siblings.remove(from_pos);
+    let insert_at = if from_pos < to_pos { to_pos - 1 } else { to_pos };
+    siblings.insert(insert_at, moved);
+    Some(
+        siblings
+            .into_iter()
+            .enumerate()
+            .map(|(ord, project)| {
+                let mut project = (*project).clone();
+                project.child_order = Some(ord as i32);
+                Arc::new(project)
+            })
+            .collect(),
+    )
 }
 
 // ==================== 索引操作 Trait ====================
@@ -1522,6 +1581,52 @@ mod tests {
         let ids: Vec<(&str, bool)> =
             rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
         assert_eq!(ids, vec![("other", false), ("root", false), ("child", true)]);
+    }
+
+    fn project(id: &str, parent: Option<&str>, order: i32) -> ProjectModel {
+        let mut model = ProjectModel::default();
+        model.id = id.into();
+        model.parent_id = parent.map(str::to_string);
+        model.child_order = Some(order);
+        model
+    }
+
+    #[test]
+    fn sidebar_sorts_by_child_order() {
+        let mut store = TodoStore::new();
+        store.set_projects(vec![
+            project("root", None, 1),
+            project("other", None, 0),
+            project("c2", Some("root"), 1),
+            project("c1", Some("root"), 0),
+        ]);
+        let rows = store.projects_for_sidebar();
+        let ids: Vec<(&str, bool)> =
+            rows.iter().map(|(p, nested)| (p.id.as_str(), *nested)).collect();
+        assert_eq!(ids, vec![("other", false), ("root", false), ("c1", true), ("c2", true)]);
+    }
+
+    #[test]
+    fn drop_projects_inserts_before_target() {
+        let projects = vec![
+            Arc::new(project("a", None, 0)),
+            Arc::new(project("b", None, 1)),
+            Arc::new(project("c", None, 2)),
+        ];
+        let updated = reorder_drop_among_projects(&projects, "a", "c").expect("drop");
+        assert_eq!(updated.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), vec!["b", "a", "c"]);
+        assert_eq!(updated.iter().map(|p| p.child_order).collect::<Vec<_>>(), vec![
+            Some(0),
+            Some(1),
+            Some(2)
+        ]);
+    }
+
+    #[test]
+    fn drop_projects_rejects_different_parent() {
+        let projects =
+            vec![Arc::new(project("a", Some("p1"), 0)), Arc::new(project("b", Some("p2"), 0))];
+        assert!(reorder_drop_among_projects(&projects, "a", "b").is_none());
     }
 
     #[test]

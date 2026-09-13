@@ -112,6 +112,51 @@ pub fn update_project(project: Arc<ProjectModel>, cx: &mut App) {
     .detach();
 }
 
+/// 批量更新项目顺序（先写内存，再逐条落盘）。
+pub fn batch_update_projects(projects: Vec<Arc<ProjectModel>>, cx: &mut App) {
+    if projects.is_empty() {
+        return;
+    }
+    cx.update_global::<TodoStore, _>(|todo_store, _| {
+        for project in &projects {
+            todo_store.update_project(project.clone());
+        }
+    });
+    let db_state = cx.global::<DBState>().clone();
+    cx.spawn(async move |cx| {
+        for project in projects {
+            match db_state
+                .spawn_store_op({
+                    let project = project.clone();
+                    move |store| async move { store.update_project(project.as_ref().clone()).await }
+                })
+                .await
+            {
+                Ok(Ok(updated)) => {
+                    cx.update_global::<TodoStore, _>(|todo_store, _| {
+                        todo_store.update_project(Arc::new(updated));
+                    });
+                },
+                Ok(Err(e)) => error!("batch_update_projects failed: {:?}", e),
+                Err(join_err) => error!("batch_update_projects task panicked: {:?}", join_err),
+            }
+        }
+    })
+    .detach();
+}
+
+/// 拖放到目标项目后，按同级关系重写 `child_order` 并保存。
+pub fn drop_reorder_projects(from_id: &str, to_id: &str, cx: &mut App) {
+    let updated = {
+        let store = cx.global::<TodoStore>();
+        crate::todo_state::reorder_drop_among_projects(&store.projects, from_id, to_id)
+    };
+    let Some(updated) = updated else {
+        return;
+    };
+    batch_update_projects(updated, cx);
+}
+
 /// 乐观删除项目，失败时恢复到内存列表
 pub fn delete_project(project: Arc<ProjectModel>, cx: &mut App) {
     let snapshot = project.clone();
