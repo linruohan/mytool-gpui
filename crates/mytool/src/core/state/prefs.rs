@@ -16,10 +16,17 @@ pub struct TodoPrefs {
     /// 启动时打开的看板：0 收件箱 … 5 已完成
     #[serde(default)]
     pub startup_board: u8,
+    /// 界面缩放，相对 16px rem（约 0.8–1.6）
+    #[serde(default = "default_ui_scale")]
+    pub ui_scale: f32,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_ui_scale() -> f32 {
+    1.0
 }
 
 impl Default for TodoPrefs {
@@ -29,6 +36,7 @@ impl Default for TodoPrefs {
             confirm_on_delete: true,
             complete_sound: true,
             startup_board: 0,
+            ui_scale: default_ui_scale(),
         }
     }
 }
@@ -71,5 +79,16 @@ mod tests {
         assert!(prefs.confirm_on_delete);
         assert!(prefs.complete_sound);
         assert_eq!(prefs.startup_board, 0);
+        assert_eq!(prefs.ui_scale, 1.0);
+    }
+
+    #[test]
+    fn missing_ui_scale_in_json_defaults_to_one() {
+        let prefs: TodoPrefs = serde_json::from_slice(
+            br#"{"reminders_enabled":true,"confirm_on_delete":true,"complete_sound":true,"startup_board":1}"#,
+        )
+        .unwrap();
+        assert_eq!(prefs.ui_scale, 1.0);
+        assert_eq!(prefs.startup_board, 1);
     }
 }

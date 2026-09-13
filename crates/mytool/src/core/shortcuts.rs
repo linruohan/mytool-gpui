@@ -645,6 +645,22 @@ pub fn bind_todo_keys(cx: &mut App) {
         KeyBinding::new("cmd-r", RefreshView, CTX),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-r", RefreshView, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-=", ZoomIn, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-=", ZoomIn, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-+", ZoomIn, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-+", ZoomIn, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd--", ZoomOut, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl--", ZoomOut, CTX),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-0", ResetZoom, CTX),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-0", ResetZoom, CTX),
     ]);
 }
 

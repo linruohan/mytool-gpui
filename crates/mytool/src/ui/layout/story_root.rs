@@ -1,7 +1,7 @@
 use gpui::{
     AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, InteractiveElement,
     IntoElement, ParentElement, Render, SharedString, Styled, Subscription, Window, div,
-    prelude::FluentBuilder as _,
+    prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
     Root, Sizable, WindowExt,
@@ -14,7 +14,7 @@ use rust_i18n::t;
 
 use crate::{
     AppState, AppTitleBar, ShowPanelInfo, ToggleSearch,
-    core::state::{ErrorNotifier, ReminderNotifier},
+    core::state::{ErrorNotifier, ReminderNotifier, TodoPrefs},
 };
 
 pub struct StoryRoot {
@@ -118,6 +118,8 @@ impl Focusable for StoryRoot {
 
 impl Render for StoryRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let scale = cx.global::<TodoPrefs>().ui_scale.clamp(0.8, 1.6);
+        window.set_rem_size(px(16.0 * scale));
         let sheet_layer = Root::render_sheet_layer(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);

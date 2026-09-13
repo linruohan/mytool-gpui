@@ -20,9 +20,10 @@ use crate::{
     DeleteTask, DeselectAll, DuplicateTask, EditProject, EditTask, FilterByLabel, FilterByPriority,
     FilterByProject, ItemListItem, MoveTaskToProject, NewProject, NewTask, NextView, OpenHelp,
     OpenSettings, PreviousView, ProjectEvent, ProjectItemEvent, ProjectItemsPanel, ProjectsPanel,
-    RedoLastTask, RefreshView, SearchTasks, SelectAllTasks, SelectNextTask, SelectPreviousTask,
-    SetDueDate, SetTaskPriority, ShowCompleted, ShowInbox, ShowLabels, ShowPinned, ShowScheduled,
-    ShowToday, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, play_ogg_file,
+    RedoLastTask, RefreshView, ResetZoom, SearchTasks, SelectAllTasks, SelectNextTask,
+    SelectPreviousTask, SetDueDate, SetTaskPriority, ShowCompleted, ShowInbox, ShowLabels,
+    ShowPinned, ShowScheduled, ShowToday, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin,
+    UndoLastTask, ZoomIn, ZoomOut, play_ogg_file,
     todo_state::{TodoPrefs, TodoStore},
     ui::components::{
         show_existing_item_dialog, show_filter_label_dialog, show_filter_priority_dialog,
@@ -678,6 +679,34 @@ impl TodoStory {
         cx.notify();
     }
 
+    fn bump_ui_scale(&mut self, delta: f32, window: &mut Window, cx: &mut Context<Self>) {
+        cx.update_global::<TodoPrefs, _>(|prefs, _| {
+            let next = ((prefs.ui_scale + delta) * 10.0).round() / 10.0;
+            prefs.ui_scale = next.clamp(0.8, 1.6);
+            prefs.save();
+        });
+        let scale = cx.global::<TodoPrefs>().ui_scale;
+        window.set_rem_size(px(16.0 * scale));
+        cx.notify();
+    }
+
+    fn on_zoom_in(&mut self, _: &ZoomIn, window: &mut Window, cx: &mut Context<Self>) {
+        self.bump_ui_scale(0.1, window, cx);
+    }
+
+    fn on_zoom_out(&mut self, _: &ZoomOut, window: &mut Window, cx: &mut Context<Self>) {
+        self.bump_ui_scale(-0.1, window, cx);
+    }
+
+    fn on_reset_zoom(&mut self, _: &ResetZoom, window: &mut Window, cx: &mut Context<Self>) {
+        cx.update_global::<TodoPrefs, _>(|prefs, _| {
+            prefs.ui_scale = 1.0;
+            prefs.save();
+        });
+        window.set_rem_size(px(16.0));
+        cx.notify();
+    }
+
     #[allow(unused)]
     fn render_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex().gap_3().child(
@@ -788,6 +817,9 @@ impl Render for TodoStory {
             .on_action(cx.listener(Self::on_filter_priority))
             .on_action(cx.listener(Self::on_clear_filters))
             .on_action(cx.listener(Self::on_refresh_view))
+            .on_action(cx.listener(Self::on_zoom_in))
+            .on_action(cx.listener(Self::on_zoom_out))
+            .on_action(cx.listener(Self::on_reset_zoom))
             .size_full()
             .bg(cx.theme().background)
             .child(
