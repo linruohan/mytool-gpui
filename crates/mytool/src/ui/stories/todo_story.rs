@@ -681,12 +681,9 @@ impl TodoStory {
 
     fn bump_ui_scale(&mut self, delta: f32, window: &mut Window, cx: &mut Context<Self>) {
         cx.update_global::<TodoPrefs, _>(|prefs, _| {
-            let next = ((prefs.ui_scale + delta) * 10.0).round() / 10.0;
-            prefs.ui_scale = next.clamp(0.8, 1.6);
-            prefs.save();
+            prefs.apply_ui_scale_delta(delta);
         });
-        let scale = cx.global::<TodoPrefs>().ui_scale;
-        window.set_rem_size(px(16.0 * scale));
+        window.set_rem_size(px(cx.global::<TodoPrefs>().rem_px()));
         cx.notify();
     }
 
@@ -703,7 +700,7 @@ impl TodoStory {
             prefs.ui_scale = 1.0;
             prefs.save();
         });
-        window.set_rem_size(px(16.0));
+        window.set_rem_size(px(cx.global::<TodoPrefs>().rem_px()));
         cx.notify();
     }
 

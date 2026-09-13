@@ -1032,6 +1032,46 @@ todo:
     es: "En el próximo inicio: %{name}"
     fr: "Prochain démarrage : %{name}"
     de: "Nächster Start: %{name}"
+  settings.ui_scale:
+    en: Interface scale
+    zh-CN: 界面缩放
+    zh-HK: 介面縮放
+    it: Scala interfaccia
+    es: Escala de la interfaz
+    fr: Échelle de l’interface
+    de: Oberfläche skalieren
+  settings.zoom_out:
+    en: Smaller
+    zh-CN: 缩小
+    zh-HK: 縮小
+    it: Riduci
+    es: Más pequeño
+    fr: Plus petit
+    de: Kleiner
+  settings.zoom_reset:
+    en: Reset
+    zh-CN: 重置
+    zh-HK: 重設
+    it: Reimposta
+    es: Restablecer
+    fr: Réinitialiser
+    de: Zurücksetzen
+  settings.zoom_in:
+    en: Larger
+    zh-CN: 放大
+    zh-HK: 放大
+    it: Ingrandisci
+    es: Más grande
+    fr: Plus grand
+    de: Größer
+  settings.ui_scale_set:
+    en: "Scale set to %{percent}%"
+    zh-CN: "界面缩放已设为 %{percent}%"
+    zh-HK: "介面縮放已設為 %{percent}%"
+    it: "Scala impostata a %{percent}%"
+    es: "Escala fijada en %{percent}%"
+    fr: "Échelle définie sur %{percent} %"
+    de: "Skalierung auf %{percent} %"
   help.title:
     en: Keyboard shortcuts
     zh-CN: 快捷键

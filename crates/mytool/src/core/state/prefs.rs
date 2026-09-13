@@ -58,6 +58,19 @@ impl TodoPrefs {
             let _ = std::fs::write(path, bytes);
         }
     }
+
+    pub fn clamp_ui_scale(scale: f32) -> f32 {
+        ((scale * 10.0).round() / 10.0).clamp(0.8, 1.6)
+    }
+
+    pub fn apply_ui_scale_delta(&mut self, delta: f32) {
+        self.ui_scale = Self::clamp_ui_scale(self.ui_scale + delta);
+        self.save();
+    }
+
+    pub fn rem_px(&self) -> f32 {
+        16.0 * Self::clamp_ui_scale(self.ui_scale)
+    }
 }
 
 fn prefs_path() -> PathBuf {
@@ -90,5 +103,12 @@ mod tests {
         .unwrap();
         assert_eq!(prefs.ui_scale, 1.0);
         assert_eq!(prefs.startup_board, 1);
+    }
+
+    #[test]
+    fn clamp_ui_scale_rounds_and_bounds() {
+        assert_eq!(TodoPrefs::clamp_ui_scale(0.75), 0.8);
+        assert_eq!(TodoPrefs::clamp_ui_scale(1.66), 1.6);
+        assert_eq!(TodoPrefs::clamp_ui_scale(1.14), 1.1);
     }
 }

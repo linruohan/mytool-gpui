@@ -87,6 +87,96 @@ pub fn show_todo_settings_dialog<T: Render>(window: &mut Window, cx: &mut Contex
                         div()
                             .text_xs()
                             .text_color(cx.theme().muted_foreground)
+                            .child(t!("todo.settings.ui_scale").to_string()),
+                    )
+                    .child({
+                        let percent = (TodoPrefs::clamp_ui_scale(cx.global::<TodoPrefs>().ui_scale)
+                            * 100.0)
+                            .round() as i32;
+                        h_flex()
+                            .gap_1()
+                            .child(
+                                Button::new("pref-zoom-out")
+                                    .small()
+                                    .ghost()
+                                    .label(t!("todo.settings.zoom_out").to_string())
+                                    .on_click(|_, window, cx| {
+                                        cx.update_global::<TodoPrefs, _>(|prefs, _| {
+                                            prefs.apply_ui_scale_delta(-0.1);
+                                        });
+                                        let rem = cx.global::<TodoPrefs>().rem_px();
+                                        let percent = (TodoPrefs::clamp_ui_scale(
+                                            cx.global::<TodoPrefs>().ui_scale,
+                                        ) * 100.0)
+                                            .round()
+                                            as i32;
+                                        window.set_rem_size(px(rem));
+                                        window.push_notification(
+                                            t!(
+                                                "todo.settings.ui_scale_set",
+                                                percent => percent.to_string()
+                                            )
+                                            .to_string(),
+                                            cx,
+                                        );
+                                    }),
+                            )
+                            .child(
+                                Button::new("pref-zoom-reset")
+                                    .small()
+                                    .ghost()
+                                    .label(format!(
+                                        "{} {}%",
+                                        t!("todo.settings.zoom_reset"),
+                                        percent
+                                    ))
+                                    .on_click(|_, window, cx| {
+                                        cx.update_global::<TodoPrefs, _>(|prefs, _| {
+                                            prefs.ui_scale = 1.0;
+                                            prefs.save();
+                                        });
+                                        window.set_rem_size(px(cx.global::<TodoPrefs>().rem_px()));
+                                        window.push_notification(
+                                            t!(
+                                                "todo.settings.ui_scale_set",
+                                                percent => "100"
+                                            )
+                                            .to_string(),
+                                            cx,
+                                        );
+                                    }),
+                            )
+                            .child(
+                                Button::new("pref-zoom-in")
+                                    .small()
+                                    .ghost()
+                                    .label(t!("todo.settings.zoom_in").to_string())
+                                    .on_click(|_, window, cx| {
+                                        cx.update_global::<TodoPrefs, _>(|prefs, _| {
+                                            prefs.apply_ui_scale_delta(0.1);
+                                        });
+                                        let rem = cx.global::<TodoPrefs>().rem_px();
+                                        let percent = (TodoPrefs::clamp_ui_scale(
+                                            cx.global::<TodoPrefs>().ui_scale,
+                                        ) * 100.0)
+                                            .round()
+                                            as i32;
+                                        window.set_rem_size(px(rem));
+                                        window.push_notification(
+                                            t!(
+                                                "todo.settings.ui_scale_set",
+                                                percent => percent.to_string()
+                                            )
+                                            .to_string(),
+                                            cx,
+                                        );
+                                    }),
+                            )
+                    })
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
                             .child(t!("todo.settings.startup").to_string()),
                     )
                     .child(h_flex().gap_1().flex_wrap().children(boards.iter().map(

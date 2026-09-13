@@ -118,8 +118,8 @@ impl Focusable for StoryRoot {
 
 impl Render for StoryRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let scale = cx.global::<TodoPrefs>().ui_scale.clamp(0.8, 1.6);
-        window.set_rem_size(px(16.0 * scale));
+        let scale = cx.global::<TodoPrefs>().rem_px();
+        window.set_rem_size(px(scale));
         let sheet_layer = Root::render_sheet_layer(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
