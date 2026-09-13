@@ -246,3 +246,141 @@ gpui_component:
       es: Buscar...
       fr: Rechercher...
       de: Suchen...
+
+todo:
+  more:
+    en: More
+    zh-CN: 更多
+    zh-HK: 更多
+    it: Altro
+    es: Más
+    fr: Plus
+    de: Mehr
+  save:
+    en: Save
+    zh-CN: 保存
+    zh-HK: 儲存
+    it: Salva
+    es: Guardar
+    fr: Enregistrer
+    de: Speichern
+  add:
+    en: Add
+    zh-CN: 添加
+    zh-HK: 新增
+    it: Aggiungi
+    es: Añadir
+    fr: Ajouter
+    de: Hinzufügen
+  item.add:
+    en: Add task
+    zh-CN: 添加任务
+    zh-HK: 新增任務
+    it: Aggiungi attività
+    es: Añadir tarea
+    fr: Ajouter une tâche
+    de: Aufgabe hinzufügen
+  item.new:
+    en: New task
+    zh-CN: 新建任务
+    zh-HK: 新增任務
+    it: Nuova attività
+    es: Nueva tarea
+    fr: Nouvelle tâche
+    de: Neue Aufgabe
+  item.edit:
+    en: Edit task
+    zh-CN: 编辑任务
+    zh-HK: 編輯任務
+    it: Modifica attività
+    es: Editar tarea
+    fr: Modifier la tâche
+    de: Aufgabe bearbeiten
+  section.edit:
+    en: Edit section
+    zh-CN: 编辑分区
+    zh-HK: 編輯分區
+    it: Modifica sezione
+    es: Editar sección
+    fr: Modifier la section
+    de: Abschnitt bearbeiten
+  section.copy:
+    en: Duplicate section
+    zh-CN: 复制分区
+    zh-HK: 複製分區
+    it: Duplica sezione
+    es: Duplicar sección
+    fr: Dupliquer la section
+    de: Abschnitt duplizieren
+  section.archive:
+    en: Archive section
+    zh-CN: 归档分区
+    zh-HK: 封存分區
+    it: Archivia sezione
+    es: Archivar sección
+    fr: Archiver la section
+    de: Abschnitt archivieren
+  section.delete:
+    en: Delete section
+    zh-CN: 删除分区
+    zh-HK: 刪除分區
+    it: Elimina sezione
+    es: Eliminar sección
+    fr: Supprimer la section
+    de: Abschnitt löschen
+  section.new:
+    en: New section
+    zh-CN: 新建分区
+    zh-HK: 新增分區
+    it: Nuova sezione
+    es: Nueva sección
+    fr: Nouvelle section
+    de: Neuer Abschnitt
+  section.name_placeholder:
+    en: Section name
+    zh-CN: 分区名称
+    zh-HK: 分區名稱
+    it: Nome sezione
+    es: Nombre de sección
+    fr: Nom de la section
+    de: Abschnittsname
+  section.ungrouped:
+    en: No section
+    zh-CN: 未分组
+    zh-HK: 未分組
+    it: Senza sezione
+    es: Sin sección
+    fr: Sans section
+    de: Ohne Abschnitt
+  section.delete_confirm:
+    en: Delete this section?
+    zh-CN: 确定删除这个分区吗？
+    zh-HK: 確定刪除這個分區嗎？
+    it: Eliminare questa sezione?
+    es: ¿Eliminar esta sección?
+    fr: Supprimer cette section ?
+    de: Diesen Abschnitt löschen?
+  section.copied:
+    en: Section duplicated.
+    zh-CN: 已复制分区。
+    zh-HK: 已複製分區。
+    it: Sezione duplicata.
+    es: Sección duplicada.
+    fr: Section dupliquée.
+    de: Abschnitt dupliziert.
+  section.archived:
+    en: Section archived.
+    zh-CN: 已归档分区。
+    zh-HK: 已封存分區。
+    it: Sezione archiviata.
+    es: Sección archivada.
+    fr: Section archivée.
+    de: Abschnitt archiviert.
+  section.copy_name:
+    en: "%{name} (copy)"
+    zh-CN: "%{name}（副本）"
+    zh-HK: "%{name}（副本）"
+    it: "%{name} (copia)"
+    es: "%{name} (copia)"
+    fr: "%{name} (copie)"
+    de: "%{name} (Kopie)"

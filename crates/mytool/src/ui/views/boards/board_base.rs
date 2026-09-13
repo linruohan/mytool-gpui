@@ -2,6 +2,7 @@ use std::{cell::Cell, collections::HashMap, sync::Arc};
 
 use gpui::{App, AppContext, BorrowAppContext, Context, Entity, FocusHandle, Subscription, Window};
 use gpui_component::{IndexPath, WindowExt};
+use rust_i18n::t;
 use sea_orm::sqlx::types::uuid;
 use todos::entity::SectionModel;
 
@@ -317,11 +318,13 @@ impl BoardBase {
             self.item_info.clone()
         };
 
-        let config = crate::ui::components::ItemDialogConfig::new(
-            if is_edit { "编辑任务" } else { "新建任务" },
-            if is_edit { "保存" } else { "添加" },
-            is_edit,
-        );
+        let title = if is_edit {
+            t!("todo.item.edit").to_string()
+        } else {
+            t!("todo.item.new").to_string()
+        };
+        let button = if is_edit { t!("todo.save").to_string() } else { t!("todo.add").to_string() };
+        let config = crate::ui::components::ItemDialogConfig::new(&title, &button, is_edit);
 
         crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
     }
@@ -344,8 +347,10 @@ impl BoardBase {
             todos::entity::SectionModel::default()
         };
 
-        let name_input =
-            cx.new(|cx| gpui_component::input::InputState::new(window, cx).placeholder("分区名称"));
+        let name_input = cx.new(|cx| {
+            gpui_component::input::InputState::new(window, cx)
+                .placeholder(t!("todo.section.name_placeholder").to_string())
+        });
         if is_edit {
             name_input.update(cx, |is, cx| {
                 is.set_value(ori_section.name.clone(), window, cx);
@@ -353,12 +358,14 @@ impl BoardBase {
             });
         }
 
-        let config = crate::ui::components::SectionDialogConfig::new(
-            if is_edit { "编辑分区" } else { "新建分区" },
-            if is_edit { "保存" } else { "添加" },
-            is_edit,
-        )
-        .with_overlay(false);
+        let title = if is_edit {
+            t!("todo.section.edit").to_string()
+        } else {
+            t!("todo.section.new").to_string()
+        };
+        let button = if is_edit { t!("todo.save").to_string() } else { t!("todo.add").to_string() };
+        let config = crate::ui::components::SectionDialogConfig::new(&title, &button, is_edit)
+            .with_overlay(false);
 
         crate::ui::components::show_section_dialog(
             window,
@@ -383,14 +390,10 @@ impl BoardBase {
         section_id: String,
     ) {
         if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
-            crate::ui::components::show_section_delete_dialog(
-                window,
-                cx,
-                "确定删除这个分区吗？",
-                move |cx| {
-                    crate::todo_actions::delete_section(section.clone(), cx);
-                },
-            );
+            let message = t!("todo.section.delete_confirm").to_string();
+            crate::ui::components::show_section_delete_dialog(window, cx, &message, move |cx| {
+                crate::todo_actions::delete_section(section.clone(), cx);
+            });
         }
     }
 
@@ -404,9 +407,9 @@ impl BoardBase {
         if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let mut new_section = section.as_ref().clone();
             new_section.id = uuid::Uuid::new_v4().to_string();
-            new_section.name = format!("{}（副本）", new_section.name);
+            new_section.name = t!("todo.section.copy_name", name => &new_section.name).to_string();
             add_section(Arc::new(new_section), cx);
-            window.push_notification("已复制分区。", cx);
+            window.push_notification(t!("todo.section.copied").to_string(), cx);
         }
     }
 
@@ -421,7 +424,7 @@ impl BoardBase {
             let mut updated_section = section.as_ref().clone();
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
-            window.push_notification("已归档分区。", cx);
+            window.push_notification(t!("todo.section.archived").to_string(), cx);
         }
     }
 

@@ -18,6 +18,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 use todos::entity::ItemModel;
 
 use super::{
@@ -220,37 +221,33 @@ pub fn build_section_more_menu<V: BoardSectionActions>(
         let section_id3 = section_id.clone();
         let section_id4 = section_id.clone();
         let section_id5 = section_id.clone();
-        this.item(PopupMenuItem::new("编辑分区").on_click(window.listener_for(
-            &view,
-            move |this, _, window, cx| {
+        this.item(PopupMenuItem::new(t!("todo.section.edit").to_string()).on_click(
+            window.listener_for(&view, move |this, _, window, cx| {
                 this.show_section_dialog(window, cx, Some(section_id2.clone()), true);
                 cx.notify();
-            },
-        )))
+            }),
+        ))
         .separator()
-        .item(PopupMenuItem::new("复制分区").on_click(window.listener_for(
-            &view,
-            move |this, _, window, cx| {
+        .item(PopupMenuItem::new(t!("todo.section.copy").to_string()).on_click(
+            window.listener_for(&view, move |this, _, window, cx| {
                 this.duplicate_section(window, cx, section_id3.clone());
                 cx.notify();
-            },
-        )))
+            }),
+        ))
         .separator()
-        .item(PopupMenuItem::new("归档分区").on_click(window.listener_for(
-            &view,
-            move |this, _, window, cx| {
+        .item(PopupMenuItem::new(t!("todo.section.archive").to_string()).on_click(
+            window.listener_for(&view, move |this, _, window, cx| {
                 this.archive_section(window, cx, section_id4.clone());
                 cx.notify();
-            },
-        )))
+            }),
+        ))
         .separator()
-        .item(PopupMenuItem::new("删除分区").on_click(window.listener_for(
-            &view,
-            move |this, _, window, cx| {
+        .item(PopupMenuItem::new(t!("todo.section.delete").to_string()).on_click(
+            window.listener_for(&view, move |this, _, window, cx| {
                 this.show_section_delete_dialog(window, cx, section_id5.clone());
                 cx.notify();
-            },
-        )))
+            }),
+        ))
     }
 }
 
@@ -275,7 +272,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .tooltip("添加任务")
+        .tooltip(t!("todo.item.add").to_string())
         .on_click({
             let view = view_clone.clone();
             let section_id = section_id.clone();
@@ -292,7 +289,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::EllipsisVertical)
-        .tooltip("更多")
+        .tooltip(t!("todo.more").to_string())
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
     let mut block = board_section(section_name);
@@ -319,7 +316,7 @@ pub fn render_no_section_block<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .tooltip("添加任务")
+        .tooltip(t!("todo.item.add").to_string())
         .on_click({
             let view = view_clone.clone();
             move |_, window, cx| {
@@ -330,14 +327,9 @@ pub fn render_no_section_block<V: BoardSectionActions>(
             }
         });
 
-    board_section("未分组").sub_title(h_flex().gap_1().child(add_button)).child(render_item_list(
-        items,
-        item_rows,
-        active_index,
-        active_border,
-        view_clone,
-        cx,
-    ))
+    board_section(t!("todo.section.ungrouped").to_string())
+        .sub_title(h_flex().gap_1().child(add_button))
+        .child(render_item_list(items, item_rows, active_index, active_border, view_clone, cx))
 }
 
 /// 渲染简单分组（标题 + 可选更多菜单 + 任务列表），用于 Pinned / Today 等虚拟分组
@@ -401,7 +393,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::PlusLargeSymbolic)
-        .tooltip("添加任务")
+        .tooltip(t!("todo.item.add").to_string())
         .on_click({
             let view = view_clone.clone();
             let section_id = section_id.clone();
@@ -418,7 +410,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         .ghost()
         .compact()
         .icon(IconName::EllipsisVertical)
-        .tooltip("更多")
+        .tooltip(t!("todo.more").to_string())
         .dropdown_menu(build_section_more_menu(view_clone.clone(), section_id.clone()));
 
     board_section(section_name)
