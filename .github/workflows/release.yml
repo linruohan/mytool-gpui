@@ -21,25 +21,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Use CI-friendly Cargo config
-        shell: pwsh
-        run: |
-          @'
-          [build]
-          rustc-wrapper = ""
-
-          [target.x86_64-pc-windows-msvc]
-          rustflags = [
-              "-C", "link-arg=/STACK:8000000",
-              "-C", "link-arg=/MANIFEST:NO",
-          ]
-          '@ | Set-Content -Encoding utf8 .cargo/config.toml
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
       - name: Build release
         run: cargo build --release -p mytool

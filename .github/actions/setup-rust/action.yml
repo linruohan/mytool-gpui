@@ -1,0 +1,27 @@
+name: Setup Rust
+description: Install the Rust toolchain and apply a CI-friendly Cargo config
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Use CI-friendly Cargo config
+      shell: pwsh
+      run: |
+        @'
+        [build]
+        rustc-wrapper = ""
+
+        [target.x86_64-pc-windows-msvc]
+        rustflags = [
+            "-C", "link-arg=/STACK:8000000",
+            "-C", "link-arg=/MANIFEST:NO",
+        ]
+        '@ | Set-Content -Encoding utf8 .cargo/config.toml
+
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
