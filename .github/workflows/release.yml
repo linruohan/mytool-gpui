@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTC_WRAPPER: ""
+
+jobs:
+  windows:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Use CI-friendly Cargo config
+        shell: pwsh
+        run: |
+          @'
+          [build]
+          rustc-wrapper = ""
+
+          [target.x86_64-pc-windows-msvc]
+          rustflags = [
+              "-C", "link-arg=/STACK:8000000",
+              "-C", "link-arg=/MANIFEST:NO",
+          ]
+          '@ | Set-Content -Encoding utf8 .cargo/config.toml
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release -p mytool
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $zip = "mytool-${tag}-windows-x86_64.zip"
+          Compress-Archive -Path "target/release/mytool.exe" -DestinationPath $zip -Force
+          echo "ASSET=$zip" >> $env:GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: ${{ env.ASSET }}
+          fail_on_unmatched_files: true

@@ -2,7 +2,7 @@
 edition = "2024"
 name = "mytool"
 publish = false
-version = "0.2.2"
+version = "0.1.0"
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
