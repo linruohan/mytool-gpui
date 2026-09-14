@@ -1,7 +1,7 @@
-// 🚀 临时禁用 windows_subsystem 以显示控制台日志（调试用）
-// 正式发布时请取消下面这行的注释，并注释掉 console 那行
-#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "console")]
-// #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
+// Windows 发布构建使用 windows 子系统：双击启动时不弹出黑色控制台窗口
+// 仅在 release 生效；debug 构建（debug_assertions）不受影响，仍可在终端查看日志
+// 如需临时排查发布版日志，可将下面的 "windows" 临时改回 "console"
+#![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 use std::{process, sync::mpsc::channel, thread};
 
 // 使用 AllAssets：嵌入完整 Lucide 图标目录，gpui_kit::assets::IconName 中的图标才能被加载
