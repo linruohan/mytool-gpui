@@ -282,7 +282,7 @@ impl Render for TodayBoard {
                         .pb(FAB_BOTTOM_PAD)
                         .when(!pinned_items.is_empty(), |this| {
                             this.child(board_renderer::render_simple_group_block(
-                                t!("todo.group.pinned").to_string(),
+                                &t!("todo.group.pinned"),
                                 &pinned_items,
                                 item_rows,
                                 active_index,
@@ -302,7 +302,7 @@ impl Render for TodayBoard {
                         })
                         .when(!past_due_items.is_empty(), |this| {
                             this.child(board_renderer::render_group_with_schedule_button(
-                                t!("todo.group.overdue").to_string(),
+                                &t!("todo.group.overdue"),
                                 &past_due_items,
                                 item_rows,
                                 active_index,

@@ -330,7 +330,7 @@ impl ErrorContext {
         let mut message = format!("{} {}\n\n", self.severity.icon(), self.user_message);
 
         if !self.recovery_suggestions.is_empty() {
-            message.push_str(&t!("todo.error.suggestions_header").to_string());
+            message.push_str(t!("todo.error.suggestions_header").as_ref());
             message.push('\n');
             for (i, suggestion) in self.recovery_suggestions.iter().enumerate() {
                 message.push_str(&format!("{}. {}\n", i + 1, suggestion));
