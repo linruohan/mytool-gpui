@@ -24,6 +24,11 @@ pub use logging_cfg::LoggingConfig;
 use serde::Deserialize;
 pub use server_cfg::ServerConfig;
 
+/// 编译期内嵌的默认配置
+///
+/// exe 同目录找不到 application.toml 时回退使用，支持单文件 exe 分发
+const EMBEDDED_APPLICATION_CONFIG: &str = include_str!("../../../application.toml");
+
 /// 运行环境
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Environment {
@@ -113,15 +118,29 @@ impl AppConfig {
     }
 
     /// 使用指定环境加载配置
+    ///
+    /// 优先使用外部配置文件；找不到时回退到编译期内嵌的默认配置，
+    /// 使单文件 exe 在无任何外部资源时也能启动（外部文件存在时仍优先，保留用户可配置性）
     pub fn load_with_env(env: Environment) -> Result<Self> {
-        let config_path = Self::find_config_file(env).with_context(|| "查找配置文件失败")?;
-
         let mut builder = Config::builder();
 
-        // 加载主配置文件
-        builder = builder.add_source(
-            config::File::from(config_path.as_path()).format(FileFormat::Toml).required(true),
-        );
+        // 外部配置文件存在 → 按文件加载并记录路径；否则 → 使用内嵌默认配置
+        let config_path = match Self::find_config_file(env) {
+            Ok(path) => {
+                builder = builder
+                    .add_source(config::File::from(path.as_path()).format(FileFormat::Toml));
+                Some(path)
+            },
+            Err(e) => {
+                // 找不到外部配置：回退到内嵌默认配置，并提示用户（外部文件仍可随时放回同目录生效）
+                eprintln!("ℹ️ 未找到外部配置文件({e})，使用内嵌默认配置");
+                builder = builder.add_source(config::File::from_str(
+                    EMBEDDED_APPLICATION_CONFIG,
+                    FileFormat::Toml,
+                ));
+                None
+            },
+        };
 
         // 从环境变量加载配置，前缀为APP
         builder = builder.add_source(
@@ -133,11 +152,11 @@ impl AppConfig {
 
         let mut config: Self = builder
             .build()
-            .with_context(|| format!("构建配置失败，文件: {:?}", config_path))?
+            .with_context(|| format!("构建配置失败，配置来源: {:?}", config_path))?
             .try_deserialize()
-            .with_context(|| format!("反序列化配置失败，文件: {:?}", config_path))?;
+            .with_context(|| format!("反序列化配置失败，配置来源: {:?}", config_path))?;
 
-        config.config_path = Some(config_path);
+        config.config_path = config_path;
         config.validate()?;
 
         Ok(config)

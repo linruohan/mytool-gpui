@@ -33,11 +33,11 @@ jobs:
       - name: Build release
         run: cargo build --release -p mytool
 
-      # 汇总发布产物到独立目录后再压缩，保持 zip 内目录结构规整。
-      # 注意：exe 启动时会在同目录查找 application.toml（缺失会直接退出），
-      # 完成任务时播放 assets/sounds/success.ogg，因此这两个资源必须一并打包。
-      # themes 与 locales 已在编译期通过 include_str!/rust_i18n 嵌入，无需打包。
-      - name: Stage and package
+      # 单 exe 直接发布：默认配置 application.toml 已编译期内嵌到 gconfig
+      # （exe 同目录放置 application.toml 时仍优先使用，保留可配置性）。
+      # themes 与 locales 已在编译期通过 include_str!/rust_i18n 嵌入。
+      # assets/sounds/success.ogg 为可选资源，缺失时静默跳过播放，不影响功能。
+      - name: Stage artifact
         shell: pwsh
         run: |
           # 版本号：tag 触发用 tag 名，手动触发用短 commit sha 标记为开发包
@@ -47,25 +47,14 @@ jobs:
             $version = "dev-$($env:GITHUB_SHA.Substring(0, 7))"
           }
 
-          $pkg = "mytool-$version-windows-x86_64"
-          New-Item -ItemType Directory -Force -Path "$pkg/assets/sounds" | Out-Null
+          Copy-Item "target/release/mytool.exe" "mytool-$version.exe"
+          echo "ASSET=mytool-$version.exe" >> $env:GITHUB_ENV
 
-          # 拷贝可执行文件与运行时必需资源
-          Copy-Item "target/release/mytool.exe" $pkg
-          Copy-Item "application.toml" $pkg
-          Copy-Item "assets/sounds/success.ogg" "$pkg/assets/sounds"
-
-          # 压缩整个发布目录
-          Compress-Archive -Path "$pkg/*" -DestinationPath "$pkg.zip" -Force
-
-          echo "ASSET=$pkg.zip" >> $env:GITHUB_ENV
-
-      # 产物自检：exe 与压缩包缺失时立即失败，避免发布空包
+      # 产物自检：exe 缺失时立即失败，避免发布空包
       - name: Verify artifact
         shell: pwsh
         run: |
-          if (-not (Test-Path "target/release/mytool.exe")) { throw "mytool.exe 未生成" }
-          if (-not (Test-Path $env:ASSET)) { throw "压缩包未生成: $env:ASSET" }
+          if (-not (Test-Path $env:ASSET)) { throw "exe 未生成: $env:ASSET" }
           Get-Item $env:ASSET | Select-Object Name, Length
 
       # tag 推送：创建正式 GitHub Release 并上传附件
