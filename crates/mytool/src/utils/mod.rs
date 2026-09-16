@@ -1,5 +1,7 @@
-use std::io::{BufReader, Cursor};
-use std::thread;
+use std::{
+    io::{BufReader, Cursor},
+    thread,
+};
 
 use rodio::Decoder;
 use tracing::error;

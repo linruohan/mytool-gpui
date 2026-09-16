@@ -127,8 +127,8 @@ impl AppConfig {
         // 外部配置文件存在 → 按文件加载并记录路径；否则 → 使用内嵌默认配置
         let config_path = match Self::find_config_file(env) {
             Ok(path) => {
-                builder = builder
-                    .add_source(config::File::from(path.as_path()).format(FileFormat::Toml));
+                builder =
+                    builder.add_source(config::File::from(path.as_path()).format(FileFormat::Toml));
                 Some(path)
             },
             Err(e) => {
