@@ -75,25 +75,23 @@ impl LabelsPanel {
                     tracing::debug!("label Color changed to: {:?}", color.unwrap().to_hex());
                 },
             }),
-            cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| {
-                match ev {
-                    ListEvent::Confirm(ix) | ListEvent::Select(ix) => {
-                        if let Some(conn) = this.get_selected_label(*ix, cx) {
-                            this.update_active_index(Some(ix.row));
-                            if matches!(ev, ListEvent::Confirm(_)) {
-                                this.input_esc.update(cx, |is, cx| {
-                                    is.set_value(conn.clone().name.clone(), window, cx);
-                                    cx.notify();
-                                });
-                            }
-                            cx.notify();
+            cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| match ev {
+                ListEvent::Confirm(ix) | ListEvent::Select(ix) => {
+                    if let Some(conn) = this.get_selected_label(*ix, cx) {
+                        this.update_active_index(Some(ix.row));
+                        if matches!(ev, ListEvent::Confirm(_)) {
+                            this.input_esc.update(cx, |is, cx| {
+                                is.set_value(conn.clone().name.clone(), window, cx);
+                                cx.notify();
+                            });
                         }
-                    },
-                    ListEvent::Cancel => {
-                        this.update_active_index(None);
                         cx.notify();
-                    },
-                }
+                    }
+                },
+                ListEvent::Cancel => {
+                    this.update_active_index(None);
+                    cx.notify();
+                },
             }),
         ];
 
@@ -261,9 +259,9 @@ impl LabelsPanel {
     }
 
     pub fn show_label_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let label_some = self.selected_label(cx).or_else(|| {
-            self.label_list.read(cx).delegate().selected_label()
-        });
+        let label_some = self
+            .selected_label(cx)
+            .or_else(|| self.label_list.read(cx).delegate().selected_label());
         if let Some(label) = label_some {
             let view = cx.entity().clone();
             window.open_dialog(cx, move |dialog, _, _| {

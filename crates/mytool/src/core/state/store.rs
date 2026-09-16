@@ -1151,9 +1151,7 @@ impl TodoStore {
             .all_items
             .iter()
             .filter(|item| {
-                item.labels
-                    .as_deref()
-                    .is_some_and(|raw| raw.split(';').any(|part| part == id))
+                item.labels.as_deref().is_some_and(|raw| raw.split(';').any(|part| part == id))
             })
             .map(|item| item.id.clone())
             .collect();
