@@ -1146,6 +1146,33 @@ impl TodoStore {
         self.labels.retain(|l| l.id != id);
         self.label_by_id.remove(id);
         self.mark_labels_changed();
+
+        let item_ids: Vec<String> = self
+            .all_items
+            .iter()
+            .filter(|item| {
+                item.labels
+                    .as_deref()
+                    .is_some_and(|raw| raw.split(';').any(|part| part == id))
+            })
+            .map(|item| item.id.clone())
+            .collect();
+        if item_ids.is_empty() {
+            return;
+        }
+        for item_id in item_ids {
+            let Some(item) = self.get_item(&item_id) else {
+                continue;
+            };
+            let mut next = (*item).clone();
+            if let Some(raw) = next.labels.as_deref() {
+                let kept: Vec<&str> =
+                    raw.split(';').filter(|part| !part.is_empty() && *part != id).collect();
+                next.labels = if kept.is_empty() { None } else { Some(kept.join(";")) };
+            }
+            self.upsert_item(Arc::new(next));
+        }
+        self.mark_items_changed();
     }
 
     /// 添加单个标签（已存在则覆盖，避免乐观插入重复）
@@ -1584,6 +1611,24 @@ mod tests {
         assert!(store.get_label("l1").is_some());
         store.remove_label("l1");
         assert!(store.get_label("l1").is_none());
+    }
+
+    #[test]
+    fn remove_label_strips_item_label_ids() {
+        let mut store = TodoStore::new();
+        let mut keep = LabelModel::default();
+        keep.id = "keep".into();
+        let mut gone = LabelModel::default();
+        gone.id = "gone".into();
+        store.set_labels(vec![keep, gone]);
+
+        let mut item = create_test_item("1", false, false, None);
+        item.labels = Some("keep;gone".into());
+        store.add_item(Arc::new(item));
+
+        store.remove_label("gone");
+        assert!(store.get_label("gone").is_none());
+        assert_eq!(store.get_item("1").unwrap().labels.as_deref(), Some("keep"));
     }
 
     #[test]

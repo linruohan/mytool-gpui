@@ -76,14 +76,23 @@ impl LabelsPanel {
                 },
             }),
             cx.subscribe_in(&label_list, window, |this, _, ev: &ListEvent, window, cx| {
-                if let ListEvent::Confirm(ix) = ev
-                    && let Some(conn) = this.get_selected_label(*ix, cx)
-                {
-                    this.update_active_index(Some(ix.row));
-                    this.input_esc.update(cx, |is, cx| {
-                        is.set_value(conn.clone().name.clone(), window, cx);
+                match ev {
+                    ListEvent::Confirm(ix) | ListEvent::Select(ix) => {
+                        if let Some(conn) = this.get_selected_label(*ix, cx) {
+                            this.update_active_index(Some(ix.row));
+                            if matches!(ev, ListEvent::Confirm(_)) {
+                                this.input_esc.update(cx, |is, cx| {
+                                    is.set_value(conn.clone().name.clone(), window, cx);
+                                    cx.notify();
+                                });
+                            }
+                            cx.notify();
+                        }
+                    },
+                    ListEvent::Cancel => {
+                        this.update_active_index(None);
                         cx.notify();
-                    })
+                    },
                 }
             }),
         ];
@@ -149,7 +158,9 @@ impl LabelsPanel {
             },
             LabelEvent::Deleted(label) => {
                 tracing::info!("LabelEvent::Deleted: {} (id: {})", label.name, label.id);
-                delete_label(label.clone(), cx)
+                delete_label(label.clone(), cx);
+                self.update_active_index(None);
+                cx.notify();
             },
             _ => {},
         }
@@ -250,35 +261,35 @@ impl LabelsPanel {
     }
 
     pub fn show_label_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_index) = self.active_index {
-            let label_some = self.get_selected_label(IndexPath::new(active_index), cx);
-            if let Some(label) = label_some {
-                let view = cx.entity().clone();
-                window.open_dialog(cx, move |dialog, _, _| {
-                    dialog
-                        .overlay(true)
-                        .overlay_closable(true)
-                        .child(t!("todo.label.delete_confirm").to_string())
-                        .on_ok({
+        let label_some = self.selected_label(cx).or_else(|| {
+            self.label_list.read(cx).delegate().selected_label()
+        });
+        if let Some(label) = label_some {
+            let view = cx.entity().clone();
+            window.open_dialog(cx, move |dialog, _, _| {
+                dialog
+                    .overlay(true)
+                    .overlay_closable(true)
+                    .child(t!("todo.label.delete_confirm").to_string())
+                    .on_ok({
+                        let view = view.clone();
+                        let label = label.clone();
+                        move |_, window: &mut Window, cx| {
                             let view = view.clone();
                             let label = label.clone();
-                            move |_, window: &mut Window, cx| {
-                                let view = view.clone();
-                                let label = label.clone();
-                                view.update(cx, |_view, cx| {
-                                    cx.emit(LabelEvent::Deleted(label));
-                                    cx.notify();
-                                });
-                                window.push_notification(t!("todo.label.deleted").to_string(), cx);
-                                true
-                            }
-                        })
-                        .on_cancel(|_, window: &mut Window, cx| {
-                            window.push_notification(t!("todo.item.cancelled").to_string(), cx);
+                            view.update(cx, |_view, cx| {
+                                cx.emit(LabelEvent::Deleted(label));
+                                cx.notify();
+                            });
+                            window.push_notification(t!("todo.label.deleted").to_string(), cx);
                             true
-                        })
-                });
-            };
+                        }
+                    })
+                    .on_cancel(|_, window: &mut Window, cx| {
+                        window.push_notification(t!("todo.item.cancelled").to_string(), cx);
+                        true
+                    })
+            });
         }
     }
 }

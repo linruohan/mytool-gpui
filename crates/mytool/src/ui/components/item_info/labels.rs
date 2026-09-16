@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{Context, Entity, Window};
+use gpui::{BorrowAppContext, Context, Entity, Window};
 use rust_i18n::t;
 use todos::entity::LabelModel;
 
@@ -18,7 +18,11 @@ impl ItemInfoState {
         match event {
             LabelsPopoverEvent::LabelsChanged(label_ids) => {
                 self.state_manager.update_item(|item| {
-                    item.labels = Some(label_ids.clone());
+                    item.labels = if label_ids.is_empty() { None } else { Some(label_ids.clone()) };
+                });
+                let item = self.state_manager.item.clone();
+                cx.update_global::<crate::todo_state::TodoStore, _>(|store, _| {
+                    store.update_item(item);
                 });
                 self.persist_item_labels(label_ids, cx);
                 cx.emit(ItemInfoEvent::Updated());

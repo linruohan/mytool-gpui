@@ -144,13 +144,26 @@ impl LabelsPopoverList {
                 });
                 // 发送标签ID字符串
                 self.emit_labels_changed(cx);
+                cx.notify();
             } else {
                 info!("update_label_selection: condition not met, skipping emit_labels_changed");
             }
-            // 移除cx.notify()调用，避免每次点击标签都重新渲染组件导致popover关闭
         } else {
             info!("update_label_selection: no selected label found");
         }
+    }
+
+    pub fn remove_label_id(&mut self, label_id: &str, cx: &mut Context<Self>) {
+        let before = self.selected_labels.len();
+        self.selected_labels.retain(|label| label.id != label_id);
+        if self.selected_labels.len() == before {
+            return;
+        }
+        self.label_list.update(cx, |list, cx| {
+            list.delegate_mut().set_item_checked_labels(self.selected_labels.clone(), cx);
+        });
+        self.emit_labels_changed(cx);
+        cx.notify();
     }
 
     fn selected_label(

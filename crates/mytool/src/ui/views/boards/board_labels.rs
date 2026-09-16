@@ -35,12 +35,20 @@ impl LabelsBoard {
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let labels_panel = LabelsPanel::view(window, cx);
-        let _subscriptions =
-            vec![cx.subscribe(&labels_panel, |this, _, event: &LabelEvent, cx| {
+        let _subscriptions = vec![
+            cx.observe(&labels_panel, |_, _, cx| cx.notify()),
+            cx.subscribe(&labels_panel, |this, _, event: &LabelEvent, cx| {
                 this.labels_panel.update(cx, |panel, cx| {
                     panel.handle_label_event(event, cx);
                 });
-            })];
+                cx.notify();
+            }),
+            cx.observe_global::<TodoStore>(|_, cx| {
+                if cx.global::<TodoStore>().peek_change_mask().affects_labels() {
+                    cx.notify();
+                }
+            }),
+        ];
 
         Self { focus_handle: cx.focus_handle(), _subscriptions, labels_panel }
     }

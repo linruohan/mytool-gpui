@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, RenderOnce,
+    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Render, RenderOnce,
     StatefulInteractiveElement, StyleRefinement, Styled, Subscription, Window, div,
     prelude::FluentBuilder as _, px,
 };
@@ -160,6 +160,10 @@ impl ItemInfoState {
                     } else if current_id.starts_with("temp_") {
                         item_changed = this.apply_persisted_id_mapping(cx);
                     }
+                }
+
+                if item_changed {
+                    this.refresh_labels_selection_from_item(cx);
                 }
 
                 if item_changed
@@ -542,10 +546,14 @@ impl Render for ItemInfoState {
                                         this.child(h_flex().gap_1().flex_wrap().children(
                                             selected_labels.iter().map(|label| {
                                                 let popover = label_popover.clone();
+                                                let remove_popover = label_popover.clone();
+                                                let label_id = label.id.clone();
                                                 let chip_id =
                                                     format!("edit-label-chip-{}", label.id);
-                                                div()
+                                                h_flex()
                                                     .id(chip_id)
+                                                    .items_center()
+                                                    .gap_1()
                                                     .cursor_pointer()
                                                     .on_click(move |_, window, cx| {
                                                         popover.update(cx, |this, cx| {
@@ -563,6 +571,42 @@ impl Render for ItemInfoState {
                                                         label.name.clone(),
                                                         &label.color,
                                                     ))
+                                                    .child(
+                                                        div()
+                                                            .id(format!(
+                                                                "remove-label-{}",
+                                                                label_id
+                                                            ))
+                                                            .on_mouse_down(
+                                                                MouseButton::Left,
+                                                                |_, _, cx| cx.stop_propagation(),
+                                                            )
+                                                            .on_click(move |_, _, cx| {
+                                                                cx.stop_propagation();
+                                                                remove_popover.update(
+                                                                    cx,
+                                                                    |this, cx| {
+                                                                        this.remove_label_id(
+                                                                            &label_id, cx,
+                                                                        );
+                                                                    },
+                                                                );
+                                                            })
+                                                            .child(
+                                                                Button::new(format!(
+                                                                    "remove-label-btn-{}",
+                                                                    label.id
+                                                                ))
+                                                                .small()
+                                                                .ghost()
+                                                                .compact()
+                                                                .icon(IconName::UserTrashSymbolic)
+                                                                .tooltip(
+                                                                    t!("todo.label.delete")
+                                                                        .to_string(),
+                                                                ),
+                                                            ),
+                                                    )
                                             }),
                                         ))
                                     }),
