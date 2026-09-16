@@ -71,7 +71,7 @@ impl StoryRoot {
                         }),
                     cx,
                 );
-                let _ = crate::play_ogg_file("assets/sounds/success.ogg");
+                let _ = crate::play_success_sound();
             }
         });
         Self {

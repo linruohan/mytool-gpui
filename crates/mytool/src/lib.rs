@@ -48,7 +48,7 @@ pub use ui::{
     widgets::*,
 };
 // 重新导出工具
-pub use utils::play_ogg_file;
+pub use utils::play_success_sound;
 rust_i18n::i18n!("locales", fallback = "zh-CN");
 
 #[derive(Action, Clone, PartialEq, Eq, Deserialize)]

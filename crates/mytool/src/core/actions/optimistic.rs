@@ -488,7 +488,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     });
 
     if checked && cx.global::<crate::todo_state::TodoPrefs>().complete_sound {
-        let _ = crate::play_ogg_file("assets/sounds/success.ogg");
+        let _ = crate::play_success_sound();
     }
 
     let db_state = cx.global::<DBState>().clone();

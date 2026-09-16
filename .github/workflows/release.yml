@@ -36,7 +36,7 @@ jobs:
       # 单 exe 直接发布：默认配置 application.toml 已编译期内嵌到 gconfig
       # （exe 同目录放置 application.toml 时仍优先使用，保留可配置性）。
       # themes 与 locales 已在编译期通过 include_str!/rust_i18n 嵌入。
-      # assets/sounds/success.ogg 为可选资源，缺失时静默跳过播放，不影响功能。
+      # 完成提示音 success.ogg 已通过 include_bytes 内嵌，无需外部资源。
       - name: Stage artifact
         shell: pwsh
         run: |

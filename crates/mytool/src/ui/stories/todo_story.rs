@@ -28,7 +28,7 @@ use crate::{
     SetPriorityNone, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox, ShowLabels,
     ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen, ToggleLabelFavorite,
     ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn,
-    ZoomOut, play_ogg_file,
+    ZoomOut, play_success_sound,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         DueQuickPreset, apply_due_quick_preset, show_existing_item_dialog,
@@ -1191,7 +1191,7 @@ impl TodoStory {
     }
 
     fn open_new_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let _ = play_ogg_file("assets/sounds/success.ogg");
+        let _ = play_success_sound();
         self.project_panel.update(cx, |project_panel, cx| {
             project_panel.open_project_dialog(Arc::new(ProjectModel::default()), window, cx);
             cx.notify();
