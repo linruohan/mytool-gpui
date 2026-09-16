@@ -1,0 +1,80 @@
+# MyTool-GPUI 构建与发布
+# 触发方式:推送语义化版本 tag(如 0.1.1)或手动 workflow_dispatch
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+" # 语义化版本 tag 触发(0.1.1、0.1.2... 均可,无需改此文件)
+  workflow_dispatch: # 支持手动触发(仅构建并上传 Artifact,不发 Release)
+
+permissions:
+  contents: write # 创建 GitHub Release 需要写权限
+
+# 同一 tag/分支重复推送时,取消旧的构建
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  SCCACHE_GHA_ENABLED: "true"
+  # 项目 .cargo/config.toml 里配置了 rustc-wrapper = "sccache",
+  # CI 环境必须提供 sccache,否则 cargo 会因找不到该命令而失败
+  RUSTC_WRAPPER: "sccache"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      # 使用 MSVC target:GitHub Windows Runner 原生自带 VS 构建工具与 LLVM,
+      # 且 GPUI(wgpui/directx 依赖链)官方 CI 即 MSVC,比本地 MSYS2/GNU 更稳
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+      - name: 安装 sccache 编译缓存
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: 缓存 Cargo 依赖
+        uses: Swatinem/rust-cache@v2
+
+      # LTO 已在 profile.release 中开启,直接全量 Release 构建
+      - name: 构建 Release exe
+        run: cargo build --release --target x86_64-pc-windows-gnu -p mytool
+
+      # 产物带版本号重命名,便于多版本共存(主题/多语言已编译期内嵌,单 exe 可直接分发)
+      - name: 整理产物
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          Copy-Item "target/x86_64-pc-windows-gnu/release/mytool.exe" "mytool-$version.exe"
+          Get-Item "mytool-$version.exe" | Select-Object Name, @{N='SizeMB';E={[math]::Round($_.Length/1MB,2)}}
+
+      - name: 上传构建产物(Artifact)
+        uses: actions/upload-artifact@v5
+        with:
+          name: mytool-${{ github.ref_name }}
+          path: mytool-*.exe
+          if-no-files-found: error
+
+      # 仅 tag 推送时创建 Release 并附上 exe;手动触发时自动跳过
+      - name: 发布 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: MyTool v${{ github.ref_name }}
+          body: |
+            ## MyTool v${{ github.ref_name }}
+
+            下载 `mytool-${{ github.ref_name }}.exe` 双击即可运行(单文件,免安装)。
+          files: mytool-*.exe
+          draft: false
+          prerelease: false
