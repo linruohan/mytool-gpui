@@ -1,12 +1,14 @@
 name: Release
 
 # 触发条件：
-# 1. 推送 v*.*.* 格式的 tag：自动构建并发布正式 GitHub Release
+# 1. 推送发布 tag：自动构建并发布正式 GitHub Release
+#    兼容两种命名格式：v0.1.1（带 v 前缀）与 0.1.1（无前缀）
 # 2. workflow_dispatch：在 Actions 页面手动触发，用于验证打包流程（产物上传为 Artifact）
 on:
   push:
     tags:
       - "v*.*.*"
+      - "[0-9]*.[0-9]*.[0-9]*"
   workflow_dispatch:
 
 permissions:
