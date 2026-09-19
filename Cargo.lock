@@ -2544,7 +2544,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.6.4"
-source = "git+https://github.com/linruohan/gpui-component.git#39bb7c82e607b26e34fe5e7ec573378e7e80ddc7"
+source = "git+https://github.com/linruohan/gpui-component.git#62090aab1e944d97e376375f0f9796f8c9855bc5"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2581,7 +2581,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.6.4"
-source = "git+https://github.com/linruohan/gpui-component.git#39bb7c82e607b26e34fe5e7ec573378e7e80ddc7"
+source = "git+https://github.com/linruohan/gpui-component.git#62090aab1e944d97e376375f0f9796f8c9855bc5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2660,7 +2660,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.6.4"
-source = "git+https://github.com/linruohan/gpui-component.git#39bb7c82e607b26e34fe5e7ec573378e7e80ddc7"
+source = "git+https://github.com/linruohan/gpui-component.git#62090aab1e944d97e376375f0f9796f8c9855bc5"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2671,7 +2671,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.6.4"
-source = "git+https://github.com/linruohan/gpui-component.git#39bb7c82e607b26e34fe5e7ec573378e7e80ddc7"
+source = "git+https://github.com/linruohan/gpui-component.git#62090aab1e944d97e376375f0f9796f8c9855bc5"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2688,7 +2688,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.6.4"
-source = "git+https://github.com/linruohan/gpui-component.git#39bb7c82e607b26e34fe5e7ec573378e7e80ddc7"
+source = "git+https://github.com/linruohan/gpui-component.git#62090aab1e944d97e376375f0f9796f8c9855bc5"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2701,7 +2701,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.6.4"
-source = "git+https://github.com/linruohan/gpui-component.git#39bb7c82e607b26e34fe5e7ec573378e7e80ddc7"
+source = "git+https://github.com/linruohan/gpui-component.git#62090aab1e944d97e376375f0f9796f8c9855bc5"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -8940,9 +8940,9 @@ checksum = "ce61d488bcdc9bc8b5d1772c404828b17fc481c0a582b5581e95fb233aef503e"
 
 [[package]]
 name = "unicode-id"
-version = "0.3.6"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70ba288e709927c043cbe476718d37be306be53fb1fafecd0dbe36d072be2580"
+checksum = "65dd75ab2d9d379dbe86d4059e91d8b5a6e7054865eaba1ddbfc7a817ff96392"
 
 [[package]]
 name = "unicode-ident"
