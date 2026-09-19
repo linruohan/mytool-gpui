@@ -153,6 +153,15 @@ impl ScheduledBoard {
             },
         ) {
             self.grouped_by_date = group_scheduled_by_date(state_items.as_slice());
+            if let Some(filter) = self.filter_date.as_deref() {
+                let still_has = self
+                    .grouped_by_date
+                    .iter()
+                    .any(|(date, items)| date == filter && !items.is_empty());
+                if !still_has {
+                    self.clear_date_filter(window, cx);
+                }
+            }
         }
     }
 

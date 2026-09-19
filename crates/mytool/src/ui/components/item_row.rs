@@ -12,7 +12,8 @@ use gpui_component::{
 use todos::{entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{
-    ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, SemanticColors, todo_state::TodoStore,
+    ItemInfo, ItemInfoEvent, ItemInfoState, ItemListItem, SemanticColors,
+    todo_actions::set_item_pinned_optimistic, todo_state::TodoStore,
 };
 
 const CONTEXT: &str = "ItemRow";
@@ -227,10 +228,13 @@ impl ItemRowState {
     fn handle_toggle_pin_shortcut(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let new_pinned = !self.item.pinned;
         let item_info = self.ensure_item_info(window, cx);
-        item_info.update(cx, |state, cx| {
+        item_info.update(cx, |state, _cx| {
             state.state_manager.set_pinned(new_pinned);
-            cx.emit(ItemInfoEvent::Updated());
         });
+        set_item_pinned_optimistic(self.item.clone(), new_pinned, cx);
+        Arc::make_mut(&mut self.item).pinned = new_pinned;
+        self.update_version += 1;
+        cx.notify();
         true
     }
 

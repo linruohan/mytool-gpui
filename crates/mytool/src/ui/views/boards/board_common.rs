@@ -434,6 +434,9 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
                 let section_items = section_items.clone();
                 move |_, window, cx| {
                     let due_date = schedule_state.read(cx).due_date.clone();
+                    if due_date.date.is_empty() {
+                        return false;
+                    }
 
                     let mut updated_items = Vec::new();
                     for item in &section_items {
