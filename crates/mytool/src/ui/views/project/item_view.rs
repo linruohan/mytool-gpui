@@ -803,7 +803,7 @@ impl Render for ProjectItemsPanel {
                             ),
                     ),
             )
-            .child(board_common::render_batch_bar(cx))
+            .child(board_common::render_batch_bar(view.clone(), cx))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()

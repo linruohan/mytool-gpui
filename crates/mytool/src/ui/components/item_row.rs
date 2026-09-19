@@ -138,12 +138,7 @@ impl ItemRowState {
                     return;
                 },
                 ItemInfoEvent::Deleted() => {
-                    cx.update_global::<TodoStore, _>(|store, _| {
-                        store.remove_item(&this.item.id);
-                    });
                     this.is_open = false;
-                    cx.notify();
-                    return;
                 },
                 _ => {},
             }

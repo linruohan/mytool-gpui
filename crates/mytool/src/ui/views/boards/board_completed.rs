@@ -199,7 +199,7 @@ impl Render for CompletedBoard {
                     )
                 }),
             ))
-            .child(crate::ui::views::boards::board_common::render_batch_bar(cx))
+            .child(crate::ui::views::boards::board_common::render_batch_bar(view.clone(), cx))
             .child(
                 v_flex().flex_1().overflow_y_scrollbar().child(
                     v_flex()

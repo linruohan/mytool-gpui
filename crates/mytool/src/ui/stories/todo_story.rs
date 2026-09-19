@@ -574,7 +574,10 @@ impl TodoStory {
 
     fn on_set_due_date(&mut self, _: &SetDueDate, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = self.primary_item(cx) {
-            show_set_due_dialog(window, cx, item);
+            let view = cx.entity();
+            show_set_due_dialog(window, cx, item, move |window, cx| {
+                view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+            });
         }
     }
 
@@ -983,7 +986,10 @@ impl TodoStory {
         cx: &mut Context<Self>,
     ) {
         if let Some(item) = self.primary_item(cx) {
-            show_move_to_project_dialog(window, cx, vec![item]);
+            let view = cx.entity();
+            show_move_to_project_dialog(window, cx, vec![item], move |window, cx| {
+                view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+            });
         }
     }
 
@@ -1005,7 +1011,10 @@ impl TodoStory {
         if items.is_empty() {
             return;
         }
-        show_move_to_project_dialog(window, cx, items);
+        let view = cx.entity();
+        show_move_to_project_dialog(window, cx, items, move |window, cx| {
+            view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+        });
     }
 
     fn reorder_active_task(&mut self, delta: i32, window: &mut Window, cx: &mut Context<Self>) {

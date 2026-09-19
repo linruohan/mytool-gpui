@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, AppContext, ClickEvent, Context, ElementId, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Render, SharedString, Styled, Window, prelude::FluentBuilder, px,
+    App, AppContext, ClickEvent, Context, ElementId, Entity, InteractiveElement, IntoElement,
+    MouseButton, ParentElement, Render, SharedString, Styled, Window, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, IndexPath, Sizable, StyledExt, WindowExt,
@@ -534,7 +534,7 @@ pub fn render_board_header(
 }
 
 /// 多选工具条：完成 / 置顶 / 删除
-pub fn render_batch_bar(cx: &App) -> impl IntoElement {
+pub fn render_batch_bar<V: BoardView + Render>(view: Entity<V>, cx: &App) -> impl IntoElement {
     let count = cx.global::<ItemSelection>().len();
     h_flex().w_full().px(px(16.)).when(count > 0, move |this| {
         this.py(px(6.))
@@ -552,13 +552,17 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                     .ghost()
                     .icon(IconName::CheckSquare)
                     .tooltip(t!("todo.batch.complete").to_string())
-                    .on_click(|_, window, cx| {
-                        let n = batch_complete_selected(cx);
-                        if n > 0 {
-                            window.push_notification(
-                                t!("todo.batch.completed_n", count => n).to_string(),
-                                cx,
-                            );
+                    .on_click({
+                        let view = view.clone();
+                        move |_, window, cx| {
+                            let n = batch_complete_selected(cx);
+                            if n > 0 {
+                                window.push_notification(
+                                    t!("todo.batch.completed_n", count => n).to_string(),
+                                    cx,
+                                );
+                                view.update(cx, |this, cx| this.request_store_refresh(window, cx));
+                            }
                         }
                     }),
             )
@@ -568,13 +572,17 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                     .ghost()
                     .icon(IconName::PinSymbolic)
                     .tooltip(t!("todo.batch.pin").to_string())
-                    .on_click(|_, window, cx| {
-                        let n = batch_pin_selected(cx);
-                        if n > 0 {
-                            window.push_notification(
-                                t!("todo.batch.pinned_n", count => n).to_string(),
-                                cx,
-                            );
+                    .on_click({
+                        let view = view.clone();
+                        move |_, window, cx| {
+                            let n = batch_pin_selected(cx);
+                            if n > 0 {
+                                window.push_notification(
+                                    t!("todo.batch.pinned_n", count => n).to_string(),
+                                    cx,
+                                );
+                                view.update(cx, |this, cx| this.request_store_refresh(window, cx));
+                            }
                         }
                     }),
             )
@@ -584,41 +592,51 @@ pub fn render_batch_bar(cx: &App) -> impl IntoElement {
                     .ghost()
                     .icon(IconName::UserTrashSymbolic)
                     .tooltip(t!("todo.batch.delete").to_string())
-                    .on_click(|_, window, cx| {
-                        let n = cx.global::<ItemSelection>().len();
-                        if n == 0 {
-                            return;
-                        }
-                        window.open_dialog(cx, move |dialog, _, _| {
-                            dialog
-                                .overlay(true)
-                                .overlay_closable(true)
-                                .child(
-                                    Alert::warning(
-                                        "batch-delete-alert",
-                                        t!("todo.batch.delete_confirm", count => n).to_string(),
+                    .on_click({
+                        let view = view.clone();
+                        move |_, window, cx| {
+                            let n = cx.global::<ItemSelection>().len();
+                            if n == 0 {
+                                return;
+                            }
+                            let view = view.clone();
+                            window.open_dialog(cx, move |dialog, _, _| {
+                                dialog
+                                    .overlay(true)
+                                    .overlay_closable(true)
+                                    .child(
+                                        Alert::warning(
+                                            "batch-delete-alert",
+                                            t!("todo.batch.delete_confirm", count => n).to_string(),
+                                        )
+                                        .title(t!("todo.confirm")),
                                     )
-                                    .title(t!("todo.confirm")),
-                                )
-                                .on_ok(move |_, window: &mut Window, cx| {
-                                    let deleted = batch_delete_selected(cx);
-                                    if deleted > 0 {
+                                    .on_ok({
+                                        let view = view.clone();
+                                        move |_, window: &mut Window, cx| {
+                                            let deleted = batch_delete_selected(cx);
+                                            if deleted > 0 {
+                                                window.push_notification(
+                                                    t!("todo.batch.deleted_n", count => deleted)
+                                                        .to_string(),
+                                                    cx,
+                                                );
+                                                view.update(cx, |this, cx| {
+                                                    this.request_store_refresh(window, cx)
+                                                });
+                                            }
+                                            true
+                                        }
+                                    })
+                                    .on_cancel(move |_, window: &mut Window, cx| {
                                         window.push_notification(
-                                            t!("todo.batch.deleted_n", count => deleted)
-                                                .to_string(),
+                                            t!("todo.item.delete_cancel").to_string(),
                                             cx,
                                         );
-                                    }
-                                    true
-                                })
-                                .on_cancel(move |_, window: &mut Window, cx| {
-                                    window.push_notification(
-                                        t!("todo.item.delete_cancel").to_string(),
-                                        cx,
-                                    );
-                                    true
-                                })
-                        });
+                                        true
+                                    })
+                            });
+                        }
                     }),
             )
     })

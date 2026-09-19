@@ -426,7 +426,7 @@ impl Render for ScheduledBoard {
                         )
                     }),
             ))
-            .child(crate::ui::views::boards::board_common::render_batch_bar(cx))
+            .child(crate::ui::views::boards::board_common::render_batch_bar(view.clone(), cx))
             .child(
                 h_flex()
                     .flex_1()

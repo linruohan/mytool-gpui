@@ -357,11 +357,15 @@ pub fn apply_due_quick_preset(
     n
 }
 
-pub fn show_set_due_dialog<T: Render>(
+pub fn show_set_due_dialog<T, F>(
     window: &mut Window,
     cx: &mut Context<T>,
     item: Arc<ItemModel>,
-) {
+    on_done: F,
+) where
+    T: Render,
+    F: Fn(&mut Window, &mut App) + Clone + 'static,
+{
     let picker = cx.new(|cx| {
         let mut picker = DatePickerState::new(window, cx);
         if let Some(date) = item.due_date_naive() {
@@ -382,6 +386,7 @@ pub fn show_set_due_dialog<T: Render>(
             .on_ok({
                 let picker = picker.clone();
                 let item = item.clone();
+                let on_done = on_done.clone();
                 move |_, window, cx| {
                     let ymd = picker.read(cx).date().format("%Y-%m-%d").map(|s| s.to_string());
                     let mut updated = (*item).clone();
@@ -399,17 +404,22 @@ pub fn show_set_due_dialog<T: Render>(
                     }
                     update_item_optimistic(Arc::new(updated), cx);
                     window.push_notification(t!("todo.due.updated").to_string(), cx);
+                    on_done(window, cx);
                     true
                 }
             })
     });
 }
 
-pub fn show_move_to_project_dialog<T: Render>(
+pub fn show_move_to_project_dialog<T, F>(
     window: &mut Window,
     cx: &mut Context<T>,
     items: Vec<Arc<ItemModel>>,
-) {
+    on_done: F,
+) where
+    T: Render,
+    F: Fn(&mut Window, &mut App) + Clone + 'static,
+{
     if items.is_empty() {
         return;
     }
@@ -428,6 +438,7 @@ pub fn show_move_to_project_dialog<T: Render>(
                     .max_h(px(360.))
                     .child({
                         let items = items.clone();
+                        let on_done = on_done.clone();
                         Button::new("move-inbox")
                             .small()
                             .ghost()
@@ -442,11 +453,13 @@ pub fn show_move_to_project_dialog<T: Render>(
                                     },
                                     cx,
                                 );
+                                on_done(window, cx);
                                 window.close_dialog(cx);
                             })
                     })
                     .children(projects.iter().enumerate().map(|(ix, (project, nested))| {
                         let items = items.clone();
+                        let on_done = on_done.clone();
                         let project = project.clone();
                         let label = if *nested {
                             format!("  {}", project.name)
@@ -466,6 +479,7 @@ pub fn show_move_to_project_dialog<T: Render>(
                                     },
                                     cx,
                                 );
+                                on_done(window, cx);
                                 window.close_dialog(cx);
                             },
                         )
