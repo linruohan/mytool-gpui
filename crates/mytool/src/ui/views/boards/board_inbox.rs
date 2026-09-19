@@ -98,6 +98,10 @@ impl BoardView for InboxBoard {
     fn set_active_index(&mut self, index: Option<usize>) {
         self.base.set_active_index(index);
     }
+
+    fn request_store_refresh(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.base.request_refresh(cx);
+    }
 }
 
 impl Board for InboxBoard {

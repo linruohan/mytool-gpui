@@ -566,6 +566,10 @@ impl BoardView for ProjectItemsPanel {
     fn set_active_index(&mut self, index: Option<usize>) {
         self.active_index = index;
     }
+
+    fn request_store_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.reload_project_items(window, cx);
+    }
 }
 
 impl ProjectItemsPanel {

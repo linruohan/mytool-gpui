@@ -883,6 +883,9 @@ pub fn diff_update_item_rows<V: gpui::Render>(
 /// 用于通用渲染的 Board 视图 trait（可设置当前选中项索引）
 pub trait BoardView: gpui::Render {
     fn set_active_index(&mut self, index: Option<usize>);
+
+    /// 拖拽/改期等写完 Store 后立刻重拉列表，避免 observe_global 不重入。
+    fn request_store_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>);
 }
 
 #[cfg(test)]

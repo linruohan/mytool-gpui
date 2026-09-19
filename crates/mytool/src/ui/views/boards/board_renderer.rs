@@ -117,6 +117,7 @@ where
     let drag_id = item_id.clone();
     let drop_id = item_id.clone();
     let can_drop_id = item_id.clone();
+    let view_for_drop = view.clone();
     div()
         .id(("item", i))
         .rounded_md()
@@ -143,8 +144,11 @@ where
                 drag.downcast_ref::<ItemDragPayload>()
                     .is_some_and(|payload| payload.item_id != can_drop_id)
             })
-            .on_drop(move |drag: &ItemDragPayload, _, cx| {
+            .on_drop(move |drag: &ItemDragPayload, window, cx| {
                 drop_reorder_items(&drag.item_id, &drop_id, cx);
+                view_for_drop.update(cx, |this, cx| {
+                    this.request_store_refresh(window, cx);
+                });
             })
         })
         .on_click(move |event, _, cx| {
