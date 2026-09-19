@@ -254,7 +254,7 @@ impl ManageSectionsPanel {
 
         let config = SectionDialogConfig::new(&t!("todo.section.edit"), &t!("todo.save"), true);
 
-        show_section_dialog(window, cx, name_input, config, move |new_name, cx| {
+        show_section_dialog(window, cx, name_input, config, move |new_name, _window, cx| {
             // 更新 section
             let updated_section =
                 Arc::new(SectionModel { name: new_name, ..(*section_clone).clone() });
@@ -277,7 +277,7 @@ impl ManageSectionsPanel {
             window,
             cx,
             &t!("todo.section.delete_named", name => section_name.as_str()),
-            move |cx| {
+            move |_window, cx| {
                 delete_section(section_clone.clone(), cx);
             },
         );
@@ -292,7 +292,7 @@ impl ManageSectionsPanel {
 
         let config = SectionDialogConfig::new(&t!("todo.section.new"), &t!("todo.add"), false);
 
-        show_section_dialog(window, cx, name_input, config, move |name, cx| {
+        show_section_dialog(window, cx, name_input, config, move |name, _window, cx| {
             let new_section = Arc::new(SectionModel {
                 id: uuid::Uuid::new_v4().to_string(),
                 name,

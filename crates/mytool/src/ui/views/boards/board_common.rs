@@ -94,7 +94,7 @@ pub fn show_confirm_dialog<T, F>(
     cancel_notification: &str,
 ) where
     T: Render + 'static,
-    F: Fn(&mut App) + Clone + 'static,
+    F: Fn(&mut Window, &mut App) + Clone + 'static,
 {
     let message = message.into();
     let success_notification = success_notification.to_string();
@@ -114,7 +114,7 @@ pub fn show_confirm_dialog<T, F>(
                 let on_confirm = on_confirm.clone();
                 let success_notification = success_notification.clone();
                 move |_, window: &mut Window, cx| {
-                    on_confirm(cx);
+                    on_confirm(window, cx);
                     window.push_notification(success_notification.clone(), cx);
                     true
                 }
@@ -132,11 +132,13 @@ pub fn show_confirm_dialog<T, F>(
 /// 删除任务确认对话框
 pub fn show_item_delete_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: Arc<ItemModel>)
 where
-    T: Render + 'static,
+    T: Render + BoardView + 'static,
 {
+    let view = cx.entity();
     if !cx.global::<crate::core::state::TodoPrefs>().confirm_on_delete {
         delete_item_optimistic(item, cx);
         window.push_notification(t!("todo.item.deleted").to_string(), cx);
+        view.update(cx, |this, cx| this.request_store_refresh(window, cx));
         return;
     }
     show_confirm_dialog(
@@ -144,8 +146,9 @@ where
         cx,
         t!("todo.item.delete_confirm").to_string(),
         &t!("todo.confirm"),
-        move |cx| {
+        move |window, cx| {
             delete_item_optimistic(item.clone(), cx);
+            view.update(cx, |this, cx| this.request_store_refresh(window, cx));
         },
         &t!("todo.item.deleted"),
         &t!("todo.item.delete_cancel"),
@@ -159,8 +162,9 @@ pub fn show_finish_item_dialog<T>(
     item: Arc<ItemModel>,
     style: FinishItemDialogStyle,
 ) where
-    T: Render + 'static,
+    T: Render + BoardView + 'static,
 {
+    let view = cx.entity();
     let success = if item.due_date().and_then(|d| d.next_due_after_completion()).is_some() {
         t!("todo.item.next_occurrence").to_string()
     } else {
@@ -171,8 +175,9 @@ pub fn show_finish_item_dialog<T>(
         cx,
         style.message(),
         &t!("todo.confirm"),
-        move |cx| {
+        move |window, cx| {
             complete_item_optimistic(item.clone(), true, cx);
+            view.update(cx, |this, cx| this.request_store_refresh(window, cx));
         },
         &success,
         &style.cancel_notification(),
@@ -182,8 +187,9 @@ pub fn show_finish_item_dialog<T>(
 /// 置顶/取消置顶任务确认对话框
 pub fn show_pin_item_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: Arc<ItemModel>)
 where
-    T: Render + 'static,
+    T: Render + BoardView + 'static,
 {
+    let view = cx.entity();
     let message = if item.pinned {
         t!("todo.item.unpin_confirm").to_string()
     } else {
@@ -200,8 +206,9 @@ where
         cx,
         message,
         &t!("todo.confirm"),
-        move |cx| {
+        move |window, cx| {
             set_item_pinned_optimistic(item.clone(), !item.pinned, cx);
+            view.update(cx, |this, cx| this.request_store_refresh(window, cx));
         },
         &success,
         &t!("todo.item.op_cancelled"),
@@ -211,15 +218,17 @@ where
 /// 标记未完成确认对话框（Completed Board）
 pub fn show_item_unfinish_dialog<T>(window: &mut Window, cx: &mut Context<T>, item: Arc<ItemModel>)
 where
-    T: Render + 'static,
+    T: Render + BoardView + 'static,
 {
+    let view = cx.entity();
     show_confirm_dialog(
         window,
         cx,
         t!("todo.item.unfinish_confirm").to_string(),
         &t!("todo.confirm"),
-        move |cx| {
+        move |window, cx| {
             complete_item_optimistic(item.clone(), false, cx);
+            view.update(cx, |this, cx| this.request_store_refresh(window, cx));
         },
         &t!("todo.item.unfinished"),
         &t!("todo.item.cancelled"),

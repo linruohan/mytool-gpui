@@ -473,7 +473,7 @@ impl BoardBase {
     }
 
     /// 显示新建/编辑任务对话框
-    pub fn show_item_dialog<V: gpui::Render>(
+    pub fn show_item_dialog<V: gpui::Render + BoardView>(
         &mut self,
         window: &mut Window,
         cx: &mut Context<V>,
@@ -513,11 +513,20 @@ impl BoardBase {
         let button = if is_edit { t!("todo.save").to_string() } else { t!("todo.add").to_string() };
         let config = crate::ui::components::ItemDialogConfig::new(&title, &button, is_edit);
 
-        crate::ui::components::show_item_dialog(window, cx, item_info, config, |_item, _cx| {});
+        let view = cx.entity();
+        crate::ui::components::show_item_dialog(
+            window,
+            cx,
+            item_info,
+            config,
+            move |_item, window, cx| {
+                view.update(cx, |this, cx| this.request_store_refresh(window, cx));
+            },
+        );
     }
 
     /// 显示新建/编辑分区对话框
-    pub fn show_section_dialog<V: gpui::Render>(
+    pub fn show_section_dialog<V: gpui::Render + BoardView>(
         &mut self,
         window: &mut Window,
         cx: &mut Context<V>,
@@ -554,33 +563,42 @@ impl BoardBase {
         let config = crate::ui::components::SectionDialogConfig::new(&title, &button, is_edit)
             .with_overlay(false);
 
+        let view = cx.entity();
         crate::ui::components::show_section_dialog(
             window,
             cx,
             name_input,
             config,
-            move |name, cx| {
+            move |name, window, cx| {
                 let section = Arc::new(SectionModel { name, ..ori_section.clone() });
                 if is_edit {
                     update_section(section, cx);
                 } else {
                     add_section(section, cx);
                 }
+                view.update(cx, |this, cx| this.request_store_refresh(window, cx));
             },
         );
     }
 
     /// 显示删除分区确认对话框
-    pub fn show_section_delete_dialog<V: gpui::Render>(
+    pub fn show_section_delete_dialog<V: gpui::Render + BoardView>(
         window: &mut Window,
         cx: &mut Context<V>,
         section_id: String,
     ) {
         if let Some(section) = cx.global::<TodoStore>().get_section(&section_id) {
             let message = t!("todo.section.delete_confirm").to_string();
-            crate::ui::components::show_section_delete_dialog(window, cx, &message, move |cx| {
-                crate::todo_actions::delete_section(section.clone(), cx);
-            });
+            let view = cx.entity();
+            crate::ui::components::show_section_delete_dialog(
+                window,
+                cx,
+                &message,
+                move |window, cx| {
+                    crate::todo_actions::delete_section(section.clone(), cx);
+                    view.update(cx, |this, cx| this.request_store_refresh(window, cx));
+                },
+            );
         }
     }
 

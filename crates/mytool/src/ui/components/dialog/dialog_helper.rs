@@ -62,7 +62,7 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
 ) where
     T: Render + 'static,
     ContentFn: Fn() -> gpui::AnyElement + Clone + 'static,
-    SaveFn: Fn(&mut gpui::App) + Clone + 'static,
+    SaveFn: Fn(&mut Window, &mut gpui::App) + Clone + 'static,
 {
     let dialog_config = DialogConfig::new(&config.title).overlay(config.overlay);
 
@@ -97,7 +97,7 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
                         Button::new("ok").label(&config.button_label).primary().on_click(
                             move |_, window, cx| {
                                 // Call save function with App reference
-                                (save_fn)(cx);
+                                (save_fn)(window, cx);
                                 window.push_notification(t!("todo.notify.saved").to_string(), cx);
                                 window.close_sheet(cx);
                             },
@@ -123,7 +123,7 @@ pub fn show_item_dialog<T, F>(
     on_save: F,
 ) where
     T: Render + 'static,
-    F: Fn(Arc<todos::entity::ItemModel>, &mut gpui::App) + Clone + 'static,
+    F: Fn(Arc<todos::entity::ItemModel>, &mut Window, &mut gpui::App) + Clone + 'static,
 {
     let dialog_config = DialogConfig::new(&config.title).overlay(config.overlay);
     let item_info_clone = item_info.clone();
@@ -168,7 +168,7 @@ pub fn show_item_dialog<T, F>(
                                 // 获取保存后的 item
                                 let item = item_info_for_ok.read(cx).state_manager.item.clone();
                                 // 调用额外的回调
-                                on_save_for_callback(item, cx);
+                                on_save_for_callback(item, window, cx);
                                 // 立即关闭对话框
                                 // 注意：异步保存任务使用 .detach()，会在后台继续执行
                                 window.close_dialog(cx);
@@ -193,7 +193,7 @@ pub fn show_new_item_dialog<T>(
         cx,
         item_info,
         EditDialogConfig::new(&t!("todo.item.new"), &t!("todo.add"), false),
-        |_item, _cx| {},
+        |_item, _window, _cx| {},
     );
 }
 
@@ -211,7 +211,7 @@ pub fn show_existing_item_dialog<T>(
         cx,
         item_info,
         EditDialogConfig::new(&t!("todo.item.edit"), &t!("todo.save"), true),
-        |_item, _cx| {},
+        |_item, _window, _cx| {},
     );
 }
 
@@ -231,7 +231,7 @@ pub fn show_section_dialog<T, F>(
     on_save: F,
 ) where
     T: Render + 'static,
-    F: Fn(String, &mut gpui::App) + Clone + 'static,
+    F: Fn(String, &mut Window, &mut gpui::App) + Clone + 'static,
 {
     show_edit_dialog(
         window,
@@ -247,9 +247,9 @@ pub fn show_section_dialog<T, F>(
         {
             let name_input = name_input.clone();
             let on_save = on_save.clone();
-            move |app_cx: &mut gpui::App| {
+            move |window, app_cx: &mut gpui::App| {
                 let name = name_input.read(app_cx).value().to_string();
-                on_save(name, app_cx);
+                on_save(name, window, app_cx);
             }
         },
     );
@@ -265,7 +265,7 @@ pub fn show_section_dialog<T, F>(
 pub fn show_delete_dialog<T, F>(window: &mut Window, cx: &mut Context<T>, message: &str, on_ok: F)
 where
     T: Render + 'static,
-    F: Fn(&mut gpui::App) + Clone + 'static,
+    F: Fn(&mut Window, &mut gpui::App) + Clone + 'static,
 {
     let message = message.to_string();
     let on_ok = on_ok.clone();
@@ -290,7 +290,7 @@ where
                     ),
             )
             .on_ok(move |_, window, cx| {
-                on_ok(cx);
+                on_ok(window, cx);
                 window.push_notification(t!("todo.notify.deleted").to_string(), cx);
                 true
             })
@@ -309,7 +309,7 @@ pub fn show_item_delete_dialog<T, F>(
     on_ok: F,
 ) where
     T: Render + 'static,
-    F: Fn(&mut gpui::App) + Clone + 'static,
+    F: Fn(&mut Window, &mut gpui::App) + Clone + 'static,
 {
     show_delete_dialog(window, cx, message, on_ok);
 }
@@ -322,7 +322,7 @@ pub fn show_section_delete_dialog<T, F>(
     on_ok: F,
 ) where
     T: Render + 'static,
-    F: Fn(&mut gpui::App) + Clone + 'static,
+    F: Fn(&mut Window, &mut gpui::App) + Clone + 'static,
 {
     show_delete_dialog(window, cx, message, on_ok);
 }

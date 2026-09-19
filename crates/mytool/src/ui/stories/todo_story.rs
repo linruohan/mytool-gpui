@@ -17,24 +17,24 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
-    BoardPanel, BoardView, ClearDueDate, ClearFilters, CompletedBoard, DeleteProject, DeleteSection,
-    DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask, FilterByLabel,
-    FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, IndentTask, ItemListItem,
-    MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView,
-    OpenHelp, OpenSettings, OutdentTask, PinBoard, PreviousView, ProjectEvent, ProjectItemEvent,
-    ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom, ScheduleNextWeek,
-    ScheduleToday, ScheduleTomorrow, ScheduledBoard, SearchTasks, SelectAllTasks, SelectNextTask,
-    SelectPreviousTask, SetDueDate, SetPriorityHigh, SetPriorityLow, SetPriorityMedium,
-    SetPriorityNone, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox, ShowLabels,
-    ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen, ToggleLabelFavorite,
-    ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin, UndoLastTask, ZoomIn,
-    ZoomOut, play_success_sound,
+    BoardPanel, BoardView, ClearDueDate, ClearFilters, CompletedBoard, DeleteProject,
+    DeleteSection, DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask,
+    FilterByLabel, FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, IndentTask,
+    ItemListItem, MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask,
+    NextView, OpenHelp, OpenSettings, OutdentTask, PinBoard, PreviousView, ProjectEvent,
+    ProjectItemEvent, ProjectItemsPanel, ProjectsPanel, RedoLastTask, RefreshView, ResetZoom,
+    ScheduleNextWeek, ScheduleToday, ScheduleTomorrow, ScheduledBoard, SearchTasks, SelectAllTasks,
+    SelectNextTask, SelectPreviousTask, SetDueDate, SetPriorityHigh, SetPriorityLow,
+    SetPriorityMedium, SetPriorityNone, SetTaskPriority, ShowAllTasks, ShowCompleted, ShowInbox,
+    ShowLabels, ShowPinned, ShowScheduled, ShowToday, TodayBoard, ToggleFullscreen,
+    ToggleLabelFavorite, ToggleProjectFavorite, ToggleSidebar, ToggleTaskComplete, ToggleTaskPin,
+    UndoLastTask, ZoomIn, ZoomOut, play_success_sound,
     todo_state::{NavHistory, NavPlace, TodoPrefs, TodoStore},
     ui::components::{
         DueQuickPreset, apply_due_quick_preset, show_existing_item_dialog,
         show_filter_label_dialog, show_filter_priority_dialog, show_filter_project_dialog,
-        show_move_to_project_dialog, show_new_item_dialog, show_set_due_dialog,
-        show_todo_help_dialog, show_todo_settings_dialog,
+        show_move_to_project_dialog, show_set_due_dialog, show_todo_help_dialog,
+        show_todo_settings_dialog,
     },
 };
 
@@ -292,7 +292,21 @@ impl TodoStory {
         if let Some(project) = &self.active_project {
             item.project_id = Some(project.id.clone());
         }
-        show_new_item_dialog(window, cx, item);
+        let item_info = cx.new(|cx| crate::ItemInfoState::new(Arc::new(item), window, cx));
+        let view = cx.entity();
+        crate::ui::components::show_item_dialog(
+            window,
+            cx,
+            item_info,
+            crate::ui::components::ItemDialogConfig::new(
+                &t!("todo.item.new"),
+                &t!("todo.add"),
+                false,
+            ),
+            move |_item, window, cx| {
+                view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+            },
+        );
     }
 
     fn on_search_tasks(&mut self, _: &SearchTasks, window: &mut Window, cx: &mut Context<Self>) {
@@ -491,9 +505,16 @@ impl TodoStory {
             self.refresh_active_list(window, cx);
             return;
         }
-        crate::show_item_delete_dialog(window, cx, &t!("todo.item.delete_confirm"), move |cx| {
-            crate::todo_actions::delete_item_optimistic(item.clone(), cx);
-        });
+        let view = cx.entity();
+        crate::show_item_delete_dialog(
+            window,
+            cx,
+            &t!("todo.item.delete_confirm"),
+            move |window, cx| {
+                crate::todo_actions::delete_item_optimistic(item.clone(), cx);
+                view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+            },
+        );
     }
 
     fn on_toggle_complete(

@@ -239,12 +239,12 @@ impl ProjectItemsPanel {
             cx,
             item_info.clone(),
             config,
-            move |item, cx| {
+            move |item, window, cx| {
                 item_info.update(cx, |_item_info, cx| {
                     cx.emit(ItemInfoEvent::Updated());
                     cx.notify();
                 });
-                view.update(cx, |_view, cx| {
+                view.update(cx, |this, cx| {
                     let arc_item = Arc::new((*item).clone());
                     let event = if is_edit {
                         ProjectItemEvent::Modified(arc_item.clone())
@@ -252,7 +252,7 @@ impl ProjectItemsPanel {
                         ProjectItemEvent::Added(arc_item.clone())
                     };
                     cx.emit(event);
-                    cx.notify();
+                    this.reload_project_items(window, cx);
                 });
             },
         );
@@ -267,9 +267,10 @@ impl ProjectItemsPanel {
                     window,
                     cx,
                     &t!("todo.item.delete_confirm"),
-                    move |cx| {
-                        view.update(cx, |_, cx| {
+                    move |window, cx| {
+                        view.update(cx, |this, cx| {
                             cx.emit(ProjectItemEvent::Deleted(item.clone()));
+                            this.reload_project_items(window, cx);
                         });
                     },
                 );
@@ -323,8 +324,8 @@ impl ProjectItemsPanel {
             cx,
             name_input,
             config,
-            move |name, cx| {
-                view.update(cx, |_view, cx| {
+            move |name, window, cx| {
+                view.update(cx, |this, cx| {
                     let section =
                         Arc::new(todos::entity::SectionModel { name, ..ori_section.clone() });
                     if is_edit {
@@ -332,7 +333,7 @@ impl ProjectItemsPanel {
                     } else {
                         add_section(section, cx);
                     }
-                    cx.notify();
+                    this.reload_project_items(window, cx);
                 });
             },
         );
@@ -350,10 +351,10 @@ impl ProjectItemsPanel {
                 window,
                 cx,
                 &t!("todo.section.delete_confirm"),
-                move |cx| {
-                    view.update(cx, |_view, cx| {
+                move |window, cx| {
+                    view.update(cx, |this, cx| {
                         delete_section(section.clone(), cx);
-                        cx.notify();
+                        this.reload_project_items(window, cx);
                     });
                 },
             );
@@ -548,7 +549,7 @@ impl ProjectItemsPanel {
             window,
             cx,
             &t!("todo.project.delete_confirm"),
-            move |cx| {
+            move |_window, cx| {
                 view.update(cx, |_view, cx| {
                     delete_project(project.clone(), cx);
                     cx.notify();

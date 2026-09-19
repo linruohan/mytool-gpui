@@ -1435,12 +1435,10 @@ mod tests {
         let mut store = TodoStore::new();
 
         let today = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-        let yesterday = (chrono::Local::now() - chrono::Days::new(1))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
-        let tomorrow = (chrono::Local::now() + chrono::Days::new(1))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
+        let yesterday =
+            (chrono::Local::now() - chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let tomorrow =
+            (chrono::Local::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
 
         store.set_items(vec![
             create_test_item("1", false, false, None),
@@ -1511,12 +1509,10 @@ mod tests {
     #[test]
     fn test_today_items_include_overdue_and_leave_after_reschedule() {
         let mut store = TodoStore::new();
-        let yesterday = (chrono::Local::now() - chrono::Days::new(1))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
-        let tomorrow = (chrono::Local::now() + chrono::Days::new(1))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
+        let yesterday =
+            (chrono::Local::now() - chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let tomorrow =
+            (chrono::Local::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
 
         store.set_items(vec![create_test_item("overdue", false, false, Some(&yesterday))]);
         assert_eq!(store.today_items().len(), 1);
