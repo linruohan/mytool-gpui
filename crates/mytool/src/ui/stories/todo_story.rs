@@ -421,6 +421,7 @@ impl TodoStory {
         let n = crate::todo_actions::batch_complete_selected(cx);
         if n > 0 {
             window.push_notification(t!("todo.batch.completed_n", count => n).to_string(), cx);
+            self.refresh_active_list(window, cx);
         }
         cx.notify();
     }
@@ -434,6 +435,7 @@ impl TodoStory {
         let n = crate::todo_actions::batch_delete_selected(cx);
         if n > 0 {
             window.push_notification(t!("todo.batch.deleted_n", count => n).to_string(), cx);
+            self.refresh_active_list(window, cx);
         }
         cx.notify();
     }
@@ -452,6 +454,7 @@ impl TodoStory {
         }
         if let Some(msg) = crate::todo_actions::undo_last_task(cx) {
             window.push_notification(msg, cx);
+            self.refresh_active_list(window, cx);
         }
         cx.notify();
     }
@@ -462,6 +465,7 @@ impl TodoStory {
         }
         if let Some(msg) = crate::todo_actions::redo_last_task(cx) {
             window.push_notification(msg, cx);
+            self.refresh_active_list(window, cx);
         }
         cx.notify();
     }
@@ -484,6 +488,7 @@ impl TodoStory {
         if !cx.global::<crate::core::state::TodoPrefs>().confirm_on_delete {
             crate::todo_actions::delete_item_optimistic(item, cx);
             window.push_notification(t!("todo.item.deleted").to_string(), cx);
+            self.refresh_active_list(window, cx);
             return;
         }
         crate::show_item_delete_dialog(window, cx, &t!("todo.item.delete_confirm"), move |cx| {
@@ -507,6 +512,7 @@ impl TodoStory {
                 },
                 cx,
             );
+            self.refresh_active_list(window, cx);
         }
     }
 
@@ -526,6 +532,7 @@ impl TodoStory {
         copy.completed_at = None;
         crate::todo_actions::add_item_optimistic(Arc::new(copy), cx);
         window.push_notification(t!("todo.item.copied").to_string(), cx);
+        self.refresh_active_list(window, cx);
     }
 
     fn on_toggle_pin(&mut self, _: &ToggleTaskPin, window: &mut Window, cx: &mut Context<Self>) {
@@ -540,6 +547,7 @@ impl TodoStory {
                 },
                 cx,
             );
+            self.refresh_active_list(window, cx);
         }
     }
 
@@ -584,6 +592,7 @@ impl TodoStory {
             }
         };
         window.push_notification(msg, cx);
+        self.refresh_active_list(window, cx);
         cx.notify();
     }
 
@@ -942,6 +951,7 @@ impl TodoStory {
             t!("todo.notify.set_priority", label => label.as_str()).to_string(),
             cx,
         );
+        self.refresh_active_list(window, cx);
         cx.notify();
     }
 
@@ -1171,6 +1181,7 @@ impl TodoStory {
 
     fn on_refresh_view(&mut self, _: &RefreshView, window: &mut Window, cx: &mut Context<Self>) {
         window.push_notification(t!("todo.notify.refreshed").to_string(), cx);
+        self.refresh_active_list(window, cx);
         cx.notify();
     }
 

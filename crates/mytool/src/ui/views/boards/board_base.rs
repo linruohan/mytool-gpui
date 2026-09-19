@@ -597,6 +597,7 @@ impl BoardBase {
             new_section.name = t!("todo.section.copy_name", name => &new_section.name).to_string();
             add_section(Arc::new(new_section), cx);
             window.push_notification(t!("todo.section.copied").to_string(), cx);
+            self.request_refresh(cx);
         }
     }
 
@@ -612,6 +613,7 @@ impl BoardBase {
             updated_section.is_archived = true;
             update_section(Arc::new(updated_section), cx);
             window.push_notification(t!("todo.section.archived").to_string(), cx);
+            self.request_refresh(cx);
         }
     }
 

@@ -56,10 +56,10 @@ impl ChangeMask {
         }
     }
 
-    /// 收件箱 / 今日 / 计划：任务列表或当前项目变化即需刷新
+    /// 收件箱 / 今日 / 计划：任务、分区或当前项目变化即需刷新
     #[inline]
     pub fn affects_item_filter_boards(&self) -> bool {
-        self.items_changed || self.active_project_changed
+        self.items_changed || self.sections_changed || self.active_project_changed
     }
 
     pub fn affects_inbox(&self) -> bool {
@@ -1660,6 +1660,12 @@ mod tests {
         assert!(labels_only.affects_label_list());
         assert!(labels_only.affects_item_editor());
         assert!(!labels_only.affects_project_list());
+
+        let mut sections_only = ChangeMask::none();
+        sections_only.sections_changed = true;
+        assert!(sections_only.affects_item_filter_boards());
+        assert!(sections_only.affects_project());
+        assert!(!sections_only.affects_project_list());
     }
 
     #[test]
