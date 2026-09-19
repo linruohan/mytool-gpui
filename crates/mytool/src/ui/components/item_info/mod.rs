@@ -494,10 +494,13 @@ impl Render for ItemInfoState {
                                                     })
                                                     .on_click(cx.listener(|this, _, _, cx| {
                                                         let item = this.state_manager.item.clone();
-                                                        let pinned = item.pinned;
+                                                        let pinned = !item.pinned;
+                                                        this.state_manager.set_pinned(pinned);
                                                         set_item_pinned_optimistic(
-                                                            item, !pinned, cx,
+                                                            item, pinned, cx,
                                                         );
+                                                        cx.emit(ItemInfoEvent::Updated());
+                                                        cx.notify();
                                                     })),
                                             )
                                             .when(

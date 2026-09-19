@@ -214,7 +214,7 @@ where
     V: BoardView + Render,
 {
     let selected = cx.global::<ItemSelection>().ids().clone();
-    v_flex().gap(px(2.)).w_full().children(flatten_with_indent(items).into_iter().map(
+    v_flex().gap(px(2.)).w_full().children(flatten_with_indent_in(items, cx).into_iter().map(
         |(i, indent)| {
             let item_row = item_rows.get(i).cloned();
             let item_id =
@@ -236,6 +236,22 @@ where
 }
 
 pub(crate) fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> {
+    flatten_with_indent_by(items, |item| item.collapsed)
+}
+
+fn flatten_with_indent_in(items: &[(usize, Arc<ItemModel>)], cx: &App) -> Vec<(usize, bool)> {
+    flatten_with_indent_by(items, |item| {
+        cx.global::<TodoStore>()
+            .get_item(&item.id)
+            .map(|live| live.collapsed)
+            .unwrap_or(item.collapsed)
+    })
+}
+
+fn flatten_with_indent_by(
+    items: &[(usize, Arc<ItemModel>)],
+    collapsed_of: impl Fn(&ItemModel) -> bool,
+) -> Vec<(usize, bool)> {
     let ids: std::collections::HashSet<&str> =
         items.iter().map(|(_, item)| item.id.as_str()).collect();
     let mut nested_pos = std::collections::HashSet::new();
@@ -265,7 +281,7 @@ pub(crate) fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usi
             continue;
         }
         out.push((items[pos].0, false));
-        if item.collapsed {
+        if collapsed_of(item) {
             continue;
         }
         if let Some(child_pos) = by_parent.get(item.id.as_str()) {

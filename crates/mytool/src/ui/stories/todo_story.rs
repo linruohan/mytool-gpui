@@ -135,10 +135,18 @@ impl TodoStory {
             // 监听 TodoStore 的变化，当 active_project 变化时更新 UI
             // 🚀 7.0修复：此观察者保持不变（问题在 InboxBoard 的 observe_global 中）
             cx.observe_global::<TodoStore>(|this, cx| {
-                let todo_store = cx.global::<TodoStore>();
+                let mask = *cx.global::<TodoStore>().peek_change_mask();
+                let active_project = cx.global::<TodoStore>().active_project.clone();
+                if mask.items_changed
+                    || mask.projects_changed
+                    || mask.sections_changed
+                    || mask.labels_changed
+                {
+                    cx.notify();
+                }
 
                 // 检查 active_project 是否变化
-                match &todo_store.active_project {
+                match &active_project {
                     Some(active_project) => {
                         // 检查是否与当前 active_project 不同
                         let is_different = this
@@ -161,7 +169,8 @@ impl TodoStory {
                             );
 
                             // 找到新项目在列表中的索引
-                            let new_index = todo_store
+                            let new_index = cx
+                                .global::<TodoStore>()
                                 .projects
                                 .iter()
                                 .position(|p| p.id == active_project_clone.id);
