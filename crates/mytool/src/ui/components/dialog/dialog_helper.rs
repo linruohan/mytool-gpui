@@ -198,12 +198,14 @@ pub fn show_new_item_dialog<T>(
 }
 
 /// 打开编辑已有任务对话框
-pub fn show_existing_item_dialog<T>(
+pub fn show_existing_item_dialog<T, F>(
     window: &mut Window,
     cx: &mut Context<T>,
     item: Arc<todos::entity::ItemModel>,
+    on_save: F,
 ) where
     T: Render + 'static,
+    F: Fn(Arc<todos::entity::ItemModel>, &mut Window, &mut gpui::App) + Clone + 'static,
 {
     let item_info = cx.new(|cx| crate::ItemInfoState::new(item, window, cx));
     show_item_dialog(
@@ -211,7 +213,7 @@ pub fn show_existing_item_dialog<T>(
         cx,
         item_info,
         EditDialogConfig::new(&t!("todo.item.edit"), &t!("todo.save"), true),
-        |_item, _window, _cx| {},
+        on_save,
     );
 }
 

@@ -398,7 +398,12 @@ macro_rules! impl_board_section_actions {
 }
 
 /// 显示 section 的 schedule popover（批量设置 section 内任务日期）
-pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: String) {
+pub fn show_schedule_popover<V: BoardView + Render>(
+    window: &mut Window,
+    cx: &mut App,
+    section_id: String,
+    view: Entity<V>,
+) {
     let store = cx.global::<TodoStore>();
     let section_items: Vec<Arc<ItemModel>> = store
         .all_items
@@ -441,6 +446,7 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
             .on_ok({
                 let schedule_state = schedule_state.clone();
                 let section_items = section_items.clone();
+                let view = view.clone();
                 move |_, window, cx| {
                     let due_date = schedule_state.read(cx).due_date.clone();
                     if due_date.date.is_empty() {
@@ -462,6 +468,7 @@ pub fn show_schedule_popover(window: &mut Window, cx: &mut App, section_id: Stri
                         t!("todo.section.scheduled_n", count => count).to_string(),
                         cx,
                     );
+                    view.update(cx, |this, cx| this.request_store_refresh(window, cx));
                     true
                 }
             })

@@ -368,8 +368,14 @@ impl Render for TodayBoard {
                                     .label(t!("todo.section.schedule").to_string())
                                     .on_click({
                                         let section_id = section_id.clone();
+                                        let view = view.clone();
                                         move |_, window, cx| {
-                                            show_schedule_popover(window, cx, section_id.clone());
+                                            show_schedule_popover(
+                                                window,
+                                                cx,
+                                                section_id.clone(),
+                                                view.clone(),
+                                            );
                                         }
                                     });
 

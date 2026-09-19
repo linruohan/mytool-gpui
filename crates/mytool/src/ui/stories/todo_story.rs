@@ -365,7 +365,10 @@ impl TodoStory {
         }
         let id = item.id.clone();
         cx.update_global::<crate::core::state::ItemSelection, _>(|sel, _| sel.select_only(id));
-        show_existing_item_dialog(window, cx, item);
+        let view = cx.entity();
+        show_existing_item_dialog(window, cx, item, move |_item, window, cx| {
+            view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+        });
         cx.notify();
     }
 
@@ -491,7 +494,10 @@ impl TodoStory {
 
     fn on_edit_task(&mut self, _: &EditTask, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = self.primary_item(cx) {
-            show_existing_item_dialog(window, cx, item);
+            let view = cx.entity();
+            show_existing_item_dialog(window, cx, item, move |_item, window, cx| {
+                view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+            });
         }
     }
 
@@ -890,7 +896,10 @@ impl TodoStory {
 
     fn on_add_label(&mut self, _: &AddLabel, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(item) = self.primary_item(cx) {
-            show_existing_item_dialog(window, cx, item);
+            let view = cx.entity();
+            show_existing_item_dialog(window, cx, item, move |_item, window, cx| {
+                view.update(cx, |this, cx| this.refresh_active_list(window, cx));
+            });
         }
     }
 
