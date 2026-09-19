@@ -58,7 +58,6 @@ pub struct ProjectItemsPanel {
     pinned_items: Vec<(usize, Arc<ItemModel>)>,
     no_section_items: Vec<(usize, Arc<ItemModel>)>,
     section_items_map: std::collections::HashMap<String, Vec<(usize, Arc<ItemModel>)>>,
-    cached_version: usize,
     color: Entity<ColorPickerState>,
     selected_color: Option<Hsla>,
     project_due: Option<String>,
@@ -78,45 +77,10 @@ impl ProjectItemsPanel {
 
         let _subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
-                let (version, should_refresh, state_items) = {
-                    let todo_store = cx.global::<TodoStore>();
-                    if this.cached_version == todo_store.version() {
-                        return;
-                    }
-                    let should_refresh = todo_store.peek_change_mask().affects_project();
-                    let items = if this.project.id.is_empty() || !should_refresh {
-                        Vec::new()
-                    } else {
-                        todo_store.items_by_project(&this.project.id).to_vec()
-                    };
-                    (todo_store.version(), should_refresh, items)
-                };
-                this.cached_version = version;
-
-                if this.project.id.is_empty() {
-                    tracing::debug!("ProjectItemsPanel: project.id 为空,跳过加载 items");
+                if !cx.global::<TodoStore>().peek_change_mask().affects_project() {
                     return;
                 }
-                if !should_refresh {
-                    return;
-                }
-
-                diff_update_item_rows(
-                    &mut this.item_rows,
-                    &mut this.item_row_ids,
-                    &state_items,
-                    window,
-                    cx,
-                );
-
-                let grouped = group_items(&state_items, PinnedLayout::Inclusive, false);
-                this.pinned_items = grouped.pinned;
-                this.no_section_items = grouped.no_section;
-                this.section_items_map = grouped.sections;
-                clamp_active_index(&mut this.active_index, this.item_rows.len());
-
-                tracing::debug!("ProjectItemsPanel 已更新, items 数量: {}", this.item_rows.len());
-                cx.notify();
+                this.reload_project_items(window, cx);
             }),
             cx.subscribe(&color, |this, _, ev, _| match ev {
                 ColorPickerEvent::Change(color) => {
@@ -138,7 +102,6 @@ impl ProjectItemsPanel {
             pinned_items,
             no_section_items,
             section_items_map,
-            cached_version: 0,
             color,
             selected_color: None,
             project_due: None,
@@ -163,6 +126,28 @@ impl ProjectItemsPanel {
         }
 
         load_project_items(project.clone(), cx);
+    }
+
+    fn reload_project_items(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.project.id.is_empty() {
+            tracing::debug!("ProjectItemsPanel: project.id 为空,跳过加载 items");
+            return;
+        }
+        let state_items = cx.global::<TodoStore>().items_by_project(&self.project.id).to_vec();
+        diff_update_item_rows(
+            &mut self.item_rows,
+            &mut self.item_row_ids,
+            &state_items,
+            window,
+            cx,
+        );
+        let grouped = group_items(&state_items, PinnedLayout::Inclusive, false);
+        self.pinned_items = grouped.pinned;
+        self.no_section_items = grouped.no_section;
+        self.section_items_map = grouped.sections;
+        clamp_active_index(&mut self.active_index, self.item_rows.len());
+        tracing::debug!("ProjectItemsPanel 已更新, items 数量: {}", self.item_rows.len());
+        cx.notify();
     }
 
     pub(crate) fn get_selected_item(&self, ix: IndexPath, cx: &App) -> Option<Arc<ItemModel>> {
@@ -584,7 +569,7 @@ impl BoardView for ProjectItemsPanel {
 }
 
 impl ProjectItemsPanel {
-    fn reorder_active(&self, delta: i32, cx: &mut Context<Self>) {
+    fn reorder_active(&mut self, delta: i32, window: &mut Window, cx: &mut Context<Self>) {
         let Some(active_index) = self.active_index else {
             return;
         };
@@ -597,14 +582,21 @@ impl ProjectItemsPanel {
             return;
         };
         crate::core::actions::batch::batch_update_items(updated, cx);
+        self.reload_project_items(window, cx);
     }
 
-    pub fn reorder_by_item_id(&mut self, item_id: &str, delta: i32, cx: &mut Context<Self>) {
+    pub fn reorder_by_item_id(
+        &mut self,
+        item_id: &str,
+        delta: i32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(active_index) = self.item_row_ids.iter().position(|id| id == item_id) else {
             return;
         };
         self.active_index = Some(active_index);
-        self.reorder_active(delta, cx);
+        self.reorder_active(delta, window, cx);
     }
 }
 
@@ -633,11 +625,11 @@ impl Render for ProjectItemsPanel {
         v_flex()
             .id("project-items")
             .track_focus(&self.focus_handle)
-            .on_action(cx.listener(|this, _: &crate::MoveTaskUp, _, cx| {
-                this.reorder_active(-1, cx);
+            .on_action(cx.listener(|this, _: &crate::MoveTaskUp, window, cx| {
+                this.reorder_active(-1, window, cx);
             }))
-            .on_action(cx.listener(|this, _: &crate::MoveTaskDown, _, cx| {
-                this.reorder_active(1, cx);
+            .on_action(cx.listener(|this, _: &crate::MoveTaskDown, window, cx| {
+                this.reorder_active(1, window, cx);
             }))
             .relative()
             .size_full()

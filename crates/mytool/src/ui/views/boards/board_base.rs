@@ -752,6 +752,13 @@ impl BoardBase {
             return;
         };
         crate::core::actions::batch::batch_update_items(updated, cx);
+        self.request_refresh(cx);
+    }
+
+    /// 看板自身改了 Store 后立刻排队刷新，避免 observe_global 在当前事件里不重入。
+    pub fn request_refresh<V: gpui::Render>(&self, cx: &mut Context<V>) {
+        self.pending_refresh.set(true);
+        cx.notify();
     }
 
     /// 按任务 id 在当前分组内上移/下移（键盘选中时 `active_index` 可能尚未同步）。
@@ -1060,6 +1067,26 @@ mod tests {
     fn drop_sections_rejects_different_project() {
         let sections = vec![section("a", Some("p1"), 0), section("b", Some("p2"), 0)];
         assert!(reorder_drop_among_sections(&sections, "a", "b").is_none());
+    }
+
+    #[test]
+    fn today_board_splits_overdue_and_due_today() {
+        let mut overdue = item("overdue", false, false, None);
+        let mut due_today = item("today", false, false, None);
+        let yesterday = chrono::Local::now().date_naive() - chrono::Duration::days(1);
+        let today = chrono::Local::now().date_naive();
+        let mut overdue_due = todos::DueDate::default();
+        overdue_due.date = yesterday.format("%Y-%m-%d").to_string();
+        let mut today_due = todos::DueDate::default();
+        today_due.date = today.format("%Y-%m-%d").to_string();
+        Arc::make_mut(&mut overdue).set_due_date(Some(overdue_due));
+        Arc::make_mut(&mut due_today).set_due_date(Some(today_due));
+
+        let grouped = group_items(&[overdue, due_today], PinnedLayout::Exclusive, true);
+        assert_eq!(grouped.past_due.len(), 1);
+        assert_eq!(grouped.past_due[0].1.id, "overdue");
+        assert_eq!(grouped.due_today.len(), 1);
+        assert_eq!(grouped.due_today[0].1.id, "today");
     }
 
     #[test]

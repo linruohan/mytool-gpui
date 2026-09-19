@@ -984,7 +984,7 @@ impl TodoStory {
         let id = item.id.clone();
         if self.active_project.is_some() {
             self.project_items_panel.update(cx, |panel, cx| {
-                panel.reorder_by_item_id(&id, delta, cx);
+                panel.reorder_by_item_id(&id, delta, window, cx);
             });
             return;
         }

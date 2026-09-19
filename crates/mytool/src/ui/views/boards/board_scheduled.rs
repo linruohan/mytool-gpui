@@ -138,6 +138,7 @@ impl ScheduledBoard {
             return;
         };
         crate::core::actions::batch::batch_update_items(updated, cx);
+        self.base.request_refresh(cx);
     }
 
     fn apply_pending_refresh(&mut self, window: &mut Window, cx: &mut Context<Self>) {

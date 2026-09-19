@@ -67,14 +67,10 @@ impl ListStory {
         let _subscriptions = vec![
             cx.observe_global_in::<TodoStore>(window, move |this, window, cx| {
                 let store = cx.global::<TodoStore>();
-                let current_version = store.version();
-
-                // 版本号未变化，跳过更新
-                if this.cached_version == current_version {
+                if !store.peek_change_mask().items_changed {
                     return;
                 }
-
-                this.cached_version = current_version;
+                this.cached_version = store.version();
                 let state_items = store.all_items.clone();
 
                 // 将state_items转换为HashMap便于快速查找

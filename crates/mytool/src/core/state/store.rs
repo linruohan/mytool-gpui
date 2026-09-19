@@ -11,10 +11,8 @@
 //! - **索引操作抽象**: 通过 IndexOperation trait 统一索引操作逻辑
 
 use std::{
-    cell::Cell,
     collections::{HashMap, HashSet},
     sync::Arc,
-    time::Instant,
 };
 
 use gpui::Global;
@@ -152,9 +150,13 @@ fn board_membership(item: &ItemModel, today: chrono::NaiveDate) -> BoardMembersh
         return BoardMembership { inbox: false, today: false, scheduled: false };
     }
     let due = item.due_date_naive();
-    let due_today = due == Some(today);
+    let on_today_board = due.is_some_and(|d| d <= today);
     let no_project = item.project_id.as_deref().is_none_or(|p| p.is_empty());
-    BoardMembership { inbox: no_project && !due_today, today: due_today, scheduled: due.is_some() }
+    BoardMembership {
+        inbox: no_project && !on_today_board,
+        today: on_today_board,
+        scheduled: due.is_some(),
+    }
 }
 
 pub(crate) fn cmp_child_order(a: &ItemModel, b: &ItemModel) -> std::cmp::Ordering {
@@ -387,10 +389,7 @@ pub struct TodoStore {
     /// 视图可通过检查掩码判断是否需要更新，避免惊群效应
     change_mask: ChangeMask,
 
-    /// 上次 version 递增的时间戳，用于基于时间窗口的自动去重
-    last_bump_time: Cell<Instant>,
-
-    /// 任务列表 / 活跃项目变化代数。QueryCache 用它在 50ms 版本合并窗口内仍能失效。
+    /// 任务列表 / 活跃项目变化代数。QueryCache 用它失效看板查询槽。
     query_epoch: u64,
 
     /// 🚀 索引统计（用于性能监控）
@@ -435,11 +434,10 @@ impl TodoStore {
             inbox_set: HashSet::new(),
             today_set: HashSet::new(),
             scheduled_set: HashSet::new(),
-            index_date: chrono::Utc::now().naive_utc().date(),
+            index_date: Self::today_date(),
             id_mappings: HashMap::new(),
             version: 0,
             change_mask: ChangeMask::none(),
-            last_bump_time: Cell::new(Instant::now() - std::time::Duration::from_secs(1)),
             query_epoch: 0,
             #[cfg(debug_assertions)]
             index_stats: IndexStats::default(),
@@ -453,20 +451,14 @@ impl TodoStore {
         self.version
     }
 
-    /// 安全地递增版本号（基于时间窗口的防重入）
+    /// 每次数据变化都递增版本并重置掩码，再由 mark_* 打上本次域标记。
     ///
-    /// 如果距上次 version++ 不足 50ms（同一事件循环/观察者分发窗口），
-    /// 则跳过版本递增，掩码继续 OR 合并。真正递增时先清空掩码，
-    /// 保证多 Board 可安全 peek 且掩码不会永久 sticky。
+    /// 不再做 50ms 合并：连续改期/排序时若 version 不变，项目面板等按 version
+    /// 短路的观察者会漏刷新。
     #[inline]
     fn bump_version(&mut self) {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_bump_time.get());
-        if elapsed.as_millis() >= 50 {
-            self.version += 1;
-            self.change_mask.clear();
-            self.last_bump_time.set(now);
-        }
+        self.version += 1;
+        self.change_mask.clear();
     }
 
     fn mark_items_changed(&mut self) {
@@ -491,7 +483,7 @@ impl TodoStore {
     }
 
     fn today_date() -> chrono::NaiveDate {
-        chrono::Utc::now().naive_utc().date()
+        chrono::Local::now().date_naive()
     }
 
     fn board_indexes_current(&self) -> bool {
@@ -653,7 +645,7 @@ impl TodoStore {
         items
     }
 
-    /// 获取收件箱任务（未完成且无项目ID、且非今日到期）
+    /// 获取收件箱任务（未完成且无项目ID、且不在今日看板）
     pub fn inbox_items(&self) -> Vec<Arc<ItemModel>> {
         if self.board_indexes_current() {
             return self.items_from_set(&self.inbox_set);
@@ -662,7 +654,7 @@ impl TodoStore {
         self.query_items(|item| {
             !item.checked
                 && (item.project_id.is_none() || item.project_id.as_deref() == Some(""))
-                && !item.is_due_on_date(today)
+                && !item.is_due_on_or_before(today)
         })
     }
 
@@ -728,13 +720,13 @@ impl TodoStore {
         })
     }
 
-    /// 获取今日到期的任务
+    /// 获取今日看板任务（过期未完成 + 今天到期）
     pub fn today_items(&self) -> Vec<Arc<ItemModel>> {
         if self.board_indexes_current() {
             return self.items_from_set(&self.today_set);
         }
         let today = Self::today_date();
-        self.query_items(|item| !item.checked && item.is_due_on_date(today))
+        self.query_items(|item| !item.checked && item.is_due_on_or_before(today))
     }
 
     /// 获取今日到期的任务（带缓存）
@@ -1442,43 +1434,35 @@ mod tests {
     fn test_inbox_items() {
         let mut store = TodoStore::new();
 
-        // 创建测试数据
-        let today = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-        let yesterday =
-            (chrono::Utc::now() - chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
-        let tomorrow =
-            (chrono::Utc::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let today = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let yesterday = (chrono::Local::now() - chrono::Days::new(1))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let tomorrow = (chrono::Local::now() + chrono::Days::new(1))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
 
         store.set_items(vec![
-            // 无项目、未完成、无日期 -> 应该在 Inbox
             create_test_item("1", false, false, None),
-            // 无项目、已完成、无日期 -> 不应该在 Inbox
             create_test_item("2", true, false, None),
-            // 无项目、未完成、有日期 -> 应该在 Inbox
             create_test_item("3", false, false, None),
-            // 无项目、未完成、昨天日期 -> 应该在 Inbox (is_past_due = true)
             create_test_item("4", false, false, Some(&yesterday)),
-            // 无项目、未完成、今天日期 -> 不应该在 Inbox (is_due_today = true)
             create_test_item("5", false, false, Some(&today)),
-            // 无项目、未完成、明天日期 -> 应该在 Inbox (!is_due_today = true)
             create_test_item("6", false, false, Some(&tomorrow)),
-            // 有项目、未完成 -> 不应该在 Inbox
             create_test_item_with_project("7", false, false, None, "proj1"),
         ]);
 
         let inbox = store.inbox_items();
-        // 应该在 Inbox: 1, 3, 4, 6 = 4 个
-        assert_eq!(inbox.len(), 4);
+        assert_eq!(inbox.len(), 3);
 
-        // 验证今天到期的任务不在 Inbox
         let ids: Vec<&str> = inbox.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"1"));
         assert!(ids.contains(&"3"));
-        assert!(ids.contains(&"4"));
+        assert!(!ids.contains(&"4"));
         assert!(ids.contains(&"6"));
-        assert!(!ids.contains(&"2")); // 已完成
-        assert!(!ids.contains(&"5")); // 今天到期
-        assert!(!ids.contains(&"7")); // 有项目
+        assert!(!ids.contains(&"2"));
+        assert!(!ids.contains(&"5"));
+        assert!(!ids.contains(&"7"));
     }
 
     #[test]
@@ -1525,9 +1509,28 @@ mod tests {
     }
 
     #[test]
+    fn test_today_items_include_overdue_and_leave_after_reschedule() {
+        let mut store = TodoStore::new();
+        let yesterday = (chrono::Local::now() - chrono::Days::new(1))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let tomorrow = (chrono::Local::now() + chrono::Days::new(1))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+
+        store.set_items(vec![create_test_item("overdue", false, false, Some(&yesterday))]);
+        assert_eq!(store.today_items().len(), 1);
+        assert!(store.inbox_items().is_empty());
+
+        store.update_item(Arc::new(create_test_item("overdue", false, false, Some(&tomorrow))));
+        assert!(store.today_items().is_empty());
+        assert_eq!(store.scheduled_items().len(), 1);
+    }
+
+    #[test]
     fn test_incremental_board_indexes_follow_updates() {
         let mut store = TodoStore::new();
-        let today = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let today = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
         store.set_items(vec![
             create_test_item("inbox", false, false, None),
@@ -1546,6 +1549,20 @@ mod tests {
         store.remove_item("today");
         assert_eq!(store.today_items().len(), 1);
         assert_eq!(store.completed_items().len(), 0);
+    }
+
+    #[test]
+    fn consecutive_item_updates_bump_version_each_time() {
+        let mut store = TodoStore::new();
+        store.set_items(vec![create_test_item("a", false, false, None)]);
+        let v1 = store.version();
+        store.update_item(Arc::new(create_test_item("a", false, true, None)));
+        let v2 = store.version();
+        store.update_item(Arc::new(create_test_item("a", true, true, None)));
+        let v3 = store.version();
+        assert!(v2 > v1);
+        assert!(v3 > v2);
+        assert!(store.peek_change_mask().items_changed);
     }
 
     #[test]

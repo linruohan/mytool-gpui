@@ -130,9 +130,18 @@ impl Model {
             && self.collapsed == other.collapsed
     }
 
+    fn calendar_today() -> NaiveDate {
+        chrono::Local::now().date_naive()
+    }
+
     /// 检查是否在指定日期到期
     pub fn is_due_on_date(&self, today: NaiveDate) -> bool {
         self.due_date_naive().is_some_and(|due| due == today)
+    }
+
+    /// 截止日期不晚于指定日（今日看板：过期 + 当天）
+    pub fn is_due_on_or_before(&self, date: NaiveDate) -> bool {
+        self.due_date_naive().is_some_and(|due| due <= date)
     }
 
     /// 检查是否已过期
@@ -141,7 +150,7 @@ impl Model {
     /// * `true` - 如果截止日期已过
     /// * `false` - 如果没有截止日期或尚未过期
     pub fn is_overdue(&self) -> bool {
-        self.due_datetime().is_some_and(|due| due < chrono::Utc::now().naive_utc())
+        self.due_datetime().is_some_and(|due| due < chrono::Local::now().naive_local())
     }
 
     /// 检查是否今天到期
@@ -150,8 +159,7 @@ impl Model {
     /// * `true` - 如果截止日期是今天
     /// * `false` - 如果没有截止日期或不是今天
     pub fn is_due_today(&self) -> bool {
-        let today = chrono::Utc::now().naive_utc().date();
-        self.is_due_on_date(today)
+        self.is_due_on_date(Self::calendar_today())
     }
 
     /// 检查是否为过去日期（超过今天，即昨天及之前）
@@ -160,8 +168,7 @@ impl Model {
     /// * `true` - 如果截止日期是昨天或更早
     /// * `false` - 如果没有截止日期或是今天及之后
     pub fn is_past_due(&self) -> bool {
-        let today = chrono::Utc::now().naive_utc().date();
-        self.due_date_naive().is_some_and(|due| due < today)
+        self.due_date_naive().is_some_and(|due| due < Self::calendar_today())
     }
 
     pub fn is_subtask(&self) -> bool {

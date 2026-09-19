@@ -231,7 +231,7 @@ impl ReminderForm {
 
     /// 设置默认日期为今天
     pub fn set_default_date(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let today = chrono::Utc::now().naive_utc().date();
+        let today = chrono::Local::now().date_naive();
         self.date_picker.update(cx, |picker, cx| {
             picker.set_date(today, window, cx);
         });

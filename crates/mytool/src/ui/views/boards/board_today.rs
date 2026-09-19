@@ -95,6 +95,7 @@ impl TodayBoard {
                         batch_update_items(updated_items, cx);
                     },
                 }
+                this.base.request_refresh(cx);
             });
 
         // 延迟注册：在首次 render 时通过 begin_pending_refresh 注册
