@@ -168,9 +168,10 @@ where
         .children(item_row.map(|row| ItemRow::new(&row)))
 }
 
-fn wrap_section_dnd(
+fn wrap_section_dnd<V: BoardView + Render>(
     section_id: String,
     section_name: String,
+    view: Entity<V>,
     child: impl IntoElement,
 ) -> impl IntoElement {
     let drag_id = section_id.clone();
@@ -190,8 +191,11 @@ fn wrap_section_dnd(
             drag.downcast_ref::<SectionDragPayload>()
                 .is_some_and(|payload| payload.section_id != can_drop_id)
         })
-        .on_drop(move |drag: &SectionDragPayload, _, cx| {
+        .on_drop(move |drag: &SectionDragPayload, window, cx| {
             drop_reorder_sections(&drag.section_id, &drop_id, cx);
+            view.update(cx, |this, cx| {
+                this.request_store_refresh(window, cx);
+            });
         })
         .child(child)
 }
@@ -394,7 +398,7 @@ pub fn render_section_block<V: BoardSectionActions>(
         ));
     }
 
-    wrap_section_dnd(section_id, section_name, block)
+    wrap_section_dnd(section_id, section_name, view, block)
 }
 
 /// 渲染「No Section」区块
@@ -528,7 +532,7 @@ pub fn render_section_block_with_leading<V: BoardSectionActions>(
         ));
     }
 
-    wrap_section_dnd(section_id, section_name, block)
+    wrap_section_dnd(section_id, section_name, view, block)
 }
 
 #[cfg(test)]

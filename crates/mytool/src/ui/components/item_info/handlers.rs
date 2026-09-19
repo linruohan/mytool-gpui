@@ -36,10 +36,10 @@ impl ItemInfoState {
                 }
             },
             InputEvent::PressEnter { secondary, .. } if !*secondary => {
-                self.sync_inputs(cx);
+                self.flush_text_edits(cx);
             },
             InputEvent::Blur => {
-                self.sync_inputs(cx);
+                self.flush_text_edits(cx);
             },
             _ => {},
         };
@@ -64,14 +64,23 @@ impl ItemInfoState {
                 }
             },
             InputEvent::PressEnter { secondary, .. } if !*secondary => {
-                // 多行 Textarea 的 Enter 通常是换行，所以这里不再特殊处理
                 self.sync_inputs(cx);
             },
             InputEvent::Blur => {
-                self.sync_inputs(cx);
+                self.flush_text_edits(cx);
             },
             _ => {},
         };
+    }
+
+    fn flush_text_edits(&mut self, cx: &mut Context<Self>) {
+        self.sync_inputs(cx);
+        if self.state_manager.is_new_item() || !self.state_manager.is_dirty() {
+            return;
+        }
+        self.persist_existing_item(cx);
+        cx.emit(ItemInfoEvent::Updated());
+        cx.notify();
     }
 
     /// 让名称输入框获得焦点

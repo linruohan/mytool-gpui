@@ -17,7 +17,7 @@ use todos::entity::{ItemModel, ProjectModel};
 
 use crate::{
     AddLabel, ArchiveProject, BatchCompleteSelected, BatchDeleteSelected, BatchMoveSelected,
-    BoardPanel, ClearDueDate, ClearFilters, CompletedBoard, DeleteProject, DeleteSection,
+    BoardPanel, BoardView, ClearDueDate, ClearFilters, CompletedBoard, DeleteProject, DeleteSection,
     DeleteTask, DeselectAll, DuplicateTask, EditProject, EditSection, EditTask, FilterByLabel,
     FilterByPriority, FilterByProject, GoBack, GoForward, InboxBoard, IndentTask, ItemListItem,
     MoveTaskDown, MoveTaskToProject, MoveTaskUp, NewProject, NewSection, NewTask, NextView,
@@ -1018,6 +1018,43 @@ impl TodoStory {
         }
     }
 
+    fn refresh_active_list(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.active_project.is_some() {
+            self.project_items_panel.update(cx, |panel, cx| {
+                panel.request_store_refresh(window, cx);
+            });
+            return;
+        }
+        let Some(ix) = self.board_panel.read(cx).active_index else {
+            return;
+        };
+        let Some(container) = self.board_panel.read(cx).boards.get(ix).cloned() else {
+            return;
+        };
+        let Some(board) = container.read(cx).inner_board() else {
+            return;
+        };
+        if let Ok(view) = board.clone().downcast::<InboxBoard>() {
+            view.update(cx, |panel, cx| panel.request_store_refresh(window, cx));
+            return;
+        }
+        if let Ok(view) = board.clone().downcast::<TodayBoard>() {
+            view.update(cx, |panel, cx| panel.request_store_refresh(window, cx));
+            return;
+        }
+        if let Ok(view) = board.clone().downcast::<ScheduledBoard>() {
+            view.update(cx, |panel, cx| panel.request_store_refresh(window, cx));
+            return;
+        }
+        if let Ok(view) = board.clone().downcast::<PinBoard>() {
+            view.update(cx, |panel, cx| panel.request_store_refresh(window, cx));
+            return;
+        }
+        if let Ok(view) = board.downcast::<CompletedBoard>() {
+            view.update(cx, |panel, cx| panel.request_store_refresh(window, cx));
+        }
+    }
+
     fn on_move_task_up(&mut self, _: &MoveTaskUp, window: &mut Window, cx: &mut Context<Self>) {
         self.reorder_active_task(-1, window, cx);
     }
@@ -1026,26 +1063,28 @@ impl TodoStory {
         self.reorder_active_task(1, window, cx);
     }
 
-    fn on_indent_task(&mut self, _: &IndentTask, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_indent_task(&mut self, _: &IndentTask, window: &mut Window, cx: &mut Context<Self>) {
         if self.search_open {
             return;
         }
         let Some(item) = self.primary_item(cx) else {
             return;
         };
-        crate::indent_item(&item.id, cx);
-        cx.notify();
+        if crate::indent_item(&item.id, cx) {
+            self.refresh_active_list(window, cx);
+        }
     }
 
-    fn on_outdent_task(&mut self, _: &OutdentTask, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_outdent_task(&mut self, _: &OutdentTask, window: &mut Window, cx: &mut Context<Self>) {
         if self.search_open {
             return;
         }
         let Some(item) = self.primary_item(cx) else {
             return;
         };
-        crate::outdent_item(&item.id, cx);
-        cx.notify();
+        if crate::outdent_item(&item.id, cx) {
+            self.refresh_active_list(window, cx);
+        }
     }
 
     fn on_next_view(&mut self, _: &NextView, _: &mut Window, cx: &mut Context<Self>) {
