@@ -4,7 +4,7 @@ use gpui::{
     prelude::FluentBuilder as _, px,
 };
 use gpui_component::{
-    Root, Sizable, WindowExt,
+    Sizable, WindowExt,
     button::Button,
     notification::{Notification, NotificationType},
     v_flex,
@@ -120,9 +120,8 @@ impl Render for StoryRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let scale = cx.global::<TodoPrefs>().rem_px();
         window.set_rem_size(px(scale));
-        let sheet_layer = Root::render_sheet_layer(window, cx);
-        let dialog_layer = Root::render_dialog_layer(window, cx);
-        let notification_layer = Root::render_notification_layer(window, cx);
+        // 弹层（sheet/dialog/notification）由外层 Root 的 WindowState 插件自动渲染，
+        // 新版 gpui-component 不再需要（也不支持）手动渲染图层
         let show_fps = AppState::global(cx).show_fps_monitor;
 
         div()
@@ -131,11 +130,8 @@ impl Render for StoryRoot {
             .on_action(cx.listener(Self::on_action_toggle_search))
             .size_full()
             .child(
-                v_flex()
-                    .size_full()
-                    .child(self.title_bar.clone())
-                    .child(
-                        div()
+                v_flex().size_full().child(self.title_bar.clone()).child(
+                    div()
                             .track_focus(&self.focus_handle)
                             .flex_1()
                             .overflow_hidden()
@@ -144,10 +140,7 @@ impl Render for StoryRoot {
                             // window root so the HUD's top right corner clears
                             // the title bar's own controls.
                             .when(show_fps, |this| this.child(fps_monitor(window, cx))),
-                    )
-                    .children(sheet_layer)
-                    .children(dialog_layer)
-                    .children(notification_layer),
+                ),
             )
     }
 }
