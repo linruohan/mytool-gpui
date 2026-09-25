@@ -146,9 +146,7 @@ impl Board for TodayBoard {
     }
 
     fn count(cx: &mut gpui::App) -> usize {
-        let store = cx.global::<TodoStore>();
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        store.today_items_cached(cache).len()
+        cx.global::<TodoStore>().today_count()
     }
 
     fn title() -> String {

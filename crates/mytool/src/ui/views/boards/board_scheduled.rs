@@ -290,9 +290,7 @@ impl Board for ScheduledBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        let store = cx.global::<TodoStore>();
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        store.scheduled_items_cached(cache).len()
+        cx.global::<TodoStore>().scheduled_count()
     }
 
     fn title() -> String {

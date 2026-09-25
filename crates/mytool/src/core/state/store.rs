@@ -882,6 +882,42 @@ impl TodoStore {
             .collect()
     }
 
+    /// 收件箱数量。索引有效时直接读集合长度，不组装任务列表。
+    pub fn inbox_count(&self) -> usize {
+        self.membership_count(|m| m.inbox, self.inbox_set.len())
+    }
+
+    /// 今日看板数量。
+    pub fn today_count(&self) -> usize {
+        self.membership_count(|m| m.today, self.today_set.len())
+    }
+
+    /// 计划任务数量。
+    pub fn scheduled_count(&self) -> usize {
+        self.membership_count(|m| m.scheduled, self.scheduled_set.len())
+    }
+
+    /// 已完成数量。
+    pub fn completed_count(&self) -> usize {
+        self.checked_set.len()
+    }
+
+    /// 未完成的置顶数量。
+    pub fn pinned_count(&self) -> usize {
+        self.pinned_set
+            .iter()
+            .filter(|id| self.id_map.get(*id).is_some_and(|item| !item.checked))
+            .count()
+    }
+
+    fn membership_count(&self, pred: impl Fn(BoardMembership) -> bool, indexed: usize) -> usize {
+        if self.board_indexes_current() {
+            return indexed;
+        }
+        let today = Self::today_date();
+        self.all_items.iter().filter(|item| pred(board_membership(item, today))).count()
+    }
+
     /// 获取置顶任务（带缓存）
     pub fn pinned_items_cached(
         &self,
@@ -1674,11 +1710,15 @@ mod tests {
 
         store.set_items(vec![create_test_item("overdue", false, false, Some(&yesterday))]);
         assert_eq!(store.today_items().len(), 1);
+        assert_eq!(store.today_count(), 1);
         assert!(store.inbox_items().is_empty());
+        assert_eq!(store.inbox_count(), 0);
 
         store.update_item(Arc::new(create_test_item("overdue", false, false, Some(&tomorrow))));
         assert!(store.today_items().is_empty());
+        assert_eq!(store.today_count(), 0);
         assert_eq!(store.scheduled_items().len(), 1);
+        assert_eq!(store.scheduled_count(), 1);
     }
 
     #[test]
@@ -2093,5 +2133,17 @@ mod tests {
         finished.checked = true;
         store.update_item(Arc::new(finished));
         assert_eq!(store.unchecked_project_count("parent"), 0);
+    }
+
+    #[test]
+    fn board_counts_match_filtered_lists() {
+        let mut store = TodoStore::new();
+        let mut pinned = create_test_item("pin", false, true, None);
+        pinned.checked = false;
+        let done = create_test_item("done", true, true, None);
+        store.set_items(vec![pinned, done, create_test_item("open", false, false, None)]);
+        assert_eq!(store.pinned_count(), store.pinned_items().len());
+        assert_eq!(store.completed_count(), store.completed_items().len());
+        assert_eq!(store.inbox_count(), store.inbox_items().len());
     }
 }

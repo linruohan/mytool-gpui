@@ -113,9 +113,7 @@ impl Board for CompletedBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        let store = cx.global::<TodoStore>();
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        store.completed_items_cached(cache).len()
+        cx.global::<TodoStore>().completed_count()
     }
 
     fn title() -> String {

@@ -103,6 +103,10 @@ impl BoardPanel {
             }),
             // 刷新各 Board 的 count 显示
             cx.observe_global::<TodoStore>(move |this, cx| {
+                let mask = *cx.global::<TodoStore>().peek_change_mask();
+                if !mask.items_changed && !mask.labels_changed {
+                    return;
+                }
                 if this.refresh_counts_if_changed(cx) {
                     cx.notify();
                 }

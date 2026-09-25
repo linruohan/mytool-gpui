@@ -114,9 +114,7 @@ impl Board for InboxBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        let store = cx.global::<TodoStore>();
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        store.inbox_items_cached(cache).len()
+        cx.global::<TodoStore>().inbox_count()
     }
 
     fn title() -> String {

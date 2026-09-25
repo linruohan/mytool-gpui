@@ -113,9 +113,7 @@ impl Board for PinBoard {
     }
 
     fn count(cx: &mut App) -> usize {
-        let store = cx.global::<TodoStore>();
-        let cache = cx.global::<crate::core::state::QueryCache>();
-        store.pinned_items_cached(cache).len()
+        cx.global::<TodoStore>().pinned_count()
     }
 
     fn title() -> String {
