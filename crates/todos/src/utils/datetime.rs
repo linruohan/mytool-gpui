@@ -24,15 +24,21 @@ impl DateTime {
     }
 
     pub fn get_relative_date_from_date(&self, datetime: &NaiveDateTime) -> String {
-        let format_str = self.get_default_date_format_from_date(datetime).clone();
-        let returned = if self.is_today(datetime) {
+        let now = Local::now().naive_local();
+        let format_str =
+            if datetime.year() == now.year() { "%m月%d日" } else { "%Y年%m月%d日" };
+        let returned = if datetime != &EMPTY_DATETIME && self.is_same_day(datetime, &now) {
             "今天".to_string()
-        } else if self.is_tomorrow(datetime) {
+        } else if datetime != &EMPTY_DATETIME
+            && self.is_same_day(datetime, &(now + Duration::days(1)))
+        {
             "明天".to_string()
-        } else if self.is_yesterday(datetime) {
+        } else if datetime != &EMPTY_DATETIME
+            && self.is_same_day(datetime, &(now - Duration::days(1)))
+        {
             "昨天".to_string()
         } else {
-            datetime.format(&format_str).to_string()
+            datetime.format(format_str).to_string()
         };
         if self.has_time(datetime) {
             format!("{} {}", returned, datetime.format(self.get_default_time_format()))

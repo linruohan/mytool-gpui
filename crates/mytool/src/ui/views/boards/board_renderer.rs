@@ -252,6 +252,9 @@ fn flatten_with_indent_by(
     items: &[(usize, Arc<ItemModel>)],
     collapsed_of: impl Fn(&ItemModel) -> bool,
 ) -> Vec<(usize, bool)> {
+    if items.iter().all(|(_, item)| item.parent_id.as_deref().unwrap_or("").is_empty()) {
+        return items.iter().map(|(index, _)| (*index, false)).collect();
+    }
     let ids: std::collections::HashSet<&str> =
         items.iter().map(|(_, item)| item.id.as_str()).collect();
     let mut nested_pos = std::collections::HashSet::new();

@@ -101,7 +101,30 @@ impl Model {
     /// * `Some(NaiveDateTime)` - 如果存在有效的截止日期
     /// * `None` - 如果没有截止日期或解析失败
     pub fn due_datetime(&self) -> Option<NaiveDateTime> {
-        self.parse_due_date()?.datetime()
+        self.due_at_from_json().or_else(|| self.parse_due_date()?.datetime())
+    }
+
+    /// 截止日期是否重复。直接读 JSON，不反序列化整个 DueDate。
+    pub fn due_is_recurring(&self) -> bool {
+        self.due
+            .as_ref()
+            .and_then(|due| due.get("is_recurring"))
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false)
+    }
+
+    fn due_at_from_json(&self) -> Option<NaiveDateTime> {
+        let raw = self.due.as_ref()?.get("date")?.as_str()?;
+        if raw.is_empty() {
+            return None;
+        }
+        if let Ok(dt) = NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S") {
+            return Some(dt);
+        }
+        if let Ok(dt) = NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S") {
+            return Some(dt);
+        }
+        NaiveDate::parse_from_str(raw, "%Y-%m-%d").ok()?.and_hms_opt(0, 0, 0)
     }
 
     /// 解析截止日期中的日期部分（过滤热路径便捷方法）
@@ -206,6 +229,11 @@ mod tests {
         due.date = "2025-02-22 17:30:00".into();
         item.set_due_date(Some(due));
         assert_eq!(item.due_date_naive(), NaiveDate::from_ymd_opt(2025, 2, 22));
+        assert_eq!(
+            item.due_datetime(),
+            NaiveDate::from_ymd_opt(2025, 2, 22).and_then(|date| date.and_hms_opt(17, 30, 0))
+        );
+        assert!(!item.due_is_recurring());
     }
 
     #[test]
