@@ -378,6 +378,16 @@ pub struct TodoStore {
     children_index: HashMap<String, Vec<Arc<ItemModel>>>,
     /// 项目 / 分区 / 标签 O(1) 查找（与对应 Vec 同步维护）
     project_by_id: HashMap<String, Arc<ProjectModel>>,
+    /// 侧栏扁平列表，项目变更时重建。
+    sidebar_projects: Vec<(Arc<ProjectModel>, bool)>,
+    /// 仍有未归档子项目的父项目 ID。
+    project_parents: HashSet<String>,
+    /// 按 section_order 排好的分区。
+    sections_ordered: Vec<Arc<SectionModel>>,
+    /// 收藏在前的标签列表。
+    labels_ordered: Vec<Arc<LabelModel>>,
+    /// 项目内未完成任务数。
+    unchecked_by_project: HashMap<String, usize>,
     section_by_id: HashMap<String, Arc<SectionModel>>,
     label_by_id: HashMap<String, Arc<LabelModel>>,
     /// 看板成员索引：避免每次查询全表扫描并反复反序列化 due
@@ -442,6 +452,11 @@ impl TodoStore {
             item_pos: HashMap::new(),
             children_index: HashMap::new(),
             project_by_id: HashMap::new(),
+            sidebar_projects: Vec::new(),
+            project_parents: HashSet::new(),
+            sections_ordered: Vec::new(),
+            labels_ordered: Vec::new(),
+            unchecked_by_project: HashMap::new(),
             section_by_id: HashMap::new(),
             label_by_id: HashMap::new(),
             inbox_set: HashSet::new(),
@@ -484,16 +499,54 @@ impl TodoStore {
     fn mark_projects_changed(&mut self) {
         self.bump_version();
         self.change_mask.projects_changed = true;
+        self.rebuild_project_derived();
     }
 
     fn mark_sections_changed(&mut self) {
         self.bump_version();
         self.change_mask.sections_changed = true;
+        self.sections_ordered = self.sections.clone();
+        sort_sections_by_order(&mut self.sections_ordered);
     }
 
     fn mark_labels_changed(&mut self) {
         self.bump_version();
         self.change_mask.labels_changed = true;
+        self.labels_ordered = self.labels.clone();
+        sort_labels_for_ui(&mut self.labels_ordered);
+    }
+
+    fn rebuild_project_derived(&mut self) {
+        self.sidebar_projects = flatten_projects_for_sidebar(&self.projects);
+        self.project_parents.clear();
+        for project in &self.projects {
+            if project.is_deleted || project.is_archived {
+                continue;
+            }
+            if let Some(parent_id) = project_parent_id(project) {
+                self.project_parents.insert(parent_id.to_string());
+            }
+        }
+    }
+
+    fn adjust_unchecked_project(&mut self, item: &ItemModel, add: bool) {
+        if item.checked {
+            return;
+        }
+        let Some(project_id) = item.project_id.as_deref().filter(|id| !id.is_empty()) else {
+            return;
+        };
+        if add {
+            *self.unchecked_by_project.entry(project_id.to_string()).or_default() += 1;
+            return;
+        }
+        let next =
+            self.unchecked_by_project.get(project_id).copied().unwrap_or(0).saturating_sub(1);
+        if next == 0 {
+            self.unchecked_by_project.remove(project_id);
+        } else {
+            self.unchecked_by_project.insert(project_id.to_string(), next);
+        }
     }
 
     fn today_date() -> chrono::NaiveDate {
@@ -626,6 +679,7 @@ impl TodoStore {
         self.id_map.clear();
         self.item_pos.clear();
         self.children_index.clear();
+        self.unchecked_by_project.clear();
         self.inbox_set.clear();
         self.today_set.clear();
         self.scheduled_set.clear();
@@ -636,6 +690,7 @@ impl TodoStore {
             let item = self.all_items[i].clone();
             self.item_pos.insert(item.id.clone(), i);
             self.add_to_all_indexes(&item);
+            self.adjust_unchecked_project(&item, true);
             self.apply_board_membership(&item, true);
         }
     }
@@ -918,14 +973,21 @@ impl TodoStore {
 
     /// 指定项目下的分区（过滤时不先 clone 整表）
     pub fn sections_for_project(&self, project_id: &str) -> Vec<Arc<SectionModel>> {
-        let mut sections: Vec<Arc<SectionModel>> = self
-            .sections
+        self.sections_ordered
             .iter()
-            .filter(|s| s.project_id.as_deref() == Some(project_id))
+            .filter(|section| section.project_id.as_deref() == Some(project_id))
             .cloned()
-            .collect();
-        sort_sections_by_order(&mut sections);
-        sections
+            .collect()
+    }
+
+    /// 已按 `section_order` 排好的全部分区。
+    pub fn sections_in_order(&self) -> Vec<Arc<SectionModel>> {
+        self.sections_ordered.clone()
+    }
+
+    /// 项目内未完成任务数（与侧栏计数一致）。
+    pub fn unchecked_project_count(&self, project_id: &str) -> usize {
+        self.unchecked_by_project.get(project_id).copied().unwrap_or(0)
     }
 
     /// 更新所有项目
@@ -1131,15 +1193,11 @@ impl TodoStore {
 
     /// 侧栏用：根项目在前，子项目紧随其后（一层缩进）。
     pub fn projects_for_sidebar(&self) -> Vec<(Arc<ProjectModel>, bool)> {
-        flatten_projects_for_sidebar(&self.projects)
+        self.sidebar_projects.clone()
     }
 
     pub fn has_child_projects(&self, parent_id: &str) -> bool {
-        self.projects.iter().any(|project| {
-            !project.is_deleted
-                && !project.is_archived
-                && project_parent_id(project) == Some(parent_id)
-        })
+        self.project_parents.contains(parent_id)
     }
 
     /// 增量更新单个分区
@@ -1227,9 +1285,7 @@ impl TodoStore {
 
     /// 标签选择器/看板用：收藏在前，再按名称。
     pub fn labels_for_picker(&self) -> Vec<Arc<LabelModel>> {
-        let mut labels = self.labels.clone();
-        sort_labels_for_ui(&mut labels);
-        labels
+        self.labels_ordered.clone()
     }
 
     /// 任务上挂的标签（按 labels 字段顺序，跳过已删标签）。
@@ -1248,11 +1304,13 @@ impl TodoStore {
     /// 将任务添加到索引（使用统一的 trait 方法）
     fn add_item_to_index(&mut self, item: &Arc<ItemModel>) {
         self.add_to_all_indexes(item);
+        self.adjust_unchecked_project(item, true);
         self.apply_board_membership(item, true);
     }
 
     fn remove_item_from_index(&mut self, item: &Arc<ItemModel>) {
         self.apply_board_membership(item, false);
+        self.adjust_unchecked_project(item, false);
         self.remove_from_all_indexes(item);
     }
 
@@ -1304,6 +1362,11 @@ impl TodoStore {
         if old_item.labels != new_item.labels {
             self.update_label_index(old_item, false);
             self.update_label_index(new_item, true);
+        }
+
+        if old_item.project_id != new_item.project_id || old_item.checked != new_item.checked {
+            self.adjust_unchecked_project(old_item, false);
+            self.adjust_unchecked_project(new_item, true);
         }
 
         if old_item.parent_id != new_item.parent_id {
@@ -2005,5 +2068,30 @@ mod tests {
             "b", "c"
         ]);
         assert_eq!(store.get_item("c").unwrap().content, "moved");
+    }
+
+    #[test]
+    fn derived_project_caches_follow_updates() {
+        let mut store = TodoStore::new();
+        let mut parent = ProjectModel::default();
+        parent.id = "parent".into();
+        parent.name = "父".into();
+        let mut child = ProjectModel::default();
+        child.id = "child".into();
+        child.name = "子".into();
+        child.parent_id = Some("parent".into());
+        store.set_projects(vec![parent, child]);
+        assert!(store.has_child_projects("parent"));
+        assert!(!store.has_child_projects("child"));
+
+        let open = create_test_item_with_project("open", false, false, None, "parent");
+        let done = create_test_item_with_project("done", true, false, None, "parent");
+        store.set_items(vec![open, done]);
+        assert_eq!(store.unchecked_project_count("parent"), 1);
+
+        let mut finished = (*store.get_item("open").unwrap()).clone();
+        finished.checked = true;
+        store.update_item(Arc::new(finished));
+        assert_eq!(store.unchecked_project_count("parent"), 0);
     }
 }

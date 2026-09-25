@@ -152,22 +152,17 @@ impl Render for InboxBoard {
 
         let view = cx.entity().clone();
         let board_count = InboxBoard::count(cx);
-        let inbox_sections: Vec<_> = {
-            let mut sections: Vec<_> = cx
-                .global::<TodoStore>()
-                .sections
-                .iter()
-                .filter(|s| {
-                    !s.is_archived
-                        && !s.is_deleted
-                        && !s.hidded
-                        && s.project_id.as_deref().unwrap_or("").is_empty()
-                })
-                .cloned()
-                .collect();
-            crate::todo_state::sort_sections_by_order(&mut sections);
-            sections
-        };
+        let inbox_sections: Vec<_> = cx
+            .global::<TodoStore>()
+            .sections_in_order()
+            .into_iter()
+            .filter(|section| {
+                !section.is_archived
+                    && !section.is_deleted
+                    && !section.hidded
+                    && section.project_id.as_deref().unwrap_or("").is_empty()
+            })
+            .collect();
         let has_inbox_sections = !inbox_sections.is_empty();
         let pinned_items = &self.base.pinned_items;
         let no_section_items = &self.base.no_section_items;

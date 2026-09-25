@@ -185,8 +185,7 @@ impl Render for TodayBoard {
 
         let view = cx.entity().clone();
         let board_count = TodayBoard::count(cx);
-        let mut sections = cx.global::<TodoStore>().sections.clone();
-        crate::todo_state::sort_sections_by_order(&mut sections);
+        let sections = cx.global::<TodoStore>().sections_in_order();
         let pinned_items = &self.base.pinned_items;
         let past_due_items = &self.base.past_due_items;
         let due_today_items = &self.base.due_today_items;

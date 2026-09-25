@@ -714,16 +714,14 @@ impl TodoStory {
             store.sections_for_project(&project.id)
         } else if self.board_panel.read(cx).active_index == Some(0) {
             store
-                .sections
-                .iter()
-                .filter(|s| s.project_id.as_deref().unwrap_or("").is_empty())
-                .cloned()
+                .sections_in_order()
+                .into_iter()
+                .filter(|section| section.project_id.as_deref().unwrap_or("").is_empty())
                 .collect()
         } else {
             return None;
         };
         sections.retain(|s| !s.is_archived && !s.is_deleted && !s.hidded);
-        crate::todo_state::sort_sections_by_order(&mut sections);
         sections.first().map(|s| s.id.clone())
     }
 
@@ -1443,12 +1441,8 @@ impl Render for TodoStory {
                                 )
                             })
                             .children(project_list.iter().map(|(project, nested)| {
-                                let count = cx
-                                    .global::<TodoStore>()
-                                    .items_by_project(&project.id)
-                                    .iter()
-                                    .filter(|item| !item.checked)
-                                    .count();
+                                let count =
+                                    cx.global::<TodoStore>().unchecked_project_count(&project.id);
                                 let active = self
                                     .active_project
                                     .as_ref()
