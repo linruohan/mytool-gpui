@@ -675,7 +675,7 @@ dependencies = [
  "bitflags 2.13.2",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -1904,7 +1904,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2027,9 +2027,9 @@ dependencies = [
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.12"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e0f1c7c3a72c66fd80abe965175f7523475c0489a87d3ff9d6e8c87d87a9d2d"
+checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
 
 [[package]]
 name = "fixedbitset"
@@ -2517,7 +2517,7 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.21",
- "windows 0.62.2",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -2543,7 +2543,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.6.5"
-source = "git+https://github.com/linruohan/gpui-component.git#868ef034989ea58dda9997013cc25c36ad447e01"
+source = "git+https://github.com/linruohan/gpui-component.git#c28108726d154d0723a2a1bda0955e8424ba7c61"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2580,7 +2580,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.6.5"
-source = "git+https://github.com/linruohan/gpui-component.git#868ef034989ea58dda9997013cc25c36ad447e01"
+source = "git+https://github.com/linruohan/gpui-component.git#c28108726d154d0723a2a1bda0955e8424ba7c61"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2659,7 +2659,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.6.5"
-source = "git+https://github.com/linruohan/gpui-component.git#868ef034989ea58dda9997013cc25c36ad447e01"
+source = "git+https://github.com/linruohan/gpui-component.git#c28108726d154d0723a2a1bda0955e8424ba7c61"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2670,7 +2670,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.6.5"
-source = "git+https://github.com/linruohan/gpui-component.git#868ef034989ea58dda9997013cc25c36ad447e01"
+source = "git+https://github.com/linruohan/gpui-component.git#c28108726d154d0723a2a1bda0955e8424ba7c61"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2687,7 +2687,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.6.5"
-source = "git+https://github.com/linruohan/gpui-component.git#868ef034989ea58dda9997013cc25c36ad447e01"
+source = "git+https://github.com/linruohan/gpui-component.git#c28108726d154d0723a2a1bda0955e8424ba7c61"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2700,7 +2700,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.6.5"
-source = "git+https://github.com/linruohan/gpui-component.git#868ef034989ea58dda9997013cc25c36ad447e01"
+source = "git+https://github.com/linruohan/gpui-component.git#c28108726d154d0723a2a1bda0955e8424ba7c61"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -3542,7 +3542,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -5940,7 +5940,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6578,7 +6578,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7186,9 +7186,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.16.1"
+version = "1.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
+checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
 dependencies = [
  "serde",
 ]
@@ -7984,7 +7984,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -9598,7 +9598,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

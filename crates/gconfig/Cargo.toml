@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 anyhow.workspace = true
-config = "0.15.25"
+config = "0.15.26"
 serde.workspace = true
 
 [lib]

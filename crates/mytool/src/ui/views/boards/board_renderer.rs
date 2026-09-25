@@ -235,7 +235,10 @@ where
     ))
 }
 
-pub(crate) fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> {
+/// 测试专用入口：直接以模型自身的 collapsed 字段判断折叠状态
+/// （生产渲染走 flatten_with_indent_in，读取 TodoStore 实时状态）
+#[cfg(test)]
+fn flatten_with_indent(items: &[(usize, Arc<ItemModel>)]) -> Vec<(usize, bool)> {
     flatten_with_indent_by(items, |item| item.collapsed)
 }
 
