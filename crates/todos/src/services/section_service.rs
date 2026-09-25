@@ -3,7 +3,7 @@
 //! This module provides business logic for Section operations,
 //! separating it from data access layer.
 
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
@@ -74,14 +74,13 @@ impl SectionService {
     /// Delete a section and its items
     pub async fn delete_section(&self, section_id: &str) -> Result<(), TodoError> {
         let section_items = self.get_items_by_section(section_id).await?;
-        let mut item_ids = HashSet::new();
-        for item in section_items {
-            let ids = self.item_service.collect_descendant_ids(&item.id).await?;
-            item_ids.extend(ids);
-        }
+        let item_ids = self
+            .item_service
+            .collect_descendant_ids_from(section_items.into_iter().map(|item| item.id))
+            .await?;
 
         if !item_ids.is_empty() {
-            self.item_service.delete_items_by_ids(item_ids.into_iter().collect()).await?;
+            self.item_service.delete_items_by_ids(item_ids).await?;
         }
 
         BaseRepository::delete(&self.section_repo, section_id).await?;

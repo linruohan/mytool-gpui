@@ -3,7 +3,7 @@
 //! This module provides business logic for Item operations,
 //! separating it from data access layer.
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter,
@@ -238,24 +238,43 @@ impl ItemService {
         Ok(())
     }
 
-    /// 收集任务及其所有子任务的 ID（按层批量查询，避免 N+1 逐条删除）
+    /// 收集单个任务及其所有子任务的 ID。
     pub(crate) async fn collect_descendant_ids(
         &self,
         root_id: &str,
     ) -> Result<Vec<String>, TodoError> {
-        let mut result = vec![root_id.to_string()];
-        let mut parents_to_search = vec![root_id.to_string()];
+        self.collect_descendant_ids_from(std::iter::once(root_id.to_string())).await
+    }
 
+    /// 从一组根任务按层批量查出全部后代，避免每个根任务各走一轮查询。
+    pub(crate) async fn collect_descendant_ids_from(
+        &self,
+        roots: impl IntoIterator<Item = String>,
+    ) -> Result<Vec<String>, TodoError> {
+        let mut result = Vec::new();
+        let mut seen = HashSet::new();
+        let mut parents_to_search = Vec::new();
+        for id in roots {
+            if seen.insert(id.clone()) {
+                result.push(id.clone());
+                parents_to_search.push(id);
+            }
+        }
+
+        const CHUNK: usize = 500;
         while !parents_to_search.is_empty() {
             let batch = std::mem::take(&mut parents_to_search);
-            let children = items::Entity::find()
-                .filter(items::Column::ParentId.is_in(batch))
-                .all(&*self.db)
-                .await?;
-
-            for child in children {
-                result.push(child.id.clone());
-                parents_to_search.push(child.id);
+            for chunk in batch.chunks(CHUNK) {
+                let children = items::Entity::find()
+                    .filter(items::Column::ParentId.is_in(chunk))
+                    .all(&*self.db)
+                    .await?;
+                for child in children {
+                    if seen.insert(child.id.clone()) {
+                        result.push(child.id.clone());
+                        parents_to_search.push(child.id);
+                    }
+                }
             }
         }
 
@@ -268,7 +287,13 @@ impl ItemService {
             return Ok(());
         }
 
-        items::Entity::delete_many().filter(items::Column::Id.is_in(ids)).exec(&*self.db).await?;
+        const CHUNK: usize = 500;
+        for chunk in ids.chunks(CHUNK) {
+            items::Entity::delete_many()
+                .filter(items::Column::Id.is_in(chunk))
+                .exec(&*self.db)
+                .await?;
+        }
 
         Ok(())
     }
@@ -371,9 +396,6 @@ impl ItemService {
 
         let mut result = Vec::with_capacity(items.len());
         for mut item in items {
-            tracing::debug!("get_all_items: item {} has due: {:?}", item.id, item.due);
-
-            // 从批量加载的结果中获取该 item 的 labels
             if let Some(label_ids) = all_item_labels.get(&item.id) {
                 item.labels = Some(label_ids.join(";"));
             } else {

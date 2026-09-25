@@ -105,8 +105,16 @@ impl Model {
     }
 
     /// 解析截止日期中的日期部分（过滤热路径便捷方法）
+    ///
+    /// 先读 JSON 里 `date` 的 `YYYY-MM-DD` 前缀，避免看板分组和列表着色时反序列化整个 DueDate。
     pub fn due_date_naive(&self) -> Option<NaiveDate> {
-        self.due_datetime().map(|dt| dt.date())
+        let due = self.due.as_ref()?;
+        if let Some(raw) = due.get("date").and_then(|value| value.as_str())
+            && let Some(date) = calendar_date_prefix(raw)
+        {
+            return Some(date);
+        }
+        DueDate::deserialize(due).ok()?.datetime().map(|dt| dt.date())
     }
 
     /// 截止日期的 `YYYY-MM-DD` 分组键（无日期时为 None）
@@ -173,5 +181,36 @@ impl Model {
 
     pub fn is_subtask(&self) -> bool {
         self.parent_id.as_deref().is_some_and(|id| !id.is_empty())
+    }
+}
+
+/// `YYYY-MM-DD` 或带时间后缀的日期字符串，只取日历日。
+fn calendar_date_prefix(raw: &str) -> Option<NaiveDate> {
+    let head = raw.get(..10)?;
+    let bytes = head.as_bytes();
+    if bytes.len() == 10 && bytes[4] == b'-' && bytes[7] == b'-' {
+        NaiveDate::parse_from_str(head, "%Y-%m-%d").ok()
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn due_date_naive_reads_calendar_prefix_without_full_time() {
+        let mut item = Model::default();
+        let mut due = DueDate::default();
+        due.date = "2025-02-22 17:30:00".into();
+        item.set_due_date(Some(due));
+        assert_eq!(item.due_date_naive(), NaiveDate::from_ymd_opt(2025, 2, 22));
+    }
+
+    #[test]
+    fn due_date_naive_is_none_without_due() {
+        let item = Model::default();
+        assert!(item.due_date_naive().is_none());
     }
 }

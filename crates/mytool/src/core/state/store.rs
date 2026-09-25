@@ -317,6 +317,9 @@ trait IndexOperation {
     /// 更新 id → item 映射
     fn update_id_map(&mut self, item: &Arc<ItemModel>, add: bool);
 
+    /// 更新 parent_id → 子任务
+    fn update_children_index(&mut self, item: &Arc<ItemModel>, add: bool);
+
     /// 添加任务到所有索引
     fn add_to_all_indexes(&mut self, item: &Arc<ItemModel>) {
         self.update_id_map(item, true);
@@ -325,6 +328,7 @@ trait IndexOperation {
         self.update_checked_set(item, true);
         self.update_pinned_set(item, true);
         self.update_label_index(item, true);
+        self.update_children_index(item, true);
     }
 
     /// 从所有索引移除任务
@@ -334,6 +338,7 @@ trait IndexOperation {
         self.update_checked_set(item, false);
         self.update_pinned_set(item, false);
         self.update_label_index(item, false);
+        self.update_children_index(item, false);
         self.update_id_map(item, false);
     }
 }
@@ -367,6 +372,8 @@ pub struct TodoStore {
     label_index: HashMap<String, Vec<String>>,
     /// id → item 映射，供索引反查 O(1) 取 Arc
     id_map: HashMap<String, Arc<ItemModel>>,
+    /// parent_id → 子任务。列表行判断是否有子任务时不再扫全表。
+    children_index: HashMap<String, Vec<Arc<ItemModel>>>,
     /// 项目 / 分区 / 标签 O(1) 查找（与对应 Vec 同步维护）
     project_by_id: HashMap<String, Arc<ProjectModel>>,
     section_by_id: HashMap<String, Arc<SectionModel>>,
@@ -380,6 +387,8 @@ pub struct TodoStore {
 
     /// 临时 ID 到真实 ID 的映射（用于 ID 变化检测）
     id_mappings: HashMap<String, String>,
+    /// 真实 ID → 仍记录着的临时 ID，供列表行复用时 O(1) 反查
+    temp_by_real_id: HashMap<String, String>,
 
     /// 版本号：每次数据变化时递增，用于优化观察者更新
     /// 视图可以通过比较版本号来判断是否需要重新渲染
@@ -428,6 +437,7 @@ impl TodoStore {
             pinned_set: HashSet::new(),
             label_index: HashMap::new(),
             id_map: HashMap::new(),
+            children_index: HashMap::new(),
             project_by_id: HashMap::new(),
             section_by_id: HashMap::new(),
             label_by_id: HashMap::new(),
@@ -436,6 +446,7 @@ impl TodoStore {
             scheduled_set: HashSet::new(),
             index_date: Self::today_date(),
             id_mappings: HashMap::new(),
+            temp_by_real_id: HashMap::new(),
             version: 0,
             change_mask: ChangeMask::none(),
             query_epoch: 0,
@@ -502,8 +513,8 @@ impl TodoStore {
         self.today_set.clear();
         self.scheduled_set.clear();
         self.index_date = Self::today_date();
-        let items = self.all_items.clone();
-        for item in items {
+        for i in 0..self.all_items.len() {
+            let item = self.all_items[i].clone();
             self.apply_board_membership(&item, true);
         }
     }
@@ -538,12 +549,9 @@ impl TodoStore {
             return Vec::new();
         }
         let mut out = Vec::with_capacity(set.len());
-        for item in &self.all_items {
-            if set.contains(&item.id) {
+        for id in set {
+            if let Some(item) = self.id_map.get(id) {
                 out.push(item.clone());
-                if out.len() == set.len() {
-                    break;
-                }
             }
         }
         sort_items_by_child_order(&mut out);
@@ -562,7 +570,7 @@ impl TodoStore {
 
     /// 根据真实 ID 反查仍记录着的临时 ID（用于列表行复用）
     pub fn temp_id_for(&self, real_id: &str) -> Option<&String> {
-        self.id_mappings.iter().find(|(_, mapped)| mapped.as_str() == real_id).map(|(k, _)| k)
+        self.temp_by_real_id.get(real_id)
     }
 
     /// 重建所有索引
@@ -613,6 +621,7 @@ impl TodoStore {
         self.pinned_set.clear();
         self.label_index.clear();
         self.id_map.clear();
+        self.children_index.clear();
         self.inbox_set.clear();
         self.today_set.clear();
         self.scheduled_set.clear();
@@ -678,23 +687,30 @@ impl TodoStore {
                 if let Some(priority) = priority_filter {
                     return item.priority.unwrap_or(4) == priority;
                 }
-                if item.content.to_lowercase().contains(&q) {
+                if contains_ignore_case(&item.content, &q) {
                     return true;
                 }
-                if item.description.as_deref().is_some_and(|d| d.to_lowercase().contains(&q)) {
-                    return true;
-                }
-                if self
-                    .labels_for_item(item)
-                    .iter()
-                    .any(|label| label.name.to_lowercase().contains(&q))
+                if item
+                    .description
+                    .as_deref()
+                    .is_some_and(|description| contains_ignore_case(description, &q))
                 {
+                    return true;
+                }
+                if item.labels.as_deref().unwrap_or("").split(';').any(|id| {
+                    let id = id.trim();
+                    !id.is_empty()
+                        && self
+                            .label_by_id
+                            .get(id)
+                            .is_some_and(|label| contains_ignore_case(&label.name, &q))
+                }) {
                     return true;
                 }
                 item.project_id
                     .as_deref()
-                    .and_then(|id| self.get_project(id))
-                    .is_some_and(|project| project.name.to_lowercase().contains(&q))
+                    .and_then(|id| self.project_by_id.get(id))
+                    .is_some_and(|project| contains_ignore_case(&project.name, &q))
             })
             .take(40)
             .cloned()
@@ -798,17 +814,15 @@ impl TodoStore {
     }
 
     pub fn has_child_items(&self, parent_id: &str) -> bool {
-        self.all_items.iter().any(|item| item.parent_id.as_deref() == Some(parent_id))
+        self.children_index.get(parent_id).is_some_and(|items| !items.is_empty())
     }
 
-    /// 指定父任务下的子任务（保持 all_items 顺序）
+    /// 指定父任务下的子任务
     pub fn child_items(&self, parent_id: &str) -> Vec<Arc<ItemModel>> {
-        let mut items = self
-            .all_items
-            .iter()
-            .filter(|item| item.parent_id.as_deref() == Some(parent_id))
-            .cloned()
-            .collect();
+        let Some(items) = self.children_index.get(parent_id) else {
+            return Vec::new();
+        };
+        let mut items = items.clone();
         sort_items_by_child_order(&mut items);
         items
     }
@@ -965,7 +979,13 @@ impl TodoStore {
 
         self.all_items.push(new_item.clone());
         self.add_item_to_index(&new_item);
-        self.id_mappings.insert(old_id.to_string(), new_id);
+        if let Some(prev_real) = self.id_mappings.insert(old_id.to_string(), new_id.clone())
+            && prev_real != new_id
+            && self.temp_by_real_id.get(&prev_real).is_some_and(|temp| temp == old_id)
+        {
+            self.temp_by_real_id.remove(&prev_real);
+        }
+        self.temp_by_real_id.insert(new_id, old_id.to_string());
         self.mark_items_changed();
 
         tracing::debug!("TodoStore: replaced temp ID {} with real ID {}", old_id, new_item.id);
@@ -1258,6 +1278,16 @@ impl TodoStore {
             self.update_label_index(new_item, true);
         }
 
+        if old_item.parent_id != new_item.parent_id {
+            self.update_children_index(old_item, false);
+            self.update_children_index(new_item, true);
+        } else if let Some(parent_id) = item_parent_key(new_item)
+            && let Some(items) = self.children_index.get_mut(parent_id)
+            && let Some(pos) = items.iter().position(|i| i.id == new_item.id)
+        {
+            items[pos] = new_item.clone();
+        }
+
         self.apply_board_membership(old_item, false);
         self.apply_board_membership(new_item, true);
 
@@ -1384,6 +1414,43 @@ impl IndexOperation for TodoStore {
             self.id_map.remove(&item.id);
         }
     }
+
+    fn update_children_index(&mut self, item: &Arc<ItemModel>, add: bool) {
+        let Some(parent_id) = item_parent_key(item) else {
+            return;
+        };
+        if add {
+            let entry = self.children_index.entry(parent_id.to_string()).or_default();
+            if let Some(pos) = entry.iter().position(|child| child.id == item.id) {
+                entry[pos] = item.clone();
+            } else {
+                entry.push(item.clone());
+            }
+        } else if let Some(items) = self.children_index.get_mut(parent_id) {
+            items.retain(|child| child.id != item.id);
+            if items.is_empty() {
+                self.children_index.remove(parent_id);
+            }
+        }
+    }
+}
+
+fn item_parent_key(item: &ItemModel) -> Option<&str> {
+    item.parent_id.as_deref().filter(|id| !id.is_empty())
+}
+
+/// ASCII 查询按字节比较，避免每个任务都分配一份小写字符串。
+fn contains_ignore_case(haystack: &str, needle_lower: &str) -> bool {
+    if needle_lower.is_empty() {
+        return true;
+    }
+    if needle_lower.is_ascii() && haystack.is_ascii() {
+        let needle = needle_lower.as_bytes();
+        let haystack = haystack.as_bytes();
+        return haystack.len() >= needle.len()
+            && haystack.windows(needle.len()).any(|window| window.eq_ignore_ascii_case(needle));
+    }
+    haystack.to_lowercase().contains(needle_lower)
 }
 
 impl Default for TodoStore {
@@ -1856,5 +1923,33 @@ mod tests {
         assert_eq!(store.temp_id_for("real_abc").map(String::as_str), Some("temp_abc"));
         assert!(store.get_item("temp_abc").is_none());
         assert!(store.get_item("real_abc").is_some());
+    }
+
+    #[test]
+    fn children_index_tracks_parent_moves_and_removal() {
+        let mut store = TodoStore::new();
+        let mut child = create_test_item("child", false, false, None);
+        child.parent_id = Some("parent".into());
+        child.child_order = Some(1);
+        let mut later = create_test_item("later", false, false, None);
+        later.parent_id = Some("parent".into());
+        later.child_order = Some(0);
+        store.set_items(vec![child, later, create_test_item("parent", false, false, None)]);
+
+        assert!(store.has_child_items("parent"));
+        assert!(!store.has_child_items("child"));
+        assert_eq!(
+            store.child_items("parent").iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+            vec!["later", "child"]
+        );
+
+        let mut moved = (*store.get_item("child").unwrap()).clone();
+        moved.parent_id = None;
+        store.update_item(Arc::new(moved));
+        assert!(store.has_child_items("parent"));
+        assert_eq!(store.child_items("parent").len(), 1);
+
+        store.remove_item("later");
+        assert!(!store.has_child_items("parent"));
     }
 }

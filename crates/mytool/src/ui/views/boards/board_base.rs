@@ -38,6 +38,7 @@ pub fn group_items(
     today_board: bool,
 ) -> GroupedItems {
     let mut grouped = GroupedItems::default();
+    let today = chrono::Local::now().date_naive();
 
     let push_sectioned =
         |grouped: &mut GroupedItems, i: usize, item_model: Arc<todos::entity::ItemModel>| {
@@ -57,11 +58,14 @@ pub fn group_items(
                     grouped.pinned.push((i, item_model));
                     continue;
                 }
-                if today_board && item_model.is_past_due() {
-                    grouped.past_due.push((i, item_model));
-                } else if today_board && item_model.is_due_today() {
-                    grouped.due_today.push((i, item_model));
-                } else if !today_board || item_model.due_date().is_none() {
+                if today_board {
+                    match item_model.due_date_naive() {
+                        Some(due) if due < today => grouped.past_due.push((i, item_model)),
+                        Some(due) if due == today => grouped.due_today.push((i, item_model)),
+                        None => push_sectioned(&mut grouped, i, item_model),
+                        Some(_) => {},
+                    }
+                } else {
                     push_sectioned(&mut grouped, i, item_model);
                 }
             },

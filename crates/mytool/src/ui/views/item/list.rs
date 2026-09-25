@@ -61,16 +61,17 @@ impl RenderOnce for ItemListItem {
         let text_color =
             if self.selected { cx.theme().accent_foreground } else { cx.theme().foreground };
 
-        let due_label = self
-            .item
-            .due_date()
-            .and_then(|due_date| due_date.datetime())
-            .map(|datetime| DateTime::default().get_relative_date_from_date(&datetime));
+        let due = self.item.due_date();
+        let due_at = due.as_ref().and_then(|due_date| due_date.datetime());
+        let due_day = due_at.map(|datetime| datetime.date());
+        let today = chrono::Local::now().date_naive();
+        let due_label =
+            due_at.map(|datetime| DateTime::default().get_relative_date_from_date(&datetime));
         let due_color = if self.item.checked {
             cx.theme().muted_foreground
-        } else if self.item.is_past_due() {
+        } else if due_day.is_some_and(|due| due < today) {
             colors.status_overdue
-        } else if self.item.is_due_today() {
+        } else if due_day.is_some_and(|due| due == today) {
             colors.status_today
         } else {
             colors.status_scheduled
@@ -82,7 +83,7 @@ impl RenderOnce for ItemListItem {
             .into_iter()
             .map(|label| label_chip(label.name.clone(), &label.color).xsmall())
             .collect();
-        let recurring = self.item.due_date().is_some_and(|due| due.is_recurring);
+        let recurring = due.is_some_and(|due| due.is_recurring);
         let has_children = cx.global::<TodoStore>().has_child_items(&self.item.id);
         let collapsed = self.item.collapsed;
         let item_for_check = self.item.clone();

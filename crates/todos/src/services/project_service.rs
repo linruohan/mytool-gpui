@@ -3,7 +3,7 @@
 //! This module provides business logic for Project operations,
 //! separating it from data access layer.
 
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
@@ -86,17 +86,13 @@ impl ProjectService {
             }
         }
 
-        // 批量收集需删除的任务 ID（含子任务树）
-        let mut item_ids = HashSet::new();
+        let mut roots = Vec::new();
 
         let project_items = items::Entity::find()
             .filter(items::Column::ProjectId.is_in(project_ids.clone()))
             .all(&*self.db)
             .await?;
-        for item in &project_items {
-            let ids = self.item_service.collect_descendant_ids(&item.id).await?;
-            item_ids.extend(ids);
-        }
+        roots.extend(project_items.into_iter().map(|item| item.id));
 
         let section_ids: Vec<String> = SectionEntity::find()
             .filter(sections::Column::ProjectId.is_in(project_ids.clone()))
@@ -111,14 +107,12 @@ impl ProjectService {
                 .filter(items::Column::SectionId.is_in(section_ids))
                 .all(&*self.db)
                 .await?;
-            for item in &section_items {
-                let ids = self.item_service.collect_descendant_ids(&item.id).await?;
-                item_ids.extend(ids);
-            }
+            roots.extend(section_items.into_iter().map(|item| item.id));
         }
 
+        let item_ids = self.item_service.collect_descendant_ids_from(roots).await?;
         if !item_ids.is_empty() {
-            self.item_service.delete_items_by_ids(item_ids.into_iter().collect()).await?;
+            self.item_service.delete_items_by_ids(item_ids).await?;
         }
 
         // Sections 随 Projects FK CASCADE 自动删除
