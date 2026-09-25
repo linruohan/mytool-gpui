@@ -31,9 +31,9 @@ use crate::{
     ui::views::boards::{
         BoardView,
         board_common::{
-            BoardItemClickEvent, FAB_BOTTOM_PAD, FinishItemDialogStyle, UNDATED_DATE_KEY,
-            render_board_header, show_finish_item_dialog, show_item_delete_dialog,
-            show_pin_item_dialog, weekday_short, with_selected_item,
+            BoardItemClickEvent, FAB_BOTTOM_PAD, FinishItemDialogStyle, render_board_header,
+            show_finish_item_dialog, show_item_delete_dialog, show_pin_item_dialog, weekday_short,
+            with_selected_item,
         },
         board_renderer,
         container_board::Board,
@@ -45,8 +45,8 @@ impl EventEmitter<BoardItemClickEvent> for ScheduledBoard {}
 
 pub struct ScheduledBoard {
     base: BoardBase,
-    /// 按日期分组的缓存（在 refresh 时构建，render 只读）
-    grouped_by_date: Vec<(String, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
+    /// 按日历日分组的缓存（在 refresh 时构建，render 只读）。`None` 表示无日期。
+    grouped_by_date: Vec<(Option<NaiveDate>, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
     date_picker: Entity<DatePickerState>,
     calendar: Entity<CalendarState>,
     filter_date: Option<String>,
@@ -153,11 +153,11 @@ impl ScheduledBoard {
             },
         ) {
             self.grouped_by_date = group_scheduled_by_date(state_items.as_slice());
-            if let Some(filter) = self.filter_date.as_deref() {
+            if let Some(filter) = self.filter_ymd() {
                 let still_has = self
                     .grouped_by_date
                     .iter()
-                    .any(|(date, items)| date == filter && !items.is_empty());
+                    .any(|(date, items)| *date == Some(filter) && !items.is_empty());
                 if !still_has {
                     self.clear_date_filter(window, cx);
                 }
@@ -213,24 +213,19 @@ impl ScheduledBoard {
     }
 }
 
-fn format_schedule_heading(date_key: &str, today: &str) -> String {
-    if date_key == UNDATED_DATE_KEY {
+fn format_schedule_heading(date: Option<NaiveDate>, today: NaiveDate) -> String {
+    let Some(date) = date else {
         return t!("todo.date.none").to_string();
-    }
-
-    let Ok(date) = chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d") else {
-        return date_key.to_string();
     };
     let weekday = weekday_short(date.weekday().num_days_from_sunday());
-    let today_date = chrono::NaiveDate::parse_from_str(today, "%Y-%m-%d").ok();
 
-    if Some(date) == today_date {
+    if date == today {
         t!("todo.date.today_weekday", weekday => weekday.as_str()).to_string()
-    } else if today_date.and_then(|d| d.succ_opt()) == Some(date) {
+    } else if today.succ_opt() == Some(date) {
         t!("todo.date.tomorrow_weekday", weekday => weekday.as_str()).to_string()
-    } else if today_date.and_then(|d| d.pred_opt()) == Some(date) {
+    } else if today.pred_opt() == Some(date) {
         t!("todo.date.yesterday_weekday", weekday => weekday.as_str()).to_string()
-    } else if date.year() == chrono::Local::now().year() {
+    } else if date.year() == today.year() {
         t!(
             "todo.date.weekday_md",
             weekday => weekday.as_str(),
@@ -251,15 +246,19 @@ fn format_schedule_heading(date_key: &str, today: &str) -> String {
 
 fn group_scheduled_by_date(
     items: &[Arc<todos::entity::ItemModel>],
-) -> Vec<(String, Vec<(usize, Arc<todos::entity::ItemModel>)>)> {
-    let mut items_by_date: HashMap<String, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
+) -> Vec<(Option<NaiveDate>, Vec<(usize, Arc<todos::entity::ItemModel>)>)> {
+    let mut items_by_date: HashMap<Option<NaiveDate>, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
         HashMap::new();
     for (i, item) in items.iter().enumerate() {
-        let date_key = item.due_date_ymd().unwrap_or_else(|| UNDATED_DATE_KEY.to_string());
-        items_by_date.entry(date_key).or_default().push((i, item.clone()));
+        items_by_date.entry(item.due_date_naive()).or_default().push((i, item.clone()));
     }
     let mut grouped: Vec<_> = items_by_date.into_iter().collect();
-    grouped.sort_by(|a, b| a.0.cmp(&b.0));
+    grouped.sort_by(|a, b| match (a.0, b.0) {
+        (Some(left), Some(right)) => left.cmp(&right),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
     for (_, items) in &mut grouped {
         items.sort_by(|a, b| {
             a.1.child_order
@@ -334,13 +333,13 @@ impl Render for ScheduledBoard {
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
 
-        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-        let filter_date = self.filter_date.clone();
+        let today = chrono::Local::now().date_naive();
+        let filter_date = self.filter_ymd();
         let grouped_by_date = &self.grouped_by_date;
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
         let date_picker = self.date_picker.clone();
         let calendar = self.calendar.clone();
-        let has_filter = filter_date.is_some();
+        let has_filter = self.filter_date.is_some();
 
         v_flex()
             .id("scheduled-board")
@@ -450,13 +449,11 @@ impl Render for ScheduledBoard {
                                     )
                                     .child(h_flex().gap_1().flex_wrap().children(
                                         grouped_by_date.iter().filter_map(|(date, items)| {
-                                            if date == UNDATED_DATE_KEY || items.is_empty() {
+                                            let ymd = (*date)?;
+                                            if items.is_empty() {
                                                 return None;
                                             }
-                                            let ymd =
-                                                NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
-                                            let selected =
-                                                filter_date.as_deref() == Some(date.as_str());
+                                            let selected = filter_date == Some(ymd);
                                             let label = t!(
                                                 "todo.date.day_count",
                                                 day => ymd.day(),
@@ -501,14 +498,14 @@ impl Render for ScheduledBoard {
                                     if items.is_empty() {
                                         return None;
                                     }
-                                    if let Some(filter) = filter_date.as_deref()
-                                        && date.as_str() != filter
+                                    if let Some(filter) = filter_date
+                                        && *date != Some(filter)
                                     {
                                         return None;
                                     }
 
-                                    let heading = format_schedule_heading(date, &today);
-                                    let is_today = date.as_str() == today;
+                                    let heading = format_schedule_heading(*date, today);
+                                    let is_today = *date == Some(today);
                                     let view_clone = view.clone();
 
                                     let title_color =
@@ -542,5 +539,41 @@ impl Render for ScheduledBoard {
                     this.show_item_dialog(window, cx, false, None);
                 }),
             ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use chrono::NaiveDate;
+    use todos::DueDate;
+
+    use super::group_scheduled_by_date;
+
+    fn item_on(id: &str, date: Option<&str>) -> Arc<todos::entity::ItemModel> {
+        let mut model = todos::entity::ItemModel::default();
+        model.id = id.into();
+        if let Some(date) = date {
+            let mut due = DueDate::default();
+            due.date = date.into();
+            model.set_due_date(Some(due));
+        }
+        Arc::new(model)
+    }
+
+    #[test]
+    fn scheduled_groups_sort_dates_and_keep_undated_last() {
+        let grouped = group_scheduled_by_date(&[
+            item_on("later", Some("2026-03-02")),
+            item_on("none", None),
+            item_on("earlier", Some("2026-03-01")),
+        ]);
+        assert_eq!(grouped.len(), 3);
+        assert_eq!(grouped[0].0, NaiveDate::from_ymd_opt(2026, 3, 1));
+        assert_eq!(grouped[0].1[0].1.id, "earlier");
+        assert_eq!(grouped[1].0, NaiveDate::from_ymd_opt(2026, 3, 2));
+        assert_eq!(grouped[2].0, None);
+        assert_eq!(grouped[2].1[0].1.id, "none");
     }
 }

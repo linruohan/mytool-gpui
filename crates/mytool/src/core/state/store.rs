@@ -372,6 +372,8 @@ pub struct TodoStore {
     label_index: HashMap<String, Vec<String>>,
     /// id → item 映射，供索引反查 O(1) 取 Arc
     id_map: HashMap<String, Arc<ItemModel>>,
+    /// id → all_items 下标。单条更新不再线性查找。
+    item_pos: HashMap<String, usize>,
     /// parent_id → 子任务。列表行判断是否有子任务时不再扫全表。
     children_index: HashMap<String, Vec<Arc<ItemModel>>>,
     /// 项目 / 分区 / 标签 O(1) 查找（与对应 Vec 同步维护）
@@ -437,6 +439,7 @@ impl TodoStore {
             pinned_set: HashSet::new(),
             label_index: HashMap::new(),
             id_map: HashMap::new(),
+            item_pos: HashMap::new(),
             children_index: HashMap::new(),
             project_by_id: HashMap::new(),
             section_by_id: HashMap::new(),
@@ -621,6 +624,7 @@ impl TodoStore {
         self.pinned_set.clear();
         self.label_index.clear();
         self.id_map.clear();
+        self.item_pos.clear();
         self.children_index.clear();
         self.inbox_set.clear();
         self.today_set.clear();
@@ -630,8 +634,33 @@ impl TodoStore {
         // 用下标遍历，避免 clone 整表 Vec<Arc<_>>
         for i in 0..self.all_items.len() {
             let item = self.all_items[i].clone();
+            self.item_pos.insert(item.id.clone(), i);
             self.add_to_all_indexes(&item);
             self.apply_board_membership(&item, true);
+        }
+    }
+
+    fn place_item(&mut self, item: Arc<ItemModel>) {
+        if let Some(&pos) = self.item_pos.get(&item.id)
+            && self.all_items.get(pos).is_some_and(|existing| existing.id == item.id)
+        {
+            self.all_items[pos] = item;
+            return;
+        }
+        if let Some(pos) = self.all_items.iter().position(|existing| existing.id == item.id) {
+            self.item_pos.insert(item.id.clone(), pos);
+            self.all_items[pos] = item;
+            return;
+        }
+        let pos = self.all_items.len();
+        self.item_pos.insert(item.id.clone(), pos);
+        self.all_items.push(item);
+    }
+
+    fn sync_item_positions(&mut self) {
+        self.item_pos.clear();
+        for (i, item) in self.all_items.iter().enumerate() {
+            self.item_pos.insert(item.id.clone(), i);
         }
     }
 
@@ -943,12 +972,10 @@ impl TodoStore {
         tracing::debug!("TodoStore::update_item - id: {}, due: {:?}", item.id, item.due);
 
         if let Some(old_item) = self.id_map.get(&item.id).cloned() {
-            if let Some(pos) = self.all_items.iter().position(|i| i.id == item.id) {
-                self.all_items[pos] = item.clone();
-            }
+            self.place_item(item.clone());
             self.update_item_index(&old_item, &item);
         } else {
-            self.all_items.push(item.clone());
+            self.place_item(item.clone());
             self.add_item_to_index(&item);
         }
     }
@@ -964,6 +991,7 @@ impl TodoStore {
         if let Some(item) = self.id_map.get(id).cloned() {
             self.remove_item_from_index(&item);
             self.all_items.retain(|i| i.id != id);
+            self.sync_item_positions();
         }
     }
 
@@ -976,8 +1004,8 @@ impl TodoStore {
             self.remove_item_from_index(&old_item);
         }
         self.all_items.retain(|i| i.id != old_id);
-
         self.all_items.push(new_item.clone());
+        self.sync_item_positions();
         self.add_item_to_index(&new_item);
         if let Some(prev_real) = self.id_mappings.insert(old_id.to_string(), new_id.clone())
             && prev_real != new_id
@@ -999,7 +1027,7 @@ impl TodoStore {
 
     fn add_item_internal(&mut self, item: Arc<ItemModel>) {
         self.ensure_index_date();
-        self.all_items.push(item.clone());
+        self.place_item(item.clone());
         self.add_item_to_index(&item);
     }
 
@@ -1951,5 +1979,31 @@ mod tests {
 
         store.remove_item("later");
         assert!(!store.has_child_items("parent"));
+    }
+
+    #[test]
+    fn item_position_survives_update_and_removal() {
+        let mut store = TodoStore::new();
+        store.set_items(vec![
+            create_test_item("a", false, false, None),
+            create_test_item("b", false, false, None),
+            create_test_item("c", false, false, None),
+        ]);
+        let mut updated = (*store.get_item("b").unwrap()).clone();
+        updated.content = "updated".into();
+        store.update_item(Arc::new(updated));
+        assert_eq!(store.get_item("b").unwrap().content, "updated");
+        assert_eq!(store.all_items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), vec![
+            "a", "b", "c"
+        ]);
+
+        store.remove_item("a");
+        let mut moved = (*store.get_item("c").unwrap()).clone();
+        moved.content = "moved".into();
+        store.update_item(Arc::new(moved));
+        assert_eq!(store.all_items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), vec![
+            "b", "c"
+        ]);
+        assert_eq!(store.get_item("c").unwrap().content, "moved");
     }
 }

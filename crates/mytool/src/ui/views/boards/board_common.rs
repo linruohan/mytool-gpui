@@ -68,9 +68,6 @@ impl FinishItemDialogStyle {
     }
 }
 
-/// 无日期任务在日程分组里的内部键（展示文案走 i18n）。
-pub const UNDATED_DATE_KEY: &str = "__undated__";
-
 pub fn weekday_short(n: u32) -> String {
     match n % 7 {
         0 => t!("todo.weekday.sun").to_string(),
