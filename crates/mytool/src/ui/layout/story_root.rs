@@ -132,14 +132,14 @@ impl Render for StoryRoot {
             .child(
                 v_flex().size_full().child(self.title_bar.clone()).child(
                     div()
-                            .track_focus(&self.focus_handle)
-                            .flex_1()
-                            .overflow_hidden()
-                            .child(self.view.clone())
-                            // Rendered inside the content area rather than the
-                            // window root so the HUD's top right corner clears
-                            // the title bar's own controls.
-                            .when(show_fps, |this| this.child(fps_monitor(window, cx))),
+                        .track_focus(&self.focus_handle)
+                        .flex_1()
+                        .overflow_hidden()
+                        .child(self.view.clone())
+                        // Rendered inside the content area rather than the
+                        // window root so the HUD's top right corner clears
+                        // the title bar's own controls.
+                        .when(show_fps, |this| this.child(fps_monitor(window, cx))),
                 ),
             )
     }
