@@ -1037,9 +1037,9 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "combine"
-version = "4.6.8"
+version = "4.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfc320937d09e6de266b31b9afb480f197d7a861be86be7cb2ea7e5d1bfffc5e"
+checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
 dependencies = [
  "bytes",
  "memchr",
@@ -1985,9 +1985,9 @@ dependencies = [
 
 [[package]]
 name = "font-types"
-version = "0.12.6"
+version = "0.12.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c92d9081c7ab3bd83ef1eecdfad090f3d966e3ce74106779664114cfe1a6274"
+checksum = "835ae9d781464a79026cde387f9cbc650c9a4909d7cf7e658b127e3c35d2f35d"
 dependencies = [
  "bytemuck",
 ]
@@ -2388,7 +2388,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.7.3"
-source = "git+https://github.com/linruohan/gpui-component.git#59cd4fd4818a367ae3d808874bd0408c9c27eaf6"
+source = "git+https://github.com/linruohan/gpui-component.git#7eacc115e4eb5e0e03b3c8ed927019ab0dbf7b60"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2428,7 +2428,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.7.3"
-source = "git+https://github.com/linruohan/gpui-component.git#59cd4fd4818a367ae3d808874bd0408c9c27eaf6"
+source = "git+https://github.com/linruohan/gpui-component.git#7eacc115e4eb5e0e03b3c8ed927019ab0dbf7b60"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2510,7 +2510,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.7.3"
-source = "git+https://github.com/linruohan/gpui-component.git#59cd4fd4818a367ae3d808874bd0408c9c27eaf6"
+source = "git+https://github.com/linruohan/gpui-component.git#7eacc115e4eb5e0e03b3c8ed927019ab0dbf7b60"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2521,7 +2521,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.7.3"
-source = "git+https://github.com/linruohan/gpui-component.git#59cd4fd4818a367ae3d808874bd0408c9c27eaf6"
+source = "git+https://github.com/linruohan/gpui-component.git#7eacc115e4eb5e0e03b3c8ed927019ab0dbf7b60"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2538,7 +2538,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.7.3"
-source = "git+https://github.com/linruohan/gpui-component.git#59cd4fd4818a367ae3d808874bd0408c9c27eaf6"
+source = "git+https://github.com/linruohan/gpui-component.git#7eacc115e4eb5e0e03b3c8ed927019ab0dbf7b60"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2552,7 +2552,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.7.3"
-source = "git+https://github.com/linruohan/gpui-component.git#59cd4fd4818a367ae3d808874bd0408c9c27eaf6"
+source = "git+https://github.com/linruohan/gpui-component.git#7eacc115e4eb5e0e03b3c8ed927019ab0dbf7b60"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -5892,7 +5892,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "046a7d674daf459825b32f5062056d6882db0d2f5a479fbd76ccfc870ac18709"
 dependencies = [
  "bytemuck",
- "font-types 0.12.6",
+ "font-types 0.12.7",
  "once_cell",
 ]
 
