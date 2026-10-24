@@ -10,8 +10,8 @@ todos = { path = "crates/todos" }     # todos库，提供核心的任务管理�
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui - 与 gpui-component 保持一致，使用 crates.io 上的 gpui-pre（zed gpui 快照）
 # 启用 profiler feature 以导出 FrameTiming/FrameTimingCollector
-gpui = { package = "gpui-pre", version = "0.3.6", features = ["profiler"] }
-gpui_platform = { package = "gpui-pre-platform", version = "0.3.6", features = [
+gpui = { package = "gpui-pre", version = "0.3.9", features = ["profiler"] }
+gpui_platform = { package = "gpui-pre-platform", version = "0.3.9", features = [
     "font-kit",
     "x11",
     "wayland",
@@ -28,7 +28,7 @@ anyhow = "1.0.104"
 # rand = "0.8.5"
 # 启用 small_rng 特性，使用更快的随机数生成器
 rand = { version = "0.8.8", features = ["small_rng"] }
-tokio = { version = "1.53.1", features = [
+tokio = { version = "1.54.1", features = [
     "rt-multi-thread",
     "macros",
     "sync",
@@ -53,13 +53,13 @@ rfd = "0.14"
 # Additional dependencies used by multiple crates
 thiserror = "2.0.21"
 async-trait = "0.1.92"
-uuid = { version = "1.26.1", features = [
+uuid = { version = "1.29.0", features = [
     "v4",
     "fast-rng",
     "macro-diagnostics",
 ] }
 itertools = "0.14.0"
-embed-resource = "3.0.11"
+embed-resource = "3.0.12"
 
 [workspace.lints.clippy]
 almost_complete_range = "allow"
