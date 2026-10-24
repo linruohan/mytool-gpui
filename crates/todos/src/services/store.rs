@@ -3,7 +3,7 @@
 //! Thin passthrough for GUI/cold-start hot paths only. Prefer specialized
 //! services for new call sites.
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use sea_orm::DatabaseConnection;
 
@@ -59,6 +59,13 @@ impl Store {
 
     pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
         self.item_service.get_item(id).await
+    }
+
+    pub async fn get_contents_by_ids(
+        &self,
+        ids: &[String],
+    ) -> Result<HashMap<String, String>, TodoError> {
+        self.item_service.get_contents_by_ids(ids).await
     }
 
     pub async fn insert_item(&self, item: ItemModel, insert: bool) -> Result<ItemModel, TodoError> {
@@ -213,6 +220,13 @@ impl Store {
 
     pub async fn get_active_reminders(&self) -> Result<Vec<ReminderModel>, TodoError> {
         self.reminder_service.get_active_reminders().await
+    }
+
+    pub async fn get_schedule_reminders(
+        &self,
+        now: chrono::NaiveDateTime,
+    ) -> Result<Vec<ReminderModel>, TodoError> {
+        self.reminder_service.get_schedule_reminders(now).await
     }
 
     pub async fn mark_reminder_notified(&self, reminder_id: &str) -> Result<(), TodoError> {

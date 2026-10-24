@@ -45,6 +45,7 @@ pub fn state_init(cx: &mut App, db: sea_orm::DatabaseConnection) {
 
     // 到期提醒（由 watcher 写入，StoryRoot 弹出）
     cx.set_global(ReminderNotifier::new());
+    cx.set_global(ReminderChanges::new());
 
     cx.set_global(ItemSelection::new());
 

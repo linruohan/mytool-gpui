@@ -1832,6 +1832,14 @@ todo:
     es: Pospuesto 15 minutos
     fr: Reporté de 15 minutes
     de: 15 Minuten verschoben
+  reminder.due_more:
+    en: "and %{count} more"
+    zh-CN: "还有 %{count} 条"
+    zh-HK: "還有 %{count} 條"
+    it: "e altre %{count}"
+    es: "y %{count} más"
+    fr: "et %{count} de plus"
+    de: "und %{count} weitere"
   reminder.task_fallback:
     en: Task
     zh-CN: 任务
@@ -1864,6 +1872,14 @@ todo:
     es: "No se pudo posponer el recordatorio: %{error}"
     fr: "Impossible de reporter le rappel : %{error}"
     de: "Erinnerung verschieben fehlgeschlagen: %{error}"
+  error.acknowledge_reminder:
+    en: "Could not dismiss reminder: %{error}"
+    zh-CN: "关闭提醒失败：%{error}"
+    zh-HK: "關閉提醒失敗：%{error}"
+    it: "Impossibile chiudere il promemoria: %{error}"
+    es: "No se pudo cerrar el recordatorio: %{error}"
+    fr: "Impossible de fermer le rappel : %{error}"
+    de: "Erinnerung schließen fehlgeschlagen: %{error}"
   error.attach_mkdir:
     en: "Could not create attachment folder: %{error}"
     zh-CN: "创建附件目录失败：%{error}"
@@ -2456,6 +2472,22 @@ todo:
     es: Eliminado
     fr: Supprimé
     de: Gelöscht
+  notify.clear:
+    en: Clear notifications
+    zh-CN: 清除通知
+    zh-HK: 清除通知
+    it: Cancella notifiche
+    es: Borrar notificaciones
+    fr: Effacer les notifications
+    de: Hinweise löschen
+  notify.empty:
+    en: No notifications
+    zh-CN: 没有通知
+    zh-HK: 沒有通知
+    it: Nessuna notifica
+    es: No hay notificaciones
+    fr: Aucune notification
+    de: Keine Hinweise
   dialog.delete:
     en: Delete
     zh-CN: 删除

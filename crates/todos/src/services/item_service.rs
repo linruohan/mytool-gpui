@@ -3,11 +3,14 @@
 //! This module provides business logic for Item operations,
 //! separating it from data access layer.
 
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    Set, TransactionTrait, prelude::Expr,
+    QuerySelect, Set, TransactionTrait, prelude::Expr,
 };
 
 use crate::{
@@ -41,6 +44,25 @@ impl ItemService {
     /// Get an item by ID
     pub async fn get_item(&self, id: &str) -> Option<ItemModel> {
         BaseRepository::find_by_id(&self.item_repo, id).await.ok().flatten()
+    }
+
+    /// 一次取出多个任务的标题
+    pub async fn get_contents_by_ids(
+        &self,
+        ids: &[String],
+    ) -> Result<HashMap<String, String>, TodoError> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = ItemEntity::find()
+            .select_only()
+            .column(items::Column::Id)
+            .column(items::Column::Content)
+            .filter(items::Column::Id.is_in(ids.iter().cloned()))
+            .into_tuple::<(String, String)>()
+            .all(&*self.db)
+            .await?;
+        Ok(rows.into_iter().collect())
     }
 
     /// Insert a new item

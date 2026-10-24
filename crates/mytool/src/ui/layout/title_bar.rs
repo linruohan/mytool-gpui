@@ -13,6 +13,7 @@ use gpui_component::{
     scroll::ScrollbarMode,
 };
 use gpui_kit::assets::IconName;
+use rust_i18n::t;
 
 use crate::{
     AppState, SelectFont, SelectRadius, SelectScrollbarMode, ToggleFpsMonitor,
@@ -76,11 +77,27 @@ impl Render for AppTitleBar {
                     .child(Button::new("github").icon(IconName::Github).small().ghost().on_click(
                         |_, _, cx| cx.open_url("https://github.com/linruohan/gpui-component"),
                     ))
-                    .child(div().relative().child(
-                        Badge::new().count(notifications_count).max(99).child(
-                            Button::new("bell").small().ghost().compact().icon(IconName::Bell),
+                    .child(
+                        div().relative().child(
+                            Badge::new().count(notifications_count).max(99).child(
+                                Button::new("bell")
+                                    .small()
+                                    .ghost()
+                                    .compact()
+                                    .icon(IconName::Bell)
+                                    .tooltip(if notifications_count > 0 {
+                                        t!("todo.notify.clear").to_string()
+                                    } else {
+                                        t!("todo.notify.empty").to_string()
+                                    })
+                                    .on_click(|_, window, cx| {
+                                        if !window.notifications(cx).is_empty() {
+                                            window.clear_notifications(cx);
+                                        }
+                                    }),
+                            ),
                         ),
-                    )),
+                    ),
             )
     }
 }

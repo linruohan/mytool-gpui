@@ -19,7 +19,7 @@ use todos::{DueDate, entity::ItemModel, enums::item_priority::ItemPriority};
 
 use crate::{
     core::shortcuts::{ShortcutCategory, get_shortcuts_by_category},
-    todo_actions::{batch_update_items, update_item_optimistic},
+    todo_actions::{batch_update_items, poke_reminder_watcher, update_item_optimistic},
     todo_state::{TodoPrefs, TodoStore},
 };
 
@@ -59,6 +59,7 @@ pub fn show_todo_settings_dialog<T: Render>(window: &mut Window, cx: &mut Contex
                                     prefs.reminders_enabled = *checked;
                                     prefs.save();
                                 });
+                                poke_reminder_watcher();
                             }),
                     )
                     .child(

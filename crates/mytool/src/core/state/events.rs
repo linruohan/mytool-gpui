@@ -2,7 +2,10 @@
 //!
 //! 邮箱字段用 Mutex，观察者消费时不必 `update_global`，避免再次通知自己卡死。
 
-use std::{collections::HashSet, sync::Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Mutex,
+};
 
 use gpui::Global;
 
@@ -82,11 +85,15 @@ impl ItemSelection {
     }
 }
 
+const ERROR_REPEAT_WINDOW: std::time::Duration = std::time::Duration::from_secs(4);
+
 /// 错误通知器
 ///
-/// 用于在后台任务发生错误时存储错误消息，供 UI 层显示通知
+/// 后台任务把错误排队，UI 观察后逐条弹出。不同的错误都会保留。
+/// 同一句错误在几秒内重复出现时只保留一条，避免失败重试刷屏。
 pub struct ErrorNotifier {
-    last_error: Mutex<Option<String>>,
+    pending: Mutex<Vec<String>>,
+    recent: Mutex<Option<(String, std::time::Instant)>>,
 }
 impl Default for ErrorNotifier {
     fn default() -> Self {
@@ -96,19 +103,33 @@ impl Default for ErrorNotifier {
 impl Global for ErrorNotifier {}
 impl ErrorNotifier {
     pub fn new() -> Self {
-        Self { last_error: Mutex::new(None) }
+        Self { pending: Mutex::new(Vec::new()), recent: Mutex::new(None) }
     }
 
     pub fn set_error(&self, message: String) {
-        *self.last_error.lock().unwrap() = Some(message);
+        let mut recent = self.recent.lock().unwrap();
+        if let Some((last, at)) = recent.as_ref()
+            && last == &message
+            && at.elapsed() < ERROR_REPEAT_WINDOW
+        {
+            return;
+        }
+        *recent = Some((message.clone(), std::time::Instant::now()));
+        drop(recent);
+        self.pending.lock().unwrap().push(message);
     }
 
     pub fn take_error(&self) -> Option<String> {
-        self.last_error.lock().unwrap().take()
+        let mut pending = self.pending.lock().unwrap();
+        if pending.is_empty() { None } else { Some(pending.remove(0)) }
+    }
+
+    pub fn take_all(&self) -> Vec<String> {
+        std::mem::take(&mut *self.pending.lock().unwrap())
     }
 
     pub fn peek_error(&self) -> bool {
-        self.last_error.lock().unwrap().is_some()
+        !self.pending.lock().unwrap().is_empty()
     }
 }
 
@@ -122,6 +143,10 @@ pub struct ReminderNotice {
 
 pub struct ReminderNotifier {
     pending: Mutex<Vec<ReminderNotice>>,
+    /// 已交给界面、数据库尚未改完（软删除或延后）的提醒。
+    held: Mutex<HashSet<String>>,
+    /// 用户点了延后，关闭回调不要再把它标成已触发。
+    snoozed: Mutex<HashSet<String>>,
 }
 impl Default for ReminderNotifier {
     fn default() -> Self {
@@ -131,15 +156,104 @@ impl Default for ReminderNotifier {
 impl Global for ReminderNotifier {}
 impl ReminderNotifier {
     pub fn new() -> Self {
-        Self { pending: Mutex::new(Vec::new()) }
+        Self {
+            pending: Mutex::new(Vec::new()),
+            held: Mutex::new(HashSet::new()),
+            snoozed: Mutex::new(HashSet::new()),
+        }
     }
 
-    pub fn push(&self, notice: ReminderNotice) {
-        self.pending.lock().unwrap().push(notice);
+    /// 同一条提醒在排队或已弹出时不再重复入队。返回是否新写入。
+    pub fn push(&self, notice: ReminderNotice) -> bool {
+        let mut pending = self.pending.lock().unwrap();
+        let held = self.held.lock().unwrap();
+        if held.contains(&notice.reminder_id)
+            || pending.iter().any(|item| item.reminder_id == notice.reminder_id)
+        {
+            return false;
+        }
+        drop(held);
+        pending.push(notice);
+        true
     }
 
     pub fn take_all(&self) -> Vec<ReminderNotice> {
         std::mem::take(&mut *self.pending.lock().unwrap())
+    }
+
+    pub fn hold(&self, id: &str) {
+        self.held.lock().unwrap().insert(id.to_string());
+    }
+
+    pub fn release(&self, id: &str) {
+        self.held.lock().unwrap().remove(id);
+    }
+
+    pub fn begin_snooze(&self, id: &str) {
+        self.snoozed.lock().unwrap().insert(id.to_string());
+    }
+
+    pub fn take_snooze(&self, id: &str) -> bool {
+        self.snoozed.lock().unwrap().remove(id)
+    }
+}
+
+/// 提醒被关掉或改期后，通知已经打开的提醒按钮刷新。
+#[derive(Clone, Debug)]
+pub enum ReminderChange {
+    Dismissed { reminder_id: String, item_id: String },
+    Rescheduled { reminder_id: String, item_id: String, due: String },
+}
+
+pub struct ReminderChanges {
+    seq: u64,
+    latest: Vec<ReminderChange>,
+    dismissed: HashSet<String>,
+    rescheduled: HashMap<String, String>,
+}
+
+impl Default for ReminderChanges {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Global for ReminderChanges {}
+
+impl ReminderChanges {
+    pub fn new() -> Self {
+        Self { seq: 0, latest: Vec::new(), dismissed: HashSet::new(), rescheduled: HashMap::new() }
+    }
+
+    pub fn seq(&self) -> u64 {
+        self.seq
+    }
+
+    pub fn push(&mut self, change: ReminderChange) {
+        self.seq = self.seq.wrapping_add(1);
+        match &change {
+            ReminderChange::Dismissed { reminder_id, .. } => {
+                self.dismissed.insert(reminder_id.clone());
+                self.rescheduled.remove(reminder_id);
+            },
+            ReminderChange::Rescheduled { reminder_id, due, .. } => {
+                self.dismissed.remove(reminder_id);
+                self.rescheduled.insert(reminder_id.clone(), due.clone());
+            },
+        }
+        self.latest = vec![change];
+    }
+
+    pub fn is_dismissed(&self, reminder_id: &str) -> bool {
+        self.dismissed.contains(reminder_id)
+    }
+
+    pub fn rescheduled_due(&self, reminder_id: &str) -> Option<String> {
+        self.rescheduled.get(reminder_id).cloned()
+    }
+
+    pub fn latest(&self) -> (u64, Vec<ReminderChange>) {
+        (self.seq, self.latest.clone())
     }
 }
 
@@ -262,7 +376,71 @@ impl NavHistory {
 
 #[cfg(test)]
 mod tests {
-    use super::{NavHistory, NavPlace, step_visible_id};
+    use super::{
+        ErrorNotifier, NavHistory, NavPlace, ReminderChange, ReminderChanges, ReminderNotice,
+        ReminderNotifier, step_visible_id,
+    };
+
+    #[test]
+    fn error_notifier_keeps_every_message() {
+        let notifier = ErrorNotifier::new();
+        notifier.set_error("a".into());
+        notifier.set_error("b".into());
+        assert_eq!(notifier.take_all(), vec!["a".to_string(), "b".to_string()]);
+        assert!(notifier.take_all().is_empty());
+        assert!(!notifier.peek_error());
+    }
+
+    #[test]
+    fn error_notifier_drops_immediate_repeat() {
+        let notifier = ErrorNotifier::new();
+        notifier.set_error("a".into());
+        notifier.set_error("a".into());
+        notifier.set_error("b".into());
+        assert_eq!(notifier.take_all(), vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn reminder_notifier_dedupes_while_queued_or_held() {
+        let notifier = ReminderNotifier::new();
+        let notice = ReminderNotice {
+            reminder_id: "1".into(),
+            item_id: "item".into(),
+            title: "task".into(),
+        };
+        assert!(notifier.push(notice.clone()));
+        assert!(!notifier.push(notice.clone()));
+        assert_eq!(notifier.take_all().len(), 1);
+        notifier.hold("1");
+        assert!(!notifier.push(notice.clone()));
+        notifier.begin_snooze("1");
+        assert!(notifier.take_snooze("1"));
+        assert!(!notifier.take_snooze("1"));
+        notifier.release("1");
+        assert!(notifier.push(notice));
+    }
+
+    #[test]
+    fn reminder_changes_replace_the_latest_event() {
+        let mut changes = ReminderChanges::new();
+        assert_eq!(changes.seq(), 0);
+        changes.push(ReminderChange::Dismissed { reminder_id: "r".into(), item_id: "i".into() });
+        changes.push(ReminderChange::Rescheduled {
+            reminder_id: "r".into(),
+            item_id: "i".into(),
+            due: "2026-10-24 10:15:00".into(),
+        });
+        let (seq, latest) = changes.latest();
+        assert_eq!(seq, 2);
+        assert!(matches!(latest.as_slice(), [ReminderChange::Rescheduled { .. }]));
+        assert!(!changes.is_dismissed("r"));
+        assert_eq!(changes.rescheduled_due("r").as_deref(), Some("2026-10-24 10:15:00"));
+
+        changes
+            .push(ReminderChange::Dismissed { reminder_id: "other".into(), item_id: "i".into() });
+        assert!(changes.is_dismissed("other"));
+        assert_eq!(changes.rescheduled_due("r").as_deref(), Some("2026-10-24 10:15:00"));
+    }
 
     #[test]
     fn step_visible_id_wraps_and_defaults() {

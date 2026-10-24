@@ -172,6 +172,9 @@ pub fn create_new_window_with_size<F, E>(
 impl Global for AppState {}
 
 pub fn init(cx: &mut App) {
+    // Windows 通知中心要求进程先有 AppUserModelID，且必须在开窗和发通知之前。
+    cx.set_app_identity("MyTool.GPUI", "MyTool");
+
     // 初始化日志系统 - 默认显示 info 级别日志
     // 可以通过设置环境变量 RUST_LOG=debug 或 RUST_LOG=mytool=trace 来调整级别
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {

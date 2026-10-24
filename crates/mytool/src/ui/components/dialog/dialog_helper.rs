@@ -115,14 +115,13 @@ fn show_edit_dialog<T, ContentFn, SaveFn>(
 /// - `item_info`: ItemInfo 状态实体
 /// - `config`: 对话框配置
 /// - `on_save`: 保存后的额外回调（保存已由 save_all_changes 处理）
-pub fn show_item_dialog<T, F>(
+pub fn show_item_dialog<F>(
     window: &mut Window,
-    cx: &mut Context<T>,
+    cx: &mut gpui::App,
     item_info: gpui::Entity<crate::ItemInfoState>,
     config: EditDialogConfig,
     on_save: F,
 ) where
-    T: Render + 'static,
     F: Fn(Arc<todos::entity::ItemModel>, &mut Window, &mut gpui::App) + Clone + 'static,
 {
     let dialog_config = DialogConfig::new(&config.title).overlay(config.overlay);
@@ -214,6 +213,21 @@ pub fn show_existing_item_dialog<T, F>(
         item_info,
         EditDialogConfig::new(&t!("todo.item.edit"), &t!("todo.save"), true),
         on_save,
+    );
+}
+
+/// 从通知等没有视图上下文的位置打开已有任务。
+pub fn open_reminder_item(window: &mut Window, cx: &mut gpui::App, item_id: &str) {
+    let Some(item) = cx.global::<crate::todo_state::TodoStore>().get_item(item_id) else {
+        return;
+    };
+    let item_info = cx.new(|cx| crate::ItemInfoState::new(item, window, cx));
+    show_item_dialog(
+        window,
+        cx,
+        item_info,
+        EditDialogConfig::new(&t!("todo.item.edit"), &t!("todo.save"), true),
+        |_item, _window, _cx| {},
     );
 }
 

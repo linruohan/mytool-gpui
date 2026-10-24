@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, ParentElement, Render, Styled, Window, div, prelude::FluentBuilder, px,
+    IntoElement, ParentElement, Render, Styled, Subscription, Window, div, prelude::FluentBuilder,
+    px,
 };
 use gpui_component::{
     ActiveTheme, IndexPath, Sizable,
@@ -20,6 +21,7 @@ use todos::entity::ReminderModel;
 use crate::{
     create_button_wrapper, impl_button_state_base,
     todo_actions::{add_reminder, delete_reminder},
+    todo_state::{ReminderChange, ReminderChanges},
     ui::components::{PopoverListMixin, create_list_item_element},
 };
 
@@ -300,6 +302,8 @@ pub struct ReminderButtonState {
     popover_open: bool,
     /// 待保存的提醒列表（当 item_id 从临时 ID 变为真实 ID 后保存）
     pending_reminders: Vec<ReminderModel>,
+    seen_reminder_seq: u64,
+    _reminder_changes: Subscription,
 }
 
 impl_button_state_base!(ReminderButtonState, ReminderButtonEvent);
@@ -309,6 +313,12 @@ impl ReminderButtonState {
     pub fn new(item_id: String, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let parent = cx.entity();
         let form = cx.new(|cx| ReminderForm::new(parent, window, cx));
+
+        let seen_reminder_seq =
+            cx.try_global::<ReminderChanges>().map(|changes| changes.seq()).unwrap_or(0);
+        let _reminder_changes = cx.observe_global_in::<ReminderChanges>(window, |this, _, cx| {
+            this.apply_reminder_changes(cx)
+        });
 
         let filter_fn = |reminder: &Arc<ReminderModel>, _query: &str| {
             reminder
@@ -328,14 +338,75 @@ impl ReminderButtonState {
             show_add_form: false,
             popover_open: false,
             pending_reminders: Vec::new(),
+            seen_reminder_seq,
+            _reminder_changes,
+        }
+    }
+
+    fn apply_reminder_changes(&mut self, cx: &mut Context<Self>) {
+        let Some((seq, latest)) =
+            cx.try_global::<ReminderChanges>().map(|changes| changes.latest())
+        else {
+            return;
+        };
+        if seq == self.seen_reminder_seq {
+            return;
+        }
+        self.seen_reminder_seq = seq;
+        let mut dirty = false;
+        for change in latest {
+            match change {
+                ReminderChange::Dismissed { reminder_id, item_id } => {
+                    if item_id != self.item_id {
+                        continue;
+                    }
+                    let before = self.items.items.len();
+                    self.items.remove_item(|reminder| reminder.id == reminder_id);
+                    dirty |= self.items.items.len() != before;
+                },
+                ReminderChange::Rescheduled { reminder_id, item_id, due } => {
+                    if item_id != self.item_id {
+                        continue;
+                    }
+                    if let Some(slot) =
+                        self.items.items.iter_mut().find(|reminder| reminder.id == reminder_id)
+                    {
+                        let mut model = (**slot).clone();
+                        model.due = Some(due);
+                        *slot = Arc::new(model);
+                        dirty = true;
+                    }
+                },
+            }
+        }
+        if dirty {
+            cx.notify();
         }
     }
 
     /// 设置提醒列表
-    pub fn set_reminders(&mut self, reminders: Vec<Arc<ReminderModel>>, cx: &mut Context<Self>) {
+    pub fn set_reminders(
+        &mut self,
+        mut reminders: Vec<Arc<ReminderModel>>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(changes) = cx.try_global::<ReminderChanges>() {
+            reminders.retain(|reminder| !changes.is_dismissed(&reminder.id));
+            for reminder in &mut reminders {
+                let Some(due) = changes.rescheduled_due(&reminder.id) else {
+                    continue;
+                };
+                let mut model = (**reminder).clone();
+                model.due = Some(due);
+                *reminder = Arc::new(model);
+            }
+        }
         let old_reminders = self.items.items.clone();
         let has_changed = old_reminders.len() != reminders.len()
-            || old_reminders.iter().zip(reminders.iter()).any(|(a, b)| a.id != b.id);
+            || old_reminders
+                .iter()
+                .zip(reminders.iter())
+                .any(|(a, b)| a.id != b.id || a.due != b.due);
 
         self.items.set_items(reminders);
 
