@@ -38,6 +38,25 @@ use crate::{
 mod handlers;
 mod item_state_manager;
 mod labels;
+
+/// 编辑器里可选的分区：有项目时只列该项目，否则只列收件箱分区。
+fn sections_for_editor(
+    store: &TodoStore,
+    project_id: Option<&str>,
+) -> Vec<Arc<todos::entity::SectionModel>> {
+    let project_id = project_id.filter(|id| !id.is_empty());
+    store
+        .sections_in_order()
+        .into_iter()
+        .filter(|section| {
+            if section.is_archived || section.is_deleted || section.hidded {
+                return false;
+            }
+            let section_project = section.project_id.as_deref().filter(|id| !id.is_empty());
+            section_project == project_id
+        })
+        .collect()
+}
 mod save;
 mod types;
 
@@ -282,58 +301,29 @@ impl ItemInfoState {
             this.set_value(item.description.clone().unwrap_or_default(), window, cx);
         });
         self.priority_state.update(cx, |this, cx| {
-            if let Some(priority) = item.priority {
-                this.set_priority(ItemPriority::from_i32(priority), window, cx);
-            }
+            let priority = item.priority.map(ItemPriority::from_i32).unwrap_or(ItemPriority::NONE);
+            this.set_priority(priority, window, cx);
         });
 
-        // 根据当前项目解析分区列表，避免整表 clone
+        // 无项目时用收件箱分区，避免下拉停在上次的项目、分区按钮被藏起来。
         let item_section_id = item.section_id.clone();
-        let (project_ok, filtered_sections, section_in_store) = {
+        let sections = {
             let store = cx.global::<TodoStore>();
-            let project_ok =
-                item.project_id.as_ref().is_some_and(|id| store.get_project(id).is_some());
-            let filtered_sections = item
-                .project_id
-                .as_ref()
-                .filter(|_| project_ok)
-                .map(|id| store.sections_for_project(id));
-            let section_in_store =
-                item_section_id.as_ref().and_then(|id| store.get_section(id)).is_some();
-            (project_ok, filtered_sections, section_in_store)
+            sections_for_editor(store, item.project_id.as_deref())
         };
+        let selected_section =
+            item_section_id.filter(|id| sections.iter().any(|section| section.id == *id));
+        if item.section_id.is_some() && selected_section.is_none() {
+            self.state_manager.set_section_id(None);
+        }
 
         self.project_state.update(cx, |this, cx| {
-            if project_ok {
-                this.set_project(item.project_id.clone(), window, cx);
-            }
+            this.set_project(item.project_id.clone(), window, cx);
         });
 
         self.section_state.update(cx, |section_state, cx| {
-            if item.project_id.is_some() {
-                if let Some(filtered) = filtered_sections {
-                    if let Some(section_id) = &item_section_id
-                        && !filtered.iter().any(|s| &s.id == section_id)
-                    {
-                        self.state_manager.set_section_id(None);
-                    }
-                    section_state.set_sections(Some(filtered), window, cx);
-                }
-            } else {
-                section_state.set_sections(None, window, cx);
-            }
-
-            if let Some(section_id) = &item_section_id {
-                let valid = match &section_state.sections {
-                    Some(ss) => ss.iter().any(|s| &s.id == section_id),
-                    None => section_in_store,
-                };
-                if valid {
-                    section_state.set_section(Some(section_id.clone()), window, cx);
-                }
-            } else {
-                section_state.set_section(None, window, cx);
-            }
+            section_state.set_sections(Some(sections), window, cx);
+            section_state.set_section(selected_section, window, cx);
         });
 
         // 使用类型安全的 due_date() 方法
@@ -354,7 +344,20 @@ impl ItemInfoState {
             }
         });
 
-        if item_id_changed || reload_labels {
+        if item.id.is_empty() {
+            let labels = item.labels.clone().unwrap_or_default();
+            self.label_popover_list.update(cx, |popover, cx| {
+                popover.set_item_checked_label_id_async(labels, cx);
+            });
+            self.attachment_state.update(cx, |state, cx| {
+                state.update_item_id(String::new(), cx);
+                state.set_attachments(Vec::new(), cx);
+            });
+            self.reminder_state.update(cx, |state, cx| {
+                state.update_item_id(String::new(), cx);
+                state.set_reminders(Vec::new(), cx);
+            });
+        } else if item_id_changed || reload_labels {
             self.load_related_records(item.id.clone(), reload_labels || item_id_changed, cx);
         }
     }
@@ -720,5 +723,40 @@ impl RenderOnce for ItemInfo {
             .w_full()
             .refine_style(&self.style)
             .child(self.state.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use todos::entity::SectionModel;
+
+    use super::sections_for_editor;
+    use crate::core::state::TodoStore;
+
+    fn section(id: &str, project: Option<&str>, archived: bool) -> Arc<SectionModel> {
+        let mut model = SectionModel::default();
+        model.id = id.into();
+        model.project_id = project.map(str::to_string);
+        model.is_archived = archived;
+        Arc::new(model)
+    }
+
+    #[test]
+    fn editor_sections_follow_project_or_inbox() {
+        let mut store = TodoStore::new();
+        store.add_section(section("inbox", None, false));
+        store.add_section(section("proj", Some("p1"), false));
+        store.add_section(section("old", None, true));
+
+        let inbox = sections_for_editor(&store, None);
+        assert_eq!(inbox.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), vec!["inbox"]);
+
+        let project = sections_for_editor(&store, Some("p1"));
+        assert_eq!(project.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), vec!["proj"]);
+
+        let empty_project = sections_for_editor(&store, Some(""));
+        assert_eq!(empty_project.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), vec!["inbox"]);
     }
 }

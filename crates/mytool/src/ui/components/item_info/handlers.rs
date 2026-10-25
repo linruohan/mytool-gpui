@@ -126,21 +126,13 @@ impl ItemInfoState {
                     // 使用 state_manager 更新 project_id
                     self.state_manager.set_project_id(new_project_id.clone());
 
-                    let filtered = if project_id.is_empty() {
-                        None
-                    } else {
+                    let filtered = {
                         let store = cx.global::<TodoStore>();
-                        store
-                            .get_project(project_id)
-                            .map(|_| store.sections_for_project(project_id))
+                        super::sections_for_editor(store, new_project_id.as_deref())
                     };
 
                     self.section_state.update(cx, |section_state, cx| {
-                        if project_id.is_empty() {
-                            section_state.set_sections(None, window, cx);
-                        } else if let Some(filtered_sections) = filtered {
-                            section_state.set_sections(Some(filtered_sections), window, cx);
-                        }
+                        section_state.set_sections(Some(filtered), window, cx);
                     });
 
                     // 当project变更时，重置section_id

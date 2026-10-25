@@ -172,7 +172,12 @@ impl ScheduledBoard {
         is_edit: bool,
         section_id: Option<String>,
     ) {
-        self.base.show_item_dialog(window, cx, is_edit, section_id);
+        let due = (!is_edit).then(|| self.filter_ymd()).flatten().map(|date| {
+            let mut due = todos::DueDate::default();
+            due.date = date.format("%Y-%m-%d").to_string();
+            due
+        });
+        self.base.show_item_dialog_with_due(window, cx, is_edit, section_id, due);
     }
 
     pub fn show_item_delete_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {

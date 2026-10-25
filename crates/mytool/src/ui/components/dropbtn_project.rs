@@ -91,7 +91,11 @@ impl ProjectButtonState {
         cx: &mut Context<Self>,
     ) {
         let id = project_id.unwrap_or_default();
+        // 选项只在渲染时同步。新建对话框会在第一次渲染前写入默认项目，
+        // 必须先装入当前项目列表，否则选不中，随后的同步会把选择留在收件箱。
+        let items = Self::options(cx);
         self.select.update(cx, |select, cx| {
+            select.set_items(SearchableVec::new(items), window, cx);
             select.set_selected_value(&id, window, cx);
         });
     }

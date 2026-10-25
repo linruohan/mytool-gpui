@@ -120,7 +120,6 @@ impl SectionState {
         let items = Self::options(self.sections.as_deref(), cx);
         self.select.update(cx, |select, cx| {
             select.set_items(SearchableVec::new(items), window, cx);
-            select.set_selected_value(&String::new(), window, cx);
         });
         cx.notify();
     }

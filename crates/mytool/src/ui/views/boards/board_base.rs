@@ -484,6 +484,18 @@ impl BoardBase {
         is_edit: bool,
         section_id: Option<String>,
     ) {
+        self.show_item_dialog_with_due(window, cx, is_edit, section_id, None);
+    }
+
+    /// 显示新建/编辑任务对话框，并为新建任务指定截止日期。
+    pub fn show_item_dialog_with_due<V: gpui::Render + BoardView>(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<V>,
+        is_edit: bool,
+        section_id: Option<String>,
+        due: Option<todos::DueDate>,
+    ) {
         let item_info = if is_edit {
             if let Some(active_index) = self.active_index {
                 if let Some(item_row) = self.item_rows.get(active_index) {
@@ -500,7 +512,17 @@ impl BoardBase {
         } else {
             let mut ori_item = todos::entity::ItemModel::default();
             if let Some(sid) = section_id {
+                if let Some(section) = cx.global::<TodoStore>().get_section(&sid) {
+                    ori_item.project_id = section.project_id.clone().filter(|id| !id.is_empty());
+                }
                 ori_item.section_id = Some(sid);
+            }
+            if let Some(due) = due {
+                ori_item.set_due_date(Some(due));
+            } else if self.is_today_board {
+                let mut due = todos::DueDate::default();
+                due.date = chrono::Local::now().format("%Y-%m-%d").to_string();
+                ori_item.set_due_date(Some(due));
             }
             self.item_info.update(cx, |state, cx| {
                 state.set_item(Arc::new(ori_item.clone()), window, cx);
