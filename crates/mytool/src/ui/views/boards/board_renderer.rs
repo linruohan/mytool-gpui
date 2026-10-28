@@ -73,8 +73,10 @@ fn drag_preview_label(label: String, cx: &App) -> impl IntoElement {
         .child(label)
 }
 
-fn click_is_multi(event: &ClickEvent) -> bool {
-    event.modifiers().secondary()
+/// 判断本次点击是否为多选（Ctrl / Cmd 等 secondary 修饰键按下）。
+/// gpui 0.3.10 起 `Modifiers::secondary` 需要 `&App` 才能按平台解析修饰键。
+fn click_is_multi(event: &ClickEvent, cx: &App) -> bool {
+    event.modifiers().secondary(cx)
 }
 
 /// Board 空状态：居中大图标 + 标题 + 提示，无虚线框。
@@ -153,7 +155,7 @@ where
         })
         .on_click(move |event, _, cx| {
             cx.stop_propagation();
-            let multi = click_is_multi(event);
+            let multi = click_is_multi(event, cx);
             let id = item_id.clone();
             if !id.is_empty() {
                 cx.update_global::<ItemSelection, _>(|sel, _| sel.apply_click(id, multi));
