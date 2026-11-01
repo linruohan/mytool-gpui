@@ -5,7 +5,7 @@ description: "诊断并修复 mytool-gpui 与 gpui-component 生态（gpui-pre /
 
 # GPUI Component 生态对齐与编译排障
 
-本 skill 沉淀 mytool-gpui 工作区与 `gpui-component`（linruohan/gpui-component）生态对齐的
+本 skill 沉淀 mytool-gpui 工作区与 `gpui-component`（linruohan/gpui-kit）生态对齐的
 排查流程，覆盖依赖版本冲突诊断、包名映射、API 参考定位和警告清零模式。
 
 ## 一、何时调用
@@ -36,9 +36,9 @@ gpui = { package = "gpui-pre", version = "0.3.3", features = ["profiler"] }
 gpui_platform = { package = "gpui-pre-platform", version = "0.3.3", features = [
     "font-kit", "x11", "wayland", "runtime_shaders",
 ] }
-gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = ["tree-sitter-languages"] }
-gpui-kit = { git = "https://github.com/linruohan/gpui-component.git" }
-gpui-fps = { git = "https://github.com/linruohan/gpui-component.git" }
+gpui-component = { git = "https://github.com/linruohan/gpui-kit.git", features = ["tree-sitter-languages"] }
+gpui-kit = { git = "https://github.com/linruohan/gpui-kit.git" }
+gpui-fps = { git = "https://github.com/linruohan/gpui-kit.git" }
 ```
 
 ## 三、典型故障：双版本 gpui 冲突

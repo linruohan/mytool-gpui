@@ -10,19 +10,20 @@ todos = { path = "crates/todos" }     # todos库，提供核心的任务管理�
 gconfig = { path = "crates/gconfig" } # 全局配置管理库
 # gpui - 与 gpui-component 保持一致，使用 crates.io 上的 gpui-pre（zed gpui 快照）
 # 启用 profiler feature 以导出 FrameTiming/FrameTimingCollector
-gpui = { package = "gpui-pre", version = "0.3.9", features = ["profiler"] }
-gpui_platform = { package = "gpui-pre-platform", version = "0.3.9", features = [
+gpui = { package = "gpui-pre", version = "0.3.10", features = ["profiler"] }
+gpui_platform = { package = "gpui-pre-platform", version = "0.3.10", features = [
     "font-kit",
     "x11",
     "wayland",
     "runtime_shaders",
 ] }
-gpui-component = { git = "https://github.com/linruohan/gpui-component.git", features = [
+# 仓库已从 linruohan/gpui-component 更名为 linruohan/gpui-kit，crate 名保持不变
+gpui-component = { git = "https://github.com/linruohan/gpui-kit.git", features = [
     "tree-sitter-languages",
 ] }
-gpui-kit = { git = "https://github.com/linruohan/gpui-component.git" }
-# FPS/性能监控 HUD，直接使用 gpui-component 官方仓库的 gpui-fps
-gpui-fps = { git = "https://github.com/linruohan/gpui-component.git" }
+gpui-kit = { git = "https://github.com/linruohan/gpui-kit.git" }
+# FPS/性能监控 HUD，直接使用 gpui-kit 官方仓库的 gpui-fps
+gpui-fps = { git = "https://github.com/linruohan/gpui-kit.git" }
 # External crates
 anyhow = "1.0.104"
 # rand = "0.8.5"

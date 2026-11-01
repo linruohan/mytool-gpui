@@ -74,4 +74,4 @@ mytool (GUI) → Services → Repositories → Sea-ORM → SQLite
 ## External Dependencies (git)
 
 - GPUI: `https://github.com/zed-industries/zed`
-- gpui-component: `https://github.com/linruohan/gpui-component.git`
+- gpui-component: `https://github.com/linruohan/gpui-kit.git`

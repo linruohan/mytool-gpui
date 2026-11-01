@@ -168,7 +168,7 @@ Theme files are in `themes/` directory as JSON files. Default theme is `themes/d
 ## External Dependencies
 
 - **GPUI:** `git = "https://github.com/zed-industries/zed"`
-- **GPUI Component:** `git = "https://github.com/linruohan/gpui-component.git"`
+- **GPUI Component:** `git = "https://github.com/linruohan/gpui-kit.git"`
 - **Sea-ORM:** v1.1.19 with SQLite, chrono, JSON support
 - **Tokio:** Full features for async runtime
 - **rust-i18n:** v3.1.5 for i18n

@@ -168,7 +168,7 @@ echo "IgnorePkg = mingw-w64-x86_64-gcc mingw-w64-x86_64-gcc-libs" >> /etc/pacman
 ## 外部依赖
 
 - **GPUI:** `git = "https://github.com/zed-industries/zed"`
-- **GPUI Component:** `git = "https://github.com/linruohan/gpui-component.git"`
+- **GPUI Component:** `git = "https://github.com/linruohan/gpui-kit.git"`
 - **Sea-ORM:** v1.1.19，支持 SQLite、chrono、JSON
 - **Tokio:** 完整特性的异步运行时
 - **rust-i18n:** v3.1.5 用于国际化

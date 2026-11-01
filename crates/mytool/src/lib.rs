@@ -256,7 +256,7 @@ pub fn init(cx: &mut App) {
                                 alert.title("About").description(markdown(
                                     "GPUI Component mytool\n\n\
                                     Version 0.1.0\n\n\
-                                    https://github/linruohan/gpui-component",
+                                    https://github.com/linruohan/gpui-kit",
                                 ))
                             });
                         });

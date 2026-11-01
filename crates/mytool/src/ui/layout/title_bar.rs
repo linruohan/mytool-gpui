@@ -74,9 +74,11 @@ impl Render for AppTitleBar {
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child((self.child.clone())(window, cx))
                     .child(self.font_size_selector.clone())
-                    .child(Button::new("github").icon(IconName::Github).small().ghost().on_click(
-                        |_, _, cx| cx.open_url("https://github.com/linruohan/gpui-component"),
-                    ))
+                    .child(
+                        Button::new("github").icon(IconName::Github).small().ghost().on_click(
+                            |_, _, cx| cx.open_url("https://github.com/linruohan/gpui-kit"),
+                        ),
+                    )
                     .child(
                         div().relative().child(
                             Badge::new().count(notifications_count).max(99).child(

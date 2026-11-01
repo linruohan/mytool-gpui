@@ -1630,9 +1630,9 @@ dependencies = [
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.43"
+version = "0.8.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "844dfa6d76a4e6b9d98e03ae5ead89fbedd02cbd1206b7817d6d3dca62326967"
+checksum = "89253175e704ab869b04f9db224d38630e0211a53841a79181deae0889e169f5"
 dependencies = [
  "cfg-if",
  "core_detect",
@@ -1753,7 +1753,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2324,13 +2324,13 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.21",
- "windows 0.62.2",
+ "windows 0.58.0",
 ]
 
 [[package]]
 name = "gpui-base"
 version = "0.8.1"
-source = "git+https://github.com/linruohan/gpui-component.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
+source = "git+https://github.com/linruohan/gpui-kit.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2370,7 +2370,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.8.1"
-source = "git+https://github.com/linruohan/gpui-component.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
+source = "git+https://github.com/linruohan/gpui-kit.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2452,7 +2452,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.8.1"
-source = "git+https://github.com/linruohan/gpui-component.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
+source = "git+https://github.com/linruohan/gpui-kit.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2463,7 +2463,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.8.1"
-source = "git+https://github.com/linruohan/gpui-component.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
+source = "git+https://github.com/linruohan/gpui-kit.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2480,7 +2480,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.8.1"
-source = "git+https://github.com/linruohan/gpui-component.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
+source = "git+https://github.com/linruohan/gpui-kit.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2494,7 +2494,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.8.1"
-source = "git+https://github.com/linruohan/gpui-component.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
+source = "git+https://github.com/linruohan/gpui-kit.git#a775ae0cb19325f985ed0b8c6658cea076389e06"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -3323,7 +3323,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -3716,9 +3716,9 @@ dependencies = [
 
 [[package]]
 name = "json5"
-version = "1.3.6"
+version = "1.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e46128c9fb848c29097da3149e627cce5496d0b2820a9be06d12ee266c09c749"
+checksum = "0348cde6df2b507ba3c3753beba226baba8567af588d6568cdb9877f02c75b60"
 dependencies = [
  "serde",
  "ucd-trie",
@@ -3901,9 +3901,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.34"
+version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 dependencies = [
  "serde_core",
 ]
@@ -5657,7 +5657,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6295,7 +6295,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7616,7 +7616,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8114,9 +8114,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-cmake"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d22893fac54133fdb93497efc45713d53a96d93b035288c7a8ab0c2af77c0ddd"
+checksum = "4af210143be775f7ceede9e5ff6340d348945b42a2bace67a93cb7808c0083f8"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -8535,9 +8535,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-properties"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7df058c713841ad818f1dc5d3fd88063241cc61f49f5fbea4b951e8cf5a8d71d"
+checksum = "993ad287eb20e8ba755312801cfe1413e0f25d604075863acaddca10b04c1833"
 
 [[package]]
 name = "unicode-script"
@@ -9208,7 +9208,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
