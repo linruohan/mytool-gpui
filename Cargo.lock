@@ -1041,7 +1041,7 @@ dependencies = [
  "serde_core",
  "serde_json",
  "toml 1.2.0+spec-1.1.0",
- "winnow 1.0.4",
+ "winnow 1.0.5",
  "yaml-rust2",
 ]
 
@@ -2330,7 +2330,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#96042c0907cc4d8593a30893482e6b26fafc3989"
+source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2370,7 +2370,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#96042c0907cc4d8593a30893482e6b26fafc3989"
+source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2452,7 +2452,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#96042c0907cc4d8593a30893482e6b26fafc3989"
+source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2463,7 +2463,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#96042c0907cc4d8593a30893482e6b26fafc3989"
+source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2480,7 +2480,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#96042c0907cc4d8593a30893482e6b26fafc3989"
+source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2494,7 +2494,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#96042c0907cc4d8593a30893482e6b26fafc3989"
+source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -6070,7 +6070,7 @@ dependencies = [
  "log",
  "pico-args",
  "rgb",
- "svgtypes 0.16.1",
+ "svgtypes 0.16.2",
  "tiny-skia",
  "usvg 0.46.0",
  "zune-jpeg 0.5.15",
@@ -7351,9 +7351,9 @@ dependencies = [
 
 [[package]]
 name = "svgtypes"
-version = "0.16.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "695b5790b3131dafa99b3bbfd25a216edb3d216dad9ca208d4657bfb8f2abc3d"
+checksum = "9f12b12995e3638c70618c1facb1ce65302f6a6f706b675f07c58a5d7391120e"
 dependencies = [
  "kurbo 0.13.1",
  "siphasher",
@@ -7946,7 +7946,7 @@ dependencies = [
  "toml_datetime 1.1.2+spec-1.1.0",
  "toml_parser",
  "toml_writer",
- "winnow 1.0.4",
+ "winnow 1.0.5",
 ]
 
 [[package]]
@@ -7990,7 +7990,7 @@ dependencies = [
  "indexmap",
  "toml_datetime 1.1.2+spec-1.1.0",
  "toml_parser",
- "winnow 1.0.4",
+ "winnow 1.0.5",
 ]
 
 [[package]]
@@ -7999,7 +7999,7 @@ version = "1.1.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
 dependencies = [
- "winnow 1.0.4",
+ "winnow 1.0.5",
 ]
 
 [[package]]
@@ -8686,7 +8686,7 @@ dependencies = [
  "simplecss",
  "siphasher",
  "strict-num",
- "svgtypes 0.16.1",
+ "svgtypes 0.16.2",
  "tiny-skia-path",
  "unicode-bidi",
  "unicode-script",
@@ -9951,9 +9951,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
+checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
 dependencies = [
  "memchr",
 ]
@@ -10236,7 +10236,7 @@ dependencies = [
  "uds_windows",
  "uuid",
  "windows-sys 0.61.2",
- "winnow 1.0.4",
+ "winnow 1.0.5",
  "zbus_macros 5.19.0",
  "zbus_names 4.3.5",
  "zvariant 5.15.1",
@@ -10312,7 +10312,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812a12be4ead7a59e18ea8f047d08add0066b73bc62fc1467066a2472ae088dd"
 dependencies = [
  "serde",
- "winnow 1.0.4",
+ "winnow 1.0.5",
  "zvariant 5.15.1",
 ]
 
@@ -10323,7 +10323,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1586c021a01ca0a9216dcd874e546382e156a5cbab5fab6cb5f10087e22682a"
 dependencies = [
  "serde",
- "winnow 1.0.4",
+ "winnow 1.0.5",
  "zbus_names 4.3.5",
  "zvariant 5.15.1",
 ]
@@ -10575,7 +10575,7 @@ dependencies = [
  "enumflags2",
  "serde",
  "serde_bytes",
- "winnow 1.0.4",
+ "winnow 1.0.5",
  "zcheapstr",
  "zvariant_derive 5.15.1",
  "zvariant_utils 4.2.0",
@@ -10628,5 +10628,5 @@ dependencies = [
  "quote",
  "serde",
  "syn 3.0.9",
- "winnow 1.0.4",
+ "winnow 1.0.5",
 ]
