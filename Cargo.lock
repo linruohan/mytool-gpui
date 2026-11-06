@@ -1869,9 +1869,9 @@ checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
 name = "flate2"
-version = "1.1.10"
+version = "1.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb"
+checksum = "626d4928326b646e70f65ed36fc7cf9f206bdb68a0019ee7c6b4709da4e084c4"
 dependencies = [
  "crc32fast",
  "miniz_oxide 0.9.1",
@@ -2330,7 +2330,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
+source = "git+https://github.com/linruohan/gpui-kit.git#e1d2f143048ff55e298091b74b34a7f9a5f70dee"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2370,7 +2370,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
+source = "git+https://github.com/linruohan/gpui-kit.git#e1d2f143048ff55e298091b74b34a7f9a5f70dee"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2452,7 +2452,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
+source = "git+https://github.com/linruohan/gpui-kit.git#e1d2f143048ff55e298091b74b34a7f9a5f70dee"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2463,7 +2463,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
+source = "git+https://github.com/linruohan/gpui-kit.git#e1d2f143048ff55e298091b74b34a7f9a5f70dee"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2480,7 +2480,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
+source = "git+https://github.com/linruohan/gpui-kit.git#e1d2f143048ff55e298091b74b34a7f9a5f70dee"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2494,7 +2494,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#d8a4249d4937722439b3cc0eda0707acf3c2bb78"
+source = "git+https://github.com/linruohan/gpui-kit.git#e1d2f143048ff55e298091b74b34a7f9a5f70dee"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -4180,9 +4180,9 @@ dependencies = [
 
 [[package]]
 name = "mime"
-version = "0.3.17"
+version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+checksum = "d5848f5a9e8117cf94f2f90faac24a87ff81600ff8628c1e3deaab572e76bfa1"
 
 [[package]]
 name = "mime_guess"
