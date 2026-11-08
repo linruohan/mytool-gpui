@@ -223,9 +223,9 @@ checksum = "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed"
 
 [[package]]
 name = "arc-swap"
-version = "1.9.3"
+version = "1.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "380962b3d93b99642e50b9febf72c071e97e8b32d86eae9cf4ef582bb960ae6e"
+checksum = "db4c94f57a570fce5d381be3289b3f79aef6332d72948fe82ab5772e423ccf92"
 dependencies = [
  "rustversion",
 ]
@@ -2330,7 +2330,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#554cf425c0e995ca53129cface363d1f6ce6a250"
+source = "git+https://github.com/linruohan/gpui-kit.git#795bc9ddaaee04ced67cf6b221d6dc407bbb0121"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2370,7 +2370,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#554cf425c0e995ca53129cface363d1f6ce6a250"
+source = "git+https://github.com/linruohan/gpui-kit.git#795bc9ddaaee04ced67cf6b221d6dc407bbb0121"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2452,7 +2452,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#554cf425c0e995ca53129cface363d1f6ce6a250"
+source = "git+https://github.com/linruohan/gpui-kit.git#795bc9ddaaee04ced67cf6b221d6dc407bbb0121"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2463,7 +2463,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#554cf425c0e995ca53129cface363d1f6ce6a250"
+source = "git+https://github.com/linruohan/gpui-kit.git#795bc9ddaaee04ced67cf6b221d6dc407bbb0121"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2480,7 +2480,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#554cf425c0e995ca53129cface363d1f6ce6a250"
+source = "git+https://github.com/linruohan/gpui-kit.git#795bc9ddaaee04ced67cf6b221d6dc407bbb0121"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2494,7 +2494,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.9.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#554cf425c0e995ca53129cface363d1f6ce6a250"
+source = "git+https://github.com/linruohan/gpui-kit.git#795bc9ddaaee04ced67cf6b221d6dc407bbb0121"
 dependencies = [
  "anyhow",
  "gpui-pre",
