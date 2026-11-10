@@ -6,3 +6,6 @@ target/
 true/
 .bitfun/
 .trae/
+.cursor/
+.screenshots/
+.openidea/

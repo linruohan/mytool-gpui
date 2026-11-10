@@ -223,9 +223,9 @@ checksum = "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed"
 
 [[package]]
 name = "arc-swap"
-version = "1.9.4"
+version = "1.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db4c94f57a570fce5d381be3289b3f79aef6332d72948fe82ab5772e423ccf92"
+checksum = "84a22b5d51209f6de83d37a0b33d320acb8da88823e42a94c075140708f032a5"
 dependencies = [
  "rustversion",
 ]
@@ -895,9 +895,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.67"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e17dd265a7d0f31ef544e1b20e03add05d3b45b491b633b10d67145d2acc1a38"
+checksum = "4ff2a8126fff0f8c839080d619675a585e61720bb12d2baceae45769fd66f155"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1318,9 +1318,9 @@ checksum = "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853"
 
 [[package]]
 name = "crc32fast"
-version = "1.5.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f97d3416d5337d15c4b0d78c8c91df922ca143f57ec20e2d1c188333047ef04"
+checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
 dependencies = [
  "cfg-if",
 ]
@@ -2329,7 +2329,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.9.1"
-source = "git+https://github.com/linruohan/gpui-kit.git#0cd61dacc6100fb525eb644e5fddeb31ad0b6f53"
+source = "git+https://github.com/linruohan/gpui-kit.git#9580e68ad75563900ca7a64e4cbe639c835121ab"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2369,7 +2369,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.9.1"
-source = "git+https://github.com/linruohan/gpui-kit.git#0cd61dacc6100fb525eb644e5fddeb31ad0b6f53"
+source = "git+https://github.com/linruohan/gpui-kit.git#9580e68ad75563900ca7a64e4cbe639c835121ab"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2451,7 +2451,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.9.1"
-source = "git+https://github.com/linruohan/gpui-kit.git#0cd61dacc6100fb525eb644e5fddeb31ad0b6f53"
+source = "git+https://github.com/linruohan/gpui-kit.git#9580e68ad75563900ca7a64e4cbe639c835121ab"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2462,7 +2462,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.9.1"
-source = "git+https://github.com/linruohan/gpui-kit.git#0cd61dacc6100fb525eb644e5fddeb31ad0b6f53"
+source = "git+https://github.com/linruohan/gpui-kit.git#9580e68ad75563900ca7a64e4cbe639c835121ab"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2479,7 +2479,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.9.1"
-source = "git+https://github.com/linruohan/gpui-kit.git#0cd61dacc6100fb525eb644e5fddeb31ad0b6f53"
+source = "git+https://github.com/linruohan/gpui-kit.git#9580e68ad75563900ca7a64e4cbe639c835121ab"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2493,7 +2493,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.9.1"
-source = "git+https://github.com/linruohan/gpui-kit.git#0cd61dacc6100fb525eb644e5fddeb31ad0b6f53"
+source = "git+https://github.com/linruohan/gpui-kit.git#9580e68ad75563900ca7a64e4cbe639c835121ab"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -8384,9 +8384,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-sequel"
-version = "0.3.11"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d198ad3c319c02e43c21efa1ec796b837afcb96ffaef1a40c1978fbdcec7d17"
+checksum = "7b2ced35574c032662b774150fbdbdbbec7d5ce1ff1e8a25232465f8b91795ba"
 dependencies = [
  "cc",
  "tree-sitter-language",
