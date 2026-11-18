@@ -39,6 +39,7 @@ use crate::{
         container_board::Board,
         reorder_in_groups,
     },
+    utils::to_civil_date,
 };
 
 impl EventEmitter<BoardItemClickEvent> for ScheduledBoard {}
@@ -78,7 +79,7 @@ impl ScheduledBoard {
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
                 if let Some(ymd) = this.filter_ymd() {
                     this.calendar.update(cx, |cal, cx| {
-                        cal.set_date(ymd, window, cx);
+                        cal.set_date(to_civil_date(ymd), window, cx);
                     });
                 }
                 cx.notify();
@@ -89,7 +90,7 @@ impl ScheduledBoard {
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
                 if let Some(ymd) = this.filter_ymd() {
                     this.date_picker.update(cx, |picker, cx| {
-                        picker.set_date(ymd, window, cx);
+                        picker.set_date(to_civil_date(ymd), window, cx);
                     });
                 }
                 cx.notify();
@@ -120,10 +121,10 @@ impl ScheduledBoard {
     fn select_filter_date(&mut self, ymd: NaiveDate, window: &mut Window, cx: &mut Context<Self>) {
         self.filter_date = Some(ymd.format("%Y-%m-%d").to_string());
         self.date_picker.update(cx, |picker, cx| {
-            picker.set_date(ymd, window, cx);
+            picker.set_date(to_civil_date(ymd), window, cx);
         });
         self.calendar.update(cx, |cal, cx| {
-            cal.set_date(ymd, window, cx);
+            cal.set_date(to_civil_date(ymd), window, cx);
         });
         cx.notify();
     }
@@ -440,7 +441,10 @@ impl Render for ScheduledBoard {
                             .px_2()
                             .pt_1()
                             .gap_2()
-                            .child(Calendar::new(&calendar).first_day_of_week(chrono::Weekday::Mon))
+                            .child(
+                                Calendar::new(&calendar)
+                                    .first_day_of_week(jiff::civil::Weekday::Monday),
+                            )
                             .child(
                                 v_flex()
                                     .gap_1()

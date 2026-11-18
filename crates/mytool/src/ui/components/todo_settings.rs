@@ -21,6 +21,7 @@ use crate::{
     core::shortcuts::{ShortcutCategory, get_shortcuts_by_category},
     todo_actions::{batch_update_items, poke_reminder_watcher, update_item_optimistic},
     todo_state::{TodoPrefs, TodoStore},
+    utils::to_civil_date,
 };
 
 fn startup_boards() -> [(String, u8); 6] {
@@ -370,7 +371,7 @@ pub fn show_set_due_dialog<T, F>(
     let picker = cx.new(|cx| {
         let mut picker = DatePickerState::new(window, cx);
         if let Some(date) = item.due_date_naive() {
-            picker.set_date(date, window, cx);
+            picker.set_date(to_civil_date(date), window, cx);
         }
         picker
     });

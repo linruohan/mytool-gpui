@@ -23,6 +23,7 @@ use crate::{
     todo_actions::{add_reminder, delete_reminder},
     todo_state::{ReminderChange, ReminderChanges},
     ui::components::{PopoverListMixin, create_list_item_element},
+    utils::to_civil_date,
 };
 
 pub type ReminderResult<T> = Result<T, ReminderError>;
@@ -129,7 +130,7 @@ impl ReminderForm {
             && let Ok(date) = chrono::NaiveDate::parse_from_str(&self.current_date, "%Y-%m-%d")
         {
             self.date_picker.update(cx, |picker, cx| {
-                picker.set_date(date, window, cx);
+                picker.set_date(to_civil_date(date), window, cx);
             });
         }
 
@@ -235,7 +236,7 @@ impl ReminderForm {
     pub fn set_default_date(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let today = chrono::Local::now().date_naive();
         self.date_picker.update(cx, |picker, cx| {
-            picker.set_date(today, window, cx);
+            picker.set_date(to_civil_date(today), window, cx);
         });
         self.current_date = today.format("%Y-%m-%d").to_string();
         cx.notify();

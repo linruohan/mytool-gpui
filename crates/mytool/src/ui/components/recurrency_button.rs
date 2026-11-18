@@ -17,7 +17,7 @@ use rust_i18n::t;
 use serde::Deserialize;
 use todos::{DueDate, enums::RecurrencyType};
 
-use crate::{create_button_wrapper, impl_button_state_base};
+use crate::{create_button_wrapper, impl_button_state_base, utils::to_civil_date};
 
 /// 重复按钮动作
 #[derive(Action, Clone, PartialEq, Deserialize)]
@@ -319,12 +319,12 @@ impl RecurrencyForm {
         if let Some(ref date_str) = self.end_date {
             if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
                 self.end_date_picker.update(cx, |picker, cx| {
-                    picker.set_date(date, window, cx);
+                    picker.set_date(to_civil_date(date), window, cx);
                 });
             }
         } else {
             self.end_date_picker.update(cx, |picker, cx| {
-                picker.set_date(chrono::NaiveDate::default(), window, cx);
+                picker.set_date(to_civil_date(chrono::NaiveDate::default()), window, cx);
             });
         }
 

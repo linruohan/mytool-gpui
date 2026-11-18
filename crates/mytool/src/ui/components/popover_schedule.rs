@@ -20,7 +20,7 @@ use rust_i18n::t;
 use serde::Deserialize;
 use todos::DueDate;
 
-use crate::{create_button_wrapper, impl_button_state_base};
+use crate::{create_button_wrapper, impl_button_state_base, utils::to_civil_date};
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub enum ScheduleButtonEvent {
@@ -123,7 +123,8 @@ impl ScheduleForm {
             } else {
                 self.selected_preset_index = 3;
                 self.custom_date = Some(date);
-                self.date_picker_state.update(cx, |picker, cx| picker.set_date(date, window, cx));
+                self.date_picker_state
+                    .update(cx, |picker, cx| picker.set_date(to_civil_date(date), window, cx));
             }
 
             self.set_time(&time_str, window, cx);

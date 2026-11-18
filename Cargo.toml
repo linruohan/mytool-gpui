@@ -50,6 +50,7 @@ rodio = "0.21.1"
 tracing = { version = "0.1.44", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "chrono"] }
 chrono = { version = "0.4.45", features = ["serde"] }
+jiff = "1.0"
 rfd = "0.14"
 # Additional dependencies used by multiple crates
 thiserror = "2.0.21"

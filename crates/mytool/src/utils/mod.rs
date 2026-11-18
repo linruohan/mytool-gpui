@@ -3,6 +3,7 @@ use std::{
     thread,
 };
 
+use chrono::{Datelike, NaiveDate};
 use rodio::Decoder;
 use tracing::error;
 
@@ -37,4 +38,13 @@ pub fn play_success_sound() -> Result<std::thread::JoinHandle<Result<(), String>
         }
     });
     Ok(handle)
+}
+
+/// 将 `chrono::NaiveDate` 转换为 gpui-component 日历使用的 `jiff::civil::Date`。
+///
+/// gpui-component 的日期选择器与日历已从 chrono 迁移到 jiff，
+/// 本项目内部仍以 `NaiveDate` 作为日期表示，因此在这里统一做边界转换。
+pub fn to_civil_date(date: NaiveDate) -> jiff::civil::Date {
+    jiff::civil::Date::new(date.year() as i16, date.month() as i8, date.day() as i8)
+        .expect("NaiveDate is always a valid jiff civil date")
 }
