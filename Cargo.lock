@@ -2314,7 +2314,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#dadc4afc48134d24cdf45f156c8c0c182e4ad1df"
+source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2356,7 +2356,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#dadc4afc48134d24cdf45f156c8c0c182e4ad1df"
+source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
 dependencies = [
  "anyhow",
  "core-text",
@@ -2438,7 +2438,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#dadc4afc48134d24cdf45f156c8c0c182e4ad1df"
+source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2774,7 +2774,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#dadc4afc48134d24cdf45f156c8c0c182e4ad1df"
+source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2791,7 +2791,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#dadc4afc48134d24cdf45f156c8c0c182e4ad1df"
+source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2806,7 +2806,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#dadc4afc48134d24cdf45f156c8c0c182e4ad1df"
+source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
 dependencies = [
  "anyhow",
  "gpui-pre",
