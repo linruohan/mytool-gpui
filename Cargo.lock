@@ -159,9 +159,9 @@ dependencies = [
 
 [[package]]
 name = "allocator-api2"
-version = "0.2.21"
+version = "0.2.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+checksum = "57b212daf2e827b1ccdd778b7eb48ba433e58cb0e4f27b43cd6b7a608425a014"
 
 [[package]]
 name = "alsa"
@@ -2314,7 +2314,7 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
+source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2356,7 +2356,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
+source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
 dependencies = [
  "anyhow",
  "core-text",
@@ -2438,7 +2438,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
+source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2774,7 +2774,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
+source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2791,7 +2791,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
+source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2806,7 +2806,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#db8de4175d9b74318cd3bc08b81b7e85c5e50cbf"
+source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -6512,7 +6512,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "915e33dccbe7deb2b8a342dc4c517503fe85e0230ddbae40a4fb0220493dad9b"
 dependencies = [
  "globset",
- "sha2 0.11.1",
+ "sha2 0.11.2",
  "walkdir",
 ]
 
@@ -7096,9 +7096,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.11.1"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19"
+checksum = "5b0e5c7d67bc53f435386b2130fdc900488c5703770f6d8a4633060e34288a27"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
@@ -10712,18 +10712,18 @@ checksum = "6df3dc4292935e51816d896edcd52aa30bc297907c26167fec31e2b0c6a32524"
 
 [[package]]
 name = "zerocopy"
-version = "0.8.65"
+version = "0.8.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32bc8a75f879cd6fe53a6bedf3c28f0e1b914c77424fc2be9e2ec85d7d25aff5"
+checksum = "cba8a86aee14fc8cc6c208af60854b3d4ab7185a9a369a12c648faa2716ff42a"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.65"
+version = "0.8.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8bfd2644ea1681f60cf95029ff18aa8ad1cc3f7b8fe37286f8e473bb29f816b"
+checksum = "f89bca3b96ceb3cfcb4572790402f977442270d252b9a8504ebc258760c55f94"
 dependencies = [
  "proc-macro2",
  "quote",
