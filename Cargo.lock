@@ -897,9 +897,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.11.3"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02f0e023adb368345ce0ca6cdfc0f24a06554468d0e8503e14a0841de79bfa69"
+checksum = "95e45cf2980b2d467be49a9ed942c9179b701063a7ca3d037de7ee9bd67f8d66"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1754,7 +1754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1863,9 +1863,9 @@ dependencies = [
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
+checksum = "3e44f110d1777dc6559a51e7d45083945ded4f1bf3305494350f693b6d20b9c8"
 
 [[package]]
 name = "flate2"
@@ -2308,13 +2308,13 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.21",
- "windows 0.62.2",
+ "windows 0.58.0",
 ]
 
 [[package]]
 name = "gpui-base"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
+source = "git+https://github.com/linruohan/gpui-kit.git#4ef7df3cde6664781188ed61f5633e65a4046d59"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2356,7 +2356,7 @@ dependencies = [
 [[package]]
 name = "gpui-component"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
+source = "git+https://github.com/linruohan/gpui-kit.git#4ef7df3cde6664781188ed61f5633e65a4046d59"
 dependencies = [
  "anyhow",
  "core-text",
@@ -2438,7 +2438,7 @@ dependencies = [
 [[package]]
 name = "gpui-component-macros"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
+source = "git+https://github.com/linruohan/gpui-kit.git#4ef7df3cde6664781188ed61f5633e65a4046d59"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2774,7 +2774,7 @@ dependencies = [
 [[package]]
 name = "gpui-fps"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
+source = "git+https://github.com/linruohan/gpui-kit.git#4ef7df3cde6664781188ed61f5633e65a4046d59"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2791,7 +2791,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
+source = "git+https://github.com/linruohan/gpui-kit.git#4ef7df3cde6664781188ed61f5633e65a4046d59"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2806,7 +2806,7 @@ dependencies = [
 [[package]]
 name = "gpui-kit-assets"
 version = "0.11.0"
-source = "git+https://github.com/linruohan/gpui-kit.git#f99616753262e77c830f5b9777a655d44e018cf6"
+source = "git+https://github.com/linruohan/gpui-kit.git#4ef7df3cde6664781188ed61f5633e65a4046d59"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -3638,7 +3638,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.58.0",
 ]
 
 [[package]]
@@ -6022,7 +6022,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6628,7 +6628,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7942,7 +7942,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -9508,7 +9508,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10391,9 +10391,9 @@ checksum = "ac366ea532fa8ee6a992cec9dea525b1dc284e69702f36c2ab5fbebadc81ec86"
 
 [[package]]
 name = "yeslogic-fontconfig-sys"
-version = "6.0.1"
+version = "6.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d8b8abf912b9a29ff112e1671c97c33636903d13a69712037190e6805af4f76"
+checksum = "b2232035104db97d8ded0e24a20d6ba61a0f904e5830d437f411d9a499336224"
 dependencies = [
  "dlib",
  "once_cell",
