@@ -8,7 +8,7 @@ use gpui_component::{
 };
 
 use super::Mytool;
-use crate::{section, utils::to_civil_date};
+use crate::section;
 
 pub struct DatePickerStory {
     date_picker: Entity<DatePickerState>,
@@ -38,10 +38,10 @@ impl DatePickerStory {
     }
 
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let now = chrono::Local::now().naive_local().date();
+        let now = todos::utils::today_local();
         let date_picker = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx);
-            picker.set_date(to_civil_date(now), window, cx);
+            picker.set_date(now, window, cx);
             picker
         });
         let date_range_picker = cx.new(|cx| DatePickerState::range(window, cx));
@@ -77,10 +77,7 @@ impl Focusable for DatePickerStory {
 
 impl Render for DatePickerStory {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        let presets = vec![DateRangePreset::single(
-            "Today",
-            to_civil_date(chrono::Local::now().naive_local().date()),
-        )];
+        let presets = vec![DateRangePreset::single("Today", todos::utils::today_local())];
 
         v_flex()
             .gap_3()

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Error};
 
+use jiff::civil::{Date, DateTime, Time};
 use uuid::Uuid;
 
 use crate::{constants, objects::Color};
@@ -225,4 +226,60 @@ pub fn get_project_dirs() -> (PathBuf, PathBuf) {
     let data_dir = Path::new(&home).join(".local/share/planify");
     let config_dir = Path::new(&home).join(".config/planify");
     (data_dir, config_dir)
+}
+
+// ==================== 时间工具（jiff） ====================
+
+/// 统一的日期时间存储格式
+pub const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+
+/// 统一的日期存储格式
+pub const DATE_FORMAT: &str = "%Y-%m-%d";
+
+/// 当前本地（系统时区）日期时间
+pub fn now_local() -> DateTime {
+    jiff::ZonedDateTime::now().datetime()
+}
+
+/// 当前本地日期
+pub fn today_local() -> Date {
+    jiff::ZonedDateTime::now().date()
+}
+
+/// 日期时间格式化为 `YYYY-MM-DD HH:MM:SS`
+pub fn format_datetime(dt: DateTime) -> String {
+    dt.strftime(DATETIME_FORMAT).to_string()
+}
+
+/// 日期格式化为 `YYYY-MM-DD`
+pub fn format_date(date: Date) -> String {
+    date.strftime(DATE_FORMAT).to_string()
+}
+
+/// 当前本地日期时间字符串（用于业务展示/比较）
+pub fn now_local_string() -> String {
+    format_datetime(now_local())
+}
+
+/// 当前 UTC 日期时间字符串（用于 added_at/updated_at 等审计字段）
+pub fn now_utc_string() -> String {
+    // Timestamp 的 strftime 默认按 UTC 格式化
+    jiff::Timestamp::now().strftime(DATETIME_FORMAT).to_string()
+}
+
+/// 解析日期时间，兼容 `YYYY-MM-DD HH:MM:SS`、`YYYY-MM-DDTHH:MM:SS` 和纯日期
+pub fn parse_datetime(raw: &str) -> Option<DateTime> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    DateTime::strptime(DATETIME_FORMAT, raw)
+        .or_else(|_| DateTime::strptime("%Y-%m-%dT%H:%M:%S", raw))
+        .ok()
+        .or_else(|| parse_date(raw).map(|date| date.to_datetime(Time::midnight())))
+}
+
+/// 解析 `YYYY-MM-DD`
+pub fn parse_date(raw: &str) -> Option<Date> {
+    Date::strptime(DATE_FORMAT, raw.trim()).ok()
 }

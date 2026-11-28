@@ -1,11 +1,11 @@
-use std::{fmt, str::FromStr};
+use std::fmt;
 
-use chrono::NaiveDateTime;
+use jiff::civil::{Date, DateTime};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     enums::{RecurrencyEndType, RecurrencyType},
-    utils::DateTime,
+    utils::{DateTime as DateTimeHelper, parse_datetime, today_local},
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Clone, Deserialize)]
@@ -38,32 +38,20 @@ impl Default for DueDate {
 }
 
 impl DueDate {
-    pub fn datetime(&self) -> Option<NaiveDateTime> {
-        // 支持两种格式：带T的ISO格式和不带T的格式
+    pub fn datetime(&self) -> Option<DateTime> {
+        // 支持带 T 的 ISO 格式、空格分隔格式和纯日期格式
         if self.date.is_empty() {
             return None;
         }
-        // 先尝试标准ISO格式 (2025-02-22T17:30:00)
-        if let Ok(dt) = NaiveDateTime::from_str(&self.date) {
-            return Some(dt);
-        }
-        // 再尝试带空格的格式 (2025-02-22 17:30:00)
-        if let Ok(dt) = NaiveDateTime::parse_from_str(&self.date, "%Y-%m-%d %H:%M:%S") {
-            return Some(dt);
-        }
-        // 最后尝试纯日期格式 (2025-02-22)，转换为当天的 00:00:00
-        if let Ok(date) = chrono::NaiveDate::from_str(&self.date) {
-            return Some(date.and_hms_opt(0, 0, 0).unwrap());
-        }
-        None
+        parse_datetime(&self.date)
     }
 
-    pub fn set_datetime(&mut self, value: NaiveDateTime) {
-        self.date = value.format("%Y-%m-%d %H:%M:%S").to_string();
+    pub fn set_datetime(&mut self, value: DateTime) {
+        self.date = value.strftime("%Y-%m-%d %H:%M:%S").to_string();
     }
 
-    pub fn end_datetime(&self) -> Option<NaiveDateTime> {
-        self.recurrency_end.parse().ok()
+    pub fn end_datetime(&self) -> Option<DateTime> {
+        parse_datetime(&self.recurrency_end)
     }
 
     pub fn has_weeks(&self) -> bool {
@@ -85,7 +73,7 @@ impl DueDate {
             RecurrencyEndType::AFTER => self.recurrency_count - 1 <= 0,
             RecurrencyEndType::OnDate => self
                 .datetime()
-                .map(|dt| DateTime::default().next_recurrency(dt, self.clone()))
+                .map(|dt| DateTimeHelper::default().next_recurrency(dt, self.clone()))
                 .is_some_and(|next| next > self.end_datetime().unwrap_or_default()),
             _ => false,
         }
@@ -114,10 +102,10 @@ impl DueDate {
     }
 
     /// 换成日历日，保留原有时分秒；没有时间则用 `00:00:00`。
-    pub fn replacing_calendar_date(&self, date: chrono::NaiveDate) -> Self {
+    pub fn replacing_calendar_date(&self, date: Date) -> Self {
         let time = time_suffix(&self.date);
         let mut due = self.clone();
-        due.date = format!("{} {time}", date.format("%Y-%m-%d"));
+        due.date = format!("{} {time}", date.strftime("%Y-%m-%d"));
         due
     }
 
@@ -152,12 +140,12 @@ impl DueDate {
         if next_due.recurrency_interval < 1 {
             next_due.recurrency_interval = 1;
         }
-        let helper = DateTime::default();
+        let helper = DateTimeHelper::default();
         let mut next_dt = helper.next_recurrency(start, next_due.clone());
         if next_dt <= start {
             return None;
         }
-        let today = chrono::Local::now().naive_local().date();
+        let today = today_local();
         let mut hops = 0;
         while next_dt.date() < today && hops < 8000 {
             let stepped = helper.next_recurrency(next_dt, next_due.clone());
@@ -201,16 +189,17 @@ impl fmt::Display for DueDate {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Local, NaiveTime};
+    use jiff::{Span, civil::Time};
 
     use super::*;
     use crate::enums::RecurrencyType;
 
-    fn daily_on(date: chrono::NaiveDate) -> DueDate {
+    /// 构造一个指定日历日 09:00 的每日重复截止日期
+    fn daily_on(date: Date) -> DueDate {
         DueDate {
             date: date
-                .and_time(NaiveTime::from_hms_opt(9, 0, 0).unwrap())
-                .format("%Y-%m-%d %H:%M:%S")
+                .to_datetime(Time::constant(9, 0, 0, 0))
+                .strftime("%Y-%m-%d %H:%M:%S")
                 .to_string(),
             is_recurring: true,
             recurrency_type: RecurrencyType::EveryDay,
@@ -228,29 +217,32 @@ mod tests {
 
     #[test]
     fn last_counted_occurrence_completes_normally() {
-        let mut due = daily_on(Local::now().date_naive());
+        let mut due = daily_on(today_local());
         due.recurrency_count = 1;
         assert!(due.next_due_after_completion().is_none());
     }
 
     #[test]
     fn daily_from_today_rolls_to_tomorrow() {
-        let today = Local::now().date_naive();
+        let today = today_local();
         let next = daily_on(today).next_due_after_completion().expect("should roll");
-        assert_eq!(next.datetime().unwrap().date(), today + Duration::days(1));
+        assert_eq!(
+            next.datetime().unwrap().date(),
+            today.checked_add(Span::new().days(1)).unwrap()
+        );
         assert!(next.is_recurring);
     }
 
     #[test]
     fn overdue_daily_skips_to_today_or_later() {
-        let old = chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+        let old = Date::new(2020, 1, 1).unwrap();
         let next = daily_on(old).next_due_after_completion().expect("should skip");
-        assert!(next.datetime().unwrap().date() >= Local::now().date_naive());
+        assert!(next.datetime().unwrap().date() >= today_local());
     }
 
     #[test]
     fn after_count_decrements() {
-        let mut due = daily_on(Local::now().date_naive());
+        let mut due = daily_on(today_local());
         due.recurrency_count = 4;
         let next = due.next_due_after_completion().unwrap();
         assert_eq!(next.recurrency_count, 3);
@@ -259,20 +251,17 @@ mod tests {
     #[test]
     fn replacing_calendar_date_keeps_time() {
         let due = DueDate { date: "2026-01-01 17:30:00".into(), ..DueDate::default() };
-        let next =
-            due.replacing_calendar_date(chrono::NaiveDate::from_ymd_opt(2026, 2, 3).unwrap());
+        let next = due.replacing_calendar_date(Date::new(2026, 2, 3).unwrap());
         assert_eq!(next.date, "2026-02-03 17:30:00");
     }
 
     #[test]
     fn replacing_calendar_date_iso_and_date_only() {
         let iso = DueDate { date: "2026-01-01T09:15:00".into(), ..DueDate::default() };
-        let next =
-            iso.replacing_calendar_date(chrono::NaiveDate::from_ymd_opt(2026, 3, 4).unwrap());
+        let next = iso.replacing_calendar_date(Date::new(2026, 3, 4).unwrap());
         assert_eq!(next.date, "2026-03-04 09:15:00");
         let bare = DueDate { date: "2026-01-01".into(), ..DueDate::default() };
-        let next =
-            bare.replacing_calendar_date(chrono::NaiveDate::from_ymd_opt(2026, 3, 4).unwrap());
+        let next = bare.replacing_calendar_date(Date::new(2026, 3, 4).unwrap());
         assert_eq!(next.date, "2026-03-04 00:00:00");
     }
 }

@@ -5,7 +5,6 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use chrono::{Datelike, NaiveDate};
 use gpui::{
     App, AppContext, Context, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
     MouseButton, ParentElement, Render, Styled, Subscription, Window, div, prelude::FluentBuilder,
@@ -14,7 +13,7 @@ use gpui::{
 use gpui_component::{
     ActiveTheme, Sizable,
     button::{Button, ButtonVariants},
-    calendar::{Calendar, CalendarEvent, CalendarState, Date},
+    calendar::{Calendar, CalendarEvent, CalendarState},
     date_picker::{DatePicker, DatePickerEvent, DatePickerState},
     dock::PanelControl,
     h_flex,
@@ -23,6 +22,7 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use jiff::civil::Date;
 use rust_i18n::t;
 
 use crate::{
@@ -39,7 +39,6 @@ use crate::{
         container_board::Board,
         reorder_in_groups,
     },
-    utils::to_civil_date,
 };
 
 impl EventEmitter<BoardItemClickEvent> for ScheduledBoard {}
@@ -47,7 +46,7 @@ impl EventEmitter<BoardItemClickEvent> for ScheduledBoard {}
 pub struct ScheduledBoard {
     base: BoardBase,
     /// 按日历日分组的缓存（在 refresh 时构建，render 只读）。`None` 表示无日期。
-    grouped_by_date: Vec<(Option<NaiveDate>, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
+    grouped_by_date: Vec<(Option<Date>, Vec<(usize, Arc<todos::entity::ItemModel>)>)>,
     date_picker: Entity<DatePickerState>,
     calendar: Entity<CalendarState>,
     filter_date: Option<String>,
@@ -79,7 +78,7 @@ impl ScheduledBoard {
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
                 if let Some(ymd) = this.filter_ymd() {
                     this.calendar.update(cx, |cal, cx| {
-                        cal.set_date(to_civil_date(ymd), window, cx);
+                        cal.set_date(ymd, window, cx);
                     });
                 }
                 cx.notify();
@@ -90,7 +89,7 @@ impl ScheduledBoard {
                 this.filter_date = date.format("%Y-%m-%d").map(|s| s.to_string());
                 if let Some(ymd) = this.filter_ymd() {
                     this.date_picker.update(cx, |picker, cx| {
-                        picker.set_date(to_civil_date(ymd), window, cx);
+                        picker.set_date(ymd, window, cx);
                     });
                 }
                 cx.notify();
@@ -106,25 +105,25 @@ impl ScheduledBoard {
         }
     }
 
-    fn filter_ymd(&self) -> Option<NaiveDate> {
-        self.filter_date.as_deref().and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())
+    fn filter_ymd(&self) -> Option<Date> {
+        self.filter_date.as_deref().and_then(todos::utils::parse_date)
     }
 
     fn clear_date_filter(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.filter_date = None;
         self.date_picker.update(cx, |picker, cx| {
-            picker.set_date(Date::Single(None), window, cx);
+            picker.set_date(gpui_component::calendar::Date::Single(None), window, cx);
         });
         cx.notify();
     }
 
-    fn select_filter_date(&mut self, ymd: NaiveDate, window: &mut Window, cx: &mut Context<Self>) {
-        self.filter_date = Some(ymd.format("%Y-%m-%d").to_string());
+    fn select_filter_date(&mut self, ymd: Date, window: &mut Window, cx: &mut Context<Self>) {
+        self.filter_date = Some(todos::utils::format_date(ymd));
         self.date_picker.update(cx, |picker, cx| {
-            picker.set_date(to_civil_date(ymd), window, cx);
+            picker.set_date(ymd, window, cx);
         });
         self.calendar.update(cx, |cal, cx| {
-            cal.set_date(to_civil_date(ymd), window, cx);
+            cal.set_date(ymd, window, cx);
         });
         cx.notify();
     }
@@ -175,7 +174,7 @@ impl ScheduledBoard {
     ) {
         let due = (!is_edit).then(|| self.filter_ymd()).flatten().map(|date| {
             let mut due = todos::DueDate::default();
-            due.date = date.format("%Y-%m-%d").to_string();
+            due.date = todos::utils::format_date(date);
             due
         });
         self.base.show_item_dialog_with_due(window, cx, is_edit, section_id, due);
@@ -219,17 +218,17 @@ impl ScheduledBoard {
     }
 }
 
-fn format_schedule_heading(date: Option<NaiveDate>, today: NaiveDate) -> String {
+fn format_schedule_heading(date: Option<Date>, today: Date) -> String {
     let Some(date) = date else {
         return t!("todo.date.none").to_string();
     };
-    let weekday = weekday_short(date.weekday().num_days_from_sunday());
+    let weekday = weekday_short(date.weekday().to_sunday_zero_offset() as u32);
 
     if date == today {
         t!("todo.date.today_weekday", weekday => weekday.as_str()).to_string()
-    } else if today.succ_opt() == Some(date) {
+    } else if today.tomorrow().ok() == Some(date) {
         t!("todo.date.tomorrow_weekday", weekday => weekday.as_str()).to_string()
-    } else if today.pred_opt() == Some(date) {
+    } else if today.yesterday().ok() == Some(date) {
         t!("todo.date.yesterday_weekday", weekday => weekday.as_str()).to_string()
     } else if date.year() == today.year() {
         t!(
@@ -252,8 +251,8 @@ fn format_schedule_heading(date: Option<NaiveDate>, today: NaiveDate) -> String 
 
 fn group_scheduled_by_date(
     items: &[Arc<todos::entity::ItemModel>],
-) -> Vec<(Option<NaiveDate>, Vec<(usize, Arc<todos::entity::ItemModel>)>)> {
-    let mut items_by_date: HashMap<Option<NaiveDate>, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
+) -> Vec<(Option<Date>, Vec<(usize, Arc<todos::entity::ItemModel>)>)> {
+    let mut items_by_date: HashMap<Option<Date>, Vec<(usize, Arc<todos::entity::ItemModel>)>> =
         HashMap::new();
     for (i, item) in items.iter().enumerate() {
         items_by_date.entry(item.due_date_naive()).or_default().push((i, item.clone()));
@@ -337,7 +336,7 @@ impl Render for ScheduledBoard {
         let item_rows = &self.base.item_rows;
         let active_index = self.base.active_index;
 
-        let today = chrono::Local::now().date_naive();
+        let today = todos::utils::today_local();
         let filter_date = self.filter_ymd();
         let grouped_by_date = &self.grouped_by_date;
         let orange_color = gpui::hsla(38.0, 1.0, 0.53, 1.0);
@@ -470,7 +469,7 @@ impl Render for ScheduledBoard {
                                             Some(
                                                 Button::new((
                                                     "sched-day",
-                                                    ymd.num_days_from_ce() as usize,
+                                                    ymd.month() as usize * 100 + ymd.day() as usize,
                                                 ))
                                                 .small()
                                                 .when(selected, |this| this.primary())
@@ -553,7 +552,7 @@ impl Render for ScheduledBoard {
 mod tests {
     use std::sync::Arc;
 
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
     use todos::DueDate;
 
     use super::group_scheduled_by_date;
@@ -577,9 +576,9 @@ mod tests {
             item_on("earlier", Some("2026-03-01")),
         ]);
         assert_eq!(grouped.len(), 3);
-        assert_eq!(grouped[0].0, NaiveDate::from_ymd_opt(2026, 3, 1));
+        assert_eq!(grouped[0].0, Date::new(2026, 3, 1).ok());
         assert_eq!(grouped[0].1[0].1.id, "earlier");
-        assert_eq!(grouped[1].0, NaiveDate::from_ymd_opt(2026, 3, 2));
+        assert_eq!(grouped[1].0, Date::new(2026, 3, 2).ok());
         assert_eq!(grouped[2].0, None);
         assert_eq!(grouped[2].1[0].1.id, "none");
     }

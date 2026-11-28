@@ -63,7 +63,7 @@ impl RenderOnce for ItemListItem {
 
         let due_at = self.item.due_datetime();
         let due_day = due_at.map(|datetime| datetime.date());
-        let today = chrono::Local::now().date_naive();
+        let today = todos::utils::today_local();
         let due_label =
             due_at.map(|datetime| DateTime::default().get_relative_date_from_date(&datetime));
         let due_color = if self.item.checked {

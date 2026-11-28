@@ -296,7 +296,7 @@ impl ManageSectionsPanel {
             let new_section = Arc::new(SectionModel {
                 id: uuid::Uuid::new_v4().to_string(),
                 name,
-                added_at: chrono::Utc::now().naive_utc(),
+                added_at: todos::utils::now_utc_string(),
                 ..Default::default()
             });
             add_section(new_section, cx);

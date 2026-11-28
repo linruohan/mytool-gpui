@@ -22,8 +22,8 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false, column_type = "Text")]
     pub label_id: String,
 
-    /// 关联创建时间
-    pub created_at: chrono::NaiveDateTime,
+    /// 关联创建时间（UTC，文本存储）
+    pub created_at: String,
 }
 
 /// 定义实体关系
@@ -75,7 +75,7 @@ impl ActiveModelBehavior for ActiveModel {
 
         if insert {
             // 新记录，设置创建时间
-            let now = chrono::Utc::now().naive_utc();
+            let now = crate::utils::now_utc_string();
             this.created_at = Set(now);
         }
 

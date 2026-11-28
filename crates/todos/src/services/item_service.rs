@@ -21,7 +21,7 @@ use crate::{
         ItemRepositoryImpl,
     },
     services::LabelService,
-    utils::retry_with_context,
+    utils::{now_utc_string, retry_with_context},
 };
 
 /// Service for Item business operations
@@ -115,9 +115,9 @@ impl ItemService {
             item.content
         );
 
-        let now = chrono::Utc::now().naive_utc();
+        let now = now_utc_string();
 
-        let rows_affected = self.execute_item_update(&item, now).await?;
+        let rows_affected = self.execute_item_update(&item, now.clone()).await?;
         if rows_affected == 0 {
             // 乐观新增的任务可能尚未 INSERT 完成，或 UI 仍持有尚未同步的 ID。
             // 回退为插入，避免「保存」直接失败。
@@ -129,7 +129,7 @@ impl ItemService {
                         "ItemService::update_item - insert 与并发写入冲突，重试 update: {}",
                         item_id
                     );
-                    let retry_rows = self.execute_item_update(&item, now).await?;
+                    let retry_rows = self.execute_item_update(&item, now.clone()).await?;
                     if retry_rows == 0 {
                         return Err(e);
                     }
@@ -160,24 +160,25 @@ impl ItemService {
             return Ok(vec![]);
         }
 
-        let now = chrono::Utc::now().naive_utc();
+        let now = now_utc_string();
         let db = self.db.clone();
         let items_to_update = items;
 
         let updated_items = db
             .transaction::<_, Vec<ItemModel>, TodoError>(|txn| {
                 let items = items_to_update.clone();
+                let now = now.clone();
                 Box::pin(async move {
                     let mut results = Vec::with_capacity(items.len());
                     for item in items {
                         let item_id = item.id.clone();
                         let rows_affected =
-                            Self::update_item_fields_in_conn(txn, &item, now).await?;
+                            Self::update_item_fields_in_conn(txn, &item, now.clone()).await?;
                         if rows_affected == 0 {
                             return Err(TodoError::not_found("Item").with_entity("Item", &item_id));
                         }
                         let mut updated = item;
-                        updated.updated_at = now;
+                        updated.updated_at = now.clone();
                         results.push(updated);
                     }
                     Ok(results)
@@ -193,11 +194,7 @@ impl ItemService {
     }
 
     /// 执行数据库更新操作，返回影响行数
-    async fn execute_item_update(
-        &self,
-        item: &ItemModel,
-        now: chrono::NaiveDateTime,
-    ) -> Result<u64, TodoError> {
+    async fn execute_item_update(&self, item: &ItemModel, now: String) -> Result<u64, TodoError> {
         let item_id = item.id.clone();
         let db = self.db.clone();
         let item_clone = item.clone();
@@ -205,6 +202,7 @@ impl ItemService {
         retry_with_context("execute_item_update", "Item", &item_id, || {
             let db = db.clone();
             let item = item_clone.clone();
+            let now = now.clone();
 
             Box::pin(async move { Self::update_item_fields_in_conn(&*db, &item, now).await })
         })
@@ -215,7 +213,7 @@ impl ItemService {
     async fn update_item_fields_in_conn<C: ConnectionTrait>(
         conn: &C,
         item: &ItemModel,
-        now: chrono::NaiveDateTime,
+        now: String,
     ) -> Result<u64, TodoError> {
         let result = items::Entity::update_many()
             .col_expr(items::Column::Content, Expr::value(item.content.clone()))
@@ -361,7 +359,7 @@ impl ItemService {
         let active_model = ItemActiveModel {
             id: Set(item_id.to_string()),
             checked: Set(checked),
-            completed_at: Set(if checked { Some(chrono::Utc::now().naive_utc()) } else { None }),
+            completed_at: Set(if checked { Some(now_utc_string()) } else { None }),
             ..item.into()
         };
         let item_model = active_model.update(&*self.db).await?;
@@ -370,11 +368,10 @@ impl ItemService {
             let subitems = ItemQueryRepository::find_by_parent(&self.item_repo, item_id).await?;
             if !subitems.is_empty() {
                 let checked_value = item_model.checked;
-                let completed_at_value =
-                    if checked_value { Some(chrono::Utc::now().naive_utc()) } else { None };
+                let completed_at_value = if checked_value { Some(now_utc_string()) } else { None };
 
                 let sub_ids: Vec<String> = subitems.into_iter().map(|i| i.id).collect();
-                let now = chrono::Utc::now().naive_utc();
+                let now = now_utc_string();
 
                 crate::entity::items::Entity::update_many()
                     .col_expr(items::Column::Checked, Expr::value(checked_value))

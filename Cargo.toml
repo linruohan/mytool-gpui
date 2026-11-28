@@ -40,7 +40,6 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1"
 rust-i18n = "4"
 sea-orm = { version = "1.1.20", features = [
-    "with-chrono",
     "with-json",
     "with-uuid",
     "sqlx-sqlite",
@@ -48,8 +47,7 @@ sea-orm = { version = "1.1.20", features = [
 ] }
 rodio = "0.21.1"
 tracing = { version = "0.1.44", features = ["async-await"] }
-tracing-subscriber = { version = "0.3.23", features = ["env-filter", "chrono"] }
-chrono = { version = "0.4.45", features = ["serde"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 jiff = "1.0"
 rfd = "0.14"
 # Additional dependencies used by multiple crates

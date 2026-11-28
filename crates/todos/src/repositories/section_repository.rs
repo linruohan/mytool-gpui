@@ -43,8 +43,8 @@ impl SectionRepositoryImpl {
         sections::ActiveModel {
             id: sea_orm::Set(section.id.clone()),
             name: sea_orm::Set(section.name.clone()),
-            archived_at: sea_orm::Set(section.archived_at),
-            added_at: sea_orm::Set(section.added_at),
+            archived_at: sea_orm::Set(section.archived_at.clone()),
+            added_at: sea_orm::Set(section.added_at.clone()),
             project_id: sea_orm::Set(section.project_id.clone()),
             section_order: sea_orm::Set(section.section_order),
             collapsed: sea_orm::Set(section.collapsed),

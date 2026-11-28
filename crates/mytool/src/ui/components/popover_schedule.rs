@@ -1,4 +1,3 @@
-use chrono::{Datelike, Local};
 use gpui::{
     App, AppContext, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Window,
@@ -16,11 +15,12 @@ use gpui_component::{
     v_flex,
 };
 use gpui_kit::assets::IconName;
+use jiff::civil::Date;
 use rust_i18n::t;
 use serde::Deserialize;
 use todos::DueDate;
 
-use crate::{create_button_wrapper, impl_button_state_base, utils::to_civil_date};
+use crate::{create_button_wrapper, impl_button_state_base};
 
 #[derive(Clone, PartialEq, Deserialize)]
 pub enum ScheduleButtonEvent {
@@ -56,7 +56,7 @@ pub struct ScheduleForm {
     parent: Entity<ScheduleButtonState>,
     selected_preset_index: usize,
     date_picker_state: Entity<DatePickerState>,
-    custom_date: Option<chrono::NaiveDate>,
+    custom_date: Option<Date>,
     time_select: Entity<SelectState<Vec<SharedString>>>,
     _subscriptions: Vec<gpui::Subscription>,
 }
@@ -108,23 +108,22 @@ impl ScheduleForm {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let today = Local::now().naive_local().date();
+        let today = todos::utils::today_local();
 
         if let Some(dt) = due_date.datetime() {
             let date = dt.date();
-            let time_str = dt.time().format("%H:%M").to_string();
+            let time_str = dt.time().strftime("%H:%M").to_string();
 
             if date == today {
                 self.selected_preset_index = 0;
-            } else if date == today.succ_opt().unwrap_or(today) {
+            } else if date == today.tomorrow().unwrap_or(today) {
                 self.selected_preset_index = 1;
-            } else if date == today + chrono::Duration::days(7) {
+            } else if date == today.checked_add(jiff::Span::new().days(7)).unwrap_or(today) {
                 self.selected_preset_index = 2;
             } else {
                 self.selected_preset_index = 3;
                 self.custom_date = Some(date);
-                self.date_picker_state
-                    .update(cx, |picker, cx| picker.set_date(to_civil_date(date), window, cx));
+                self.date_picker_state.update(cx, |picker, cx| picker.set_date(date, window, cx));
             }
 
             self.set_time(&time_str, window, cx);
@@ -146,7 +145,7 @@ impl ScheduleForm {
     ) {
         let DatePickerEvent::Change(date) = event;
         if let Some(date_str) = date.format("%Y-%m-%d")
-            && let Ok(parsed_date) = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+            && let Some(parsed_date) = todos::utils::parse_date(&date_str)
         {
             self.custom_date = Some(parsed_date);
         }
@@ -154,17 +153,19 @@ impl ScheduleForm {
     }
 
     fn apply_date_preset(&mut self, preset: SchedulePreset, cx: &mut Context<Self>) {
-        let today = Local::now().naive_local().date();
+        let today = todos::utils::today_local();
         let time_str = self.resolve_time_str(cx);
 
         let date = match preset {
             SchedulePreset::Today => today,
-            SchedulePreset::Tomorrow => today.succ_opt().unwrap_or(today),
-            SchedulePreset::NextWeek => today + chrono::Duration::days(7),
+            SchedulePreset::Tomorrow => today.tomorrow().unwrap_or(today),
+            SchedulePreset::NextWeek => {
+                today.checked_add(jiff::Span::new().days(7)).unwrap_or(today)
+            },
             SchedulePreset::Custom => return,
         };
 
-        let date_str = date.format("%Y-%m-%d").to_string();
+        let date_str = todos::utils::format_date(date);
         let new_date = format!("{} {}:00", date_str, time_str);
 
         self.parent.update(cx, |parent, _cx| parent.due_date.date = new_date);
@@ -173,7 +174,7 @@ impl ScheduleForm {
     fn apply_custom_date(&mut self, cx: &mut Context<Self>) {
         if let Some(date) = self.custom_date {
             let time_str = self.resolve_time_str(cx);
-            let date_str = date.format("%Y-%m-%d").to_string();
+            let date_str = todos::utils::format_date(date);
             let new_date = format!("{} {}:00", date_str, time_str);
 
             self.parent.update(cx, |parent, _cx| parent.due_date.date = new_date);
@@ -353,15 +354,15 @@ impl ScheduleButtonState {
         if self.due_date.date.is_empty() {
             t!("todo.due.label").to_string()
         } else {
-            let today = Local::now().naive_local().date();
+            let today = todos::utils::today_local();
             if let Some(dt) = self.due_date.datetime() {
                 let date = dt.date();
                 let time = dt.time();
-                let time_str = time.format("%H:%M").to_string();
+                let time_str = time.strftime("%H:%M").to_string();
 
                 if date == today {
                     t!("todo.due.today_time", time => time_str.as_str()).to_string()
-                } else if date == today.succ_opt().unwrap_or(today) {
+                } else if date == today.tomorrow().unwrap_or(today) {
                     t!("todo.due.tomorrow_time", time => time_str.as_str()).to_string()
                 } else {
                     t!("todo.due.md_time", month => date.month().to_string(), day => date.day().to_string(), time => time_str.as_str()).to_string()

@@ -23,7 +23,6 @@ use crate::{
     todo_actions::{add_reminder, delete_reminder},
     todo_state::{ReminderChange, ReminderChanges},
     ui::components::{PopoverListMixin, create_list_item_element},
-    utils::to_civil_date,
 };
 
 pub type ReminderResult<T> = Result<T, ReminderError>;
@@ -127,10 +126,10 @@ impl ReminderForm {
 
         // 如果有日期，同步到日期选择器
         if !self.current_date.is_empty()
-            && let Ok(date) = chrono::NaiveDate::parse_from_str(&self.current_date, "%Y-%m-%d")
+            && let Some(date) = todos::utils::parse_date(&self.current_date)
         {
             self.date_picker.update(cx, |picker, cx| {
-                picker.set_date(to_civil_date(date), window, cx);
+                picker.set_date(date, window, cx);
             });
         }
 
@@ -234,11 +233,11 @@ impl ReminderForm {
 
     /// 设置默认日期为今天
     pub fn set_default_date(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let today = chrono::Local::now().date_naive();
+        let today = todos::utils::today_local();
         self.date_picker.update(cx, |picker, cx| {
-            picker.set_date(to_civil_date(today), window, cx);
+            picker.set_date(today, window, cx);
         });
-        self.current_date = today.format("%Y-%m-%d").to_string();
+        self.current_date = todos::utils::format_date(today);
         cx.notify();
     }
 }

@@ -4,11 +4,14 @@
 //! 但提供了 due_date() 和 set_due_date() 方法进行类型安全的转换
 
 use async_trait::async_trait;
-use chrono::{NaiveDate, NaiveDateTime};
+use jiff::civil::{Date, DateTime};
 use sea_orm::{DbErr, Set, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 
-use crate::objects::DueDate;
+use crate::{
+    objects::DueDate,
+    utils::{format_date, now_local, now_utc_string, parse_datetime, today_local},
+};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "items")]
@@ -27,10 +30,13 @@ pub struct Model {
     #[sea_orm(column_type = "Json", nullable)]
     pub due: Option<serde_json::Value>,
 
-    pub added_at: NaiveDateTime,
+    /// 创建时间（UTC，文本存储）
+    pub added_at: String,
     #[sea_orm(nullable)]
-    pub completed_at: Option<NaiveDateTime>,
-    pub updated_at: NaiveDateTime,
+    /// 完成时间（UTC，文本存储）
+    pub completed_at: Option<String>,
+    /// 更新时间（UTC，文本存储）
+    pub updated_at: String,
 
     #[sea_orm(column_type = "Text", nullable)]
     pub section_id: Option<String>,
@@ -64,11 +70,11 @@ impl ActiveModelBehavior for ActiveModel {
         C: ConnectionTrait,
     {
         let mut this = self;
-        let now = chrono::Utc::now().naive_utc();
+        let now = now_utc_string();
 
         if insert {
             super::assign_id_if_empty(&mut this.id);
-            this.added_at = Set(now);
+            this.added_at = Set(now.clone());
         }
 
         this.updated_at = Set(now);
@@ -98,9 +104,9 @@ impl Model {
     /// 获取截止日期中的日期时间（便捷方法）
     ///
     /// # 返回
-    /// * `Some(NaiveDateTime)` - 如果存在有效的截止日期
+    /// * `Some(DateTime)` - 如果存在有效的截止日期
     /// * `None` - 如果没有截止日期或解析失败
-    pub fn due_datetime(&self) -> Option<NaiveDateTime> {
+    pub fn due_datetime(&self) -> Option<DateTime> {
         self.due_at_from_json().or_else(|| self.parse_due_date()?.datetime())
     }
 
@@ -113,24 +119,18 @@ impl Model {
             .unwrap_or(false)
     }
 
-    fn due_at_from_json(&self) -> Option<NaiveDateTime> {
+    fn due_at_from_json(&self) -> Option<DateTime> {
         let raw = self.due.as_ref()?.get("date")?.as_str()?;
         if raw.is_empty() {
             return None;
         }
-        if let Ok(dt) = NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S") {
-            return Some(dt);
-        }
-        if let Ok(dt) = NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S") {
-            return Some(dt);
-        }
-        NaiveDate::parse_from_str(raw, "%Y-%m-%d").ok()?.and_hms_opt(0, 0, 0)
+        parse_datetime(raw)
     }
 
     /// 解析截止日期中的日期部分（过滤热路径便捷方法）
     ///
     /// 先读 JSON 里 `date` 的 `YYYY-MM-DD` 前缀，避免看板分组和列表着色时反序列化整个 DueDate。
-    pub fn due_date_naive(&self) -> Option<NaiveDate> {
+    pub fn due_date_naive(&self) -> Option<Date> {
         let due = self.due.as_ref()?;
         if let Some(raw) = due.get("date").and_then(|value| value.as_str())
             && let Some(date) = calendar_date_prefix(raw)
@@ -142,7 +142,7 @@ impl Model {
 
     /// 截止日期的 `YYYY-MM-DD` 分组键（无日期时为 None）
     pub fn due_date_ymd(&self) -> Option<String> {
-        self.due_date_naive().map(|d| d.format("%Y-%m-%d").to_string())
+        self.due_date_naive().map(format_date)
     }
 
     /// 列表/详情是否需要刷新（避免对 extra_data 等 JSON 做全量 PartialEq）
@@ -161,17 +161,17 @@ impl Model {
             && self.collapsed == other.collapsed
     }
 
-    fn calendar_today() -> NaiveDate {
-        chrono::Local::now().date_naive()
+    fn calendar_today() -> Date {
+        today_local()
     }
 
     /// 检查是否在指定日期到期
-    pub fn is_due_on_date(&self, today: NaiveDate) -> bool {
+    pub fn is_due_on_date(&self, today: Date) -> bool {
         self.due_date_naive().is_some_and(|due| due == today)
     }
 
     /// 截止日期不晚于指定日（今日看板：过期 + 当天）
-    pub fn is_due_on_or_before(&self, date: NaiveDate) -> bool {
+    pub fn is_due_on_or_before(&self, date: Date) -> bool {
         self.due_date_naive().is_some_and(|due| due <= date)
     }
 
@@ -181,7 +181,7 @@ impl Model {
     /// * `true` - 如果截止日期已过
     /// * `false` - 如果没有截止日期或尚未过期
     pub fn is_overdue(&self) -> bool {
-        self.due_datetime().is_some_and(|due| due < chrono::Local::now().naive_local())
+        self.due_datetime().is_some_and(|due| due < now_local())
     }
 
     /// 检查是否今天到期
@@ -208,11 +208,11 @@ impl Model {
 }
 
 /// `YYYY-MM-DD` 或带时间后缀的日期字符串，只取日历日。
-fn calendar_date_prefix(raw: &str) -> Option<NaiveDate> {
+fn calendar_date_prefix(raw: &str) -> Option<Date> {
     let head = raw.get(..10)?;
     let bytes = head.as_bytes();
     if bytes.len() == 10 && bytes[4] == b'-' && bytes[7] == b'-' {
-        NaiveDate::parse_from_str(head, "%Y-%m-%d").ok()
+        crate::utils::parse_date(head)
     } else {
         None
     }
@@ -228,11 +228,8 @@ mod tests {
         let mut due = DueDate::default();
         due.date = "2025-02-22 17:30:00".into();
         item.set_due_date(Some(due));
-        assert_eq!(item.due_date_naive(), NaiveDate::from_ymd_opt(2025, 2, 22));
-        assert_eq!(
-            item.due_datetime(),
-            NaiveDate::from_ymd_opt(2025, 2, 22).and_then(|date| date.and_hms_opt(17, 30, 0))
-        );
+        assert_eq!(item.due_date_naive(), Date::new(2025, 2, 22).ok());
+        assert_eq!(item.due_datetime(), DateTime::new(2025, 2, 22, 17, 30, 0, 0).ok());
         assert!(!item.due_is_recurring());
     }
 

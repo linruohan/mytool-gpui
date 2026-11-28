@@ -4,10 +4,18 @@ use std::{
     time::Duration as StdDuration,
 };
 
-use chrono::{Duration, Local, NaiveDate, NaiveDateTime};
 use gpui::App;
+use jiff::{
+    Span,
+    civil::{DateTime as CivilDateTime, Time},
+};
 use rust_i18n::t;
-use todos::{Store, entity::ReminderModel, error::TodoError};
+use todos::{
+    Store,
+    entity::ReminderModel,
+    error::TodoError,
+    utils::{parse_date, parse_datetime},
+};
 
 use crate::todo_state::{
     DBState, ErrorNotifier, ReminderChange, ReminderChanges, ReminderNotice, ReminderNotifier,
@@ -83,25 +91,25 @@ pub fn delete_reminder(reminder_id: String, cx: &mut App) {
     .detach();
 }
 
-pub fn parse_reminder_due(due: &str) -> Option<NaiveDateTime> {
+/// 解析提醒时间，纯日期默认当天 09:00
+pub fn parse_reminder_due(due: &str) -> Option<CivilDateTime> {
     let due = due.trim();
-    NaiveDateTime::parse_from_str(due, "%Y-%m-%d %H:%M:%S")
-        .ok()
-        .or_else(|| NaiveDateTime::parse_from_str(due, "%Y-%m-%dT%H:%M:%S").ok())
-        .or_else(|| {
-            NaiveDate::parse_from_str(due, "%Y-%m-%d").ok().and_then(|d| d.and_hms_opt(9, 0, 0))
-        })
+    if due.len() == 10 {
+        return parse_date(due).map(|d| d.to_datetime(Time::constant(9, 0, 0, 0)));
+    }
+    parse_datetime(due)
 }
 
 /// 距下一次到期的等待。新增、删除、延后和开关会通过 [`poke_reminder_watcher`] 提前唤醒。
-fn poll_delay(now: NaiveDateTime, next_due: Option<NaiveDateTime>) -> StdDuration {
+fn poll_delay(now: CivilDateTime, next_due: Option<CivilDateTime>) -> StdDuration {
     let Some(next_due) = next_due else {
         return MAX_POLL;
     };
-    let Ok(delta) = (next_due - now).to_std() else {
+    let seconds = next_due.duration_since(now).as_secs();
+    if seconds <= 0 {
         return MIN_POLL;
-    };
-    delta.clamp(MIN_POLL, MAX_POLL)
+    }
+    StdDuration::from_secs(seconds as u64).clamp(MIN_POLL, MAX_POLL)
 }
 
 struct DueReminder {
@@ -110,15 +118,15 @@ struct DueReminder {
 }
 
 struct ReminderScan {
-    now: NaiveDateTime,
-    next_due: Option<NaiveDateTime>,
+    now: CivilDateTime,
+    next_due: Option<CivilDateTime>,
     due: Vec<DueReminder>,
 }
 
 fn partition_reminders(
     reminders: Vec<ReminderModel>,
-    now: NaiveDateTime,
-) -> (Vec<ReminderModel>, Option<NaiveDateTime>) {
+    now: CivilDateTime,
+) -> (Vec<ReminderModel>, Option<CivilDateTime>) {
     let mut due = Vec::new();
     let mut next_due = None;
     for reminder in reminders {
@@ -128,14 +136,14 @@ fn partition_reminders(
         if dt <= now {
             due.push(reminder);
         } else {
-            next_due = Some(next_due.map_or(dt, |prev: NaiveDateTime| prev.min(dt)));
+            next_due = Some(next_due.map_or(dt, |prev: CivilDateTime| prev.min(dt)));
         }
     }
     (due, next_due)
 }
 
 async fn scan_due_reminders(store: Arc<Store>) -> Result<ReminderScan, TodoError> {
-    let now = Local::now().naive_local();
+    let now = todos::utils::now_local();
     let reminders = store.get_schedule_reminders(now).await?;
     let (due_models, next_due) = partition_reminders(reminders, now);
     let due = due_models
@@ -240,8 +248,11 @@ pub fn start_reminder_watcher(cx: &mut App) {
 
 /// 将已弹出的提醒改到若干分钟之后再次触发
 pub fn snooze_reminder(reminder_id: String, item_id: String, minutes: i64, cx: &mut App) {
-    let due = (Local::now().naive_local() + Duration::minutes(minutes.max(1)))
-        .format("%Y-%m-%d %H:%M:%S")
+    let base = todos::utils::now_local();
+    let due = base
+        .checked_add(Span::new().minutes(minutes.max(1)))
+        .unwrap_or(base)
+        .strftime("%Y-%m-%d %H:%M:%S")
         .to_string();
     let db_state = cx.global::<DBState>().clone();
     let release_id = reminder_id.clone();
@@ -318,36 +329,40 @@ mod tests {
     #[test]
     fn parse_space_separated_due() {
         let dt = parse_reminder_due("2026-09-13 09:00:00").unwrap();
-        assert_eq!(dt.format("%H:%M").to_string(), "09:00");
+        assert_eq!(dt.strftime("%H:%M").to_string(), "09:00");
     }
 
     #[test]
     fn parse_date_only_defaults_morning() {
         let dt = parse_reminder_due("2026-09-13").unwrap();
-        assert_eq!(dt.format("%H:%M:%S").to_string(), "09:00:00");
+        assert_eq!(dt.strftime("%H:%M:%S").to_string(), "09:00:00");
     }
 
     #[test]
     fn poll_delay_tracks_the_next_due_within_bounds() {
-        let now =
-            NaiveDateTime::parse_from_str("2026-10-24 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let now = parse_datetime("2026-10-24 10:00:00").unwrap();
         assert_eq!(poll_delay(now, None), StdDuration::from_secs(30 * 60));
-        assert_eq!(poll_delay(now, Some(now + Duration::seconds(10))), StdDuration::from_secs(10));
         assert_eq!(
-            poll_delay(now, Some(now + Duration::milliseconds(200))),
+            poll_delay(now, now.checked_add(Span::new().seconds(10)).ok()),
+            StdDuration::from_secs(10)
+        );
+        assert_eq!(
+            poll_delay(now, now.checked_add(Span::new().milliseconds(200)).ok()),
             StdDuration::from_secs(1)
         );
         assert_eq!(
-            poll_delay(now, Some(now + Duration::hours(2))),
+            poll_delay(now, now.checked_add(Span::new().hours(2)).ok()),
             StdDuration::from_secs(30 * 60)
         );
-        assert_eq!(poll_delay(now, Some(now - Duration::seconds(1))), StdDuration::from_secs(1));
+        assert_eq!(
+            poll_delay(now, now.checked_sub(Span::new().seconds(1)).ok()),
+            StdDuration::from_secs(1)
+        );
     }
 
     #[test]
     fn partition_keeps_due_and_nearest_future() {
-        let now =
-            NaiveDateTime::parse_from_str("2026-10-24 10:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let now = parse_datetime("2026-10-24 10:00:00").unwrap();
         let mk = |id: &str, due: &str| ReminderModel {
             id: id.into(),
             due: Some(due.into()),
@@ -364,6 +379,6 @@ mod tests {
         );
         assert_eq!(due.len(), 1);
         assert_eq!(due[0].id, "past");
-        assert_eq!(next.unwrap().format("%H:%M").to_string(), "10:05");
+        assert_eq!(next.unwrap().strftime("%H:%M").to_string(), "10:05");
     }
 }

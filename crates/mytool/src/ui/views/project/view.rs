@@ -23,7 +23,6 @@ use crate::{
     todo_actions::{add_project, delete_project, update_project},
     todo_color_picker,
     todo_state::TodoStore,
-    utils::to_civil_date,
 };
 
 impl EventEmitter<ProjectEvent> for ProjectsPanel {}
@@ -165,10 +164,10 @@ impl ProjectsPanel {
         let name_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("todo.project.name_placeholder").to_string())
         });
-        let now = chrono::Local::now().naive_local().date();
+        let now = todos::utils::today_local();
         let project_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
-            picker.set_date(to_civil_date(now), window, cx);
+            picker.set_date(now, window, cx);
             picker
         });
         let color = self.color.clone();

@@ -38,7 +38,7 @@ pub fn group_items(
     today_board: bool,
 ) -> GroupedItems {
     let mut grouped = GroupedItems::default();
-    let today = chrono::Local::now().date_naive();
+    let today = todos::utils::today_local();
 
     let push_sectioned =
         |grouped: &mut GroupedItems, i: usize, item_model: Arc<todos::entity::ItemModel>| {
@@ -521,7 +521,7 @@ impl BoardBase {
                 ori_item.set_due_date(Some(due));
             } else if self.is_today_board {
                 let mut due = todos::DueDate::default();
-                due.date = chrono::Local::now().format("%Y-%m-%d").to_string();
+                due.date = todos::utils::format_date(todos::utils::today_local());
                 ori_item.set_due_date(Some(due));
             }
             self.item_info.update(cx, |state, cx| {
@@ -1122,12 +1122,12 @@ mod tests {
     fn today_board_splits_overdue_and_due_today() {
         let mut overdue = item("overdue", false, false, None);
         let mut due_today = item("today", false, false, None);
-        let yesterday = chrono::Local::now().date_naive() - chrono::Duration::days(1);
-        let today = chrono::Local::now().date_naive();
+        let today = todos::utils::today_local();
+        let yesterday = today.checked_sub(jiff::Span::new().days(1)).unwrap_or(today);
         let mut overdue_due = todos::DueDate::default();
-        overdue_due.date = yesterday.format("%Y-%m-%d").to_string();
+        overdue_due.date = todos::utils::format_date(yesterday);
         let mut today_due = todos::DueDate::default();
-        today_due.date = today.format("%Y-%m-%d").to_string();
+        today_due.date = todos::utils::format_date(today);
         Arc::make_mut(&mut overdue).set_due_date(Some(overdue_due));
         Arc::make_mut(&mut due_today).set_due_date(Some(today_due));
 

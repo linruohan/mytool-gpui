@@ -224,7 +224,7 @@ impl Store {
 
     pub async fn get_schedule_reminders(
         &self,
-        now: chrono::NaiveDateTime,
+        now: jiff::civil::DateTime,
     ) -> Result<Vec<ReminderModel>, TodoError> {
         self.reminder_service.get_schedule_reminders(now).await
     }

@@ -450,7 +450,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
     } else {
         updated_item.checked = checked;
         updated_item.completed_at =
-            if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+            if checked { Some(todos::utils::now_utc_string()) } else { None };
     }
 
     let complete_subitems = !rolling;
@@ -466,7 +466,7 @@ pub fn complete_item_optimistic(item: Arc<ItemModel>, checked: bool, cx: &mut Ap
             let mut child_item = (**child).clone();
             child_item.checked = checked;
             child_item.completed_at =
-                if checked { Some(chrono::Utc::now().naive_utc()) } else { None };
+                if checked { Some(todos::utils::now_utc_string()) } else { None };
             let after = Arc::new(child_item);
             undo_parts.push(UndoEntry::Updated { before: child.clone(), after: after.clone() });
             child_afters.push(after);

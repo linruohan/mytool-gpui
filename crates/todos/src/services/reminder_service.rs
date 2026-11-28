@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use chrono::NaiveDateTime;
+use jiff::civil::DateTime;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
     QuerySelect, Set,
@@ -71,9 +71,9 @@ impl ReminderService {
     /// 再由调用方按早上 9 点判断是不是真的到期。
     pub async fn get_schedule_reminders(
         &self,
-        now: NaiveDateTime,
+        now: DateTime,
     ) -> Result<Vec<ReminderModel>, TodoError> {
-        let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
+        let now_str = now.strftime("%Y-%m-%d %H:%M:%S").to_string();
         let due = ReminderEntity::find()
             .select_only()
             .column(reminders::Column::Id)

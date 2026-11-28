@@ -145,7 +145,7 @@ struct BoardMembership {
     scheduled: bool,
 }
 
-fn board_membership(item: &ItemModel, today: chrono::NaiveDate) -> BoardMembership {
+fn board_membership(item: &ItemModel, today: jiff::civil::Date) -> BoardMembership {
     if item.checked {
         return BoardMembership { inbox: false, today: false, scheduled: false };
     }
@@ -395,7 +395,7 @@ pub struct TodoStore {
     today_set: HashSet<String>,
     scheduled_set: HashSet<String>,
     /// 看板索引对应的本地日期（跨日时回退全表扫描）
-    index_date: chrono::NaiveDate,
+    index_date: jiff::civil::Date,
 
     /// 临时 ID 到真实 ID 的映射（用于 ID 变化检测）
     id_mappings: HashMap<String, String>,
@@ -549,8 +549,8 @@ impl TodoStore {
         }
     }
 
-    fn today_date() -> chrono::NaiveDate {
-        chrono::Local::now().date_naive()
+    fn today_date() -> jiff::civil::Date {
+        todos::utils::today_local()
     }
 
     fn board_indexes_current(&self) -> bool {
@@ -1628,11 +1628,17 @@ mod tests {
     fn test_inbox_items() {
         let mut store = TodoStore::new();
 
-        let today = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-        let yesterday =
-            (chrono::Local::now() - chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
-        let tomorrow =
-            (chrono::Local::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let today = todos::utils::now_local_string();
+        let yesterday = todos::utils::format_datetime(
+            todos::utils::now_local()
+                .checked_sub(jiff::Span::new().days(1))
+                .unwrap_or_else(|_| todos::utils::now_local()),
+        );
+        let tomorrow = todos::utils::format_datetime(
+            todos::utils::now_local()
+                .checked_add(jiff::Span::new().days(1))
+                .unwrap_or_else(|_| todos::utils::now_local()),
+        );
 
         store.set_items(vec![
             create_test_item("1", false, false, None),
@@ -1703,10 +1709,16 @@ mod tests {
     #[test]
     fn test_today_items_include_overdue_and_leave_after_reschedule() {
         let mut store = TodoStore::new();
-        let yesterday =
-            (chrono::Local::now() - chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
-        let tomorrow =
-            (chrono::Local::now() + chrono::Days::new(1)).format("%Y-%m-%d %H:%M:%S").to_string();
+        let yesterday = todos::utils::format_datetime(
+            todos::utils::now_local()
+                .checked_sub(jiff::Span::new().days(1))
+                .unwrap_or_else(|_| todos::utils::now_local()),
+        );
+        let tomorrow = todos::utils::format_datetime(
+            todos::utils::now_local()
+                .checked_add(jiff::Span::new().days(1))
+                .unwrap_or_else(|_| todos::utils::now_local()),
+        );
 
         store.set_items(vec![create_test_item("overdue", false, false, Some(&yesterday))]);
         assert_eq!(store.today_items().len(), 1);
@@ -1724,7 +1736,7 @@ mod tests {
     #[test]
     fn test_incremental_board_indexes_follow_updates() {
         let mut store = TodoStore::new();
-        let today = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let today = todos::utils::now_local_string();
 
         store.set_items(vec![
             create_test_item("inbox", false, false, None),

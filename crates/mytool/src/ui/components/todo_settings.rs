@@ -21,7 +21,6 @@ use crate::{
     core::shortcuts::{ShortcutCategory, get_shortcuts_by_category},
     todo_actions::{batch_update_items, poke_reminder_watcher, update_item_optimistic},
     todo_state::{TodoPrefs, TodoStore},
-    utils::to_civil_date,
 };
 
 fn startup_boards() -> [(String, u8); 6] {
@@ -330,7 +329,7 @@ pub fn apply_due_quick_preset(
     if items.is_empty() {
         return 0;
     }
-    let today = chrono::Local::now().naive_local().date();
+    let today = todos::utils::today_local();
     let updated: Vec<Arc<ItemModel>> = items
         .into_iter()
         .map(|item| {
@@ -340,8 +339,10 @@ pub fn apply_due_quick_preset(
                 _ => {
                     let date = match preset {
                         DueQuickPreset::Today => today,
-                        DueQuickPreset::Tomorrow => today.succ_opt().unwrap_or(today),
-                        DueQuickPreset::NextWeek => today + chrono::Duration::days(7),
+                        DueQuickPreset::Tomorrow => today.tomorrow().unwrap_or(today),
+                        DueQuickPreset::NextWeek => {
+                            today.checked_add(jiff::Span::new().days(7)).unwrap_or(today)
+                        },
                         DueQuickPreset::Clear => unreachable!(),
                     };
                     let due = model
@@ -371,7 +372,7 @@ pub fn show_set_due_dialog<T, F>(
     let picker = cx.new(|cx| {
         let mut picker = DatePickerState::new(window, cx);
         if let Some(date) = item.due_date_naive() {
-            picker.set_date(to_civil_date(date), window, cx);
+            picker.set_date(date, window, cx);
         }
         picker
     });
@@ -392,9 +393,7 @@ pub fn show_set_due_dialog<T, F>(
                 move |_, window, cx| {
                     let ymd = picker.read(cx).date().format("%Y-%m-%d").map(|s| s.to_string());
                     let mut updated = (*item).clone();
-                    match ymd
-                        .and_then(|ymd| chrono::NaiveDate::parse_from_str(&ymd, "%Y-%m-%d").ok())
-                    {
+                    match ymd.and_then(|ymd| todos::utils::parse_date(&ymd)) {
                         Some(date) => {
                             let due = item
                                 .due_date()

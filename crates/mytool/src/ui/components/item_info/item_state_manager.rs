@@ -146,7 +146,7 @@ impl ItemStateManager {
     pub fn set_completed(&mut self, completed: bool) {
         self.update_item(|item| {
             item.checked = completed;
-            item.completed_at = if completed { Some(chrono::Utc::now().naive_utc()) } else { None };
+            item.completed_at = if completed { Some(todos::utils::now_utc_string()) } else { None };
         });
     }
 

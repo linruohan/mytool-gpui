@@ -196,10 +196,9 @@ impl Render for TodayBoard {
         let past_due_schedule_button = self.past_due_schedule_button.clone();
 
         let date_label = {
-            use chrono::Datelike;
-            let now = chrono::Local::now();
+            let now = todos::utils::now_local();
             let weekday = crate::ui::views::boards::board_common::weekday_short(
-                now.weekday().num_days_from_sunday(),
+                now.weekday().to_sunday_zero_offset() as u32,
             );
             t!(
                 "todo.date.weekday_md",

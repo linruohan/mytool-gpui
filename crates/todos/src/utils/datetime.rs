@@ -1,56 +1,65 @@
-use std::{cmp::Ordering, str::FromStr};
+use std::cmp::Ordering;
 
-use anyhow::Result;
-use chrono::{
-    Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Timelike,
+use jiff::{
+    Span,
+    civil::{Date, DateTime as CivilDateTime, Time},
 };
 use serde_json::Value;
 
-use crate::{enums::RecurrencyType, objects::DueDate};
-pub const EMPTY_DATETIME: NaiveDateTime =
-    chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc();
+use crate::{
+    enums::RecurrencyType,
+    objects::DueDate,
+    utils::{now_local, parse_datetime, today_local},
+};
+
+/// 空日期时间哨兵值：1970-01-01 00:00:00
+pub const EMPTY_DATETIME: CivilDateTime = CivilDateTime::constant(1970, 1, 1, 0, 0, 0, 0);
+
 #[derive(Default)]
 pub struct DateTime {}
 
 impl DateTime {
-    pub fn get_todoist_datetime(&self, date: String) -> Result<NaiveDateTime, ParseError> {
+    /// 解析 Todoist 风格的日期字符串
+    pub fn get_todoist_datetime(&self, date: String) -> Result<CivilDateTime, jiff::Error> {
         // YYYY-MM-DD
         if date.len() == 10 {
-            NaiveDateTime::parse_from_str(format!("{date} 00:00:00").as_str(), "%Y-%m-%d %H:%M:%S")
+            CivilDateTime::strptime("%Y-%m-%d %H:%M:%S", format!("{date} 00:00:00"))
         } else {
             // YYYY-MM-DDTHH:MM:SS
-            NaiveDateTime::parse_from_str(&date, "%Y-%m-%d %H:%M:%S")
+            CivilDateTime::strptime("%Y-%m-%d %H:%M:%S", &date)
         }
     }
 
-    pub fn get_relative_date_from_date(&self, datetime: &NaiveDateTime) -> String {
-        let now = Local::now().naive_local();
+    /// 相对日期文案：今天 / 明天 / 昨天 / M月D日
+    pub fn get_relative_date_from_date(&self, datetime: &CivilDateTime) -> String {
+        let now = now_local();
         let format_str =
             if datetime.year() == now.year() { "%m月%d日" } else { "%Y年%m月%d日" };
         let returned = if datetime != &EMPTY_DATETIME && self.is_same_day(datetime, &now) {
             "今天".to_string()
         } else if datetime != &EMPTY_DATETIME
-            && self.is_same_day(datetime, &(now + Duration::days(1)))
+            && self.is_same_day(datetime, &(now.checked_add(Span::new().days(1)).unwrap_or(now)))
         {
             "明天".to_string()
         } else if datetime != &EMPTY_DATETIME
-            && self.is_same_day(datetime, &(now - Duration::days(1)))
+            && self.is_same_day(datetime, &(now.checked_sub(Span::new().days(1)).unwrap_or(now)))
         {
             "昨天".to_string()
         } else {
-            datetime.format(format_str).to_string()
+            datetime.strftime(format_str).to_string()
         };
         if self.has_time(datetime) {
-            format!("{} {}", returned, datetime.format(self.get_default_time_format()))
+            format!("{} {}", returned, datetime.strftime(self.get_default_time_format()))
         } else {
             returned
         }
     }
 
-    pub fn get_relative_datetime(&self, datetime: NaiveDateTime) -> String {
-        let now = Local::now().naive_local();
-        let diff = now - datetime;
-        let total_seconds = diff.num_seconds();
+    /// 相对时间文案：刚刚 / N 分钟前 / N 小时前 / N 天前 ...
+    pub fn get_relative_datetime(&self, datetime: CivilDateTime) -> String {
+        let now = now_local();
+        // 与 chrono 的 num_seconds 一致：截断到整秒
+        let total_seconds = now.duration_since(datetime).as_secs();
 
         if total_seconds < 60 {
             return "刚刚".to_string();
@@ -84,8 +93,9 @@ impl DateTime {
         format!("{days}天{suffix}")
     }
 
-    pub fn days_left(&self, datetime: &NaiveDateTime, show_today: bool) -> String {
-        let days = (*datetime - Local::now().naive_local()).num_days();
+    /// 距离目标日期还有几天（负数表示已过）
+    pub fn days_left(&self, datetime: &CivilDateTime, show_today: bool) -> String {
+        let days = datetime.duration_since(now_local()).as_secs() / 86_400;
         match (self.is_today(datetime), days.cmp(&0)) {
             (true, _) if show_today => "今天".into(),
             (true, _) => String::new(),
@@ -105,20 +115,21 @@ impl DateTime {
         false
     }
 
-    pub fn is_yesterday(&self, date: &NaiveDateTime) -> bool {
-        self.is_same_day(date, &(Local::now().naive_local() - Duration::days(1)))
+    pub fn is_yesterday(&self, date: &CivilDateTime) -> bool {
+        let yesterday = today_local().yesterday().unwrap_or_else(|_| today_local());
+        self.is_same_day(date, &yesterday.to_datetime(Time::midnight()))
     }
 
-    pub fn is_same_day(&self, dt1: &NaiveDateTime, dt2: &NaiveDateTime) -> bool {
-        dt1.year() == dt2.year() && dt1.month() == dt2.month() && dt1.day() == dt2.day()
+    pub fn is_same_day(&self, dt1: &CivilDateTime, dt2: &CivilDateTime) -> bool {
+        dt1.date() == dt2.date()
     }
 
-    pub fn is_overdue(&self, date: &NaiveDateTime) -> bool {
+    pub fn is_overdue(&self, date: &CivilDateTime) -> bool {
         // date在今天之前，说明是过期了
-        date < &Local::now().naive_local()
+        date < &now_local()
     }
 
-    pub fn get_calendar_icon(&self, date: &NaiveDateTime) -> &str {
+    pub fn get_calendar_icon(&self, date: &CivilDateTime) -> &str {
         if self.is_today(date) {
             return "planner-today";
         }
@@ -127,33 +138,36 @@ impl DateTime {
 
     pub fn parse_todoist_recurrency(_duedate: DueDate, _object: Value) {}
 
-    pub fn has_time(&self, datetime: &NaiveDateTime) -> bool {
-        datetime == &EMPTY_DATETIME && datetime.time() != NaiveTime::default()
+    pub fn has_time(&self, datetime: &CivilDateTime) -> bool {
+        datetime == &EMPTY_DATETIME && datetime.time() != Time::midnight()
     }
 
-    pub fn is_today(&self, date: &NaiveDateTime) -> bool {
+    pub fn is_today(&self, date: &CivilDateTime) -> bool {
         if date == &EMPTY_DATETIME {
             return false;
         }
-        self.is_same_day(date, &Local::now().naive_local())
+        self.is_same_day(date, &now_local())
     }
 
-    pub fn is_tomorrow(&self, date: &NaiveDateTime) -> bool {
+    pub fn is_tomorrow(&self, date: &CivilDateTime) -> bool {
         if date == &EMPTY_DATETIME {
             return false;
         }
-        self.is_same_day(date, &(Local::now().naive_local() + Duration::days(1)))
+        let tomorrow = today_local().tomorrow().unwrap_or_else(|_| today_local());
+        self.is_same_day(date, &tomorrow.to_datetime(Time::midnight()))
     }
 
-    pub fn is_next_week(&self, date: &NaiveDateTime) -> bool {
+    pub fn is_next_week(&self, date: &CivilDateTime) -> bool {
         if date == &EMPTY_DATETIME {
             return false;
         }
-        self.is_same_day(date, &(Local::now().naive_local() + Duration::days(7)))
+        let today = today_local();
+        let next_week = today.checked_add(Span::new().days(7)).unwrap_or(today);
+        self.is_same_day(date, &next_week.to_datetime(Time::midnight()))
     }
 
-    pub fn get_date_from_string(&self, date: &str) -> NaiveDateTime {
-        NaiveDateTime::from_str(date).unwrap_or_default()
+    pub fn get_date_from_string(&self, date: &str) -> CivilDateTime {
+        parse_datetime(date).unwrap_or_default()
     }
 
     pub fn recurrence_to_due(&self, _recurrence: RecurrencyType, due: &mut DueDate) {
@@ -161,7 +175,7 @@ impl DateTime {
 
         if due.recurrency_type == RecurrencyType::EveryWeek {
             let mut recurrency_weeks = String::new();
-            let day_array: Vec<NaiveDateTime> = Vec::new();
+            let day_array: Vec<CivilDateTime> = Vec::new();
 
             if self.check_by_day("1", &day_array) {
                 recurrency_weeks.push_str("7,");
@@ -199,7 +213,7 @@ impl DateTime {
         }
     }
 
-    fn check_by_day(&self, day: &str, day_array: &[NaiveDateTime]) -> bool {
+    fn check_by_day(&self, day: &str, day_array: &[CivilDateTime]) -> bool {
         for day1 in day_array.iter() {
             if day1.to_string() == day {
                 return true;
@@ -208,67 +222,59 @@ impl DateTime {
         false
     }
 
-    pub fn format_date(&self, format_date: NaiveDate) -> NaiveDateTime {
-        NaiveDateTime::new(format_date, NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+    pub fn format_date(&self, format_date: Date) -> CivilDateTime {
+        format_date.to_datetime(Time::midnight())
     }
 
-    pub fn is_this_week(&self, date: NaiveDateTime) -> bool {
+    pub fn is_this_week(&self, date: CivilDateTime) -> bool {
         let current_date = date.date();
+        // 周一为一周起点
+        let monday_offset = current_date.weekday().to_monday_zero_offset() as i64;
         let start_of_week =
-            current_date - Duration::days(current_date.weekday().num_days_from_monday() as i64);
-        let end_of_week = start_of_week + Duration::days(6);
+            current_date.checked_sub(Span::new().days(monday_offset)).unwrap_or(current_date);
+        let end_of_week = start_of_week.checked_add(Span::new().days(6)).unwrap_or(start_of_week);
 
         date >= self.format_date(start_of_week) && date <= self.format_date(end_of_week)
     }
 
-    pub fn is_next_x_week(&self, date: NaiveDateTime, days: i64) -> bool {
-        let current_date = Local::now().naive_local();
-        let end_date = current_date + Duration::days(days);
+    pub fn is_next_x_week(&self, date: CivilDateTime, days: i64) -> bool {
+        let current_date = now_local();
+        let end_date = current_date.checked_add(Span::new().days(days)).unwrap_or(current_date);
 
         date >= current_date && date <= end_date
     }
 
-    pub fn is_this_month(&self, date: NaiveDateTime) -> bool {
-        let current_date = Local::now().naive_local();
+    pub fn is_this_month(&self, date: CivilDateTime) -> bool {
+        let current_date = now_local();
         current_date.month() == date.month() && current_date.year() == date.year()
     }
 
-    pub fn add_years(&self, datetime: NaiveDateTime, years: i32) -> NaiveDateTime {
-        let date = datetime.date();
-        let time = datetime.time();
-        date.with_year(date.year() + years).unwrap().and_time(time)
+    pub fn add_years(&self, datetime: CivilDateTime, years: i32) -> CivilDateTime {
+        // jiff 默认 constrain：2 月 29 日加一年会落到 2 月 28 日
+        datetime.checked_add(Span::new().years(years as i64)).unwrap_or(datetime)
     }
 
-    pub fn add_months(&self, datetime: NaiveDateTime, months: u32) -> NaiveDateTime {
-        let mut year = datetime.year();
-        let mut month = datetime.month();
-        let day = datetime.day();
-        month += months;
-        // 计算新的年和月
-        while month > 12 {
-            month -= 12;
-            year += 1;
-        }
-        // 处理月份溢出问题
-        let new_date = NaiveDate::from_ymd_opt(year, month, day).unwrap_or_else(|| {
-            // 如果日期无效，比如2.30,则回退到月的第一天
-            NaiveDate::from_ymd_opt(year, month + 1, 1)
-                .unwrap()
-                .pred_opt()
-                .expect("add nativedatetime failed")
-        });
-        new_date.and_time(datetime.time())
+    pub fn add_months(&self, datetime: CivilDateTime, months: u32) -> CivilDateTime {
+        datetime.checked_add(Span::new().months(months as i64)).unwrap_or(datetime)
     }
 
-    pub fn next_recurrency(&self, datetime: NaiveDateTime, duedate: DueDate) -> NaiveDateTime {
+    pub fn next_recurrency(&self, datetime: CivilDateTime, duedate: DueDate) -> CivilDateTime {
         let returned = datetime;
         match duedate.recurrency_type {
-            RecurrencyType::MINUTELY => returned + Duration::minutes(duedate.recurrency_interval),
-            RecurrencyType::HOURLY => returned + Duration::hours(duedate.recurrency_interval),
-            RecurrencyType::EveryDay => returned + Duration::days(duedate.recurrency_interval),
+            RecurrencyType::MINUTELY => returned
+                .checked_add(Span::new().minutes(duedate.recurrency_interval))
+                .unwrap_or(returned),
+            RecurrencyType::HOURLY => returned
+                .checked_add(Span::new().hours(duedate.recurrency_interval))
+                .unwrap_or(returned),
+            RecurrencyType::EveryDay => returned
+                .checked_add(Span::new().days(duedate.recurrency_interval))
+                .unwrap_or(returned),
             RecurrencyType::EveryWeek => {
                 if duedate.recurrency_weeks.is_empty() {
-                    returned + Duration::days(duedate.recurrency_interval * 7)
+                    returned
+                        .checked_add(Span::new().days(duedate.recurrency_interval * 7))
+                        .unwrap_or(returned)
                 } else {
                     self.next_recurrency_week(datetime, duedate, false)
                 }
@@ -284,11 +290,11 @@ impl DateTime {
     }
 
     pub fn get_next_day_of_week_from_recurrency_week(
-        datetime: NaiveDateTime,
+        datetime: CivilDateTime,
         duedate: DueDate,
     ) -> Option<i32> {
         let weeks: Vec<&str> = duedate.recurrency_weeks.split(",").collect();
-        let day_of_week = datetime.weekday().num_days_from_monday() as i32;
+        let day_of_week = datetime.weekday().to_monday_zero_offset() as i32;
         for week in &weeks {
             if let Ok(week) = week.parse::<i32>() {
                 if week > day_of_week {
@@ -309,12 +315,12 @@ impl DateTime {
 
     pub fn next_recurrency_week(
         &self,
-        datetime: NaiveDateTime,
+        datetime: CivilDateTime,
         duedate: DueDate,
         user: bool,
-    ) -> NaiveDateTime {
+    ) -> CivilDateTime {
         let weeks: Vec<&str> = duedate.recurrency_weeks.split(",").collect(); // [1, 2, 3]
-        let day_of_week: i64 = datetime.weekday().num_days_from_monday() as i64; // 2
+        let day_of_week: i64 = datetime.weekday().to_monday_zero_offset() as i64; // 2
         let mut index = 0;
         let mut recurrency_interval = 0;
 
@@ -336,7 +342,7 @@ impl DateTime {
             recurrency_interval = (duedate.recurrency_interval - 1) * 7;
         }
 
-        datetime + Duration::days(days) + Duration::days(recurrency_interval)
+        datetime.checked_add(Span::new().days(days + recurrency_interval)).unwrap_or(datetime)
     }
 
     pub fn get_recurrency_weeks(
@@ -387,31 +393,31 @@ impl DateTime {
         format!("{returned} {end}")
     }
 
-    pub fn get_today_format_date(&self) -> NaiveDateTime {
-        self.get_date_only(&Local::now().naive_local())
+    pub fn get_today_format_date(&self) -> CivilDateTime {
+        self.get_date_only(&now_local())
     }
 
-    pub fn get_date_only(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        NaiveDateTime::new(date.date(), NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+    pub fn get_date_only(&self, date: &CivilDateTime) -> CivilDateTime {
+        date.date().to_datetime(Time::midnight())
     }
 
-    pub fn get_default_date_format_from_date(&self, date: &NaiveDateTime) -> String {
-        if date.year() == Local::now().year() {
+    pub fn get_default_date_format_from_date(&self, date: &CivilDateTime) -> String {
+        if date.year() == today_local().year() {
             "%m月%d日".to_string()
         } else {
             "%Y年%m月%d日".to_string()
         }
     }
 
-    pub fn get_todoist_datetime_format(&self, date: &NaiveDateTime) -> String {
+    pub fn get_todoist_datetime_format(&self, date: &CivilDateTime) -> String {
         if self.has_time(date) {
-            format!("{}T{}", date.format("%F"), date.format("%T"))
+            format!("{}T{}", date.strftime("%F"), date.strftime("%T"))
         } else {
-            date.format("%F").to_string()
+            date.strftime("%F").to_string()
         }
     }
 
-    pub fn has_time_from_string(&self, date: &NaiveDateTime) -> bool {
+    pub fn has_time_from_string(&self, date: &CivilDateTime) -> bool {
         self.has_time(date)
     }
 
@@ -432,25 +438,17 @@ impl DateTime {
         }
     }
 
-    pub fn get_start_of_month(&self, date: NaiveDateTime) -> NaiveDateTime {
-        if date == EMPTY_DATETIME {
-            let _date = Local::now().naive_local();
-        }
-        let date1 = NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap();
-        let time1 = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
-        NaiveDateTime::new(date1, time1)
+    pub fn get_start_of_month(&self, date: CivilDateTime) -> CivilDateTime {
+        date.date().first_of_month().to_datetime(Time::midnight())
     }
 
-    pub fn is_current_month(&self, date: NaiveDateTime) -> bool {
-        let now = Local::now().naive_local();
+    pub fn is_current_month(&self, date: CivilDateTime) -> bool {
+        let now = now_local();
         if date.year() == now.year() { date.month() == now.month() } else { false }
     }
 
-    pub fn get_datetime_no_seconds(&self, datetime: NaiveDateTime) -> NaiveDateTime {
-        let time = datetime.time();
-        NaiveDateTime::new(
-            datetime.date(),
-            NaiveTime::from_hms_opt(time.hour(), time.minute(), 0).unwrap(),
-        )
+    pub fn get_datetime_no_seconds(&self, datetime: CivilDateTime) -> CivilDateTime {
+        let time = Time::new(datetime.hour(), datetime.minute(), 0, 0).unwrap_or(datetime.time());
+        CivilDateTime::from_parts(datetime.date(), time)
     }
 }

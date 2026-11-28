@@ -35,7 +35,6 @@ use crate::{
         BoardView, PinnedLayout, board_common, board_renderer, clamp_active_index,
         diff_update_item_rows, group_items, reorder_in_groups,
     },
-    utils::to_civil_date,
 };
 
 pub enum ProjectItemEvent {
@@ -463,15 +462,15 @@ impl ProjectItemsPanel {
             });
         }
 
-        let now = chrono::Local::now().naive_local().date();
+        let now = todos::utils::today_local();
         let project_due = cx.new(|cx| {
             let mut picker = DatePickerState::new(window, cx).disabled_matcher(vec![0, 6]);
             if let Some(due) = &self.project.due_date {
-                if let Ok(date) = chrono::NaiveDate::parse_from_str(due, "%Y-%m-%d") {
-                    picker.set_date(to_civil_date(date), window, cx);
+                if let Some(date) = todos::utils::parse_date(due) {
+                    picker.set_date(date, window, cx);
                 }
             } else {
-                picker.set_date(to_civil_date(now), window, cx);
+                picker.set_date(now, window, cx);
             }
             picker
         });
